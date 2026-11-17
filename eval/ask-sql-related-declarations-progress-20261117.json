@@ -1,0 +1,84 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-28",
+  "original_requirement": "The ordinary natural-language entry point composes complete admitted SQL source evidence so AI callers do not need specialist-tool discovery to recover already collected facts.",
+  "observed_missing_behavior": "ask_schema calls the source table reader, but retains only row.table, dropping its independently cited indexes, triggers, views, stored_procedures, alter_table_foreign_keys and alter_table_columns.",
+  "priority_basis": "LegacyValidation SQL workflows; normal Full configuration last observed unchanged. Reuse existing selected/current SQL reader and catalog. No new SQL parser, target language, database execution, graph/Blast work or real LegacyValidation mutation.",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117",
+  "source_phase_started_at_utc": "2026-11-17T20:06:37.668988+00:00",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/ask_schema.rs",
+    "crates/engram_server/src/handlers/ask_tools.rs",
+    "docs/TOOL_CONTRACT.md",
+    "crates/engram_server/tests/ask_sql_related_declarations.rs",
+    "crates/engram_server/src/services/ask_engine/report.rs",
+    "crates/engram_server/src/services/ask_engine/report.rs"
+  ],
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117\\contract.json",
+  "finite_acceptance": [
+    "Preserve all source-table reader row fields in unambiguous ordinary schema evidence, with existing table structure, independent object/ALTER citations, binding and application qualifications.",
+    "Returned admitted related source citations contribute to ordinary policy scope only when their schema evidence survives ranking. Ambiguous candidates remain identity-only; no default schema or deployment interpretation.",
+    "Scoped and changed-source calls retain existing source admission/gaps. JSON and Markdown and immutable bounded original-report recovery retain all declared related evidence and exceptions.",
+    "Owned installed before proof compares existing query_schema relation rows to missing ordinary answer; focused native3 and public10+ checks prepared for combined validation. No standalone compile.",
+    "Core deferred-object recovery uses its existing advertised hash-bound file reader; Full retains specialized query_schema actions. Markdown retains complete provider-bounded schema content under existing whole-report budgeting."
+  ],
+  "native_tests_executed": 0,
+  "engram_builds_started": 0,
+  "runtime_deployed": false,
+  "full_original_requirement_complete": false,
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117",
+    "retention": "Keep contract/source/verifier/receipts until delivery; newly owned fixture owners close before directory teardown on completion/unwind. No preexisting deletion.",
+    "baseline_owners_closed": true,
+    "baseline_owned_fixtures_removed": true,
+    "current_fixture_processes": 0
+  },
+  "public_checks_written": 11,
+  "source_commit": "330f2e2abfcdd358dd34d8c9c306fcc0fb53edb8",
+  "source_outcomes": 1,
+  "source_phase_completed_at_utc": "2026-11-17T20:18:17.155981+00:00",
+  "implementation_items_active": 0,
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117\\baseline2\\receipt.json",
+  "baseline_checks_passed": 3,
+  "baseline_seconds": 3.866106499917805,
+  "baseline_reply_bytes": 13634,
+  "native_target": "ask_sql_related_declarations",
+  "native_test_cases_written": 3,
+  "related_native_target": "ask_sql_schema_tests",
+  "related_native_case_count": 1,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117\\verify-public.py",
+  "public_verifier_sha256": "b78aa3e659172c500ed1484ff7115be8452e81e9bbb159ee88402563ac75a0b1",
+  "post_change_public_checks_executed": 0,
+  "source_after": [
+    "Preserve the existing source reader table row rather than projecting out6related categories: indexes/key constraints, triggers, views, procedures, ALTER foreign keys and ALTER columns. Related body omissions, source citations, binding and unapplied-state qualifiers remain intact.",
+    "Derive additional authored-guidance scope from typed citations in retained admitted schema evidence, including related SQL files; do not attach every scanned file or widen caller source scope.",
+    "Preserve the bounded schema payload in Markdown instead of clipping it again to200characters; existing whole-report budget and immutable recovery remain.",
+    "Full keeps existing specialist handoffs. Core substitutes its already-advertised hash-bound file reader for deferred related object bodies, with explicit complete-file pagination and source/deployment limits. No schema/router/model/SQL-parser expansion."
+  ],
+  "source_checks": {
+    "rust_syntax": "PASS for3implementation modules and new focused native source; type/native execution pending",
+    "python_syntax": "PASS",
+    "diff_whitespace": "PASS",
+    "protected_wip9": "UNCHANGED",
+    "normal_config": "UNCHANGED from recorded Full configuration; production project not mutated"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/ask_schema.rs": "1925780e7c9098e6799500445c3746a69f68aba08e5e4b36ef82f8b30159a549",
+    "crates/engram_server/src/handlers/ask_tools.rs": "7a3b970dea299dba4688670b261f87720f4519df30e454adda27b2e3b34de77e",
+    "docs/TOOL_CONTRACT.md": "e229a89d7e4085831abf4bebebd40071243136cae3d25883230651590b5511ed",
+    "crates/engram_server/tests/ask_sql_related_declarations.rs": "13946bb48c2b441504f09180f20efacb8fb2c29abb6e34be2a6d2e87b9869958",
+    "crates/engram_server/src/services/ask_engine/report.rs": "55b3c2665725dab903d6cab4c168dab52e8e8d3ef65fa036f81153ee75f2191f"
+  },
+  "baseline_correction": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117\\baseline1\\receipt.json",
+    "reason": "Expected exactly1index but source reader correctly returns1explicitindex plus1inline primary-key constraint. Corrected fixture oracle to preserve both; all6related categories were already present in specialist output and absent from ordinary typed facts. No production fix/rebuild was needed for this verifier error.",
+    "closed_and_removed": true
+  },
+  "limits": [
+    "Source complete only. Rust type/native and post-change public/candidate/installed checks remain pending; installed ab166a7 and actual LegacyValidation config/data unchanged.",
+    "Table CREATE baseline is separate from independently cited ALTER observations. Related views/procedures/triggers can be metadata-only with explicit recovery; no applied migrations, execution, deployment ordering, default-schema/physical database binding or model/task benefit is established.",
+    "Existing managed selected/current SQL source, path-scope/deadline/ambiguity/size budgets remain. Historical requests stay on their separate pinned Git path.",
+    "The contract documentation paragraph explicitly marks this source change pending combined validation/deployment; reconcile that marker only after acceptance."
+  ],
+  "next_action": "Queue this genuine TODO-28 source outcome beside EG-27 inline guidance. Continue the next ready independent original requirement before combined validation; no standalone compile or accepted-batch replay."
+}

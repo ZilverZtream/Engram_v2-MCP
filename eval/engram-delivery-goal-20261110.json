@@ -2563,6 +2563,15 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117\\contract.json",
         "source_outcomes": 1,
         "runtime_deployed": false
+      },
+      {
+        "original_requirement_id": "TODO-28",
+        "progress": "eval/ask-sql-related-declarations-progress-20261117.json",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "330f2e2abfcdd358dd34d8c9c306fcc0fb53edb8",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117\\contract.json",
+        "source_outcomes": 1,
+        "runtime_deployed": false
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2795,87 +2804,32 @@
   },
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement_ids": [
-      "EG-27",
-      "EG-01"
-    ],
-    "original_requirement": "Ordinary scoped instruction retrieval supplies required linked guidance or identifies actionable incomplete dependency coverage, preserving authority, source/hash and historical revision.",
-    "observed_missing_behavior": "Supported inline Markdown paths are reported with inline_path_basis_unverified, no candidate paths, no target hashes, no recovery actions and no linked source bodies. This occurs in ordinary LegacyValidation root guidance, e.g. docs/account-security-session-revocation.md.",
-    "priority_basis": "Normal LegacyValidation config observed Full via advertise_all_tools=true, Ollama embeddings/OpenAI LLM. Read only exact .github guidance; no Site/Q traversal or project mutation. Source change concerns shared VB/WebForms/JS/TS/SQL guidance retrieval, not target-language expansion.",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117",
-    "source_phase_started_at_utc": "2026-11-17T19:49:30.673573+00:00",
+    "original_requirement_id": "TODO-28",
+    "original_requirement": "The ordinary natural-language entry point composes complete admitted SQL source evidence so AI callers do not need specialist-tool discovery to recover already collected facts.",
+    "observed_missing_behavior": "ask_schema calls the source table reader, but retains only row.table, dropping its independently cited indexes, triggers, views, stored_procedures, alter_table_foreign_keys and alter_table_columns.",
+    "priority_basis": "LegacyValidation SQL workflows; normal Full configuration last observed unchanged. Reuse existing selected/current SQL reader and catalog. No new SQL parser, target language, database execution, graph/Blast work or real LegacyValidation mutation.",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117",
     "implementation_files": [
-      "crates/engram_server/src/services/project_policy.rs",
-      "crates/engram_server/src/services/project_policy/references.rs",
-      "crates/engram_server/src/services/project_policy/linked_sources.rs",
+      "crates/engram_server/src/handlers/ask_schema.rs",
+      "crates/engram_server/src/handlers/ask_tools.rs",
       "docs/TOOL_CONTRACT.md",
-      "crates/engram_server/tests/inline_policy_paths_tests.rs"
+      "crates/engram_server/tests/ask_sql_related_declarations.rs",
+      "crates/engram_server/src/services/ask_engine/report.rs",
+      "crates/engram_server/src/services/ask_engine/report.rs"
     ],
-    "finite_acceptance": [
-      "Preserve the unresolved original inline spelling; separately observe bounded document-relative and project-root candidates, never silently choose one or confer policy authority.",
-      "Supply complete candidate Markdown bodies when admitted by existing source/scope/byte budgets; preserve both when both candidates exist. Bind raw BLAKE3 and current recovery calls.",
-      "Direct authored guidance retains budget priority. Scope/budget/unavailable candidates remain named, complete known hashes give recovery, and reference observation/read caps remain shared with existing Markdown links.",
-      "Historical calls use the same pinned Git tree for candidates and expose no current read action. JSON and Markdown retain the same supplied evidence.",
-      "Owned installed baseline and later public source/guidance/recovery checks; focused native cases. No standalone Cargo: queue genuine source outcome for combined validation."
-    ],
-    "protected_wip9": "UNTOUCHED",
-    "engram_builds_started": 0,
-    "native_tests_executed": 0,
-    "runtime_deployed": false,
-    "full_original_requirement_complete": false,
-    "resources": {
-      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117",
-      "retention": "Keep source-before, contract, verifier and receipts until delivery; new fixture server handles close before owned directories are removed on completion/unwind. No preexisting deletion.",
-      "baseline_owners_closed": true,
-      "baseline_owned_fixtures_removed": true,
-      "current_fixture_processes": 0,
-      "retained_failed_verifier_attempt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117\\baseline1\\receipt.json"
-    },
-    "source_commit": "ff784c52b09873aa99df70a3ad6eeee067aff42f",
-    "source_outcomes": 1,
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117\\contract.json",
-    "source_phase_completed_at_utc": "2026-11-17T20:00:00.722999+00:00",
-    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117\\baseline2\\receipt.json",
-    "baseline_checks_passed": 4,
-    "baseline_seconds": 3.3390932000475004,
-    "native_target": "inline_policy_paths_tests",
-    "native_test_cases_written": 3,
-    "related_native_target": "linked_policy_sources_tests",
-    "related_native_case_count": 4,
-    "public_checks_written": 10,
-    "post_change_public_checks_executed": 0,
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117\\verify-public.py",
-    "public_verifier_sha256": "d1676373ab04b4086d8d8af98e810cebe148dfb79ea7bc25705c7b6152baa9fe",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117\\contract.json",
+    "source_commit": "330f2e2abfcdd358dd34d8c9c306fcc0fb53edb8",
+    "next_action": "Queue this genuine TODO-28 source outcome beside EG-27 inline guidance. Continue the next ready independent original requirement before combined validation; no standalone compile or accepted-batch replay.",
+    "progress": "eval/ask-sql-related-declarations-progress-20261117.json",
+    "pending_source_outcomes": 2,
     "implementation_items_active": 0,
-    "source_after": [
-      "Retain the unresolved authored spelling and add bounded, separately qualified document-relative/project-root candidate observations; deduplicate identical normalized candidates.",
-      "Reuse complete current/Git-pinned linked-source reading, raw hashes, declared-scope checks and existing shared reference/read/source/character budgets. Known current hashes bind advertised Core source-recovery actions.",
-      "Candidate documents remain evidence outside adopted policy sources. Both possible bodies remain visible when both exist; no silent path winner, authority, intent, fragment or compliance inference.",
-      "Existing explicit Markdown links retain their first-hop budget priority. Counts/omissions stay bounded; historical candidate reads never use disk or advertise current-source recovery."
-    ],
-    "source_checks": {
-      "rust_syntax": "PASS for3 implementation modules and focused native source; no Rust type/native execution yet",
-      "python_syntax": "PASS",
-      "diff_whitespace": "PASS",
-      "protected_wip9": "UNCHANGED"
-    },
-    "source_sha256": {
-      "crates/engram_server/src/services/project_policy.rs": "0a74e20b67a16909700509691e28947de1c3100eab25d23ee9a8a4028439fe2b",
-      "crates/engram_server/src/services/project_policy/references.rs": "a679bbd19e21864ea06e13813eb91efe4d9e5cecb56cb316a58f4396930b3957",
-      "crates/engram_server/src/services/project_policy/linked_sources.rs": "a03e74fc15767d60d4316ae836f3e1e68dfb87197058e63d8843406e1e6f9b02",
-      "docs/TOOL_CONTRACT.md": "9d1383c1f012cf31047446ca12d63e4e2473afe27e3a098e32aa312767854ecc",
-      "crates/engram_server/tests/inline_policy_paths_tests.rs": "a45fda033fc035c5646081f96443d7baa897d4dca72e14cf322be8bc4e2c7bb8"
-    },
-    "limits": [
-      "Source complete only. Rust type/native and post-change public checks remain pending; installed ab166a7 and normal LegacyValidation configuration/data are unchanged.",
-      "Inline path candidates do not prove author-intended binding, accepted authority, semantic applicability, compliance or model/task benefit. Nested links remain unexpanded and existing caps remain.",
-      "Actual LegacyValidation evidence is a read-only exact conventional guide observation and config identity, not a project scan/reindex or real source mutation. Owned baseline uses deliberately authored alternate candidates."
-    ],
-    "next_action": "Queue this genuine EG-27 source outcome for the next combined validation. Continue another ready original requirement; no standalone compile or replay of accepted batches.",
-    "original_requirement_id": "EG-27",
-    "pending_source_outcomes": 1,
     "full_original_goal_active": true,
-    "full_original_goal_complete": false
+    "full_original_goal_complete": false,
+    "previous_goal_turn_classification": {
+      "classification": "PROGRESS_SOURCE_IMPLEMENTATION_COMMITTED",
+      "source_commit": "330f2e2abfcdd358dd34d8c9c306fcc0fb53edb8",
+      "progress": "eval/ask-sql-related-declarations-progress-20261117.json"
+    }
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3846,6 +3800,15 @@
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "source_commit": "ff784c52b09873aa99df70a3ad6eeee067aff42f",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117\\contract.json",
+    "source_outcomes": 1,
+    "runtime_deployed": false
+  },
+  "queued_ask_sql_related_declarations_20261117": {
+    "original_requirement_id": "TODO-28",
+    "progress": "eval/ask-sql-related-declarations-progress-20261117.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "330f2e2abfcdd358dd34d8c9c306fcc0fb53edb8",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117\\contract.json",
     "source_outcomes": 1,
     "runtime_deployed": false
   }
