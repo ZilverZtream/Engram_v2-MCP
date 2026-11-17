@@ -3646,10 +3646,12 @@
     "public_checks_passed": 41,
     "shipping_head": "b54808bdaf4c500f10c2ea494f4b52ad24142cce",
     "runtime_deployed": true,
-    "next_action": "Poll exact live session99625; never restart merely because a wait expires. On PASS run release.py package, deploy7.py (fresh candidate1), finish-install4.py, record-delivery.py; push only origin/master. Helpers are prepared in this case. Restore checks deployment7-state, current installed pins46c5/5a09. Preserve alloriginal backlog.",
+    "next_action": "This batch is delivered. Do not poll/restart the terminal release, rerun installed acceptance or rebuild it. Advance the next ready unfinished original backlog item from current_execution_focus.",
     "active_implementation_items": 0,
     "record": "eval/preset-browser-bootstrap-batch-delivery-20261117.json",
-    "all_fixture_and_maintenance_processes_closed": true
+    "all_fixture_and_maintenance_processes_closed": true,
+    "unified_exec_session_status": "TERMINAL_PASS",
+    "native_and_release_sessions_terminal": true
   },
   "previous_runtime_before_preset_browser_bootstrap_20261117": {
     "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
