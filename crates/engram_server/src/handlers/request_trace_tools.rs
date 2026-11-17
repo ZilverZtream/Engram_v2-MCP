@@ -57,6 +57,12 @@ impl Engram {
         view: std::sync::Arc<engram_index::SourceSnapshotGuard>,
         budget: usize,
     ) -> Result<CallToolResult, McpError> {
+        if req.path_prefixes.len() > 32 || req.path_prefixes.iter().any(|scope| {
+            scope.is_empty() || scope.len() > 4096 || scope.chars().any(char::is_control)
+                || scope.replace('\\', "/").split('/').any(|part| part.is_empty() || part == "." || part == "..")
+        }) {
+            return Err(McpError::invalid_params("path_prefixes requires at most 32 nonempty project-relative component scopes, each at most 4096 bytes", None));
+        }
         let graph = self.state.graph.clone();
         // Cover the bounded 64 MiB source inventory, one tokenized source file,
         // graph/JSON assembly and response encoding before allocating them.
@@ -72,6 +78,18 @@ impl Engram {
             let _reservation = reservation;
             let selected = view.selected_file_revisions().ok_or_else(|| anyhow::anyhow!("Request tracing requires a managed source inventory; update_project first"))?;
             anyhow::ensure!(selected.len() <= 50_000, "Selected inventory exceeds request tracing limit of 50000 paths");
+            let scopes: Vec<_> = req.path_prefixes.iter().map(|scope| scope.replace('\\', "/")).collect();
+            let scoped_selection = (!scopes.is_empty()).then(|| selected.iter().filter(|(path, _)| {
+                scopes.iter().any(|scope| crate::services::ask_engine::resolver::scope_full_prefix(path, scope).is_some())
+            }).map(|(path, revision)| (path.clone(), *revision)).collect::<std::collections::BTreeMap<_, _>>());
+            // Application roots use selected path membership only, never an
+            // excluded Global.asax body or its registrations. Keep these markers
+            // out of the admission map and loaded-file/guidance accounting.
+            let root_markers: Vec<_> = selected.keys().filter(|path| {
+                scoped_selection.as_ref().is_some_and(|scoped| !scoped.contains_key(*path))
+                    && path.rsplit('/').next().is_some_and(|name| name.eq_ignore_ascii_case("Global.asax"))
+            }).cloned().collect();
+            let selected = scoped_selection.as_ref().unwrap_or(selected);
             let mut owned = Vec::new();
             let mut gaps = Vec::new();
             let mut bytes = 0usize;
@@ -96,7 +114,8 @@ impl Engram {
                     Err(error) => gaps.push(format!("{path}: {error}")),
                 }
             }
-            let sources: Vec<_> = owned.iter().map(|(path, content)| routing::Source { path, content }).collect();
+            let mut sources: Vec<_> = owned.iter().map(|(path, content)| routing::Source { path, content }).collect();
+            sources.extend(root_markers.iter().map(|path| routing::Source { path, content: "" }));
             let routing = routing::resolve(&req.entry_point, &sources)?;
             let mut pages = Vec::new();
             // Duplicate registrations remain visible in routing, but tracing the
@@ -117,7 +136,8 @@ impl Engram {
             // expansion checks physical revision/hash; this is not an atomic graph snapshot.
             let mut report = json!({"status":"static_candidates","project_id":req.project_id,"active_generation":generation,
                 "entry_point":req.entry_point,"action":req.action,"routing":routing,"pages":pages,"api_traces":api_traces,
-                "coverage":{"source_files_read":sources.len(),"source_bytes_read":bytes,"source_inventory":"selected managed paths; current disk contents","gaps":gaps,
+                "coverage":{"source_files_read":owned.len(),"source_bytes_read":bytes,"source_inventory":"selected managed paths matching path_prefixes; current disk contents","path_prefixes":req.path_prefixes,"selected_paths_in_scope":selected.len(),
+                "application_root_path_markers":root_markers,"scope_interpretation":"Only scoped code bodies are read. Selected Global.asax path markers establish application-root metadata without reading excluded bodies. Excluded registrations, dependencies and callers are unknown, not absent. Applicable authored guidance is resolved separately.","gaps":gaps,
                 "graph_consistency":"Per-expanded-member source hash and selected physical revision checks; no atomic graph/disk snapshot or complete call-binding proof.",
                 "runtime_execution_proven":false,"include_db":req.include_db,"include_triggers":req.include_triggers}});
             crate::services::request_trace::triggers::attach(&mut report, &sources);
@@ -125,8 +145,8 @@ impl Engram {
             let client_files = crate::services::request_trace::client_callers::attach(
                 &graph, &req.project_id, Path::new(&record.directory), &mut report, &sources, selected, &mut bytes);
             report["coverage"]["source_bytes_read"] = json!(bytes);
-            report["coverage"]["source_files_read"] = json!(sources.len() + report["client_caller_coverage"]["script_files_read"].as_u64().unwrap_or(0) as usize);
-            let mut loaded_paths = sources.iter().map(|source| source.path).collect::<std::collections::BTreeSet<_>>();
+            report["coverage"]["source_files_read"] = json!(owned.len() + report["client_caller_coverage"]["script_files_read"].as_u64().unwrap_or(0) as usize);
+            let mut loaded_paths = owned.iter().map(|(path, _)| path.as_str()).collect::<std::collections::BTreeSet<_>>();
             loaded_paths.extend(client_files.iter().map(String::as_str));
             policy::attach(Path::new(&record.directory), &mut report, &loaded_paths)?;
             Ok(serde_json::to_string(&report)?)

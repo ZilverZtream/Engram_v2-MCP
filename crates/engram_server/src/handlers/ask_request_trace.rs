@@ -26,9 +26,7 @@ pub(super) async fn gather(
     }
     let mut out = RequestEvidence::new(queries.len());
     if !plan.qualifiers.path_prefixes.is_empty() {
-        out.provider.status = ProviderStatus::Misunderstood;
-        out.note("Automatic request tracing is unavailable for an explicit natural-language path scope. No unscoped trace was read or returned; scoped source retrieval remains available.");
-        return Some(out);
+        out.note("Request source reads and ordinary recovery honor the requested path scopes. Excluded registrations, dependencies and callers remain unknown; applicable authored guidance is resolved separately.");
     }
     let Some(view) = view else {
         out.provider.status = ProviderStatus::Failed;
@@ -64,6 +62,7 @@ pub(super) async fn gather(
         }
         let request = TraceUserRequestRequest {
             project_id: project.into(),
+            path_prefixes: plan.qualifiers.path_prefixes.clone(),
             entry_point: entry.clone(),
             action: None,
             include_db: true,

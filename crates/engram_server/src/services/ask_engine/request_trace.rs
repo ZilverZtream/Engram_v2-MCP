@@ -89,6 +89,11 @@ impl RequestEvidence {
             self.note(&format!("No static routing candidate was returned for {entry}; this is not proof that a runtime route is absent."));
             return Ok(());
         }
+        let mut recovery = json!({"project_id":project,"entry_point":entry,"include_db":true,
+            "include_triggers":true,"max_tokens":TRACE_TOKENS});
+        if let Some(scopes) = trace["coverage"]["path_prefixes"].as_array().filter(|scopes| !scopes.is_empty()) {
+            recovery["path_prefixes"] = json!(scopes);
+        }
         self.items.push(EvidenceItem {
             evidence_id: format!("request_trace_{}", self.items.len()+1),
             document_id: None, document_namespace: Some("memory".into()),
@@ -99,9 +104,7 @@ impl RequestEvidence {
             path: None, lines: None, symbol_id: Some(format!("request_trace:{entry}")),
             title: Some(format!("{entry}: static request trace candidates")),
             content: json!({"evidence_kind":"http_request_trace_candidates","entry_point":entry,
-                "trace":trace,"recovery":{"tool":"trace_user_request","arguments":{
-                    "project_id":project,"entry_point":entry,"include_db":true,
-                    "include_triggers":true,"max_tokens":TRACE_TOKENS}},
+                "trace":trace,"recovery":{"tool":"trace_user_request","arguments":recovery},
                 "interpretation":INTERPRETATION}).to_string(),
             generation: Some(generation), commit: None, timestamp: None,
             confidence: 0.9, relevance: 1.0, extraction_method: "selected_source_request_trace".into(),

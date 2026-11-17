@@ -1525,8 +1525,15 @@ HTTP hosting, dispatch, authorization, database execution or runtime behavior;
 the answer is not upgraded to `answered` by the trace. Invalid/unmatched requests,
 caps, failures and timeout coverage remain explicit. An owned blocking reader
 may finish after the deadline while retaining its source lease. Explicit
-natural-language path scopes currently report automatic request tracing as
-unavailable before source reads; ordinary scoped retrieval continues. Historical
+natural-language path scopes constrain the tracer's selected server, dependency
+and browser-caller source inventory. Ordinary trace recovery carries the same
+`path_prefixes`; direct `trace_user_request` accepts this optional array too,
+using the same case-insensitive component/infix matching as the ask planner.
+Selected `Global.asax` path markers may establish application-root metadata
+without reading excluded bodies. Coverage lists those markers separately from
+read files; excluded registrations, companions and callers remain unknown.
+Applicable authored guidance is resolved separately, including root policies.
+Historical
 asks retain their revision-bound path. No routing or synthesis model request is
 added, and no latency or general task-usefulness improvement is claimed.
 The Core preset includes `trace_user_request` so the emitted ordinary and nested

@@ -16,22 +16,26 @@ struct Fixture {
 }
 impl Fixture {
     async fn new() -> Result<Self> {
+        Self::in_directory("Site").await
+    }
+    async fn in_directory(directory: &str) -> Result<Self> {
         let parent = std::env::var_os("ENGRAM_TEST_FIXTURE_ROOT")
             .map(std::path::PathBuf::from)
             .unwrap_or_else(std::env::temp_dir);
         let owned = tempfile::Builder::new().prefix("ar-").tempdir_in(parent)?;
         let root = owned.path().join("r");
+        std::fs::create_dir_all(root.join(directory))?;
         std::fs::create_dir_all(root.join("Site"))?;
         std::fs::create_dir_all(root.join("Other/Area"))?;
         for (path, body) in [
             (
-                "Site/language.aspx",
+                format!("{directory}/language.aspx"),
                 "<%@ Page Language=\"VB\" CodeFile=\"language.aspx.vb\" Inherits=\"language\" %>\n",
             ),
-            ("Site/language.aspx.vb", SOURCE),
-            ("Site/Global.asax", "<%@ Application Language=\"VB\" %>\n"),
-            ("Other/Area/Note.vb", "Public Class Note\nEnd Class\n"),
-            ("AGENTS.md", GUIDE),
+            (format!("{directory}/language.aspx.vb"), SOURCE),
+            ("Site/Global.asax".into(), "<%@ Application Language=\"VB\" %>\n"),
+            ("Other/Area/Note.vb".into(), "Public Class Note\nEnd Class\n"),
+            ("AGENTS.md".into(), GUIDE),
         ] {
             std::fs::write(root.join(path), body)?;
         }
@@ -210,7 +214,7 @@ async fn scoped_or_unmatched_questions_do_not_invent_traces_and_changed_source_w
         .iter()
         .find(|row| row["provider"] == "request_trace")
         .unwrap();
-    ensure!(provider["status"] == "misunderstood" && provider["examined"] == 0);
+    ensure!(provider["status"] == "empty" && provider["examined"] == 1);
     let unmatched = fixture.ask("Explain GET /missing-owned.aspx").await?;
     ensure!(traces(&unmatched).is_empty());
     ensure!(
@@ -230,5 +234,38 @@ async fn scoped_or_unmatched_questions_do_not_invent_traces_and_changed_source_w
             .iter()
             .all(|fact| handlers(&fact["trace"]).is_empty())
     );
+    fixture.close()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn scoped_http_question_and_recovery_read_only_the_area_and_withhold_stale_handlers()
+-> Result<()> {
+    let fixture = Fixture::in_directory("Site/Area").await?;
+    // The application marker is outside the requested source scope. Membership
+    // establishes its root; its body and unrelated source must not be read.
+    std::fs::remove_file(fixture.owned.path().join("r/Site/Global.asax"))?;
+    std::fs::remove_file(fixture.owned.path().join("r/Other/Area/Note.vb"))?;
+    let answer = fixture.ask("Explain POST /Area/language.aspx/change under Site/Area").await?;
+    let facts = traces(&answer);
+    ensure!(facts.len() == 1, "{answer}");
+    let trace = &facts[0]["trace"];
+    ensure!(handlers(trace).len() == 1, "{trace}");
+    ensure!(trace["coverage"]["source_files_read"] == 2);
+    ensure!(trace["coverage"]["source_bytes_read"].as_u64() == Some(
+        SOURCE.len() as u64 + std::fs::metadata(fixture.owned.path().join("r/Site/Area/language.aspx"))?.len()));
+    ensure!(trace["coverage"]["gaps"].as_array().unwrap().is_empty(), "{trace}");
+    ensure!(trace["coverage"]["application_root_path_markers"] == json!(["Site/Global.asax"]));
+    ensure!(trace["coverage"]["path_prefixes"].as_array().unwrap().iter().any(|scope| scope == "Site/Area"));
+    ensure!(trace["project_policy_sources"].to_string().contains("read-only previews never submit"));
+    let args = &facts[0]["recovery"]["arguments"];
+    ensure!(args["path_prefixes"] == trace["coverage"]["path_prefixes"]);
+    let recovered = fixture.server.handle_trace_user_request(serde_json::from_value(args.clone())?).await?;
+    let recovered: Value = serde_json::from_str(body(&recovered))?;
+    ensure!(handlers(&recovered) == handlers(trace));
+    ensure!(recovered["coverage"]["source_files_read"] == 2);
+    std::fs::write(fixture.owned.path().join("r/Site/Area/language.aspx.vb"), format!("{SOURCE}\n' Changed scoped source\n"))?;
+    let changed = fixture.ask("Explain POST /Area/language.aspx/change under Site/Area").await?;
+    ensure!(!traces(&changed).is_empty(), "The page candidate remains: {changed}");
+    ensure!(traces(&changed).iter().all(|fact| handlers(&fact["trace"]).is_empty()));
     fixture.close()
 }

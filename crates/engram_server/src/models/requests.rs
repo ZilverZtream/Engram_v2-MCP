@@ -4054,6 +4054,13 @@ pub enum BatchReadOperation {
 #[serde(deny_unknown_fields)]
 pub struct TraceUserRequestRequest {
     pub project_id: String,
+    /// Optional case-insensitive directory/file scopes, using the same component
+    /// matching as ask_codebase (including infix directories). Empty means all
+    /// selected files. Excluded dependencies/callers remain unknown. Selected
+    /// Global.asax path metadata can establish an application root without
+    /// reading its body; applicable authored guidance is resolved separately.
+    #[serde(default)]
+    pub path_prefixes: Vec<String>,
     /// URL, application-relative path, or project-relative page; optional HTTP verb prefix.
     /// Literal VB WebMethod suffixes are supported, e.g. POST /language.aspx/change
     /// or POST /api.asmx/getimg. Omit action or match that exact method suffix.
