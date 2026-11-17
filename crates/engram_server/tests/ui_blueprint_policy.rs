@@ -6,14 +6,74 @@ use engram_server::{AppState, Engram};
 use serde_json::{Value, json};
 use std::path::Path;
 
+async fn inspection(
+    server: &Engram,
+    tool: &str,
+    request: Value,
+    policy: bool,
+) -> Result<rmcp::model::CallToolResult> {
+    Ok(match (tool, policy) {
+        ("validation", false) => {
+            server
+                .handle_map_validation_controls(serde_json::from_value(request)?)
+                .await?
+        }
+        ("validation", true) => {
+            server
+                .handle_map_validation_controls_with_policy(serde_json::from_value(request)?)
+                .await?
+        }
+        ("lifecycle", false) => {
+            server
+                .handle_map_page_lifecycle(serde_json::from_value(request)?)
+                .await?
+        }
+        ("lifecycle", true) => {
+            server
+                .handle_map_page_lifecycle_with_policy(serde_json::from_value(request)?)
+                .await?
+        }
+        ("viewstate", false) => {
+            server
+                .handle_analyze_viewstate_deps(serde_json::from_value(request)?)
+                .await?
+        }
+        ("viewstate", true) => {
+            server
+                .handle_analyze_viewstate_deps_with_policy(serde_json::from_value(request)?)
+                .await?
+        }
+        ("ajax", false) => {
+            server
+                .handle_map_ajax_regions(serde_json::from_value(request)?)
+                .await?
+        }
+        ("ajax", true) => {
+            server
+                .handle_map_ajax_regions_with_policy(serde_json::from_value(request)?)
+                .await?
+        }
+        _ => anyhow::bail!("Unknown owned inspection fixture"),
+    })
+}
+
 async fn check(owned: &Path, indexed_layout: bool) -> Result<()> {
     let root = owned.join("r");
     std::fs::create_dir_all(root.join(".github/instructions"))?;
+    std::fs::create_dir(root.join("Site"))?;
+    std::fs::write(
+        root.join("Site/Orders.aspx"),
+        "<%@ Page CodeFile='Orders.aspx.vb' %>\n<asp:ScriptManager ID='scripts' runat='server' />\n<asp:UpdatePanel ID='actions' runat='server'><ContentTemplate><asp:TextBox ID='name' runat='server' /><asp:RequiredFieldValidator ID='required' ControlToValidate='name' runat='server' /></ContentTemplate></asp:UpdatePanel>\n",
+    )?;
+    std::fs::write(
+        root.join("Site/Orders.aspx.vb"),
+        "Public Class Orders\nPublic Sub Page_Load() Handles Me.Load\nViewState(\"selected\") = \"orders\"\nEnd Sub\nEnd Class\n",
+    )?;
     std::fs::write(root.join("AGENTS.md"), "Preserve authored exceptions.\n")?;
     let instruction = root.join(".github/instructions/ui.instructions.md");
     std::fs::write(
         &instruction,
-        "---\napplyTo: 'Site/*.aspx'\n---\nKeep field actions reachable. Existing generated output remains excluded.\n",
+        "---\napplyTo: 'Site/**'\n---\nKeep field actions reachable. Existing generated output remains excluded.\n",
     )?;
     std::fs::write(
         root.join(".github/instructions/sql.instructions.md"),
@@ -102,9 +162,65 @@ async fn check(owned: &Path, indexed_layout: bool) -> Result<()> {
         "Unrelated scope entered the UI report: {policy}"
     );
     let old_hash = ui["blake3"].clone();
+    for tool in ["validation", "lifecycle", "viewstate", "ajax"] {
+        let path = if matches!(tool, "validation" | "ajax") {
+            "Site/Orders.aspx"
+        } else {
+            "Site/Orders.aspx.vb"
+        };
+        for output_json in [true, false] {
+            let request = json!({"project_id":pid,"file_path":path,"output_json":output_json});
+            let before = inspection(&server, tool, request.clone(), false).await?;
+            let after = inspection(&server, tool, request, true).await?;
+            let original = &before.content[0].as_text().unwrap().text;
+            let report = &after.content[0].as_text().unwrap().text;
+            if output_json {
+                let mut value: Value = serde_json::from_str(report)?;
+                let policy = value
+                    .as_object_mut()
+                    .unwrap()
+                    .remove("project_policy_sources")
+                    .unwrap();
+                let expected = serde_json::from_str::<Value>(original)
+                    .unwrap_or_else(|_| json!({"report_format":"markdown","report":original}));
+                ensure!(
+                    value == expected,
+                    "{tool} analysis changed while adding guidance: {value}"
+                );
+                ensure!(
+                    policy["sources"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(
+                            |source| source["path"] == ".github/instructions/ui.instructions.md"
+                                && source["content"]
+                                    .as_str()
+                                    .unwrap()
+                                    .contains("Existing generated output remains excluded.")
+                        ),
+                    "{tool} lost applicable exceptions: {policy}"
+                );
+                ensure!(
+                    policy["sources"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .all(|source| source["path"] != ".github/instructions/sql.instructions.md")
+                );
+            } else {
+                ensure!(
+                    report.starts_with(original)
+                        && report.contains("## Repository policy sources")
+                        && report.contains("Existing generated output remains excluded."),
+                    "{tool} Markdown lost original report or guidance: {report}"
+                );
+            }
+        }
+    }
     std::fs::write(
         &instruction,
-        "---\napplyTo: 'Site/*.aspx'\n---\nUpdated UI rule. Preserve the generated-output exception.\n",
+        "---\napplyTo: 'Site/**'\n---\nUpdated UI rule. Preserve the generated-output exception.\n",
     )?;
     let refreshed = server
         .handle_get_ui_blueprint_with_policy(request()?)

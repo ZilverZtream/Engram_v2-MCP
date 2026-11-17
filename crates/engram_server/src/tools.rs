@@ -1338,7 +1338,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] Inventory WebForms validators per page: validator type, target control, rules, client/server enforcement."
+        description = "[.NET legacy] Inventory WebForms validators per page: validator type, target control, rules, client/server enforcement, plus current authored guidance for the requested file with source hashes and omission recovery."
     )]
     pub async fn map_validation_controls(
         &self,
@@ -1347,7 +1347,7 @@ impl Engram {
         if let Some(result) = self.legacy_tool_applicability("map_validation_controls", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
             return Ok(result);
         }
-        self.handle_map_validation_controls(params.0).await
+        self.handle_map_validation_controls_with_policy(params.0).await
     }
 
     #[tool(
@@ -1373,11 +1373,11 @@ impl Engram {
         if let Some(result) = self.legacy_tool_applicability("map_page_lifecycle", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
             return Ok(result);
         }
-        self.handle_map_page_lifecycle(params.0).await
+        self.handle_map_page_lifecycle_with_policy(params.0).await
     }
 
     #[tool(
-        description = "[.NET legacy] ViewState keys per page: writers, readers, postback dependencies, bloat candidates."
+        description = "[.NET legacy] ViewState keys per page: writers, readers, postback dependencies, bloat candidates, plus current authored guidance for the requested file with source hashes and omission recovery."
     )]
     pub async fn analyze_viewstate_deps(
         &self,
@@ -1386,11 +1386,11 @@ impl Engram {
         if let Some(result) = self.legacy_tool_applicability("analyze_viewstate_deps", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
             return Ok(result);
         }
-        self.handle_analyze_viewstate_deps(params.0).await
+        self.handle_analyze_viewstate_deps_with_policy(params.0).await
     }
 
     #[tool(
-        description = "[.NET legacy] UpdatePanels/AJAX regions per page with triggers and partial-postback scope."
+        description = "[.NET legacy] UpdatePanels/AJAX regions per page with triggers and partial-postback scope, plus current authored guidance for the requested file. JSON retains the original formatted AJAX report and source-labelled guidance."
     )]
     pub async fn map_ajax_regions(
         &self,
@@ -1399,7 +1399,7 @@ impl Engram {
         if let Some(result) = self.legacy_tool_applicability("map_ajax_regions", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
             return Ok(result);
         }
-        self.handle_map_ajax_regions(params.0).await
+        self.handle_map_ajax_regions_with_policy(params.0).await
     }
 
     #[tool(

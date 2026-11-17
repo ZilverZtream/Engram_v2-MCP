@@ -662,6 +662,16 @@ saved recovery retains the original guidance rather than reading later edits.
 Current instructions do not certify layout freshness, UI compliance or runtime
 behavior. Recheck guidance for the final edit scope.
 
+The explicit-file `map_validation_controls`, `map_page_lifecycle`,
+`analyze_viewstate_deps` and `map_ajax_regions` reports also supply this live
+guidance. JSON preserves original analysis fields; the legacy formatted AJAX
+report is retained as `report` with `report_format: "markdown"`. Markdown retains
+the original report followed by repository policy sources. Scope covers the
+requested file; recheck instructions for companion files and the final edit
+scope. Current guidance does not validate inferred migration recommendations,
+report freshness or runtime behavior. Shared response budgets and immutable
+captured-result recovery include the added guidance.
+
 ### Database analysis delivery
 
 Database intelligence table/column/key reports use the same declaration
