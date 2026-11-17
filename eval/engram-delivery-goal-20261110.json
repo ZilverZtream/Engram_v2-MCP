@@ -2557,7 +2557,7 @@
     "next_batch_pending": [
       {
         "original_requirement_id": "EG-31",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "status": "CURRENT_DEBUG_VALIDATED_AWAITING_COMBINED_DEPLOYMENT",
         "source_commit": "e8a0c8528ec49f30780039c822758441a22e89b2",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\prior-guidance-maintenance-20261117\\contract.json",
         "progress": "eval/prior-guidance-maintenance-progress-20261117.json",
@@ -2565,14 +2565,14 @@
       },
       {
         "original_requirement_id": "TODO-28",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "status": "CURRENT_DEBUG_VALIDATED_AWAITING_COMBINED_DEPLOYMENT",
         "source_commit": "a11f9e3e26610fd59c21861ad14e43610a23a058",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-legacy-state-20261117\\contract.json",
         "progress": "eval/ask-legacy-state-progress-20261117.json"
       },
       {
         "original_requirement_id": "EG-01",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "status": "CURRENT_DEBUG_VALIDATED_AWAITING_COMBINED_DEPLOYMENT",
         "source_commit": "f5307697f5107ce771fe80016d50f0c398f6a5c8",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-context-guidance-20261117\\contract.json",
         "progress": "eval/page-context-guidance-progress-20261117.json"
@@ -2730,21 +2730,32 @@
       "TODO-28",
       "EG-01"
     ],
-    "status": "FOCUSED_NATIVE_RUNNING",
-    "shipping_source_commit": "dc55b259551dded58d51c6cf671d5a0cbaad24a5",
+    "status": "CURRENT_DEBUG_VALIDATED_RELEASE_READY",
+    "shipping_source_commit": "7086d48320137394d8ef29835c82a56ad2cf074e",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117",
     "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\source-preparation.json",
     "implementation_items_active": 0,
     "expected_native_cases": 9,
-    "native_commands_started": 1,
+    "native_commands_started": 3,
     "release_commands_started": 0,
     "full_or_lib_suite": false,
     "extra_debug_build": false,
     "full_original_goal_active": true,
-    "next_action": "Observe the same native1 session75958; do not restart on observation timeout. If it passes, capture the implicit debug artifact and run the three frozen public contracts. No standalone debug build or broad suite.",
-    "native_session_id": 75958,
-    "runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\native1-owner.json",
-    "at_utc": "2026-11-17T09:35:15.518267+00:00"
+    "next_action": "Three original source outcomes have nine focused native passes and19current-artifact public checks. Run one guarded combined release, then existing candidate/installed acceptance, normal restoration and delivery recording. Do not run another native target or separate debug build.",
+    "native_session_id": 5587,
+    "runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\native3-owner.json",
+    "at_utc": "2026-11-17T09:35:15.518267+00:00",
+    "native1_passed_cases": 8,
+    "native1_failed_cases": 1,
+    "fixture_correction_commit": "ffc5029f743f7d0acf8ee4b3e9f92837e61471ef",
+    "source_commit": "7c13fbf7a1ba96338c28fea6a99c4c1a8c2ec159",
+    "native_cases_expected": 9,
+    "native_cases_executed": 9,
+    "current_artifact_public_checks_passed": 19,
+    "native_terminal_exit_code": 0,
+    "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\native3.json",
+    "debug_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\debug2\\receipt.json",
+    "debug_binary_sha256": "992b96ac67c4d1e84e590d4616d3dca9b3e3e0bbcdb5ea457be601595198f61d"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3019,8 +3030,8 @@
   "method_matrix_selection_source_progress_20261117": "eval/method-matrix-selection-progress-20261117.json",
   "current_turn_progress_classification": {
     "previous_turn": "PROGRESS_TODO28_LITERAL_STATE_SOURCE",
-    "current_turn": "PROGRESS_EG01_PAGE_CONTEXT_GUIDANCE_SOURCE_COMMITTED",
-    "evidence": "eval/page-context-guidance-progress-20261117.json",
+    "current_turn": "PROGRESS_NINE_NATIVE_AND19_PUBLIC_CHECKS_PASS",
+    "evidence": "eval/maintenance-state-context-batch-progress-20261117.json",
     "full_original_goal_active": true
   },
   "webforms_init_context_source_progress_20261117": "eval/webforms-init-context-progress-20261117.json",
@@ -3067,5 +3078,15 @@
     "record": "eval/page-context-guidance-progress-20261117.json",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "runtime_deployed": false
+  },
+  "automatic_continuation_communication": {
+    "rule": "Automatic goal turns continue current_execution_focus. Do not treat an older answered user message as a new question or repeat its answer. Emit only new work, acceptance, delivery or blocker information.",
+    "verified_session_evidence": {
+      "quoted_stale_compile_answer_at_utc": "2026-11-17T07:01:01.037Z",
+      "user_complaint_at_utc": "2026-11-17T07:08:27.084Z",
+      "complaint_already_answered_at_utc": "2026-11-17T07:22:10.895Z",
+      "later_turn_trigger": "codex_internal_context source=goal"
+    },
+    "does_not_pause_or_replace_goal": true
   }
 }

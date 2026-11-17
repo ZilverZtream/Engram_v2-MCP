@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-01",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "CURRENT_DEBUG_VALIDATED_AWAITING_COMBINED_DEPLOYMENT",
   "at_utc": "2026-11-17T09:14:19.409035+00:00",
   "original_requirement": "Applicable authored guidance reaches direct context retrieval, with scope, exceptions, source hashes, omissions and exact recovery.",
   "observed_missing_behavior": "get_page_context returns page/control/code-behind/composition data but PageContextResult and its renderer have no authored project-policy field. Complete JSON and Markdown replies omit the owned root AGENTS.md rule and exception.",
@@ -22,8 +22,8 @@
   "engram_builds_started": 0,
   "full_original_goal_active": true,
   "native_test_cases_written": 3,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
+  "native_tests_executed": 3,
+  "post_change_public_checks_executed": 7,
   "runtime_deployed": false,
   "baseline_binary_sha256": "7fef8de9a7a604768a6f5a1fe0a3d3b27e13f58087cd74c83ee48a25dd7bb0de",
   "source_sha256": {
@@ -46,10 +46,13 @@
     "retained": "Contract, baseline reinterpretation, verifier and source timing retained; no live owned fixture or compile process."
   },
   "limits": [
-    "Source complete only: type checking, focused execution and positive public/installed acceptance remain pending.",
+    "Current debug/native behavior validated; installed runtime acceptance and deployment remain pending.",
     "Source scope covers the requested page and read composition under the options, not every runtime component, sibling-style observation or future edit target. Authored guidance and source hashes do not establish compliance, runtime behavior or task benefit.",
     "No batch extension, actual LegacyValidation mutation/reindex, Site/Q read, model/task replay, target-language expansion or standalone compilation/release."
   ],
   "source_commit": "f5307697f5107ce771fe80016d50f0c398f6a5c8",
-  "next_action": "Retain this original EG01 component with EG31 prior guidance and TODO28 state questions for one focused combined validation. No standalone feature build or full suite."
+  "next_action": "Run one combined batch release, candidate/installed acceptance, normal restoration and delivery recording. No native repeat or separate debug build.",
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\native3.json",
+  "current_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-context-guidance-20261117\\maintenance-state-context-batch-20261117-debug2\\receipt.json",
+  "current_debug_sha256": "992b96ac67c4d1e84e590d4616d3dca9b3e3e0bbcdb5ea457be601595198f61d"
 }

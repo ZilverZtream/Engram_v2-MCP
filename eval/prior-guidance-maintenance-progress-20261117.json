@@ -1,7 +1,7 @@
 {
   "original_requirement_id": "EG-31",
   "supporting_original_requirement": "EG-27",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "CURRENT_DEBUG_VALIDATED_AWAITING_COMBINED_DEPLOYMENT",
   "at_utc": "2026-11-17T07:49:17.103850+00:00",
   "original_requirement": "Evidence-bound maintenance after code changes preserves exact prior guidance, scope and exceptions without accepting a policy weakening or substituting current policy for requested historical evidence.",
   "observed_missing_behavior": "Changed-file selection explicitly only discovers current applicable guidance. A guide that applied at base_commit but is now deleted or scoped elsewhere is absent from the review. A directly changed conventional guide is evidence but is not necessarily a selected editable instruction.",
@@ -29,8 +29,8 @@
   "baseline_seconds": 2.22269339999184,
   "baseline_binary_sha256": "7fef8de9a7a604768a6f5a1fe0a3d3b27e13f58087cd74c83ee48a25dd7bb0de",
   "native_test_cases_written": 3,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
+  "native_tests_executed": 3,
+  "post_change_public_checks_executed": 7,
   "runtime_deployed": false,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\prior-guidance-maintenance-20261117\\verify-public.py",
   "public_verifier_sha256": "0d691a385cbd9efdde2dafac67374094cb93e1346086ace10365b9df2f452b7b",
@@ -57,10 +57,13 @@
     "retained": "Contract, installed baseline and original responses, verifier and source timing retained for review. No live fixture or current owned temporary directory."
   },
   "limits": [
-    "Source complete only: type checking, native execution and positive current public/installed acceptance remain pending.",
+    "Current debug/native behavior validated; installed runtime acceptance and deployment remain pending.",
     "Discovery and source recovery remain bounded. Prior applicability is historical evidence, not current authority, accepted deletion or semantic policy intent; no authored file is written. Complete prior bodies share the existing maintenance packet budget, so large comparisons may require a smaller explicit review slice.",
     "No actual LegacyValidation mutation, Site/Q read, model/task replay, CodeMap/Blast change, new target-language support or standalone build."
   ],
   "source_commit": "e8a0c8528ec49f30780039c822758441a22e89b2",
-  "next_action": "Continue substantive independent original source work. Retain this single EG31 outcome for combined validation; no standalone compile or release. Existing installed delivery remains7fef8de9."
+  "next_action": "Run one combined batch release, candidate/installed acceptance, normal restoration and delivery recording. No native repeat or separate debug build.",
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\native3.json",
+  "current_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\prior-guidance-maintenance-20261117\\maintenance-state-context-batch-20261117-debug2\\receipt.json",
+  "current_debug_sha256": "992b96ac67c4d1e84e590d4616d3dca9b3e3e0bbcdb5ea457be601595198f61d"
 }

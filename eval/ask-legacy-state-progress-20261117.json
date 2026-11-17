@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-28",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "CURRENT_DEBUG_VALIDATED_AWAITING_COMBINED_DEPLOYMENT",
   "at_utc": "2026-11-17T08:19:18.231152+00:00",
   "original_requirement": "One natural-language evidence entry point composes existing relevant source/graph capabilities for ordinary LegacyValidation work.",
   "observed_missing_behavior": "ask_codebase has no typed Session/ViewState state reader/writer provider; literal-key questions rely on generic source retrieval although trace_state_usage already has these indexed relationships.",
@@ -26,8 +26,8 @@
   "retained_failed_probe": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-legacy-state-20261117\\baseline1\\receipt.json",
   "probe_correction": "The first probe sent output_json to the native ask schema; corrected to output_format=json. Both owners exited and fixtures were removed; no build or source change was involved.",
   "native_test_cases_written": 3,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
+  "native_tests_executed": 3,
+  "post_change_public_checks_executed": 5,
   "runtime_deployed": false,
   "baseline_binary_sha256": "7fef8de9a7a604768a6f5a1fe0a3d3b27e13f58087cd74c83ee48a25dd7bb0de",
   "source_sha256": {
@@ -39,7 +39,7 @@
     "docs/TOOL_CONTRACT.md": "69cbdcfc2cc413d16691af107df2dd41ce606c8f090a03bd2d56b63b8545aff9"
   },
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-legacy-state-20261117\\verify-public.py",
-  "public_verifier_sha256": "2e8247eafdfbf5f39aef1de87a2596382f825c253d7deca1f721f117658295c3",
+  "public_verifier_sha256": "adee32a5b3928515b9a6582ca7a04f8c5bf631a604c022ee2939894aba5ab32a",
   "source_checks": {
     "rustfmt_parse": "PASS; new files formatted, existing files parsed without rewriting",
     "public_verifier_syntax": "PASS",
@@ -53,10 +53,15 @@
     "retained": "Original failed schema probe, corrected baseline and wire responses, verifier, contract and source timing retained for review; no live owned fixture."
   },
   "limits": [
-    "Source complete only: type checking, focused execution and positive public/installed acceptance remain pending.",
+    "Current debug/native behavior validated; installed runtime acceptance and deployment remain pending.",
     "Evidence is a source-qualified indexed relationship candidate, not a verified access-site, compiler binding, runtime execution, stored value or shared session identity. Missing/capped observations do not prove absence. Computed keys do not activate the provider.",
     "This extends the current natural-language path only; it does not change state extraction, trace_state_usage, historical source retrieval, protected modern-language WIP or actual LegacyValidation data. No standalone compile/release or new model comparison."
   ],
   "source_commit": "a11f9e3e26610fd59c21861ad14e43610a23a058",
-  "next_action": "Continue substantive independent original source work; retain this TODO28 source outcome and EG31 prior-guidance outcome for one combined validation batch. No standalone compile/release."
+  "next_action": "Run one combined batch release, candidate/installed acceptance, normal restoration and delivery recording. No native repeat or separate debug build.",
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\native3.json",
+  "current_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-legacy-state-20261117\\maintenance-state-context-batch-20261117-debug2\\receipt.json",
+  "current_debug_sha256": "992b96ac67c4d1e84e590d4616d3dca9b3e3e0bbcdb5ea457be601595198f61d",
+  "runtime_correction_commit": "7c13fbf7a1ba96338c28fea6a99c4c1a8c2ec159",
+  "retained_failed_public": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\debug1\\receipt.json"
 }
