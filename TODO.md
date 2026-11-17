@@ -483,6 +483,12 @@ proposals that duplicate the existing surface:
   readers have no invented method or access line; changed sources are withheld.
   See eval/maintenance-state-context-batch-delivery-20261117.json.
 
+  November17 source complete, awaiting combined validation: explicit HTTP
+  request questions compose the existing static tracer with the ask-held source
+  selection, source/guidance/recovery and callable Core recovery. Three behavior
+  cases are written; execution/deployment remain pending. See
+  eval/ask-request-trace-progress-20261117.json.
+
 - [x] **29. Edit Session Protocol (spec 45: begin/complete_edit_session, detect_incomplete_changes)** (M) - *done 2026-06-13: bookends persist intent (registry meta), begin returns the expectation brief on the PLANNED set, complete reports scope drift (planned-but-unedited) + full completeness on actuals, session consumed on close. Was: engine done 2026-06-13: detect_incomplete_changes — untouched co-change partners (with historical evidence, tail-matched against path-spelling variants) + state keys shared with untouched files; 3-case behavioral test through real graph. Both session bookends are delivered; their expectations remain advisory evidence for the agent.*
   Bookends an agent's edit: snapshot expectations at start, verify coupled files/tests/
   state keys at end. Turns Engram from advisor into a loop-closing safety harness — and

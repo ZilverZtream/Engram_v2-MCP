@@ -1508,3 +1508,26 @@ retains a callable single-tool recovery request, including inner page budgets,
 options, offsets and expected context hashes. Recovery performs a new read;
 changed evidence can refuse an old continuation. Reads are sequential and do
 not form an atomic snapshot. No latency or task-usefulness benefit is claimed.
+
+### HTTP requests in natural-language answers (source complete; validation pending)
+
+`ask_codebase` recognizes explicit HTTP-method/URL mentions, for example
+`Explain POST /language.aspx/change`, and composes at most two ordinary
+`trace_user_request` reads under its retrieval deadline. The tracer receives the
+ask-held source selection; its existing source, memory and traversal limits and
+per-member raw hash/revision checks remain. Each typed `request_trace` fact
+retains the complete budgeted trace, applicable authored guidance, nested exact
+trace recovery and a callable ordinary trace action. Ask-report saved recovery
+still retains the original answer without running the trace again.
+
+These are static routing/handler/dependency candidates. They do not establish
+HTTP hosting, dispatch, authorization, database execution or runtime behavior;
+the answer is not upgraded to `answered` by the trace. Invalid/unmatched requests,
+caps, failures and timeout coverage remain explicit. An owned blocking reader
+may finish after the deadline while retaining its source lease. Explicit
+natural-language path scopes currently report automatic request tracing as
+unavailable before source reads; ordinary scoped retrieval continues. Historical
+asks retain their revision-bound path. No routing or synthesis model request is
+added, and no latency or general task-usefulness improvement is claimed.
+The Core preset includes `trace_user_request` so the emitted ordinary and nested
+trace recovery actions are advertised and callable; Full remains the default.

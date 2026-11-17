@@ -15,6 +15,7 @@ pub mod planner;
 pub mod providers;
 pub mod ranking;
 pub mod report;
+pub mod request_trace;
 pub mod resolver;
 pub mod retrieval;
 pub mod status;

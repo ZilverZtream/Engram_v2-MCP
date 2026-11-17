@@ -179,6 +179,8 @@ pub const CORE_TOOLS: &[&str] = &[
     // 5 house implementation pattern + style
     "find_implementation_pattern",
     // 7 causal UI / data tracing
+    // Exact request-trace recovery emitted by ask_codebase must be callable.
+    "trace_user_request",
     "trace_ui_event",
     "trace_data_flow",
     // 9 "you forgot the other side"

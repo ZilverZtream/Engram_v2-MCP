@@ -44,6 +44,19 @@ impl Engram {
         let (generation, view) = self
             .pin_active_source_generation(&req.project_id, &runtime.search)
             .await?;
+        self.trace_user_request_selected(req, record, generation, std::sync::Arc::new(view), budget).await
+    }
+
+    /// Compose the ordinary trace with an already held source selection.
+    /// The caller validates its request and source guard before entering here.
+    pub(crate) async fn trace_user_request_selected(
+        &self,
+        req: TraceUserRequestRequest,
+        record: engram_core::ProjectRecord,
+        generation: u64,
+        view: std::sync::Arc<engram_index::SourceSnapshotGuard>,
+        budget: usize,
+    ) -> Result<CallToolResult, McpError> {
         let graph = self.state.graph.clone();
         // Cover the bounded 64 MiB source inventory, one tokenized source file,
         // graph/JSON assembly and response encoding before allocating them.

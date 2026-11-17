@@ -1,0 +1,90 @@
+{
+  "original_requirement_id": "TODO-28",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-17T10:47:42.980431+00:00",
+  "source_phase_started_at_utc": "2026-11-17T10:32:07.476917+00:00",
+  "original_requirement": "Natural-language entry point composes existing source/graph/access capabilities for ordinary LegacyValidation questions.",
+  "observed_missing_behavior": "ask_codebase has no request-trace provider; an explicit HTTP request question does not invoke the existing URL-to-handler/source/SQL tracer.",
+  "priority_basis": "Current LegacyValidation Full configuration advertises the existing VB/WebForms tracer; retained exact language.aspx/change sources establish an ordinary AJAX endpoint. Reuse source-qualified tracing rather than a new route/graph analyzer or model call.",
+  "implementation_files": [
+    "crates/engram_server/src/services/ask_engine/request_trace.rs",
+    "crates/engram_server/src/services/ask_engine.rs",
+    "crates/engram_server/src/handlers/ask_request_trace.rs",
+    "crates/engram_server/src/handlers/ask_tools.rs",
+    "crates/engram_server/src/handlers/request_trace_tools.rs",
+    "crates/engram_server/tests/ask_request_trace.rs",
+    "docs/TOOL_CONTRACT.md",
+    "crates/engram_server/src/services/ask_engine/report.rs",
+    "crates/engram_server/src/tool_surface.rs",
+    "crates/engram_server/src/tools.rs"
+  ],
+  "finite_acceptance": [
+    "Owned exact non-Q LegacyValidation language page/code-behind copies establish direct source-bound POST /language.aspx/change tracing and the missing typed provider in the ordinary natural-language answer. llm_backend=none; no real project mutation.",
+    "Explicit HTTP method plus URL mentions activate at most two ordinary request traces using the ask-held selected source view and existing tracing limits, source admission, authored guidance and exact result recovery. Invalid/unmatched requests, failures, timeouts/caps and static/runtime limits remain visible; historical asks remain historical. Natural-language path-scoped requests must not expose an unscoped trace.",
+    "Focused parsing, report/scope/source qualification and shared-view direct-handler behavior cases plus owned public acceptance are queued with other original source outcomes. No standalone build/release, broader graph/parser work, task/model replay or timing benchmark."
+  ],
+  "implementation_items_active": 0,
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "post_change_public_checks_executed": 0,
+  "runtime_deployed": false,
+  "full_original_goal_active": true,
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-trace-20261117\\contract.json",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-trace-20261117",
+  "source_pins": {
+    "Site/language.aspx": {
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\legacy_validation-source\\Site\\language.aspx",
+      "sha256": "e174b812c31b5cb51950413b3949efcddc7593eacfe54589a4908a3edf793bd8",
+      "bytes": 117
+    },
+    "Site/language.aspx.vb": {
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\legacy_validation-source\\Site\\language.aspx.vb",
+      "sha256": "abedc38c21b0345f22f12432edfa83c0be01016a37361cf7602dd2fcbb50688f",
+      "bytes": 1953
+    }
+  },
+  "source_sha256": {
+    "crates/engram_server/src/services/ask_engine/request_trace.rs": "82a0ad3b6135e9ed13e3e92435bd27d0cc37542a346aa2c7ab7766c4cc19c53a",
+    "crates/engram_server/src/services/ask_engine.rs": "9b732ebfc637b263df88683647c89124ebaab88ab5b9ea172867cdc1069a3352",
+    "crates/engram_server/src/handlers/ask_request_trace.rs": "1d8dd254a1c48e39811ec2c19828ca5d5126871ebeeb39974a53a751e92ce010",
+    "crates/engram_server/src/handlers/ask_tools.rs": "0dc1a15061d098105657404a5ec39429f39b11915b08f8ae5c175ddf112876df",
+    "crates/engram_server/src/handlers/request_trace_tools.rs": "55ba59334dc25cef51d223dcafeb30e25baa3cbeb376706f326ca8b46445cd57",
+    "crates/engram_server/tests/ask_request_trace.rs": "b2d19a0091639985bd5c32ab546b68a7de7c6d7ddb93115825a08953c244aefb",
+    "docs/TOOL_CONTRACT.md": "64d11522d4576e95b842c3920b57b6f2a169b8e14f21d37786c6e348a3042a00",
+    "crates/engram_server/src/services/ask_engine/report.rs": "438e3653b5dae06a4e6683e5b8341c30f5f0a00818068823cc775142a2ecfaf5",
+    "crates/engram_server/src/tool_surface.rs": "6db2496d2988bece02164f944f2f6ebc38c8600fef9fb127d8e9d3825ed80fb0",
+    "crates/engram_server/src/tools.rs": "24cf05441046d8a5a7a454cd1110d0c86e8f1b6bec7957de3bb3195f82a599bb"
+  },
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-trace-20261117\\baseline1\\receipt.json",
+  "baseline_seconds": 1.5539168000686914,
+  "native_test_cases_written": 3,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-trace-20261117\\verify-public.py",
+  "public_verifier_sha256": "9f7f1d24dcc2d90fd7a7cbcc28b5d535edcbed573c316991ff29645445a9827f",
+  "work_time": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-trace-20261117\\work-time.json",
+  "source_checks": {
+    "rust_syntax": "PASS; existing files parsed without rewriting, new files formatted",
+    "public_verifier_syntax": "PASS",
+    "diff_whitespace": "PASS",
+    "protected_wip9": "UNCHANGED"
+  },
+  "necessary_supporting_changes": [
+    "The ordinary request handler now shares its existing implementation with a caller-held selected source view. No route, graph, parser or storage producer changes.",
+    "The ordinary Markdown renderer retains the already-budgeted trace instead of applying its generic200character crop. Existing complete report budgets/recovery still handle large answers.",
+    "Core advertises trace_user_request so new emitted ordinary/nested trace recovery is callable. This is a dependency of TODO28, not a third independent queue item."
+  ],
+  "limits": [
+    "Source complete only: type checking, three focused native behavior cases, positive public/installed acceptance and deployment remain pending.",
+    "Static routing/handler/source/SQL candidates are not proof of HTTP hosting, dispatch, authorization, values or execution. Existing nested omissions/recovery remain. No new routing or synthesis model request.",
+    "At most two explicit HTTP requests are traced; mention detection stops at the third. Explicit natural-language path scopes currently disclose automatic tracing unavailable before unscoped reads; ordinary scoped source retrieval continues.",
+    "The ordinary tracer retains its existing50kpath/64MiBsource/2MiBfile/256MiBreservation and graph limits. Deadline expiration may leave the owned blocking reader finishing with its source lease. No end-to-end latency or general task-benefit claim.",
+    "No actual LegacyValidation source read/reindex/mutation, Site/Q read, closed CodeMap/Blast work, target-language expansion, paid model/task replay or standalone build/release."
+  ],
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-trace-20261117",
+    "baseline_owners_closed": true,
+    "baseline_fixture_removed": true,
+    "current_fixtures_or_processes": 0,
+    "retention": "Retain exact source pins, contract, baseline/wire, verifier and source timing. New native/public fixtures close their server/database owners before removing owned directories, including unwinding. Preexisting folders untouched."
+  },
+  "next_action": "Queue this single TODO28 source outcome with retained TODO33 page batching. Continue another substantive independent original requirement; no standalone compile or release. The preceding three-outcome delivery remains installed f8714194."
+}
