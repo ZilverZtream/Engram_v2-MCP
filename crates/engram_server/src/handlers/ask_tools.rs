@@ -166,7 +166,12 @@ impl Engram {
             providers.push(settings.provider.clone());
         }
         for state in &mut state_evidence {
-            raw.append(&mut state.items);
+            // Explicit browser-key facts already share a16-item source-admitted
+            // bound. Generic per-file ranking must not erase readers behind
+            // two writes to the same key; retain that bounded set separately.
+            if state.provider.provider != "browser_state" {
+                raw.append(&mut state.items);
+            }
             providers.push(state.provider.clone());
         }
         if let Some(request) = &mut request_evidence {
@@ -459,6 +464,11 @@ impl Engram {
             needles.extend(stems);
             ranking::retain_entity_anchored(&mut evidence, &needles, &protected);
             ranking::retain_one_per_path(&mut evidence, &protected);
+        }
+        for state in &mut state_evidence {
+            if state.provider.provider == "browser_state" {
+                evidence.append(&mut state.items);
+            }
         }
         let conflicts = ranking::detect_conflicts(&evidence, gen_);
         let snapshot = status::build_snapshot(
