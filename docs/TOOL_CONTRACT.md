@@ -672,6 +672,22 @@ scope. Current guidance does not validate inferred migration recommendations,
 report freshness or runtime behavior. Shared response budgets and immutable
 captured-result recovery include the added guidance.
 
+### Authored policy in page context (source complete; validation pending)
+
+`get_page_context` supplies `project_policy_sources` for the requested page and
+successfully read composition under the code-behind/master options. Current
+scope, complete supplied guidance, accepted exceptions, source hashes and
+omissions/recovery remain separate from observed house style. This does not
+cover every runtime-created component or a future edit's final scope, and does
+not establish compliance with policy prose.
+
+Default JSON and Markdown include that policy context. Budgeted responses retain
+it in `required_context` on every page, alongside coverage qualifications.
+Too-small budgets still require a larger minimum instead of silently dropping
+policy. The assembled context hash includes the guidance; changing a guide
+invalidates a prior continuation even when page source and index are unchanged.
+No authored file is written and no reindex is needed to refresh current guidance.
+
 ### Literal legacy-state questions (source complete; validation pending)
 
 Current `ask_codebase` questions that explicitly name `Session("key")`,

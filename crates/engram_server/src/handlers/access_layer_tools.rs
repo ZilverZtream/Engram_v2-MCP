@@ -676,6 +676,7 @@ pub struct BusinessLogicHit {
 #[derive(Debug, Clone, Serialize)]
 pub struct PageContextResult {
     pub composition: super::page_composition::Composition,
+    pub project_policy_sources: crate::services::project_policy::PolicyContext,
     pub aspx_file: String,
     pub codebehind_file: String,
     pub class_name: String,
@@ -3093,6 +3094,7 @@ fn render_page_context_markdown(ctx: &PageContextResult) -> String {
     let mut md = String::with_capacity(12_000);
 
     md.push_str(&format!("# Page Context: `{}`\n\n", ctx.aspx_file));
+    md.push_str(&ctx.project_policy_sources.render_markdown());
     md.push_str(&format!("- **Code-behind**: `{}`\n", ctx.codebehind_file));
     md.push_str(&format!("- **Class**: `{}`\n", ctx.class_name));
     md.push_str(&format!("- **Language**: {}\n", ctx.language));
@@ -5021,8 +5023,20 @@ impl Engram {
             };
             let app_root = discover_web_application_root(Path::new(&project_dir), &aspx_full);
             let composition = super::page_composition::collect(Path::new(&project_dir), &app_root, &aspx_full, include_master, include_cb);
+            let mut policy_paths: Vec<_> = composition.files.iter().map(|file| file.path.clone()).collect();
+            policy_paths.push(aspx_file.clone());
+            if include_cb && cb_content.is_some() {
+                policy_paths.push(cb_path.clone());
+            }
+            policy_paths.sort();
+            policy_paths.dedup();
+            let mut project_policy_sources = crate::services::project_policy::resolve(
+                Path::new(&project_dir), &policy_paths, &[],
+            ).with_source_recovery(&project_id);
+            project_policy_sources.notes.push("Policy scope covers the requested page and successfully read source composition under the code-behind/master options. It does not cover every possible runtime component or future edit target. Authored guidance is intended behavior; house-style observations do not establish policy or compliance.".into());
             Ok(PageContextResult {
                 composition,
+                project_policy_sources,
                 aspx_file: aspx_file.clone(),
                 house_style,
                 codebehind_file: cb_path,
