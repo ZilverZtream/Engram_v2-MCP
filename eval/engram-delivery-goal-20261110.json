@@ -2753,18 +2753,18 @@
       "TODO-31",
       "EG-01"
     ],
-    "status": "FOCUSED_NATIVE_AND_PUBLIC_DEBUG_PASS_RELEASE_PENDING",
+    "status": "ONE_COMBINED_RELEASE_RUNNING",
     "shipping_source_commit": "bab3f41a48daca97a86380429379a21ef0fbdd4e",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117",
     "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\source-preparation.json",
     "implementation_items_active": 0,
     "expected_native_cases": 9,
     "native_commands_started": 3,
-    "release_commands_started": 0,
+    "release_commands_started": 1,
     "full_or_lib_suite": false,
     "extra_debug_build": false,
     "full_original_goal_active": true,
-    "next_action": "One guarded optimized server build for this same accepted source batch, then paired candidate/installed acceptance. Reuse the existing target and deployment workflow; no additional native/debug build or broad suite.",
+    "next_action": "Observe the same live release1 session41193 to its terminal receipt; never restart on observation timeout. Then package the same binary with unchanged215asset companion, run all five public verifiers on candidate/installed fixtures through existing managed config hold/production exclusion/deployment helpers, restore normal runtime, record exact identities and delivered limits. Do not run another native/debug build or full suite. Full original goal remains active.",
     "native_exec_session": 65490,
     "native_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\native3-state.json",
     "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\fixture-correction1.json",
@@ -2800,7 +2800,10 @@
     "debug_public_checks_passed": 9,
     "retained_prior_public_checks": 31,
     "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\debug2\\receipt.json",
-    "release_plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\release-plan.json"
+    "release_plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\release-plan.json",
+    "release_exec_session": 41193,
+    "release_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\release1-state.json",
+    "native_runner_seconds_total": 474.5826805001125
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
