@@ -2578,6 +2578,14 @@
         "source_commit": "a0c4fb34b80409368cbda4a455dbac8234187c49",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-literal-settings-20261117\\contract.json",
         "progress": "eval/ask-literal-settings-progress-20261117.json"
+      },
+      {
+        "original_requirement_id": "S06/S07/S16",
+        "outcome": "graph_search selected physical source admission for symbol seeds and expansion endpoints",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "c9ad7ac7087208d3e8f3e7b5e1c2a275f4ccf43e",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-search-source-boundary-20261117\\contract.json",
+        "progress": "eval/graph-search-source-boundary-progress-20261117.json"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2727,30 +2735,65 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "original_requirement_id": "TODO-28",
-    "original_requirement": "One natural-language entry point supplies useful current source evidence for ordinary LegacyValidation diagnosis instead of requiring the calling AI to discover the settings specialty surface.",
-    "observed_missing_behavior": "Current ask_codebase has lexical/graph/schema evidence but no literal-settings source observations; exact named VB getter keys are not typed Setting evidence. Existing shared VB source reader already supplies literal store/getter/key/line observations.",
+    "original_requirement_id": "S06/S07/S16",
+    "original_requirement": "Source readers retain one selected source view and direct graph observations respect selected physical file revisions, including inherited and deleted files, with a documented live-graph boundary.",
+    "observed_missing_behavior": "handle_graph_search pins source for lexical results, but symbol lookup, parent boosts and expansion endpoints admit arbitrary live graph file revisions. Existing SelectedSourceRevisionLookup already supplies exact managed and bounded legacy membership.",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "finite_acceptance": [
-      "For ordinary current named-setting questions, supply bounded exact literal key/getter call observations from selected admitted VB sources, with full source hashes and line provenance.",
-      "Preserve independent stores/getter kinds rather than inferring physical values, Boolean types, shared storage or execution. Existing extractor syntax limitations stay explicit.",
-      "Changed, unselected, cross-scope or unavailable source cannot supply current setting facts; preserve unaffected observations and disclose incomplete coverage without promoting answer certainty.",
-      "Existing report budgeting/recovery and historical separation remain. Confirm installed gap and existing specialist observation on one owned fixture, then prepare focused native/public acceptance for combined validation only."
+      "Memory-namespace direct symbol seeds and their file boosts require membership in the same held selected physical source view; valid inherited revisions remain, while deleted/unselected/future/unknown-source symbols are withheld.",
+      "Graph expansion may proceed only from admitted source endpoints and cannot use an unselected intermediary to reach an otherwise selected target. Existing lexical hits remain usable when their live graph file node has been overwritten.",
+      "Returned rows cite selected file revision where available, and coverage reports withheld/unavailable source observations. Disclose that live edge metadata is not atomic source/graph isolation or current disk/runtime evidence.",
+      "Two focused actual-handler fixtures cover mixed/inherited/deleted source and blocked expansion bridges. Preserve existing held-view source-preview/GC acceptance; execute only in the combined native batch. No broad graph audit, CodeMap/Blast change or standalone Cargo."
     ],
     "implementation_files": [
-      "crates/engram_server/src/handlers/ask_settings.rs",
-      "crates/engram_server/src/handlers/ask_tools.rs",
-      "crates/engram_server/src/services/ask_engine.rs",
-      "crates/engram_server/src/services/ask_engine/literal_settings.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/tests/ask_literal_settings.rs"
+      "crates/engram_server/src/handlers/graph_tools.rs",
+      "crates/engram_server/tests/graph_search_source_boundary.rs"
     ],
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "source_commit": "a0c4fb34b80409368cbda4a455dbac8234187c49",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-search-source-boundary-20261117\\contract.json",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 3,
+    "pending_source_outcomes": 4,
     "full_original_goal_active": true,
-    "next_action": "Keep source queued for combined validation; three is a minimum, not an automatic release schedule. Select further ready original source work before entering Cargo.",
-    "progress": "eval/ask-literal-settings-progress-20261117.json"
+    "next_action": "Keep four original source outcomes queued. Prepare one focused combined native/public acceptance when the source batch is ready; the three-item minimum is not a release schedule. Do not replay passed unrelated checks.",
+    "baseline_kind": "Authoritative source observation; no public API can inject the unpublished graph fixture. No installed race reproduction claimed.",
+    "at_utc": "2026-11-17T00:19:56.497579+00:00",
+    "source_commit": "c9ad7ac7087208d3e8f3e7b5e1c2a275f4ccf43e",
+    "baseline": "Static source proof: direct graph seeds and outgoing targets had no selected physical membership check. No installed mixed-publication reproduction claimed.",
+    "source_behavior": [
+      "The same held source capability now authorizes symbol seeds, parent-file leads, expansion origins and expansion targets through the existing managed/legacy physical revision lookup.",
+      "Inherited revisions remain eligible; future/deleted/unselected or unavailable graph observations are withheld before boosts/expansion, so a rejected intermediary cannot authorize a later target.",
+      "Lexical source remains available when a live graph file node has been overwritten. Returned paths cite selected physical revisions and disclose withheld/unavailable observation attempts.",
+      "The response states that graph edges remain live observations, not an atomic historical graph/disk/runtime snapshot."
+    ],
+    "source_checks": {
+      "rustfmt_parse": "PASS; legacy handler emitted to stdout only",
+      "git_diff_check": "PASS",
+      "python_verifier_syntax": "PASS",
+      "protected_wip9": "UNCHANGED"
+    },
+    "source_sha256": {
+      "crates/engram_server/src/handlers/graph_tools.rs": "af25a83205d3f3549db7645f92185318f57643ac3368009026f1fd39ff0a1226",
+      "crates/engram_server/tests/graph_search_source_boundary.rs": "c827432ddcca5a6ae371de996094126a79df711229d4f8e983ec02ba87894885"
+    },
+    "native_test_cases_written": 2,
+    "native_tests_executed": 0,
+    "public_post_change_checks_executed": 0,
+    "builds_started": 0,
+    "runtime_deployed": false,
+    "real_model_calls": 0,
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-search-source-boundary-20261117\\verify-public.py",
+    "public_verifier_sha256": "6755f89fc8357e27b6a95b2030e358ac493e050ba55e768e4aaec0ccc467078c",
+    "previous_goal_turn": "PROGRESS: a0c4fb3 implemented and pushed named literal-setting answer evidence; validation remains queued.",
+    "limits": [
+      "Source implementation only: type-checking, native mixed-revision handler execution and public/installed checks remain pending.",
+      "Name/neighbor discovery retains its existing caps before admission. Withheld candidates can reduce recall; no exhaustive symbol/path or complete historical graph claim.",
+      "Only graph_search memory-source admission is changed. Full S06/S07/S16 and the rest of the original backlog remain open.",
+      "No CodeMap, Blast Radius, graph-store rewrite, repository-wide audit or new acceptance platform."
+    ],
+    "temporary_resources": {
+      "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-search-source-boundary-20261117",
+      "runtime_fixtures_started": 0,
+      "retention": "Keep contract, verifiers, phase ledger and source receipts for combined acceptance. Future fixtures own cleanup after database/runtime shutdown; no preexisting deletion."
+    }
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2999,5 +3042,6 @@
     "original_goal_complete": false
   },
   "control_instance_trace_source_progress_20261117": "eval/control-instance-trace-progress-20261117.json",
-  "ask_literal_settings_source_progress_20261117": "eval/ask-literal-settings-progress-20261117.json"
+  "ask_literal_settings_source_progress_20261117": "eval/ask-literal-settings-progress-20261117.json",
+  "graph_search_source_boundary_progress_20261117": "eval/graph-search-source-boundary-progress-20261117.json"
 }
