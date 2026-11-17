@@ -23,11 +23,11 @@
     "Provider failures remain independent within the same held source selection/deadline. Preserve every already-bounded configuration fact through generic per-file ranking; no schema/parameter changes or new extraction format. Config results remain partial.",
     "Three focused native behavior cases plus owned installed baseline/public Full/Core mixed-source, guidance, source recovery, scoped and stale checks. Join the queued EG26 descriptions and another substantive original outcome for combined validation. No standalone Cargo/release/full suite or copied real secrets."
   ],
-  "engram_builds_started": 0,
-  "native_tests_executed": 0,
+  "engram_builds_started": 2,
+  "native_tests_executed": 3,
   "runtime_deployed": false,
   "implementation_items_active": 0,
-  "pending_source_outcomes": 2,
+  "pending_source_outcomes": 3,
   "full_original_goal_active": true,
   "previous_goal_turn_classification": {
     "classification": "PROGRESS_SOURCE_DELIVERY",
@@ -69,13 +69,13 @@
   "native_test_cases_written": 3,
   "public_checks_written": 10,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-config-declarations-20261117\\verify-public.py",
-  "public_verifier_sha256": "b31efb9d4c2af06187c03f547f6338c3f41e8382c2bce7f7088303ab3edb0152",
+  "public_verifier_sha256": "99a9dacb38a9be39c52722f03b1c69b0cf299b1befea08467087e1bfba5421e2",
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-config-declarations-20261117\\baseline1\\receipt.json",
   "baseline_checks_passed": 3,
   "baseline_seconds": 2.235702499980107,
   "baseline_binary_sha256": "0b590ecb08237997caba8807bdf47bfc7d1388f8b486d4414d9f04bf2aa66660",
-  "post_change_public_checks_executed": 0,
-  "next_action": "Queue this second independent original source outcome with EG26 tool contracts. Continue another substantive original source requirement before combined validation; no standalone Cargo/release. Native3 plus existing getter behavior and actual MCP10 checks remain pending.",
+  "post_change_public_checks_executed": 10,
+  "next_action": "Poll exact live release session90986; never restart on timeout. On PASS run release.py package, deploy7.py candidate1/installed1, finish-install4.py restore/ZIP, record-delivery.py. Same artifact for candidate/installed34checks. No extra native/debug/release builds absent failed behavior.",
   "limits": [
     "Source completion only: no Rust type/native or post-change MCP validation yet; installed0b590ecb and actual Full/LegacyValidation data remain unchanged.",
     "AppSettings values are raw source attribute observations in admitted UTF8files, not decoded/effective/default runtime values, merged configuration, getter/store binding or execution. Existing parser coverage,1MiB/file and discovery/row/output caps remain explicit.",
@@ -91,5 +91,11 @@
     "crates/engram_server/tests/ask_config_declarations.rs": "802a41865f70c2c661000a65b3eceb0006a974437bbdf4760ac3fdc23e599134",
     "docs/TOOL_CONTRACT.md": "24dd89805f13aab521503a396debb0ea441cb7eb28f9e29a3b6fff24ccb5b482"
   },
-  "source_commit": "8034a95cbe44b7bd7231158370457049edbd92e2"
+  "source_commit": "8034a95cbe44b7bd7231158370457049edbd92e2",
+  "verifier_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117\\public1-verifier-correction.json",
+  "native_validation_status": "PASS",
+  "native_batch_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117\\native-acceptance.json",
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-config-declarations-20261117\\contract-config-review-batch-20261117-debug2\\receipt.json",
+  "validation_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117",
+  "build_count_scope": "One focused native Cargo invocation8cases and one live optimized release across all3outcomes. No full suite, separate debug build or native rerun."
 }
