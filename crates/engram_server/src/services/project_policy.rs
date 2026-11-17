@@ -13,6 +13,7 @@ mod historical;
 mod linked_sources;
 mod references;
 pub use historical::resolve_at_revision;
+pub(crate) use historical::resolve_with_budget as resolve_at_revision_with_budget;
 
 const MAX_DISCOVERY_ENTRIES: usize = 2_048;
 const MAX_CANDIDATES: usize = 512;

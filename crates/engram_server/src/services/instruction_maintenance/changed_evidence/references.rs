@@ -143,6 +143,15 @@ pub(super) fn discover(
             continue;
         };
         let (current_blake3, current_bytes) = (current.blake3.clone(), current.content.len());
+        if changed.iter().any(|path| same_path(path, &instruction)) {
+            candidates.push(Candidate {
+                path: instruction.clone(), current_blake3, current_bytes,
+                matches: vec![json!({"kind":"changed_instruction_source","path":instruction,
+                    "detail":"Reviewing the changed guide does not extend its scope to other files."})],
+                selection_basis: "directly_changed_conventional_instruction",
+            });
+            continue;
+        }
         let instruction_source = Instruction {
             path: instruction.clone(),
             current: current.clone(),

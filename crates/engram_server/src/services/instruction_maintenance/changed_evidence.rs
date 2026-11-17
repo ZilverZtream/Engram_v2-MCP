@@ -3,6 +3,7 @@ use super::*;
 use crate::services::project_policy::{self, PolicyBudget};
 use serde_json::{Value, json};
 mod git_changes;
+mod prior_guidance;
 mod references;
 mod symbols;
 
@@ -12,6 +13,7 @@ pub(super) struct Selection {
     pub instructions: Vec<String>,
     pub evidence: Vec<String>,
     pub context: Value,
+    pub prior_source_bytes: usize,
 }
 
 pub(super) fn validate(req: &MaintenanceRequest) -> Result<Vec<String>> {
@@ -73,6 +75,7 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
         return Ok(Selection {
             instructions: Vec::new(),
             evidence,
+            prior_source_bytes: 0,
             context: json!({"basis":basis,"changed_paths":[],"status":"no_git_changes_observed",
                 "sources":[],"omissions":[],"notes":[],"interpretation":format!("{interpretation} No current instruction candidates were selected. This does not establish that guidance is semantically correct or needs no maintenance. No index or authored file is changed.")}),
         });
@@ -101,13 +104,17 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
             json!({"path":source.path,"blake3":source.blake3,"applicability":source.applicability}),
         );
     }
-    let mut referenced = references::discover(root, req, &changed, &instructions)?;
+    let prior = prior_guidance::discover(root, req, &changed, &instructions)?;
     let mut complete_bytes = policy
         .sources
         .iter()
         .map(|source| source.content.len())
         .sum::<usize>();
-    for candidate in referenced.candidates {
+    let mut referenced = references::discover(root, req, &changed, &instructions)?;
+    for candidate in prior.candidates.into_iter().chain(referenced.candidates) {
+        if instructions.contains(&candidate.path) {
+            continue;
+        }
         if instructions.len() >= 8
             || complete_bytes.saturating_add(candidate.current_bytes) > PACKET_LIMIT / 2
         {
@@ -126,11 +133,17 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
         || !policy.omissions.is_empty()
         || !unavailable.is_empty()
         || !referenced.omissions.is_empty()
-        || !referenced.notes.is_empty();
+        || !referenced.notes.is_empty()
+        || prior.context.coverage != "complete"
+        || !prior.context.omissions.is_empty()
+        || prior.observations.iter().any(|row| row["status"].as_str().is_some_and(|status| status.contains("unavailable") || status.contains("not_supplied")));
     let context = json!({
         "basis":basis,
         "changed_paths":changed,
-        "status":if incomplete {"instruction_selection_incomplete"} else if instructions.is_empty() {"no_current_instruction_candidates_observed"} else {"current_instruction_candidates_collected"},
+        "status":if incomplete {"instruction_selection_incomplete"} else if prior.requires_review {"historical_guidance_requires_review"} else if instructions.is_empty() {"no_current_instruction_candidates_observed"} else {"current_instruction_candidates_collected"},
+        "prior_guidance":prior.context,
+        "prior_guidance_current_observations":prior.observations,
+        "prior_guidance_interpretation":"Prior guidance and linked bodies come from base_commit only. Prior applicability does not grant current authority, accept a scope change or authorize removal. Surviving documents are review candidates with their complete current/before snapshots; absent documents remain historical evidence, not editable current instructions. Complete-source budgets include the retained historical bodies. No semantic policy decision or authored write is performed.",
         "discovery_status":policy.status,"discovery_coverage":policy.coverage,
         "sources":sources,"omissions":policy.omissions,"unavailable_complete_sources":unavailable,
         "notes":policy.notes,
@@ -138,11 +151,12 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
             "omissions":referenced.omissions,"notes":referenced.notes,
             "limits":{"documents":64,"complete_source_read_bytes":2097152,"links_per_snapshot":256,"reference_chain_depth":3,"matches_per_instruction":16,"reference_visits":4096,"changed_symbol_source_read_bytes":PACKET_LIMIT,"symbol_declaration_candidates":1024,"symbol_references_per_instruction":256},
             "scope":"Current conventional guidance inventory, bounded literal Markdown links and direct inline-code symbol mentions, including names inside authored code expressions. Ordinary prose observations remain in the manifest but do not drive inverse symbol selection. Symbol declarations are parsed once from complete before/current copies of the caller-selected VB/JS/TS/SQL changed files only; no codebase inventory, graph or model. Unchanged observed method bytes alone do not select an instruction. References retain their own snapshot hashes; instruction_manifest reports captured dependency freshness. Name matches and review selection do not establish bindings, semantic impact or expanded scope authority. Listing, discovery and final packet capture are separate observations."},
-        "interpretation":format!("{interpretation} Discovery selects current scoped guidance and literal-reference maintenance candidates, including guidance scoped elsewhere that references changed evidence. A dependency review candidate does not gain authority over files outside its scope. Discovery does not inventory removed instructions or all formerly applicable guidance, infer semantic impact, accept policy or establish that no guidance change is warranted. Each selected instruction and evidence file retains exact base-commit and current snapshots in this packet; linked-reference coverage is reported by instruction_manifest. Explicit instruction_paths remain available for historical or otherwise undiscovered guidance. No index or authored file is changed.")
+        "interpretation":format!("{interpretation} Discovery selects current scoped guidance, directly changed conventional guides, bounded prior applicable guidance and literal-reference maintenance candidates. A review candidate does not gain authority over files outside its current scope. Prior guidance is explicitly revision-pinned and cannot substitute for current policy. Discovery remains bounded, does not infer semantic impact, accept policy or establish that no guidance change is warranted. Each selected current instruction and evidence file retains exact base-commit and current snapshots; linked-reference coverage is reported by instruction_manifest and prior_guidance. Explicit instruction_paths remain available for otherwise undiscovered current guidance. No index or authored file is changed.")
     });
     Ok(Selection {
         instructions,
         evidence,
         context,
+        prior_source_bytes: prior.retained_bytes,
     })
 }

@@ -98,7 +98,7 @@ pub fn resolve_at_revision(
     resolve_with_budget(root, revision, target_paths, indexed_paths, PolicyBudget::default())
 }
 
-fn resolve_with_budget(
+pub(crate) fn resolve_with_budget(
     root: &Path, revision: Oid, target_paths: &[String], indexed_paths: &[String], budget: PolicyBudget,
 ) -> anyhow::Result<PolicyContext> {
     let repo = engram_git::history::GitWalker::open_repo(root)?;

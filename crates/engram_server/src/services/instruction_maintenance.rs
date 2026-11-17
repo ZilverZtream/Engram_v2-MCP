@@ -432,7 +432,9 @@ fn capture_with_area(
     let tree = repo
         .find_commit(git2::Oid::from_str(&req.base_commit)?)?
         .tree()?;
-    let mut remaining = PACKET_LIMIT;
+    let prior_source_bytes = changed.as_ref().map_or(0, |selection| selection.prior_source_bytes);
+    let mut remaining = PACKET_LIMIT.checked_sub(prior_source_bytes)
+        .context("Complete prior guidance exceeds the maintenance packet byte budget")?;
     let mut lookup_remaining = area_draft::LOOKUP_ENTRY_LIMIT;
     let new_instruction_targets = targets
         .into_iter()

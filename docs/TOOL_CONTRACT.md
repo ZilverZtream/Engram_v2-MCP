@@ -672,6 +672,26 @@ scope. Current guidance does not validate inferred migration recommendations,
 report freshness or runtime behavior. Shared response budgets and immutable
 captured-result recovery include the added guidance.
 
+### Prior guidance in changed-file maintenance (source complete; validation pending)
+
+Changed-file instruction maintenance compares current discovery with bounded
+guidance from the exact `base_commit`. The packet's `change_context.prior_guidance`
+retains historical scope, hashes, complete supplied bodies, linked evidence and
+explicit omissions from that revision. Live checkout contents never substitute
+for historical guidance. Retained historical bodies count against the existing
+maintenance packet byte budget, including when the same source is also captured
+as a current/before instruction pair.
+
+A surviving formerly applicable guide becomes a maintenance review candidate
+even when its current scope no longer matches the changed code. A removed guide
+remains historical evidence requiring review; it is not an editable current
+instruction or an accepted removal. Prior scope grants no current authority.
+Directly changed conventional guides are also review candidates even when their
+own Markdown paths do not match their `applyTo`. Existing complete-source and
+eight-instruction selection limits still apply, with omissions disclosed. Scope
+or policy intent still needs an explicit reviewer decision; no authored file is
+written. Packet-bound proposals continue to refuse changed evidence.
+
 ### UI pattern observations and authored guidance
 
 `get_ui_conformance` reports indexed family membership, exemplars, generations
