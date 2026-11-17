@@ -672,7 +672,7 @@ scope. Current guidance does not validate inferred migration recommendations,
 report freshness or runtime behavior. Shared response budgets and immutable
 captured-result recovery include the added guidance.
 
-### Authored policy in page context (source complete; validation pending)
+### Authored policy in page context (installed November17)
 
 `get_page_context` supplies `project_policy_sources` for the requested page and
 successfully read composition under the code-behind/master options. Current
@@ -688,7 +688,7 @@ policy. The assembled context hash includes the guidance; changing a guide
 invalidates a prior continuation even when page source and index are unchanged.
 No authored file is written and no reindex is needed to refresh current guidance.
 
-### Literal legacy-state questions (source complete; validation pending)
+### Literal legacy-state questions (installed November17)
 
 Current `ask_codebase` questions that explicitly name `Session("key")`,
 `ViewState("key")`, `Application("key")` or `Cache("key")` also retrieve indexed
@@ -710,7 +710,7 @@ Existing report budgets, source guidance and
 immutable result recovery apply. Historical requests retain their separate
 revision-pinned source path. No state extraction, project data or policy is changed.
 
-### Prior guidance in changed-file maintenance (source complete; validation pending)
+### Prior guidance in changed-file maintenance (installed November17)
 
 Changed-file instruction maintenance compares current discovery with bounded
 guidance from the exact `base_commit`. The packet's `change_context.prior_guidance`

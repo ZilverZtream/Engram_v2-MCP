@@ -1,7 +1,7 @@
 {
   "original_requirement_id": "EG-31",
   "supporting_original_requirement": "EG-27",
-  "status": "CURRENT_DEBUG_VALIDATED_AWAITING_COMBINED_DEPLOYMENT",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "at_utc": "2026-11-17T07:49:17.103850+00:00",
   "original_requirement": "Evidence-bound maintenance after code changes preserves exact prior guidance, scope and exceptions without accepting a policy weakening or substituting current policy for requested historical evidence.",
   "observed_missing_behavior": "Changed-file selection explicitly only discovers current applicable guidance. A guide that applied at base_commit but is now deleted or scoped elsewhere is absent from the review. A directly changed conventional guide is evidence but is not necessarily a selected editable instruction.",
@@ -23,7 +23,7 @@
   ],
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\prior-guidance-maintenance-20261117\\contract.json",
   "implementation_items_active": 0,
-  "engram_builds_started": 0,
+  "engram_builds_started": 4,
   "full_original_goal_active": true,
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\prior-guidance-maintenance-20261117\\baseline1\\receipt.json",
   "baseline_seconds": 2.22269339999184,
@@ -31,7 +31,7 @@
   "native_test_cases_written": 3,
   "native_tests_executed": 3,
   "post_change_public_checks_executed": 7,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\prior-guidance-maintenance-20261117\\verify-public.py",
   "public_verifier_sha256": "0d691a385cbd9efdde2dafac67374094cb93e1346086ace10365b9df2f452b7b",
   "source_sha256": {
@@ -57,13 +57,18 @@
     "retained": "Contract, installed baseline and original responses, verifier and source timing retained for review. No live fixture or current owned temporary directory."
   },
   "limits": [
-    "Current debug/native behavior validated; installed runtime acceptance and deployment remain pending.",
+    "Finite component validated on the focused native target and current debug/candidate/installed public fixtures; broader semantic/usefulness limits below remain.",
     "Discovery and source recovery remain bounded. Prior applicability is historical evidence, not current authority, accepted deletion or semantic policy intent; no authored file is written. Complete prior bodies share the existing maintenance packet budget, so large comparisons may require a smaller explicit review slice.",
     "No actual LegacyValidation mutation, Site/Q read, model/task replay, CodeMap/Blast change, new target-language support or standalone build."
   ],
   "source_commit": "e8a0c8528ec49f30780039c822758441a22e89b2",
-  "next_action": "Run one combined batch release, candidate/installed acceptance, normal restoration and delivery recording. No native repeat or separate debug build.",
+  "next_action": "Finite component installed and accepted. Advance the original backlog without replaying this passed batch; broader semantic/task-usefulness limits remain.",
   "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\native3.json",
   "current_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\prior-guidance-maintenance-20261117\\maintenance-state-context-batch-20261117-debug2\\receipt.json",
-  "current_debug_sha256": "992b96ac67c4d1e84e590d4616d3dca9b3e3e0bbcdb5ea457be601595198f61d"
+  "current_debug_sha256": "992b96ac67c4d1e84e590d4616d3dca9b3e3e0bbcdb5ea457be601595198f61d",
+  "delivery_record": "eval/maintenance-state-context-batch-delivery-20261117.json",
+  "shipping_source_commit": "7086d48320137394d8ef29835c82a56ad2cf074e",
+  "installed_public_checks": 7,
+  "candidate_public_checks": 7,
+  "build_count_scope": "Three focused Cargo invocations including fixture/runtime corrections and one release are shared by all three outcomes. Current native total is9:3per requirement."
 }

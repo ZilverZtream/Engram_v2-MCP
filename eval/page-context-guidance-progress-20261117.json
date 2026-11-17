@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-01",
-  "status": "CURRENT_DEBUG_VALIDATED_AWAITING_COMBINED_DEPLOYMENT",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "at_utc": "2026-11-17T09:14:19.409035+00:00",
   "original_requirement": "Applicable authored guidance reaches direct context retrieval, with scope, exceptions, source hashes, omissions and exact recovery.",
   "observed_missing_behavior": "get_page_context returns page/control/code-behind/composition data but PageContextResult and its renderer have no authored project-policy field. Complete JSON and Markdown replies omit the owned root AGENTS.md rule and exception.",
@@ -19,12 +19,12 @@
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-context-guidance-20261117\\contract.json",
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-context-guidance-20261117\\baseline.json",
   "implementation_items_active": 0,
-  "engram_builds_started": 0,
+  "engram_builds_started": 4,
   "full_original_goal_active": true,
   "native_test_cases_written": 3,
   "native_tests_executed": 3,
   "post_change_public_checks_executed": 7,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "baseline_binary_sha256": "7fef8de9a7a604768a6f5a1fe0a3d3b27e13f58087cd74c83ee48a25dd7bb0de",
   "source_sha256": {
     "crates/engram_server/src/handlers/access_layer_tools.rs": "e7ada9c848c9233e13704c729e5850f78f80819cfa94eb38fefbdd2707d9d60d",
@@ -46,13 +46,18 @@
     "retained": "Contract, baseline reinterpretation, verifier and source timing retained; no live owned fixture or compile process."
   },
   "limits": [
-    "Current debug/native behavior validated; installed runtime acceptance and deployment remain pending.",
+    "Finite component validated on the focused native target and current debug/candidate/installed public fixtures; broader semantic/usefulness limits below remain.",
     "Source scope covers the requested page and read composition under the options, not every runtime component, sibling-style observation or future edit target. Authored guidance and source hashes do not establish compliance, runtime behavior or task benefit.",
     "No batch extension, actual LegacyValidation mutation/reindex, Site/Q read, model/task replay, target-language expansion or standalone compilation/release."
   ],
   "source_commit": "f5307697f5107ce771fe80016d50f0c398f6a5c8",
-  "next_action": "Run one combined batch release, candidate/installed acceptance, normal restoration and delivery recording. No native repeat or separate debug build.",
+  "next_action": "Finite component installed and accepted. Advance the original backlog without replaying this passed batch; broader semantic/task-usefulness limits remain.",
   "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\native3.json",
   "current_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-context-guidance-20261117\\maintenance-state-context-batch-20261117-debug2\\receipt.json",
-  "current_debug_sha256": "992b96ac67c4d1e84e590d4616d3dca9b3e3e0bbcdb5ea457be601595198f61d"
+  "current_debug_sha256": "992b96ac67c4d1e84e590d4616d3dca9b3e3e0bbcdb5ea457be601595198f61d",
+  "delivery_record": "eval/maintenance-state-context-batch-delivery-20261117.json",
+  "shipping_source_commit": "7086d48320137394d8ef29835c82a56ad2cf074e",
+  "installed_public_checks": 7,
+  "candidate_public_checks": 7,
+  "build_count_scope": "Three focused Cargo invocations including fixture/runtime corrections and one release are shared by all three outcomes. Current native total is9:3per requirement."
 }
