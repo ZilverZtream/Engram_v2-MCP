@@ -2713,94 +2713,69 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "original_requirement_id": "TODO-28",
+    "original_requirement_id": "TODO-35",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "source_phase_started_at_utc": "2026-11-17T12:20:45.667996+00:00",
-    "original_requirement": "Natural-language entry point composes source/graph/access capabilities for LegacyValidation questions while honoring requested path scope.",
-    "observed_missing_behavior": "Explicit HTTP questions with a natural-language path qualifier return misunderstood without tracing, although the existing source inventory and trace reader can select files. Ordinary trace recovery currently cannot carry a scope.",
-    "priority_basis": "VB/WebForms HTTP navigation already advertised in current Full LegacyValidation configuration; this completes the recorded scope limitation of the shipped request provider. No language/graph/parser expansion.",
+    "original_requirement": "Agents can retrieve source-declared SQL table/column evidence, with qualified identities, nullability/defaults and source freshness, without inventing deployed database state.",
+    "observed_missing_behavior": "Catalog records ALTER TABLE only as a coverage gap/operation except separately implemented foreign keys. Table and individual-column queries omit ADD/ALTER/DROP column declarations entirely; newly declared columns have no queryable cited operation.",
+    "priority_basis": "LegacyValidation current Full configuration advertises query_schema; its retained db-legacy_validation.sql post-deployment scripts establish the source-migration workflow. This adds source column-operation discovery to the accepted schema requirement. No claim that a specific uninspected live migration is affected.",
+    "source_phase_started_at_utc": "2026-11-17T12:32:12.275277+00:00",
     "implementation_files": [
-      "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/src/handlers/ask_request_trace.rs",
-      "crates/engram_server/src/handlers/request_trace_tools.rs",
-      "crates/engram_server/src/services/ask_engine/request_trace.rs",
-      "crates/engram_server/tests/ask_request_trace.rs",
+      "crates/engram_server/src/services/schema_query.rs",
+      "crates/engram_server/src/services/schema_query/alter_columns.rs",
+      "crates/engram_server/tests/alter_column_schema_tests.rs",
       "docs/TOOL_CONTRACT.md"
     ],
     "finite_acceptance": [
-      "A normal path-qualified HTTP question traces the current in-scope page/handler using the held source selection and returns scope-preserving ordinary recovery.",
-      "The shared selected map excludes out-of-scope server, dependency and script source reads. Selected Global.asax path markers may establish application-root metadata without reading their bodies; registrations and excluded companions remain unknown. Authored policy dependencies remain explicit guidance, not query code.",
-      "Disjoint scope yields no routing facts, stale source withholds handler claims, and unscoped direct/ask behavior remains. Owned native cases plus retained exact non-Q page sources public checks will be queued with at least two other independent original outcomes before Cargo."
+      "Normal SQL Server ALTER TABLE ADD one/multiple named columns, ALTER COLUMN type/nullability and DROP COLUMN declarations are separately discoverable by table and column name, with source-file hash and exact operation lines. Existing parser supplies identifier/type/default boundaries.",
+      "CREATE baseline remains unchanged; operation rows explicitly leave execution, conditions, ordering and deployed schema unknown. Schema qualification and existing ambiguity rules remain; comments, strings and stored-procedure bodies do not become schema operations.",
+      "Owned public indexed SQL fixture returns declared operations and authored policy, withholds changed script until update refresh, and retains existing complete-report recovery. Focused native cases/public verifier join the pending batch; no standalone Cargo, broad SQL parser expansion, live database, real LegacyValidation reindex, or model calls."
     ],
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-column-schema-20261117\\contract.json",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-column-schema-20261117",
+    "implementation_items_active": 0,
     "engram_builds_started": 0,
     "native_tests_executed": 0,
     "runtime_deployed": false,
+    "full_original_goal_active": true,
     "baseline_source_sha256": {
-      "crates/engram_server/src/models/requests.rs": "ca4cbfc04b1f72cc9a78c8d28ed5fa36f06de0090fc7efdf2918493e2c13008f",
-      "crates/engram_server/src/handlers/ask_request_trace.rs": "1d8dd254a1c48e39811ec2c19828ca5d5126871ebeeb39974a53a751e92ce010",
-      "crates/engram_server/src/handlers/request_trace_tools.rs": "55ba59334dc25cef51d223dcafeb30e25baa3cbeb376706f326ca8b46445cd57",
-      "crates/engram_server/src/services/ask_engine/request_trace.rs": "82a0ad3b6135e9ed13e3e92435bd27d0cc37542a346aa2c7ab7766c4cc19c53a",
-      "crates/engram_server/tests/ask_request_trace.rs": "b2d19a0091639985bd5c32ab546b68a7de7c6d7ddb93115825a08953c244aefb",
-      "docs/TOOL_CONTRACT.md": "a8992e39c7dab8a656c48f008cbe9c7af1ba78c7efddd3abaefebf0970c18822"
-    },
-    "temporary_resources": {
-      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117",
-      "retention": "Retain finite contract, source-check receipts and public verifier until delivery; owned native/public source/data fixtures must close/remove on normal exit and unwinding. No preexisting deletions.",
-      "baseline_fixture_removed": true,
-      "baseline_owners_closed": true,
-      "current_fixtures_or_processes": 0
-    },
-    "runtime_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117\\contract.json",
-    "implementation_items_active": 0,
-    "next_action": "Retain this one queued original source outcome. Implement the next ready independent original requirement; no Cargo/release or deployment until the consolidated batch is ready.",
-    "at_utc": "2026-11-17T12:25:54.701910+00:00",
-    "source_pins": {
-      "Site/Area/language.aspx": {
-        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\legacy_validation-source\\Site\\language.aspx",
-        "sha256": "e174b812c31b5cb51950413b3949efcddc7593eacfe54589a4908a3edf793bd8",
-        "bytes": 117,
-        "original_relative_path": "Site/language.aspx",
-        "fixture_relocation_only": true
-      },
-      "Site/Area/language.aspx.vb": {
-        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\legacy_validation-source\\Site\\language.aspx.vb",
-        "sha256": "abedc38c21b0345f22f12432edfa83c0be01016a37361cf7602dd2fcbb50688f",
-        "bytes": 1953,
-        "original_relative_path": "Site/language.aspx.vb",
-        "fixture_relocation_only": true
-      }
-    },
-    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117\\baseline1\\receipt.json",
-    "baseline_seconds": 1.2595307000447065,
-    "baseline_checks_passed": 2,
-    "source_checks": {
-      "rust_syntax": "PASS; parse only, no compile",
-      "verifier_syntax": "PASS",
-      "diff_whitespace": "PASS",
-      "protected_wip9": "UNCHANGED"
-    },
-    "source_sha256": {
-      "crates/engram_server/src/models/requests.rs": "a23c99c1ce3ceeb62255a22647e6441f0905923569f9feafb54c56854c3a86a9",
-      "crates/engram_server/src/handlers/ask_request_trace.rs": "67c4ffb1eb53f679eb460d51d99e416ebfb3a0a7a947a62b606723ba6a23ae75",
-      "crates/engram_server/src/handlers/request_trace_tools.rs": "e44210e9788a5bce7351d4b6d8562e9a3e131b5847b378d4fdc9661924265212",
-      "crates/engram_server/src/services/ask_engine/request_trace.rs": "72fa17c79277946100667f72dc55dc77f61e7db4b9f8e73c1fd0cff95e86d5ea",
-      "crates/engram_server/tests/ask_request_trace.rs": "2d1753427a8fcb07075bb73dd0fb7d700b96fbce967127532901f939cb994f06",
+      "crates/engram_server/src/services/schema_query.rs": "9db0147a662f169d187ace09e0161c51880ed44ba87be1a677d458ef63fd586f",
       "docs/TOOL_CONTRACT.md": "31da7e0a3039b16c6ba0c38d4a4b8958e5e4f486101e4548d16f7e669c5ac5f7"
     },
-    "native_test_cases_written": 4,
-    "native_test_cases_executed": 0,
+    "temporary_resources": {
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-column-schema-20261117",
+      "current_fixtures_or_processes": 0,
+      "retention": "Retain contract/source checks/public acceptance runner until delivery. New owned source/data fixtures close server/database handles then remove their own directory, including unwinding. Preexisting inventory untouched.",
+      "baseline_fixture_removed": true,
+      "baseline_owners_closed": true
+    },
+    "at_utc": "2026-11-17T12:37:21.396424+00:00",
+    "source_sha256": {
+      "crates/engram_server/src/services/schema_query.rs": "a01e1ce32610700679f5d65a177962a8b66de97793d6de70c285165674f0c108",
+      "crates/engram_server/src/services/schema_query/alter_columns.rs": "12aa3a6925d6cf36c57217c241cd6f24fc7855fb8b9b346f728f12e0cb23e902",
+      "crates/engram_server/tests/alter_column_schema_tests.rs": "4dc61b3e47c7a56fdfe0de5dfaf2ab8bb44cc91d96dc036f62b5b7071b2a06d1",
+      "docs/TOOL_CONTRACT.md": "41dcdda8dc048cb21b4561f4fda4ee1e1a075f5ad548647a2808706688bc24a0"
+    },
+    "source_checks": {
+      "rust_syntax": "PASS; new files formatted, existing module parsed without rewriting",
+      "python_verifier_syntax": "PASS",
+      "diff_whitespace": "PASS",
+      "engram_builds_started": 0,
+      "native_tests_executed": 0,
+      "protected_wip9": "UNCHANGED"
+    },
+    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-column-schema-20261117\\baseline1\\receipt.json",
+    "baseline_seconds": 1.802862099953927,
+    "baseline_checks_passed": 2,
+    "native_test_cases_written": 3,
     "post_change_public_checks_executed": 0,
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117\\verify-public.py",
-    "public_verifier_sha256": "b6c1a5bc8b0892032b61ce4e533c4898008edcefc7a0a8be588c0e814bb8b7bf",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-column-schema-20261117\\verify-public.py",
+    "public_verifier_sha256": "2d4298312f58293ca1aee74841fde2cbc22e370c07a2ae7f0a70832d4aa85b37",
     "limits": [
-      "Source implementation only; Rust type checks, focused native cases and post-change public behavior remain unexecuted. Installed binary is unchanged.",
-      "Application-root markers are selected path metadata, not source/current hosting proof; excluded registrations/dependencies/callers remain unknown.",
-      "No actual LegacyValidation read/reindex/mutation or Site/Q access, no closed tools, model calls, language expansion or broad suites."
+      "Source implementation only. Type checking, focused native cases and post-change public checks are pending; deployed runtime is unchanged.",
+      "Supported ADD/ALTER/DROP column declarations remain separate from CREATE baselines. No migration interpreter, execution/order, live schema, dynamic SQL or unsupported syntax claim. Other schema summaries retain their existing CREATE-only scope.",
+      "No new model calls, LegacyValidation source reads/reindex/mutation, Site/Q access, closed-tool work, language expansion or full suite."
     ],
-    "source_commit": "6d53aeb782554e870cc6989befd9aad6f5743372",
-    "pending_source_outcomes": 1
+    "next_action": "Queue this second original source outcome with TODO28. Continue ready original source work before consolidated validation; no standalone build/release."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3209,7 +3184,102 @@
   },
   "previous_goal_turn_classification": {
     "classification": "PROGRESS_SOURCE_IMPLEMENTATION",
-    "evidence": "Scoped HTTP selected-file filtering and scope-preserving public recovery implemented; existing installed gap independently confirmed on owned retained source copies in1.26s. Source syntax passed; no Cargo started."
+    "evidence": "SQL column-operation table/column discovery implemented with3 focused behavior cases. Existing installed gap independently confirmed in1.80s; owned fixture cleaned. No Cargo started."
   },
-  "scoped_http_ask_progress_20261117": "eval/scoped-http-ask-progress-20261117.json"
+  "scoped_http_ask_progress_20261117": "eval/scoped-http-ask-progress-20261117.json",
+  "retained_scoped_http_source_focus_20261117": {
+    "original_requirement_id": "TODO-28",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_phase_started_at_utc": "2026-11-17T12:20:45.667996+00:00",
+    "original_requirement": "Natural-language entry point composes source/graph/access capabilities for LegacyValidation questions while honoring requested path scope.",
+    "observed_missing_behavior": "Explicit HTTP questions with a natural-language path qualifier return misunderstood without tracing, although the existing source inventory and trace reader can select files. Ordinary trace recovery currently cannot carry a scope.",
+    "priority_basis": "VB/WebForms HTTP navigation already advertised in current Full LegacyValidation configuration; this completes the recorded scope limitation of the shipped request provider. No language/graph/parser expansion.",
+    "implementation_files": [
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/ask_request_trace.rs",
+      "crates/engram_server/src/handlers/request_trace_tools.rs",
+      "crates/engram_server/src/services/ask_engine/request_trace.rs",
+      "crates/engram_server/tests/ask_request_trace.rs",
+      "docs/TOOL_CONTRACT.md"
+    ],
+    "finite_acceptance": [
+      "A normal path-qualified HTTP question traces the current in-scope page/handler using the held source selection and returns scope-preserving ordinary recovery.",
+      "The shared selected map excludes out-of-scope server, dependency and script source reads. Selected Global.asax path markers may establish application-root metadata without reading their bodies; registrations and excluded companions remain unknown. Authored policy dependencies remain explicit guidance, not query code.",
+      "Disjoint scope yields no routing facts, stale source withholds handler claims, and unscoped direct/ask behavior remains. Owned native cases plus retained exact non-Q page sources public checks will be queued with at least two other independent original outcomes before Cargo."
+    ],
+    "engram_builds_started": 0,
+    "native_tests_executed": 0,
+    "runtime_deployed": false,
+    "baseline_source_sha256": {
+      "crates/engram_server/src/models/requests.rs": "ca4cbfc04b1f72cc9a78c8d28ed5fa36f06de0090fc7efdf2918493e2c13008f",
+      "crates/engram_server/src/handlers/ask_request_trace.rs": "1d8dd254a1c48e39811ec2c19828ca5d5126871ebeeb39974a53a751e92ce010",
+      "crates/engram_server/src/handlers/request_trace_tools.rs": "55ba59334dc25cef51d223dcafeb30e25baa3cbeb376706f326ca8b46445cd57",
+      "crates/engram_server/src/services/ask_engine/request_trace.rs": "82a0ad3b6135e9ed13e3e92435bd27d0cc37542a346aa2c7ab7766c4cc19c53a",
+      "crates/engram_server/tests/ask_request_trace.rs": "b2d19a0091639985bd5c32ab546b68a7de7c6d7ddb93115825a08953c244aefb",
+      "docs/TOOL_CONTRACT.md": "a8992e39c7dab8a656c48f008cbe9c7af1ba78c7efddd3abaefebf0970c18822"
+    },
+    "temporary_resources": {
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117",
+      "retention": "Retain finite contract, source-check receipts and public verifier until delivery; owned native/public source/data fixtures must close/remove on normal exit and unwinding. No preexisting deletions.",
+      "baseline_fixture_removed": true,
+      "baseline_owners_closed": true,
+      "current_fixtures_or_processes": 0
+    },
+    "runtime_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117\\contract.json",
+    "implementation_items_active": 0,
+    "next_action": "Retain this one queued original source outcome. Implement the next ready independent original requirement; no Cargo/release or deployment until the consolidated batch is ready.",
+    "at_utc": "2026-11-17T12:25:54.701910+00:00",
+    "source_pins": {
+      "Site/Area/language.aspx": {
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\legacy_validation-source\\Site\\language.aspx",
+        "sha256": "e174b812c31b5cb51950413b3949efcddc7593eacfe54589a4908a3edf793bd8",
+        "bytes": 117,
+        "original_relative_path": "Site/language.aspx",
+        "fixture_relocation_only": true
+      },
+      "Site/Area/language.aspx.vb": {
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\legacy_validation-source\\Site\\language.aspx.vb",
+        "sha256": "abedc38c21b0345f22f12432edfa83c0be01016a37361cf7602dd2fcbb50688f",
+        "bytes": 1953,
+        "original_relative_path": "Site/language.aspx.vb",
+        "fixture_relocation_only": true
+      }
+    },
+    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117\\baseline1\\receipt.json",
+    "baseline_seconds": 1.2595307000447065,
+    "baseline_checks_passed": 2,
+    "source_checks": {
+      "rust_syntax": "PASS; parse only, no compile",
+      "verifier_syntax": "PASS",
+      "diff_whitespace": "PASS",
+      "protected_wip9": "UNCHANGED"
+    },
+    "source_sha256": {
+      "crates/engram_server/src/models/requests.rs": "a23c99c1ce3ceeb62255a22647e6441f0905923569f9feafb54c56854c3a86a9",
+      "crates/engram_server/src/handlers/ask_request_trace.rs": "67c4ffb1eb53f679eb460d51d99e416ebfb3a0a7a947a62b606723ba6a23ae75",
+      "crates/engram_server/src/handlers/request_trace_tools.rs": "e44210e9788a5bce7351d4b6d8562e9a3e131b5847b378d4fdc9661924265212",
+      "crates/engram_server/src/services/ask_engine/request_trace.rs": "72fa17c79277946100667f72dc55dc77f61e7db4b9f8e73c1fd0cff95e86d5ea",
+      "crates/engram_server/tests/ask_request_trace.rs": "2d1753427a8fcb07075bb73dd0fb7d700b96fbce967127532901f939cb994f06",
+      "docs/TOOL_CONTRACT.md": "31da7e0a3039b16c6ba0c38d4a4b8958e5e4f486101e4548d16f7e669c5ac5f7"
+    },
+    "native_test_cases_written": 4,
+    "native_test_cases_executed": 0,
+    "post_change_public_checks_executed": 0,
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117\\verify-public.py",
+    "public_verifier_sha256": "b6c1a5bc8b0892032b61ce4e533c4898008edcefc7a0a8be588c0e814bb8b7bf",
+    "limits": [
+      "Source implementation only; Rust type checks, focused native cases and post-change public behavior remain unexecuted. Installed binary is unchanged.",
+      "Application-root markers are selected path metadata, not source/current hosting proof; excluded registrations/dependencies/callers remain unknown.",
+      "No actual LegacyValidation read/reindex/mutation or Site/Q access, no closed tools, model calls, language expansion or broad suites."
+    ],
+    "source_commit": "6d53aeb782554e870cc6989befd9aad6f5743372",
+    "pending_source_outcomes": 1
+  },
+  "alter_column_schema_progress_20261117": "eval/alter-column-schema-progress-20261117.json",
+  "preset_followup_selection_20261117": {
+    "result": "No missing dependency established in inspected Core recovery paths; no independent implementation/acceptance outcome claimed.",
+    "retained_related_finding": "Current shipped trace_user_request addition makes Core33 while old tool_surface_tier_tests still expects32. Reconcile this current-work test/docs discrepancy as support for TODO28 before combined validation; do not count it as an EG18 deliverable."
+  }
 }

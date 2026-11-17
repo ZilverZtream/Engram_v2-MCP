@@ -10,6 +10,7 @@ use sqlparser::{
 };
 
 mod alter_foreign_keys;
+mod alter_columns;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Name(pub(super) Vec<String>);
@@ -225,6 +226,7 @@ pub struct Catalog {
     pub(super) objects: Vec<Object>,
     pub(super) ddl_operations: Vec<DdlTableOperation>,
     alter_foreign_keys: Vec<alter_foreign_keys::Declaration>,
+    alter_columns: Vec<alter_columns::Declaration>,
     pub gaps: Vec<String>,
 }
 
@@ -358,7 +360,7 @@ impl Catalog {
         let mut i = 0;
         while i < t.len() {
             anyhow::ensure!(
-                self.tables.len() + self.objects.len() + self.ddl_operations.len() < 20_000,
+                self.tables.len() + self.objects.len() + self.ddl_operations.len() + self.alter_columns.len() < 20_000,
                 "Schema declaration inventory exceeds 20000 objects"
             );
             // Preserve supported DROP INDEX targets as source operations, not
@@ -386,6 +388,7 @@ impl Catalog {
                 if let Some((table, after)) = name_at(&t, i + 1) {
                     let declarations = alter_foreign_keys::parse(&t, start, after, &table, &citation);
                     self.alter_foreign_keys.extend(declarations);
+                    self.alter_columns.extend(alter_columns::parse(&t, start, after, &table, &citation));
                     self.ddl_operations.push(DdlTableOperation { operation: "ALTER", table, source_path: path.into() });
                 }
                 self.gaps.push(format!("{path}:{}: ALTER TABLE is retained as a coverage gap; source declarations are not an executed migration state",t[start].span.start.line));
@@ -630,8 +633,10 @@ impl Catalog {
                 let t=selected.expect("table queries resolved above");
                 match q {
                     Table{..} => vec![json!({"table":t,"indexes":related(t,"index"),"triggers":related(t,"trigger"),"views":related(t,"view"),"stored_procedures":related(t,"stored_proc"),
-                        "alter_table_foreign_keys":self.alter_foreign_keys.iter().filter_map(|declaration|relation(&declaration.key,t).map(|binding|declaration.row(binding))).collect::<Vec<_>>()})],
-                    Column{column,..} => {let col=input_name(column)?;t.columns.iter().filter(|c|c.name.eq_ignore_ascii_case(&col.0[0])).map(|c|json!({"table":t.name,"column":c,"citation":t.citation})).collect()},
+                        "alter_table_foreign_keys":self.alter_foreign_keys.iter().filter_map(|declaration|relation(&declaration.key,t).map(|binding|declaration.row(binding))).collect::<Vec<_>>(),
+                        "alter_table_columns":self.alter_columns.iter().filter_map(|declaration|relation(&declaration.key,t).map(|binding|declaration.row(binding))).collect::<Vec<_>>()})],
+                    Column{column,..} => {let col=input_name(column)?;let mut rows:Vec<_>=t.columns.iter().filter(|c|c.name.eq_ignore_ascii_case(&col.0[0])).map(|c|json!({"table":t.name,"column":c,"citation":t.citation})).collect();
+                        rows.extend(self.alter_columns.iter().filter(|declaration|declaration.column_name.eq_ignore_ascii_case(&col.0[0])).filter_map(|declaration|relation(&declaration.key,t).map(|binding|declaration.row(binding)))); rows},
                     NullableColumns{..} => t.columns.iter().filter(|c|c.nullable==Some(true)).map(|c|json!({"table":t.name,"column":c,"citation":t.citation})).collect(),
                     ComputedColumns{..} => t.columns.iter().filter(|c|c.computed_expression.is_some()).map(|c|json!({"table":t.name,"column":c,"citation":t.citation})).collect(),
                     TriggersOnTable{..} => related(t,"trigger"), ViewsSourcedFrom{..} => related(t,"view"), IndexesOnTable{..} => related(t,"index"),

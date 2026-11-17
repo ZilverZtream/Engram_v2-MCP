@@ -1366,6 +1366,21 @@ state or constraint trust. Unsupported ALTER operations retain coverage gaps.
 Changed script bytes are withheld until source refresh under the existing
 selected-generation and fingerprint checks. No migration is executed.
 
+## Column declarations in SQL migration scripts
+
+Table queries return supported SQL Server `ALTER TABLE ... ADD`, `ALTER COLUMN`
+and `DROP COLUMN` declarations in `alter_table_columns`. Individual `column`
+queries include matching operation rows, including an added column absent from
+the CREATE baseline. Rows retain qualified table/column names, declared types,
+nullability/defaults when present, exact operation lines and full-file hashes.
+Multiple ADD/DROP columns are retained independently. CREATE columns stay
+unchanged; `application_status: "not_established"` distinguishes every operation
+from effective schema. Conditions, execution and migration order remain unknown.
+Other schema summaries continue to describe CREATE baselines. Unsupported
+operations remain gaps; stored-procedure bodies are not schema declarations.
+Changed script evidence requires the existing source refresh, and complete
+reports use the existing bounded immutable recovery.
+
 ## Canonical callees in method metadata
 
 `get_method_info` retains the method's `node_id` and `indexed_generation`, and
