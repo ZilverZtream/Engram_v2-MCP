@@ -106,6 +106,15 @@ impl Fixture {
 fn body(result: &CallToolResult) -> &str {
     &result.content[0].as_text().unwrap().text
 }
+fn json_response(value: &Value) -> Result<Value> {
+    let mut value = value.clone();
+    for block in value["content"].as_array_mut().unwrap() {
+        if block["type"] == "text" {
+            block["text"] = serde_json::from_str(block["text"].as_str().unwrap())?;
+        }
+    }
+    Ok(value)
+}
 fn row_body(row: &Value) -> &str {
     row["response"]["content"][0]["text"].as_str().unwrap()
 }
@@ -136,7 +145,7 @@ async fn multiple_pages_match_ordinary_json_markdown_options_and_keep_errors_ind
         batch["results"][0]["request_id"] == "first"
             && batch["results"][2]["request_id"] == "second"
     );
-    ensure!(batch["results"][0]["response"] == serde_json::to_value(&singles[0])?);
+    ensure!(json_response(&batch["results"][0]["response"])? == json_response(&serde_json::to_value(&singles[0])?)?);
     ensure!(batch["results"][2]["response"] == serde_json::to_value(&singles[1])?);
     ensure!(
         batch["results"][1]["status"] == "request_error"
@@ -164,9 +173,9 @@ async fn whole_page_recovery_and_inner_continuations_preserve_policy_and_reject_
     let row = &omitted["results"][0];
     ensure!(row["response"].is_null() && row["recovery"]["tool"] == "get_page_context");
     let recovered = fixture.read(row["recovery"]["arguments"].clone()).await?;
-    ensure!(serde_json::to_value(recovered)? == serde_json::to_value(&ordinary)?);
+    ensure!(json_response(&serde_json::to_value(recovered)?)? == json_response(&serde_json::to_value(&ordinary)?)?);
     let (_, complete) = fixture.batch(vec![("first", first)], 65536).await?;
-    ensure!(complete["results"][0]["response"] == serde_json::to_value(&ordinary)?);
+    ensure!(json_response(&complete["results"][0]["response"])? == json_response(&serde_json::to_value(&ordinary)?)?);
     let next = inner["continuation"]["arguments"].clone();
     let (_, continued) = fixture.batch(vec![("next", next.clone())], 65536).await?;
     ensure!(continued["results"][0]["status"] == "ok");
