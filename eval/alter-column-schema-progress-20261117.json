@@ -61,5 +61,6 @@
     "Supported ADD/ALTER/DROP column declarations remain separate from CREATE baselines. No migration interpreter, execution/order, live schema, dynamic SQL or unsupported syntax claim. Other schema summaries retain their existing CREATE-only scope.",
     "No new model calls, LegacyValidation source reads/reindex/mutation, Site/Q access, closed-tool work, language expansion or full suite."
   ],
-  "next_action": "Queue this second original source outcome with TODO28. Continue ready original source work before consolidated validation; no standalone build/release."
+  "next_action": "Queue this second original source outcome with TODO28. Continue ready original source work before consolidated validation; no standalone build/release.",
+  "source_commit": "7d8d98fc295f937aeb6f0e155d290ea5c02fa9b4"
 }

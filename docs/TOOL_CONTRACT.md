@@ -1553,6 +1553,8 @@ asks retain their revision-bound path. No routing or synthesis model request is
 added, and no latency or general task-usefulness improvement is claimed.
 The Core preset includes `trace_user_request` so the emitted ordinary and nested
 trace recovery actions are advertised and callable; Full remains the default.
+Core currently advertises 34 tools; clients selecting it need at least 34 tool
+slots. Its focused surface checks include the request-trace recovery dependency.
 
 ### Concept-footprint guidance recovery (installed November17)
 

@@ -55,6 +55,7 @@ fn every_core_tool_exists_and_covers_the_ten_capabilities() {
         "ask_codebase",
         "trace_ui_event",
         "trace_data_flow",
+        "trace_user_request",
         "map_guards_and_settings",
         "immune_check",
         "detect_incomplete_changes",
@@ -72,7 +73,7 @@ fn every_core_tool_exists_and_covers_the_ten_capabilities() {
         assert!(CORE_TOOLS.contains(&must), "{must} must be a core tool");
     }
     assert!(
-        CORE_TOOLS.len() <= 32,
+        CORE_TOOLS.len() <= 34,
         "the core tier stays small: {}",
         CORE_TOOLS.len()
     );
@@ -99,7 +100,7 @@ fn full_and_core_surfaces_cover_their_registered_tools() {
         "advertise_all_tools=false advertises exactly the core tier"
     );
 
-    assert!(!core_names.contains("project_health"), "Detailed health is optional; current-source recovery stays callable within32tools");
+    assert!(!core_names.contains("project_health"), "Detailed health is optional; current-source and request-trace recovery stay callable within34tools");
     assert!(core_names.contains("get_full_method_body") && core_names.contains("get_index_freshness"));
     assert!(all.iter().any(|tool|tool.name=="project_health"),"Full discovery retains detailed health diagnostics");
     let full = advertised(all.clone(), true);

@@ -85,5 +85,11 @@
     "Application-root markers are selected path metadata, not source/current hosting proof; excluded registrations/dependencies/callers remain unknown.",
     "No actual LegacyValidation read/reindex/mutation or Site/Q access, no closed tools, model calls, language expansion or broad suites."
   ],
-  "source_commit": "6d53aeb782554e870cc6989befd9aad6f5743372"
+  "source_commit": "6d53aeb782554e870cc6989befd9aad6f5743372",
+  "necessary_supporting_changes": [
+    "Reconcile the existing tool_surface_tier_tests guard with the current34-tool Core surface and require trace_user_request membership. Correct current tool-slot documentation; no runtime tool membership changed in this correction. This is not another independent deliverable."
+  ],
+  "supporting_validation_pending": [
+    "Core surface focused checks including request-trace dependency and34-tool ceiling"
+  ]
 }
