@@ -10297,30 +10297,25 @@
   },
   "last_updated_at": "2026-11-17T22:03:04.201501+00:00",
   "current_execution_focus": {
-    "status": "RELEASE_BUILD_RUNNING",
-    "progress": "eval/edit-review-history-batch-progress-20261117.json",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
-    "source_outcomes": [
-      "EG-27",
-      "EG-19",
-      "TODO-4"
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement": "TODO-4: bounded ordinary core query replies",
+    "progress": "eval/query-default-delivery-progress-20261118.json",
+    "observed_missing_behavior": "Only ordinary history now gets automatic default40KiB overflow delivery in the queued current release. search_memory, vector_search and grep_project still pass unbounded max_tokens=None replies through their ordinary transport path; explicit opt-in retention/budgets do not cover normal calls.",
+    "implementation_files": [
+      "crates/engram_server/src/retained_results.rs",
+      "crates/engram_server/tests/query_default_delivery.rs",
+      "docs/TOOL_CONTRACT.md"
     ],
-    "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
+    "finite_acceptance": [
+      "Ordinary default search_memory/vector_search/grep_project complete MCP text or JSON results fit40KiB or return existing exact saved-result recovery; fitting results and explicit max_tokens/retained-window controls retain original behavior. Existing internal result/window/source caps and provider capability errors remain truthful.",
+      "Recover exact original selected evidence, identifiers, guidance, warnings and pagination after source/index/note changes and process restart without rerunning retrieval or embeddings. Recovery retains existing project/tool binding,8MiB and24hour/32capture bounds.",
+      "Verify owned normal TS source/grep queries demonstrate the old overflow, source syntax plus meaningful focused integration cases and public checks. Keep this next source outcome in following_batch_pending, separate from the frozen edit/review/history release; no added compile or mutation of its shipping checkout."
+    ],
     "implementation_items_active": 0,
-    "pending_source_outcomes": 3,
+    "pending_current_release_outcomes": 3,
+    "following_source_outcomes": 1,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "previous_goal_turn_classification": {
-      "classification": "PROGRESS_NATIVE_AND_DEBUG_PUBLIC_ACCEPTANCE_COMPLETE_RELEASE_STARTED",
-      "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native-acceptance.json",
-      "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\debug2\\receipt.json"
-    },
-    "next_action": "Poll only release1 session5192. On success verify source/Job/temp closure, package once, run candidate public acceptance, install the verified pair, run installed acceptance, restore the normal runtime and finalize prepared records. Do not replay accepted native/debug checks.",
-    "active_native": {
-      "status": "TERMINAL_ACCEPTED",
-      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native-acceptance.json"
-    },
-    "engram_builds_started_this_turn": 1,
     "active_release": {
       "status": "RELEASE_BUILD_RUNNING",
       "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
@@ -10337,7 +10332,9 @@
       "native_cases_covered": 15,
       "public_debug_checks_passed": 35,
       "installation_started": false
-    }
+    },
+    "next_action": "Finish the already-running frozen release and its candidate/installed acceptance. Preserve this following source outcome uncompiled; subsequently accumulate substantive original outcomes before combined validation.",
+    "source_commit": "028d57dfdbcf83821b89bd6c8068b80375386363"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -10656,7 +10653,18 @@
     "record": "eval/method-schema-area-batch-delivery-20261116.json",
     "full_original_goal_complete": false
   },
-  "following_batch_pending": [],
+  "following_batch_pending": [
+    {
+      "original_requirement_id": "TODO-4",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "028d57dfdbcf83821b89bd6c8068b80375386363",
+      "progress": "eval/query-default-delivery-progress-20261118.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118\\contract.json",
+      "behavior": "Ordinary source, grep and vector queries receive default40KiB complete original-result overflow recovery while explicit budgets retain handler behavior.",
+      "validation_status": "PENDING_FOLLOWING_BATCH_NATIVE_AND_PUBLIC_ACCEPTANCE",
+      "runtime_deployed": false
+    }
+  ],
   "source_policy_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/source-policy-batch-delivery-20261116.json",
@@ -17134,6 +17142,16 @@
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\contract.json",
     "behavior": "Ordinary history replies default to40KiB with complete immutable original-MCP overflow recovery; explicit caller budgets remain handler-owned.",
     "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+    "runtime_deployed": false
+  },
+  "query_default_delivery_source_progress_20261118": {
+    "original_requirement_id": "TODO-4",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "028d57dfdbcf83821b89bd6c8068b80375386363",
+    "progress": "eval/query-default-delivery-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118\\contract.json",
+    "behavior": "Ordinary source, grep and vector queries receive default40KiB complete original-result overflow recovery while explicit budgets retain handler behavior.",
+    "validation_status": "PENDING_FOLLOWING_BATCH_NATIVE_AND_PUBLIC_ACCEPTANCE",
     "runtime_deployed": false
   }
 }
