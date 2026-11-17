@@ -1,0 +1,75 @@
+{
+  "status": "FROZEN_TASK_AND_SOURCE_PROOF_READY_EXPLICIT_AGENT_REQUEST_PENDING",
+  "at_utc": "2026-11-17T01:38:03.304443+00:00",
+  "original_requirement_id": "EG-25",
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\custom-form-scope-qa-20261117\\contract.json",
+  "source_revision": "1ccafb34c2886beb7b6fd13560563c7fb6349ed4",
+  "source_pins": {
+    "Site/App_Code/customform/code/customFormActions.vb": {
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\custom-form-scope-qa-20261117\\sources\\customFormActions.vb",
+      "sha256": "675af034af1b5a6c6112cdbbf50f44d6581488f0ca7fb2dfd1d7a50ce2b9ac7d",
+      "bytes": 15356,
+      "git_revision": "1ccafb34c2886beb7b6fd13560563c7fb6349ed4",
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\customform\\code\\customFormActions.vb",
+      "actual_sha256": "5f9e75e3cbe524603e8d8e85558fad00e6988e92a4f7f0c92e45850680ccfa0b"
+    },
+    "Site/App_Code/customform/code/customFormSheet.vb": {
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\custom-form-scope-qa-20261117\\sources\\customFormSheet.vb",
+      "sha256": "51d9c468aa680bdfbc4b6182815cb38db8c9829de136b0640733ee90b1f53b7b",
+      "bytes": 103905,
+      "git_revision": "1ccafb34c2886beb7b6fd13560563c7fb6349ed4",
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\customform\\code\\customFormSheet.vb",
+      "actual_sha256": "e4aa19235f4901079f16097439549b4bd75455ae2311472bf1b5140ac1488ce7"
+    }
+  },
+  "oracle_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\custom-form-scope-qa-20261117\\oracle1\\receipt.json",
+  "ordinary_source_cases_passed": 9,
+  "oracle_seconds": 1.247675699996762,
+  "producer_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\custom-form-scope-qa-20261117\\capture1\\receipt.json",
+  "producer_binary_sha256": "1e243455a55905c0c6b4d874a431ce3b42ee9c727f954f4402b3807be53e50dd",
+  "producer_analysis_calls": 1,
+  "producer_analysis_seconds": 13.570107199950144,
+  "producer_matrix_seconds": 0.019634900032542646,
+  "packets": [
+    {
+      "packet_id": "ff93808d322b",
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\custom-form-scope-qa-20261117\\packets\\candidate-1.json",
+      "sha256": "2834544d4a684b33476fac1e548ccf4c5eeb87fe135530a7d1c41c22d92c36d3",
+      "bytes": 55939
+    },
+    {
+      "packet_id": "c59b857161aa",
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\custom-form-scope-qa-20261117\\packets\\candidate-2.json",
+      "sha256": "775045d0c8b3a9813b5629988da68f01c08517d79f03fea69ebe670dabb0ab8b",
+      "bytes": 20449
+    }
+  ],
+  "criteria_frozen_before_producer": true,
+  "engram_builds_started": 0,
+  "candidate_sessions_started": 0,
+  "judge_sessions_started": 0,
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\custom-form-scope-qa-20261117",
+    "oracle_temp_removed": true,
+    "producer_temp_removed": true,
+    "producer_processes_closed": true,
+    "retention": "Keep frozen source/task/oracle, compiled exact gate and packets for one matched run. Do not remove preexisting folders."
+  },
+  "limits": [
+    "No task benefit result yet; fresh agents have not been authorized or run.",
+    "No application/SQL/mail execution, replayed inspected task or Engram build.",
+    "Pending agent choice does not pause the full original goal."
+  ],
+  "source_newline_reconciliation": {
+    "Site/App_Code/customform/code/customFormActions.vb": {
+      "raw_git_sha256": "675af034af1b5a6c6112cdbbf50f44d6581488f0ca7fb2dfd1d7a50ce2b9ac7d",
+      "actual_checkout_sha256": "5f9e75e3cbe524603e8d8e85558fad00e6988e92a4f7f0c92e45850680ccfa0b",
+      "same_after_newline_normalization": true
+    },
+    "Site/App_Code/customform/code/customFormSheet.vb": {
+      "raw_git_sha256": "51d9c468aa680bdfbc4b6182815cb38db8c9829de136b0640733ee90b1f53b7b",
+      "actual_checkout_sha256": "e4aa19235f4901079f16097439549b4bd75455ae2311472bf1b5140ac1488ce7",
+      "same_after_newline_normalization": true
+    }
+  }
+}

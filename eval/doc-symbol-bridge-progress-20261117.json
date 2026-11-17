@@ -1,0 +1,64 @@
+{
+  "original_requirement_id": "EG-13",
+  "storage_gate_ids": [
+    "S06",
+    "S16"
+  ],
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "A selected source chunk must not be associated with symbols from another file or an unselected graph file revision; retained source capabilities cover enrichment and response construction.",
+  "observed_missing_behavior": "resolve_id uses a substring graph file query and range overlap alone when bridging a source doc_id to node_ids. Same-basename nested files and overwritten/future graph revisions can be presented as covering the selected chunk.",
+  "finite_acceptance": [
+    "Use the existing exact-file graph lookup before its200candidate cap and existing selected physical revision membership before the five-symbol display cap.",
+    "Keep valid inherited source symbols; withhold current/future or unavailable metadata that does not belong to the selected chunk, retaining doc identity and source coordinates.",
+    "Carry the selected source capability through the blocking enrichment worker; disclose withheld/unavailable/truncated coverage rather than presenting graph absence as proof. Non-source namespace bridges remain explicitly live/unadmitted.",
+    "Installed owned two-file VB fixture demonstrates foreign symbols in the selected root-file chunk. Focused actual-handler cases cover exact path/inherited/replaced revisions. No broader graph audit, identity-discovery suppression, CodeMap/Blast change or standalone Cargo."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/handlers/graph_tools.rs",
+    "crates/engram_server/tests/doc_symbol_bridge.rs"
+  ],
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\doc-symbol-bridge-20261117\\contract.json",
+  "implementation_items_active": 0,
+  "pending_source_outcomes": 1,
+  "full_original_goal_active": true,
+  "next_action": "Continue original source work and retain this outcome for a substantive combined batch. Do not compile one component. The independently frozen EG25 task remains ready pending the explicit fresh-agent request.",
+  "at_utc": "2026-11-17T02:04:00.648112+00:00",
+  "source_commit": "3da624de7b0f07b9c5f39212858b919962f63a4a",
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\doc-symbol-bridge-20261117\\baseline2\\receipt.json",
+  "baseline_seconds": 4.835626199957915,
+  "baseline_binary_sha256": "1e243455a55905c0c6b4d874a431ce3b42ee9c727f954f4402b3807be53e50dd",
+  "retained_private_setup_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\doc-symbol-bridge-20261117\\baseline1\\receipt.json",
+  "source_behavior": [
+    "The document bridge uses the existing exact-file graph query before its200candidate cap, excluding same-basename nested files.",
+    "Existing selected physical revision admission precedes the five-symbol display cap; inherited entries remain eligible while replaced/future/unavailable observations are withheld.",
+    "The selected source lookup and capability move into the blocking enrichment worker. Failures preserve the selected document identity and disclose unavailable mapping; coverage exposes source revision, withheld observations, scan cap and display omissions."
+  ],
+  "source_checks": {
+    "rustfmt_parse": "PASS; legacy handler emitted to stdout only",
+    "git_diff_check": "PASS",
+    "python_verifier_syntax": "PASS",
+    "protected_wip9": "UNCHANGED"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/graph_tools.rs": "89f9213496d5bd67b7a36579108962ce10ea95e4a2cd0faa2da9f6697cc32a4d",
+    "crates/engram_server/tests/doc_symbol_bridge.rs": "e6f1414fb5057d51ec969b6ba617b3677bf84448765443010dab8fe56206c417"
+  },
+  "native_test_cases_written": 2,
+  "native_tests_executed": 0,
+  "post_change_public_checks_executed": 0,
+  "engram_builds_started": 0,
+  "runtime_deployed": false,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\doc-symbol-bridge-20261117\\verify-public.py",
+  "public_verifier_sha256": "6fadd912fe18652ddcb218152b8e5e65a77263386b5d6e3a42eeb6168e326bab",
+  "limits": [
+    "Source implementation only: type-checking, focused native execution and positive public/installed acceptance remain pending.",
+    "Direct live-graph identity discovery retains its existing semantics. This fixes the association of selected source documents with graph symbols; it does not provide a complete historical graph or current disk/runtime proof.",
+    "No CodeMap/Blast change, broader graph audit, target-language expansion or full original S06/S16 closure."
+  ],
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\doc-symbol-bridge-20261117",
+    "baseline_owned_work_removed": true,
+    "baseline_processes_closed": true,
+    "retention": "Retain contract, private verifier and exact receipts for combined validation. New native fixtures use the existing recorded ENGRAM_TEST_FIXTURE_ROOT and close runtime/database owners before TempDir cleanup. No preexisting deletion."
+  }
+}
