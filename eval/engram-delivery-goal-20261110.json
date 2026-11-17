@@ -2554,44 +2554,7 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "EG-13",
-        "storage_gate_ids": [
-          "S06",
-          "S16"
-        ],
-        "outcome": "Selected source document IDs bridge only to exact-file admitted physical graph revisions",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "3da624de7b0f07b9c5f39212858b919962f63a4a",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\doc-symbol-bridge-20261117\\contract.json",
-        "progress": "eval/doc-symbol-bridge-progress-20261117.json"
-      },
-      {
-        "original_requirement_id": "TODO-31",
-        "outcome": "Literal master Load context joins normal WebForms page/control traces",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "6a7fb3c2228d95fa10d404e90fddabfeac378831",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-master-context-20261117\\contract.json",
-        "progress": "eval/webforms-master-context-progress-20261117.json"
-      },
-      {
-        "original_requirement_id": "EG-27",
-        "outcome": "Authored Method() notation retains method-specific instruction evidence and freshness",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "8ba98f70270c13016ab370280f8be20e493e9fe7",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-method-notation-20261117\\contract.json",
-        "progress": "eval/instruction-method-notation-progress-20261117.json"
-      },
-      {
-        "original_requirement_id": "EG-31",
-        "outcome": "Changed shared helpers surface their referencing guidance for scoped maintenance review",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "57fedce37f3613626c7e0b0a5f97b97212ddecb7",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-symbol-maintenance-20261117\\contract.json",
-        "progress": "eval/shared-symbol-maintenance-progress-20261117.json"
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2740,7 +2703,7 @@
   },
   "current_execution_focus": {
     "original_requirement_id": "EG-31",
-    "status": "NATIVE_AND_PUBLIC_PASS_SINGLE_RELEASE_RUNNING",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "implementation_items_active": 0,
     "original_requirement_ids": [
       "EG-13",
@@ -2753,7 +2716,7 @@
     "native_target": "guidance_master_source_batch_tests",
     "native_cases": 10,
     "shipping_source_commit": "d21eeff05e28c6e0a76ecdaf9fadf9554346c274",
-    "next_action": "Poll the exact release1 session70934. After terminal PASS reuse the prepared paired package, candidate and installed verifiers, existing installer and normal-runtime restoration. Do not restart this release on a timeout, repeat passed native/debug acceptance or launch another build.",
+    "next_action": "Advance the next ready unfinished original requirement, preserving this installed delivery, all31findings/19gates, held items and the frozen matched QA task. No replay or additional build for this passed batch.",
     "full_original_goal_active": true,
     "native_exec_session": 21997,
     "native_commands_started": 2,
@@ -2770,7 +2733,11 @@
     "release_exec_session": 70934,
     "release_driver_pid": 6212,
     "native_runner_seconds_total": 407.3305407000007,
-    "native_current_cases_passed": 10
+    "native_current_cases_passed": 10,
+    "delivery_record": "eval/guidance-master-source-batch-delivery-20261117.json",
+    "release_terminal_exit_code": 0,
+    "candidate_installed_public_checks_each": 26,
+    "normal_daemon_restored": 84768
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3035,5 +3002,10 @@
   "doc_symbol_bridge_source_progress_20261117": "eval/doc-symbol-bridge-progress-20261117.json",
   "webforms_master_context_source_progress_20261117": "eval/webforms-master-context-progress-20261117.json",
   "instruction_method_notation_source_progress_20261117": "eval/instruction-method-notation-progress-20261117.json",
-  "shared_symbol_maintenance_source_progress_20261117": "eval/shared-symbol-maintenance-progress-20261117.json"
+  "shared_symbol_maintenance_source_progress_20261117": "eval/shared-symbol-maintenance-progress-20261117.json",
+  "guidance_master_source_batch_delivery_20261117": {
+    "record": "eval/guidance-master-source-batch-delivery-20261117.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_original_goal_complete": false
+  }
 }

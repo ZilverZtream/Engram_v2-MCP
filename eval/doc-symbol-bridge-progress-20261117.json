@@ -4,7 +4,7 @@
     "S06",
     "S16"
   ],
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "A selected source chunk must not be associated with symbols from another file or an unselected graph file revision; retained source capabilities cover enrichment and response construction.",
   "observed_missing_behavior": "resolve_id uses a substring graph file query and range overlap alone when bridging a source doc_id to node_ids. Same-basename nested files and overwritten/future graph revisions can be presented as covering the selected chunk.",
   "finite_acceptance": [
@@ -44,10 +44,10 @@
     "crates/engram_server/tests/doc_symbol_bridge.rs": "e6f1414fb5057d51ec969b6ba617b3677bf84448765443010dab8fe56206c417"
   },
   "native_test_cases_written": 2,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
-  "engram_builds_started": 0,
-  "runtime_deployed": false,
+  "native_tests_executed": 2,
+  "post_change_public_checks_executed": 12,
+  "engram_builds_started": 3,
+  "runtime_deployed": true,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\doc-symbol-bridge-20261117\\verify-public.py",
   "public_verifier_sha256": "6fadd912fe18652ddcb218152b8e5e65a77263386b5d6e3a42eeb6168e326bab",
   "limits": [
@@ -60,5 +60,12 @@
     "baseline_owned_work_removed": true,
     "baseline_processes_closed": true,
     "retention": "Retain contract, private verifier and exact receipts for combined validation. New native fixtures use the existing recorded ENGRAM_TEST_FIXTURE_ROOT and close runtime/database owners before TempDir cleanup. No preexisting deletion."
-  }
+  },
+  "delivery_record": "eval/guidance-master-source-batch-delivery-20261117.json",
+  "shipping_source_commit": "d21eeff05e28c6e0a76ecdaf9fadf9554346c274",
+  "source_only": false,
+  "installed_public_checks": 4,
+  "public_checks_count_scope": "Accepted debug/candidate/installed sets only; retained failed executions remain separate.",
+  "builds_shared_by_four_outcomes": true,
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\native2.json"
 }

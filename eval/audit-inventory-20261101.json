@@ -602,6 +602,11 @@
       "source_workflows_delivery_20261117": {
         "receipt": "eval/qa-controls-settings-source-batch-delivery-20261117.json",
         "scope": "Finite source/workflow behavior only; original full closure and task benefit remain unproven."
+      },
+      "guidance_master_source_batch_delivery_20261117": {
+        "record": "eval/guidance-master-source-batch-delivery-20261117.json",
+        "finite_component_installed": true,
+        "full_original_requirement_complete": false
       }
     },
     {
@@ -1054,6 +1059,11 @@
         "record": "eval/sql-graph-guidance-batch-delivery-20261116.json",
         "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
         "whole_finding_complete": false
+      },
+      "guidance_master_source_batch_delivery_20261117": {
+        "record": "eval/guidance-master-source-batch-delivery-20261117.json",
+        "finite_component_installed": true,
+        "full_original_requirement_complete": false
       }
     },
     {
@@ -1134,7 +1144,12 @@
       "status_reconciliation_20261113": "eval/legacy_validation-shortlist-status-reconciliation-20261113.json",
       "changed_file_entrypoint_delivery_20261115": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json",
       "latest_bounded_delivery_20261115": "eval/ai-workflow-batch-delivery-20261115.json; selected workflow behavior installed, broader finding remains open.",
-      "multi_file_maintenance_delivery_20261116": "eval/maintenance-state-parameter-batch-delivery-20261116.json"
+      "multi_file_maintenance_delivery_20261116": "eval/maintenance-state-parameter-batch-delivery-20261116.json",
+      "guidance_master_source_batch_delivery_20261117": {
+        "record": "eval/guidance-master-source-batch-delivery-20261117.json",
+        "finite_component_installed": true,
+        "full_original_requirement_complete": false
+      }
     }
   ],
   "storage_release_gates": [
@@ -16377,5 +16392,15 @@
   "qa_controls_settings_source_batch_delivery_20261117": {
     "receipt": "eval/qa-controls-settings-source-batch-delivery-20261117.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
+  },
+  "guidance_master_source_batch_delivery_20261117": {
+    "record": "eval/guidance-master-source-batch-delivery-20261117.json",
+    "original_requirement_ids": [
+      "EG-13",
+      "TODO-31",
+      "EG-27",
+      "EG-31"
+    ],
+    "original_full_goal_complete": false
   }
 }

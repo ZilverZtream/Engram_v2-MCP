@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-31",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "Normal WebForms URL/action traces include source-authored page and master Load context before reusing admitted call/database traversal.",
   "observed_missing_behavior": "An actual LegacyValidation page declares MasterPageFile=~/modules/dashboard/dashboard.master. The master declares its code file and a Handles Me.Load method; trace source inventory omits .master and root/control tracing supplies no master hosting context.",
   "source_pins": {
@@ -78,10 +78,10 @@
     "crates/engram_server/tests/request_trace_master_pages.rs": "abf22a6107272856341277ba462a69eba472dbf7ce741fdd424c2aae147fcfbf"
   },
   "native_test_cases_written": 2,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
-  "engram_builds_started": 0,
-  "runtime_deployed": false,
+  "native_tests_executed": 2,
+  "post_change_public_checks_executed": 24,
+  "engram_builds_started": 3,
+  "runtime_deployed": true,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-master-context-20261117\\verify-public.py",
   "public_verifier_sha256": "37baf8ca5746b9c612d54d4b629f8d8400069b2f19e3e732581794b6da73fc93",
   "limits": [
@@ -94,5 +94,12 @@
     "baseline_owned_work_removed": true,
     "baseline_processes_closed": true,
     "retention": "Keep pinned source, contract, verifier and receipts for combined acceptance. New native fixtures own their graph and TempDir, closing the graph first. No preexisting deletion."
-  }
+  },
+  "delivery_record": "eval/guidance-master-source-batch-delivery-20261117.json",
+  "shipping_source_commit": "d21eeff05e28c6e0a76ecdaf9fadf9554346c274",
+  "source_only": false,
+  "installed_public_checks": 8,
+  "public_checks_count_scope": "Accepted debug/candidate/installed sets only; retained failed executions remain separate.",
+  "builds_shared_by_four_outcomes": true,
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\native2.json"
 }

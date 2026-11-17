@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-31",
-  "status": "SOURCE_CORRECTED_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "Changed shared code selects dependent instruction maintenance by observed symbol references, preserving declared scope and unaffected method stability.",
   "observed_missing_behavior": "The RoQ guide names GetTopProjectID() but its applyTo excludes grunddata/code/projekt.vb. Changed-file discovery currently follows literal paths only, so changing that shared helper does not select the guide for review.",
   "source_pins": {
@@ -60,10 +60,10 @@
     "crates/engram_server/tests/shared_symbol_maintenance.rs": "dbd9601789d949f0a7474a39d610abed162d2baa2e83f09cc9a161ce6702bd93"
   },
   "native_test_cases_added": 2,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
-  "engram_builds_started": 0,
-  "runtime_deployed": false,
+  "native_tests_executed": 2,
+  "post_change_public_checks_executed": 21,
+  "engram_builds_started": 3,
+  "runtime_deployed": true,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-symbol-maintenance-20261117\\verify-public.py",
   "public_verifier_sha256": "c1abea73a892b6c4f97233a9981e1e11d3017a6cc093109c45a71571e2356cb0",
   "depends_on_source_commit": "8ba98f70270c13016ab370280f8be20e493e9fe7",
@@ -79,5 +79,12 @@
     "baseline_processes_closed": true,
     "retention": "Retain source pins, contract, verifier and exact receipts for combined validation. New source-capture fixtures close Git owners before their owned short TempDir. No preexisting deletion."
   },
-  "source_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\source-correction1.json"
+  "source_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\source-correction1.json",
+  "delivery_record": "eval/guidance-master-source-batch-delivery-20261117.json",
+  "shipping_source_commit": "d21eeff05e28c6e0a76ecdaf9fadf9554346c274",
+  "source_only": false,
+  "installed_public_checks": 7,
+  "public_checks_count_scope": "Accepted debug/candidate/installed sets only; retained failed executions remain separate.",
+  "builds_shared_by_four_outcomes": true,
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\native2.json"
 }

@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-27",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "Instruction manifests retain referenced symbol evidence and distinguish relevant method edits from unrelated body changes in normal LegacyValidation guidance.",
   "observed_missing_behavior": "Actual RoQ guidance uses backticked GetCurrentlyAppliedPriceList(), UpdateByID() and Create(). The existing inline-code identifier guard ignores their parentheses, so the authored method references have no symbol evidence or method-specific freshness observations.",
   "source_pins": {
@@ -53,10 +53,10 @@
   },
   "native_test_cases_added": 2,
   "native_test_cases_in_focused_target": 4,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
-  "engram_builds_started": 0,
-  "runtime_deployed": false,
+  "native_tests_executed": 4,
+  "post_change_public_checks_executed": 21,
+  "engram_builds_started": 3,
+  "runtime_deployed": true,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-method-notation-20261117\\verify-public.py",
   "public_verifier_sha256": "1ad2ae27d41ba15b200a2cdbbd03e9132b5263c502d219572482a0f2addd8e64",
   "limits": [
@@ -69,5 +69,12 @@
     "baseline_owned_work_removed": true,
     "baseline_processes_closed": true,
     "retention": "Keep source pins, contract, private verifier and receipts for combined acceptance. New tests reuse owned short fixture roots. No preexisting deletion."
-  }
+  },
+  "delivery_record": "eval/guidance-master-source-batch-delivery-20261117.json",
+  "shipping_source_commit": "d21eeff05e28c6e0a76ecdaf9fadf9554346c274",
+  "source_only": false,
+  "installed_public_checks": 7,
+  "public_checks_count_scope": "Accepted debug/candidate/installed sets only; retained failed executions remain separate.",
+  "builds_shared_by_four_outcomes": true,
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\native2.json"
 }

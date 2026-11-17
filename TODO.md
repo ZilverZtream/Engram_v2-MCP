@@ -502,7 +502,10 @@ proposals that duplicate the existing surface:
   ASCX registrations and server instances, preserves root page/load context and
   declared visibility, and recovers exact captured route evidence after source edits.
   Actual non-Q LegacyValidation source copies select the registered dropdown handler.
-  Master/dynamic composition and runtime reachability remain unresolved.
+  Literal MasterPageFile Load context is now also installed with source hashes,
+  original page identity and exact recovery. Dynamic master/control composition,
+  other lifecycle phases and runtime reachability remain unresolved.
+  [Master delivery](eval/guidance-master-source-batch-delivery-20261117.json).
   [Delivery](eval/qa-controls-settings-source-batch-delivery-20261117.json).
   Installed November17: `event controlID.EventName` selects declared server
   markup events and VB Handles bindings with source lines/hashes. The copied
