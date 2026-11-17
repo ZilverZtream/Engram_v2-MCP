@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-28",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "One natural-language entry point composes source/graph evidence for ordinary LegacyValidation WebForms questions instead of requiring specialized-tool knowledge.",
   "observed_missing_behavior": "ask_codebase composes trace_user_request only for explicit HTTP method+URL and always passes action=None. A question naming a server-control click or event and page cannot obtain the already supported control-event trace through the ordinary question entry point.",
   "priority_basis": "Actual LegacyValidation Full runtime config hash verified unchanged. Retained exact non-Q setup_gis_layers.aspx.vb has Handles btnSave.Click and ddlLayerType.SelectedIndexChanged; this composes existing VB/WebForms capability, without parser/framework expansion.",
@@ -19,11 +19,10 @@
     "Retained exact LegacyValidation GIS markup/VB pair in an owned fixture establishes btnSave.Click and ddlLayerType.SelectedIndexChanged source bindings without actual LegacyValidation traversal/reindex or model calls. Source checks/baseline only before combined validation."
   ],
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117",
-  "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
+  "engram_builds_started": 4,
+  "native_tests_executed": 7,
+  "runtime_deployed": true,
   "implementation_items_active": 0,
-  "pending_source_outcomes": 3,
   "baseline_source_sha256": {
     "crates/engram_server/src/services/ask_engine/request_trace.rs": "72fa17c79277946100667f72dc55dc77f61e7db4b9f8e73c1fd0cff95e86d5ea",
     "crates/engram_server/src/handlers/ask_request_trace.rs": "67c4ffb1eb53f679eb460d51d99e416ebfb3a0a7a947a62b606723ba6a23ae75",
@@ -82,7 +81,7 @@
   "native_test_cases_written": 3,
   "post_change_public_checks_executed": 9,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117\\verify-public.py",
-  "public_verifier_sha256": "31902e8a2b5841d5a8fee4595ee3551413ab0fb94f45a176da188a5c081a0193",
+  "public_verifier_sha256": "f3a1647940211164267bf1f6d1900eb69ded0e0aa7e5ce62a10678ca2887a257",
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117\\baseline1\\receipt.json",
   "baseline_seconds": 4.712421200005338,
   "baseline_checks_passed": 2,
@@ -93,9 +92,8 @@
     "docs/TOOL_CONTRACT.md": "e7b38385d732830d8aa916a2f45238eaf47e1abf01c5dc3d1a9574632318afd2",
     "crates/engram_server/src/services/request_trace/execution.rs": "ca1b42dc54bf2febeee727c38ada4323c7dcd93f3914a2a51b1100ae6f77d051"
   },
-  "next_action": "Validate EG31 maintenance handoff, EG21 header filtering and this independent TODO28 interaction outcome together. No separate debug build or full/lib suite; retain prior installed deliveries.",
+  "next_action": "Finite component installed. Advance remaining original work; do not replay this accepted batch.",
   "limits": [
-    "Source completion only; Rust type/native/public post-change validation and deployment remain pending. Installed8de71b3 is unchanged.",
     "Explicit control IDs and page URLs are required. Existing event-binding/parser, source caps and runtime uncertainty remain. No measured task usefulness or model compliance claim."
   ],
   "source_commit": "c42e34be62c084a59a2bfce777cfae9c5673c8c9",
@@ -118,7 +116,7 @@
     "debug_artifact": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\debug-artifact1.json"
   },
   "blocking_public_correction": {
-    "status": "CURRENT_DELIVERY_BLOCKER",
+    "status": "RESOLVED_BY_INSTALLED_ACCEPTANCE",
     "source_requirement": "TODO-28",
     "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117\\maintenance-history-interaction-batch-20261117-debug2\\ask-click.json",
     "observed": "Exact GIS source direct trace found btnSave_Click; composed public ask at deadline_ms5000 returned request_trace timed_out.",
@@ -129,13 +127,23 @@
     ],
     "rerun_scope": "Seven affected HTTP/interaction native cases; retain six unchanged history/maintenance successes. Reuse public history/maintenance receipts if exact binary-source compatibility permits only the next runtime has new hash so public candidate/installed contracts remain required.",
     "compile_required": true,
-    "full_lib_no_vector_suite": false
+    "full_lib_no_vector_suite": false,
+    "resolved_by_delivery": "eval/maintenance-history-interaction-batch-delivery-20261117.json"
   },
   "correction_source_commits": [
     "86702aaf370f685898a12a3701e2f9c08e37d7a8",
     "3ec40103c74eb5be186535fe9e1828f78da79f0f"
   ],
-  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
+  "validation_status": "INSTALLED_ACCEPTED",
   "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\debug3\\receipt.json",
-  "release_exec_session_id": 30832
+  "release_exec_session_id": 30832,
+  "candidate_fixture_correction": "Full ask answer supplies complete8470-character guidance; nested trace discloses deferred guidance with exact saved recovery. Correct assertion location, not product code or build. Prior debug3 inline-guidance acceptance retained with frozen verifier version.",
+  "delivery_record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
+  "shipping_source_commit": "5bdb0adc1e53cbf525afd600df1453f0e0a58366",
+  "native_cases_distinct_covered": 3,
+  "installed_public_checks": 9,
+  "candidate_public_checks": 9,
+  "public_check_executions": 27,
+  "build_count_scope": "Shared three focused native Cargo commands and one release for three independent outcomes. HTTP regression cases are separately retained in the batch receipt.",
+  "source_queue_size_when_implemented": 3
 }

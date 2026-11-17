@@ -491,6 +491,11 @@ proposals that duplicate the existing surface:
   Installed November17: path-qualified HTTP questions retain scoped traces and
   scope-preserving recovery. See eval/scoped-request-sql-review-batch-delivery-20261117.json.
 
+  Installed November17: explicit WebForms click/event and page questions retain
+  selected-source action traces and action-preserving recovery. Repeated markup
+  scans were removed; exact GIS questions pass with the original trace budget.
+  See eval/maintenance-history-interaction-batch-delivery-20261117.json.
+
 - [x] **29. Edit Session Protocol (spec 45: begin/complete_edit_session, detect_incomplete_changes)** (M) - *done 2026-06-13: bookends persist intent (registry meta), begin returns the expectation brief on the PLANNED set, complete reports scope drift (planned-but-unedited) + full completeness on actuals, session consumed on close. Was: engine done 2026-06-13: detect_incomplete_changes — untouched co-change partners (with historical evidence, tail-matched against path-spelling variants) + state keys shared with untouched files; 3-case behavioral test through real graph. Both session bookends are delivered; their expectations remain advisory evidence for the agent.*
   Bookends an agent's edit: snapshot expectations at start, verify coupled files/tests/
   state keys at end. Turns Engram from advisor into a loop-closing safety harness — and
@@ -501,6 +506,10 @@ proposals that duplicate the existing surface:
   Change-set history retains fallback candidates with incomplete coverage.
   These are semantic-stage budgets, not overall request deadlines or ranking
   quality claims. [Delivery](eval/legacy_validation-history-budget-batch-delivery-20261115.json).
+
+  Installed November17: completed sessions provide exact-base, declared-scope
+  maintenance-only review actions and recover complete handoffs. Guidance writes
+  and review remain explicit. See eval/maintenance-history-interaction-batch-delivery-20261117.json.
 
 - [x] **30. `find_implementation_pattern` (spec 42-2)** (M) — *done 2026-06-12: top exemplar
   files for a pattern query with symbols, SQL/state edges, co-change partners, snippet, and
@@ -732,6 +741,11 @@ proposals that duplicate the existing surface:
 
 A slow or flaky brain gets dropped from the loop. These are mostly known issues with
 specs already written.
+
+  Installed November17: cold history queries filter author/date headers before
+  unrelated metadata construction/cache work. Existing revision/file predicates
+  remain; whole-request latency and LegacyValidation speedup are not established.
+  See eval/maintenance-history-interaction-batch-delivery-20261117.json.
 
 - [~] **36. Implement the 4-task git-history indexing perf plan** (M — already fully specced)
   `docs/superpowers/plans/2026-04-16-index-git-history-perf.md`. Tree-ID precheck, drop

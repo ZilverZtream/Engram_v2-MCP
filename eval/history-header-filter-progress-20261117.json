@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-21",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "Usable caller-controlled history retrieval with preserved scope/filter semantics and reduced avoidable work; broader end-to-end latency acceptance remains open.",
   "observed_missing_behavior": "Current metadata_for_line_filtered_cached loads/describes/persists every first-parent card before applying even exact author and date filters. Narrow cold queries perform unrelated tree-diff metadata work and populate unrelated cache records despite returning no or few candidates.",
   "priority_basis": "Original usable-history shortlist; current LegacyValidation Full/Ollama runtime advertises search_history. Filtering occurs before optional embeddings and applies equally to lexical/semantic configurations; no new target language.",
@@ -17,11 +17,10 @@
     "Public owned precedent queries preserve matching OIDs, source recovery and scope; an excluded query does not persist unrelated unique commit-title canaries. No embeddings/model calls, real LegacyValidation traversal, corruption/fault campaign or broad benchmark.",
     "The old40.49s observation predates later cache work and is not claimed current. This finite optimization does not establish a whole-request deadline or measured LegacyValidation speedup. Source syntax/baseline only before the next consolidated validation batch."
   ],
-  "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
+  "engram_builds_started": 4,
+  "native_tests_executed": 3,
+  "runtime_deployed": true,
   "implementation_items_active": 0,
-  "pending_source_outcomes": 1,
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-header-filter-20261117\\contract.json",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-header-filter-20261117",
   "baseline_source_sha256": {
@@ -58,16 +57,23 @@
   "post_change_public_checks_executed": 8,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-header-filter-20261117\\verify-public.py",
   "public_verifier_sha256": "d1e62975514dfa1abb8dff70894410ef1008564efbb032deb30e43b1c85c6b98",
-  "next_action": "Queue this second independent source outcome with EG31. Continue the next ready original source item; no standalone compile/release or replay of installed components.",
+  "next_action": "Finite component installed. Advance remaining original work; do not replay this accepted batch.",
   "limits": [
-    "Source completion only: Rust type checks, native cases and post-change public behavior remain pending. Installed8de71b3 binary is unchanged.",
     "The old40.49s observation predates later cache delivery. No current LegacyValidation speedup or whole-request deadline is established. Git traversal, eligible metadata, lexical fallback and rendering retain their existing latency scope.",
     "Only commit-header author/date work moves earlier. File/bulk predicates still need capped non-generated file metadata. Existing immutable cache identities/formats,8192row/32MiB retention and embedding profiles remain.",
     "No real LegacyValidation read/reindex/mutation or Site/Q access, corruption/fault campaign, model calls, broad benchmark, preset change, new target language, CodeMap or Blast improvement."
   ],
   "source_commit": "61f2aa3bc254a229eb779f1a1aa925de25068092",
   "public_fixture_correction": "Follow complete_git_commit retained response pages and verify full saved MCP hash before checking exact commit/title. Initial seven header/cache/scope checks passed. No product-source change or Cargo rebuild.",
-  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
+  "validation_status": "INSTALLED_ACCEPTED",
   "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\debug3\\receipt.json",
-  "release_exec_session_id": 30832
+  "release_exec_session_id": 30832,
+  "delivery_record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
+  "shipping_source_commit": "5bdb0adc1e53cbf525afd600df1453f0e0a58366",
+  "native_cases_distinct_covered": 3,
+  "installed_public_checks": 8,
+  "candidate_public_checks": 8,
+  "public_check_executions": 24,
+  "build_count_scope": "Shared three focused native Cargo commands and one release for three independent outcomes. HTTP regression cases are separately retained in the batch receipt.",
+  "source_queue_size_when_implemented": 1
 }

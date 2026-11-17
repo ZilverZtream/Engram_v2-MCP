@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-31",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "After code changes, provide reviewable evidence-driven instruction maintenance while preserving authored policy, accepted exceptions, exact bases and stale-evidence checks.",
   "observed_missing_behavior": "complete_edit_session returns current guidance and advisory completeness but no callable instruction-maintenance handoff anchored to the session starting commit and declared edited paths. The existing pre_push_audit maintenance-only mode already captures the needed Git-before/disk-after evidence; callers must currently rediscover it and reconstruct its scope/base manually.",
   "priority_basis": "Original instruction freshness/maintenance shortlist and existing LegacyValidation Full VB/WebForms/JS/SQL editing workflow. Current installed Full configuration is unchanged3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66. Reuse the existing maintenance API, with no model, automatic guidance writes or expanded pilot.",
@@ -19,9 +19,9 @@
     "Source syntax and an installed owned baseline only until other independent original outcomes are ready. No standalone Cargo/release, actual LegacyValidation read/reindex/mutation, Site/Q read, closed tools, new preset members or agent/task replay."
   ],
   "implementation_items_active": 0,
-  "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
+  "engram_builds_started": 4,
+  "native_tests_executed": 3,
+  "runtime_deployed": true,
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-maintenance-handoff-20261117",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-maintenance-handoff-20261117\\contract.json",
   "baseline_source_sha256": {
@@ -59,16 +59,22 @@
   "post_change_public_checks_executed": 8,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-maintenance-handoff-20261117\\verify-public.py",
   "public_verifier_sha256": "b58368a8065615b50f5f0f6de7d4daf5b76a14955003cf69a46c67b3170f2fd3",
-  "next_action": "Queue this single independent original outcome. Continue the next ready original source item; no standalone Cargo/release or replay of the previously installed batch.",
+  "next_action": "Finite component installed. Advance remaining original work; do not replay this accepted batch.",
   "limits": [
-    "Source completion only. Type checking, native behavioral cases and post-change public acceptance remain pending; current installed8de71b3 binary is unchanged.",
     "This is a navigation handoff to the existing review-only maintenance API. No collection, proposal, freshness/compliance certification or instruction write is performed by completion.",
     "The start commit does not capture an initial dirty working tree. Declared edited paths are caller scope, not a complete verified diff. Separate16path packets do not prove cross-packet dependency closure.",
     "Core/missing-start/no-edit conditions return explicit status without guessed/unadvertised calls. Complete actions are retained in full and immutable deferred reports.",
     "No actual LegacyValidation source read/reindex/mutation, Site/Q read, CodeMap/Blast work, model/task replay, new tool/preset member or language expansion."
   ],
   "source_commit": "29ce4ad926d06fc0862b14131ed17c07badaa79f",
-  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
+  "validation_status": "INSTALLED_ACCEPTED",
   "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\debug3\\receipt.json",
-  "release_exec_session_id": 30832
+  "release_exec_session_id": 30832,
+  "delivery_record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
+  "shipping_source_commit": "5bdb0adc1e53cbf525afd600df1453f0e0a58366",
+  "native_cases_distinct_covered": 3,
+  "installed_public_checks": 8,
+  "candidate_public_checks": 8,
+  "public_check_executions": 24,
+  "build_count_scope": "Shared three focused native Cargo commands and one release for three independent outcomes. HTTP regression cases are separately retained in the batch receipt."
 }

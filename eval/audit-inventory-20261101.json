@@ -878,7 +878,12 @@
         "actual_legacy_validation": "Original matching request returned expected Git-verified change in4.3188s atgeneration3149. Earlier40.49s observation retained; not a controlled speedup.",
         "limits": "Metadata traversal and unfiltered embedding work remain; rerank budget still not a whole-request deadline. No ranking-quality/productivity or full original gate closure."
       },
-      "provider_outage_delivery_20261113": "eval/legacy_validation-history-provider-fallback-delivery-20261113.json"
+      "provider_outage_delivery_20261113": "eval/legacy_validation-history-provider-fallback-delivery-20261113.json",
+      "maintenance_history_interaction_delivery_20261117": {
+        "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
+        "finite_component_installed": true,
+        "full_original_requirement_complete": false
+      }
     },
     {
       "id": "EG-22",
@@ -1200,6 +1205,11 @@
       },
       "maintenance_state_context_batch_delivery_20261117": {
         "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
+        "finite_component_installed": true,
+        "full_original_requirement_complete": false
+      },
+      "maintenance_history_interaction_delivery_20261117": {
+        "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
       }
@@ -10204,9 +10214,9 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-17T14:51:41.251653+00:00",
+  "last_updated_at": "2026-11-17T15:35:12.788025+00:00",
   "current_execution_focus": {
-    "status": "VALIDATING_THREE_SOURCE_COMPLETE_OUTCOMES",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117",
     "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\source-preparation.json",
     "shipping_head": "5bdb0adc1e53cbf525afd600df1453f0e0a58366",
@@ -10225,7 +10235,7 @@
     "full_lib_no_vector_suites": 0,
     "source_complete_outcomes": 3,
     "full_goal_remains_active": true,
-    "next_action": "One guarded release; verify exact candidate and installed public contracts, restore normal runtime and record delivery. Full goal remains active.",
+    "next_action": "Advance the next ready unfinished original requirement. Preserve this installed delivery, all31findings/19gates, held items and frozen task. Do not replay/build this accepted batch.",
     "native_exec_session_id": 97265,
     "native_runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\native3-owner.json",
     "native1_terminal": true,
@@ -10244,7 +10254,6 @@
     "debug_public_exec_session_id": 85428,
     "debug_public_status": "PASS",
     "debug_public_terminal_exit_code": 0,
-    "debug_public_failure": "History check inspected a retained-response manifest as if it were the recovered original commit. Follow saved next_call pages. Product unchanged; retain EG31 eight successful checks.",
     "debug2_terminal_exit_code": 1,
     "blocking_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\public2-blocking-correction.json",
     "native3_exec_session_id": 97265,
@@ -10254,11 +10263,40 @@
     "debug_public_terminal": true,
     "debug_public_checks_passed": 25,
     "debug_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\debug3\\receipt.json",
-    "release_status": "RUNNING",
+    "release_status": "PASS",
     "release_exec_session_id": 30832,
     "release_runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\release1-owner.json",
     "release_commands_started": 1,
-    "release_commands_terminal": false
+    "release_commands_terminal": true,
+    "release_terminal_exit_code": 0,
+    "release_runner_seconds": 931.7942582999822,
+    "release_binary_sha256": "46c5e8925fe638a1f15820c409be1d2839cdf246d71f1eac92748ea6be0d4ef2",
+    "deployment_exec_session_id": 85983,
+    "deployment_status": "INSTALLED_ACCEPTANCE_PASS",
+    "package_pair": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\pair1.json",
+    "release_manifest_sha256": "5a09c9df3a0fbe4f19667abafb996c889e836d13a3fd6fbcca77f13e4ced9a5a",
+    "deployment5_terminal": true,
+    "deployment6_terminal": true,
+    "deployment_driver_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\deployment7-state.json",
+    "candidate_fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\candidate-guidance-correction.json",
+    "deployment_terminal": true,
+    "deployment_terminal_exit_code": 0,
+    "candidate_public_checks": 25,
+    "installed_public_checks": 25,
+    "completion_exec_session_id": 15533,
+    "completion_status": "INSTALLED_ACCEPTANCE_AND_NORMAL_RESTORATION_COMPLETE",
+    "completion_driver_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\completion4-state.json",
+    "hosted_ci_observation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\hosted-ci-observation.json",
+    "validation_status": "INSTALLED_ACCEPTED",
+    "delivery_record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
+    "pending_source_outcomes": 0,
+    "full_original_goal_active": true,
+    "completion_terminal": true,
+    "completion_terminal_exit_code": 0,
+    "candidate_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\candidate2\\acceptance.json",
+    "installed_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\installed1\\acceptance.json",
+    "normal_daemon_pid_at_restore": 122476,
+    "retained_debug1_fixture_failure": "History check inspected a retained-response manifest as if it were the recovered original commit. Follow saved next_call pages. Product unchanged; retain EG31 eight successful checks."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -10341,46 +10379,11 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "EG-31",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "behavior": "Completed edit sessions provide exact-base/declared-scope maintenance-only review actions and recover complete handoffs",
-        "source_commit": "29ce4ad926d06fc0862b14131ed17c07badaa79f",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-maintenance-handoff-20261117\\contract.json",
-        "progress": "eval/edit-session-maintenance-handoff-progress-20261117.json",
-        "native_target": "edit_session_maintenance_tests",
-        "runtime_deployed": false
-      },
-      {
-        "original_requirement_id": "EG-21",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "behavior": "Skip header-excluded cold history metadata construction/cache work before existing full predicates",
-        "source_commit": "61f2aa3bc254a229eb779f1a1aa925de25068092",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-header-filter-20261117\\contract.json",
-        "progress": "eval/history-header-filter-progress-20261117.json",
-        "native_target": "history_header_filter_tests",
-        "runtime_deployed": false
-      },
-      {
-        "original_requirement_id": "TODO-28",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "behavior": "Ordinary explicit WebForms click/event questions compose selected-source traces and preserve actions in recovery",
-        "source_commit": "c42e34be62c084a59a2bfce777cfae9c5673c8c9",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117\\contract.json",
-        "progress": "eval/ask-webforms-interactions-progress-20261117.json",
-        "native_target": "ask_webforms_interactions",
-        "runtime_deployed": false,
-        "correction_source_commits": [
-          "86702aaf370f685898a12a3701e2f9c08e37d7a8",
-          "3ec40103c74eb5be186535fe9e1828f78da79f0f"
-        ]
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
-    "last_completed_batch": "eval/browser-json-history-batch-delivery-20261116.json"
+    "last_completed_batch": "eval/maintenance-history-interaction-batch-delivery-20261117.json"
   },
   "member_workflows_delivery": {
     "record": "eval/legacy_validation-member-workflows-delivery-20261115.json",
@@ -10403,7 +10406,7 @@
     "deployed": true
   },
   "current_combined_batch": {
-    "status": "VALIDATING_THREE_SOURCE_COMPLETE_OUTCOMES",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117",
     "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\source-preparation.json",
     "shipping_head": "5bdb0adc1e53cbf525afd600df1453f0e0a58366",
@@ -10422,7 +10425,7 @@
     "full_lib_no_vector_suites": 0,
     "source_complete_outcomes": 3,
     "full_goal_remains_active": true,
-    "next_action": "One guarded release; verify exact candidate and installed public contracts, restore normal runtime and record delivery. Full goal remains active.",
+    "next_action": "Advance the next ready unfinished original requirement. Preserve this installed delivery, all31findings/19gates, held items and frozen task. Do not replay/build this accepted batch.",
     "native_exec_session_id": 97265,
     "native_runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\native3-owner.json",
     "native1_terminal": true,
@@ -10441,7 +10444,6 @@
     "debug_public_exec_session_id": 85428,
     "debug_public_status": "PASS",
     "debug_public_terminal_exit_code": 0,
-    "debug_public_failure": "History check inspected a retained-response manifest as if it were the recovered original commit. Follow saved next_call pages. Product unchanged; retain EG31 eight successful checks.",
     "debug2_terminal_exit_code": 1,
     "blocking_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\public2-blocking-correction.json",
     "native3_exec_session_id": 97265,
@@ -10451,11 +10453,40 @@
     "debug_public_terminal": true,
     "debug_public_checks_passed": 25,
     "debug_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\debug3\\receipt.json",
-    "release_status": "RUNNING",
+    "release_status": "PASS",
     "release_exec_session_id": 30832,
     "release_runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\release1-owner.json",
     "release_commands_started": 1,
-    "release_commands_terminal": false
+    "release_commands_terminal": true,
+    "release_terminal_exit_code": 0,
+    "release_runner_seconds": 931.7942582999822,
+    "release_binary_sha256": "46c5e8925fe638a1f15820c409be1d2839cdf246d71f1eac92748ea6be0d4ef2",
+    "deployment_exec_session_id": 85983,
+    "deployment_status": "INSTALLED_ACCEPTANCE_PASS",
+    "package_pair": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\pair1.json",
+    "release_manifest_sha256": "5a09c9df3a0fbe4f19667abafb996c889e836d13a3fd6fbcca77f13e4ced9a5a",
+    "deployment5_terminal": true,
+    "deployment6_terminal": true,
+    "deployment_driver_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\deployment7-state.json",
+    "candidate_fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\candidate-guidance-correction.json",
+    "deployment_terminal": true,
+    "deployment_terminal_exit_code": 0,
+    "candidate_public_checks": 25,
+    "installed_public_checks": 25,
+    "completion_exec_session_id": 15533,
+    "completion_status": "INSTALLED_ACCEPTANCE_AND_NORMAL_RESTORATION_COMPLETE",
+    "completion_driver_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\completion4-state.json",
+    "hosted_ci_observation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\hosted-ci-observation.json",
+    "validation_status": "INSTALLED_ACCEPTED",
+    "delivery_record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
+    "pending_source_outcomes": 0,
+    "full_original_goal_active": true,
+    "completion_terminal": true,
+    "completion_terminal_exit_code": 0,
+    "candidate_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\candidate2\\acceptance.json",
+    "installed_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\installed1\\acceptance.json",
+    "normal_daemon_pid_at_restore": 122476,
+    "retained_debug1_fixture_failure": "History check inspected a retained-response manifest as if it were the recovered original commit. Follow saved next_call pages. Product unchanged; retain EG31 eight successful checks."
   },
   "instruction_review_batch_delivery": {
     "record": "eval/instruction-review-batch-delivery-20261115.json",
@@ -16437,10 +16468,15 @@
     "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
   },
   "latest_delivered_runtime": {
-    "server_sha256": "16baba3f184a1c252542cc600b0bcb5240d02dcd7362aea543d8c8ac6264ac2d",
-    "manifest_sha256": "3f4a233c23844794e49b0d7ddfe92dcbd84b05874d572bdbf67064f9d249552b",
-    "receipt": "eval/constructor-events-policy-batch-delivery-20261117.json",
-    "selected_generation": 3151
+    "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
+    "server_sha256": "46c5e8925fe638a1f15820c409be1d2839cdf246d71f1eac92748ea6be0d4ef2",
+    "manifest_sha256": "5a09c9df3a0fbe4f19667abafb996c889e836d13a3fd6fbcca77f13e4ced9a5a",
+    "shipping_source_commit": "5bdb0adc1e53cbf525afd600df1453f0e0a58366",
+    "selected_generation": 3151,
+    "source_format": 9,
+    "assets_verified": 215,
+    "normal_runtime_restored": true,
+    "full_original_goal_complete": false
   },
   "request_client_callers_source_progress": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\request-client-callers-progress-20261116.json",
@@ -16716,5 +16752,25 @@
       }
     ],
     "disposition": "Duplicate stale metadata for the already reconciled historical following queue. Delivery evidence remains eval/procedure-discovery-schema-batch-delivery-20261116.json and historical_queue_reconciliation_20261117. No build/replay or new acceptance."
+  },
+  "maintenance_history_interaction_batch_delivery_20261117": {
+    "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
+    "original_requirement_ids": [
+      "EG-31",
+      "EG-21",
+      "TODO-28"
+    ],
+    "full_original_goal_complete": false
+  },
+  "previous_goal_turn_classification": {
+    "classification": "PROGRESS_INSTALLED_SOURCE_DELIVERY",
+    "evidence": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
+    "full_original_goal_active": true
+  },
+  "runtime_pointer_before_maintenance_history_interaction_delivery_20261117": {
+    "server_sha256": "16baba3f184a1c252542cc600b0bcb5240d02dcd7362aea543d8c8ac6264ac2d",
+    "manifest_sha256": "3f4a233c23844794e49b0d7ddfe92dcbd84b05874d572bdbf67064f9d249552b",
+    "receipt": "eval/constructor-events-policy-batch-delivery-20261117.json",
+    "selected_generation": 3151
   }
 }
