@@ -36,7 +36,7 @@
     "current_fixture_processes": 0,
     "retained_failed_verifier_attempt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117\\baseline1\\receipt.json"
   },
-  "source_commit": "ff784c52b09873aa99df70a3ad6eeee067aff42f",
+  "source_commit": "a22c1a103279b95ddd28caf8d8692b2b04e510dd",
   "source_outcomes": 1,
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117\\contract.json",
   "source_phase_completed_at_utc": "2026-11-17T20:00:00.722999+00:00",
@@ -66,7 +66,7 @@
   },
   "source_sha256": {
     "crates/engram_server/src/services/project_policy.rs": "0a74e20b67a16909700509691e28947de1c3100eab25d23ee9a8a4028439fe2b",
-    "crates/engram_server/src/services/project_policy/references.rs": "a679bbd19e21864ea06e13813eb91efe4d9e5cecb56cb316a58f4396930b3957",
+    "crates/engram_server/src/services/project_policy/references.rs": "de99448ecbf9988cc46e33fecf124c7e8e9ce306491e13bf475d0797749491e5",
     "crates/engram_server/src/services/project_policy/linked_sources.rs": "a03e74fc15767d60d4316ae836f3e1e68dfb87197058e63d8843406e1e6f9b02",
     "docs/TOOL_CONTRACT.md": "9d1383c1f012cf31047446ca12d63e4e2473afe27e3a098e32aa312767854ecc",
     "crates/engram_server/tests/inline_policy_paths_tests.rs": "a45fda033fc035c5646081f96443d7baa897d4dca72e14cf322be8bc4e2c7bb8"
@@ -77,8 +77,10 @@
     "Actual LegacyValidation evidence is a read-only exact conventional guide observation and config identity, not a project scan/reindex or real source mutation. Owned baseline uses deliberately authored alternate candidates."
   ],
   "next_action": "Queue this genuine EG-27 source outcome for the next combined validation. Continue another ready original requirement; no standalone compile or replay of accepted batches.",
-  "validation_status": "COMBINED_NATIVE_RUNNING",
+  "validation_status": "COMBINED_NATIVE_CORRECTION_RUNNING",
   "validation_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117",
-  "native_batch_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-state.json",
-  "shared_build_accounting": "One-j1 BelowNormal native invocation14cases across5focused targets for3genuine source outcomes; no full suite or separate debug build. Individual source-phase counters are not per-feature compile counts."
+  "native_batch_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native2-state.json",
+  "shared_build_accounting": "native1 ran7cases:4SQLpass,2inlinepass,1inlinecap-countfailure. Corrected3lines only, with unchanged oracle. native2runs3inline+4linked+3reviewcases; retained4SQLpasses have no inline path references and final exact-artifact SQLpublic11checks remain required. No full suite/extra debug build.",
+  "initial_source_commit": "ff784c52b09873aa99df70a3ad6eeee067aff42f",
+  "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-source-correction.json"
 }

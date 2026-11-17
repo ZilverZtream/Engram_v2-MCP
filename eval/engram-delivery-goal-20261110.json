@@ -2559,7 +2559,7 @@
         "original_requirement_id": "EG-27",
         "progress": "eval/inline-linked-guidance-progress-20261117.json",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "ff784c52b09873aa99df70a3ad6eeee067aff42f",
+        "source_commit": "a22c1a103279b95ddd28caf8d8692b2b04e510dd",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117\\contract.json",
         "source_outcomes": 1,
         "runtime_deployed": false
@@ -2812,7 +2812,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "COMBINED_NATIVE_VALIDATION_RUNNING",
+    "status": "COMBINED_NATIVE_CORRECTION_VALIDATION_RUNNING",
     "original_requirement_ids": [
       "EG-27",
       "TODO-28",
@@ -2826,8 +2826,8 @@
     "expected_public_checks": 31,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "Poll live exec81108/native1 owner/state. No restart on observation timeout. After terminal nativePASS14, run the frozen31public checks with its implicit debug server; no separate debug build.",
-    "live_session": 81108
+    "next_action": "Poll live12915/native2, not terminal81108/native1. After native2PASS10, record14unique covered cases across17executions and run31public checks on implicit debug. No full suite or separate debug build.",
+    "live_session": 12915
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3669,22 +3669,27 @@
   },
   "active_delivery_batch_20261117": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117",
-    "stage": "COMBINED_NATIVE_RUNNING",
+    "stage": "COMBINED_NATIVE2_CORRECTION_RUNNING",
     "runtime_deployed": false,
-    "native_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-state.json",
-    "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-owner.json",
+    "native_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native2-state.json",
+    "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native2-owner.json",
     "expected_native_cases": 14,
     "expected_public_checks": 31,
-    "shipping_head": "5c7e6e066041e269f51d62abbd1aedf198d80da4",
+    "shipping_head": "abc58c50f130bda8cbd42e1ffea2eea008d4edc6",
     "launch_priority": "BelowNormal",
     "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\source-preparation.json",
     "active_implementation_items": 0,
-    "next_action": "Poll live exec81108/native1 owner/state. No restart on observation timeout. After terminal nativePASS14, run the frozen31public checks with its implicit debug server; no separate debug build.",
-    "unified_exec_session_id": 81108,
+    "next_action": "Poll live12915/native2, not terminal81108/native1. After native2PASS10, record14unique covered cases across17executions and run31public checks on implicit debug. No full suite or separate debug build.",
+    "unified_exec_session_id": 12915,
     "unified_exec_session_status": "RUNNING",
-    "driver_pid": 59152,
-    "relay_pid": 41536,
-    "priority_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-priority.json"
+    "driver_pid": 23792,
+    "relay_pid": 38924,
+    "priority_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-priority.json",
+    "native_session_status": "RUNNING",
+    "source_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-source-correction.json",
+    "native1_terminal_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1.json",
+    "retained_sql_native_passes": 4,
+    "current_native_cases_expected": 10
   },
   "previous_runtime_before_preset_browser_bootstrap_20261117": {
     "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",

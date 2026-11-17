@@ -68,8 +68,8 @@
     "Complete imported text is not authenticated policy, semantic applicability, guaranteed recurrence prevention or measured agent benefit. Prior index/rule writes can remain after a later promotion error."
   ],
   "next_action": "All3selected independent original source outcomes are ready and native/user-facing validation is now needed. Freeze a combined source checkout and run focused14native cases/31public checks; no full suite or separate debug build.",
-  "validation_status": "COMBINED_NATIVE_RUNNING",
+  "validation_status": "COMBINED_NATIVE_CORRECTION_RUNNING",
   "validation_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117",
-  "native_batch_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-state.json",
-  "shared_build_accounting": "One-j1 BelowNormal native invocation14cases across5focused targets for3genuine source outcomes; no full suite or separate debug build. Individual source-phase counters are not per-feature compile counts."
+  "native_batch_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native2-state.json",
+  "shared_build_accounting": "native1 ran7cases:4SQLpass,2inlinepass,1inlinecap-countfailure. Corrected3lines only, with unchanged oracle. native2runs3inline+4linked+3reviewcases; retained4SQLpasses have no inline path references and final exact-artifact SQLpublic11checks remain required. No full suite/extra debug build."
 }
