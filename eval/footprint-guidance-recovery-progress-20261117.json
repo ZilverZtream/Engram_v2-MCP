@@ -72,5 +72,6 @@
     "current_native_or_public_fixtures": 0,
     "retention": "Retain original pins, contract, baseline/wire, verifier and source-phase timing for review. Native fixtures own server/database handles and directories; preexisting inventory untouched."
   },
-  "next_action": "Freeze with TODO33 page-context batching and TODO28 HTTP questions for one seven-case native target and the three public verifiers; no full/lib suite or extra debug build."
+  "next_action": "Freeze with TODO33 page-context batching and TODO28 HTTP questions for one seven-case native target and the three public verifiers; no full/lib suite or extra debug build.",
+  "source_commit": "53215bf279bc03ef20026a89856339d844a6d3aa"
 }

@@ -2568,6 +2568,13 @@
         "source_commit": "9896ccf07a8a36b26f867f261198d0df3532ff05",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-trace-20261117\\contract.json",
         "progress": "eval/ask-request-trace-progress-20261117.json"
+      },
+      {
+        "original_requirement_id": "EG-01",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "53215bf279bc03ef20026a89856339d844a6d3aa",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-guidance-recovery-20261117\\contract.json",
+        "progress": "eval/footprint-guidance-recovery-progress-20261117.json"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2719,16 +2726,23 @@
   "current_execution_focus": {
     "original_requirement_ids": [
       "TODO-33",
-      "TODO-28"
+      "TODO-28",
+      "EG-01"
     ],
-    "status": "TWO_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "status": "THREE_SOURCE_OUTCOMES_FROZEN_NATIVE_READY",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 2,
-    "source_progress": "eval/ask-request-trace-progress-20261117.json",
-    "source_commit": "9896ccf07a8a36b26f867f261198d0df3532ff05",
-    "at_utc": "2026-11-17T10:50:36.884750+00:00",
+    "pending_source_outcomes": 3,
+    "native_target": "page_request_guidance_batch",
+    "expected_native_cases": 7,
+    "full_or_lib_suite": false,
+    "extra_debug_build": false,
     "full_original_goal_active": true,
-    "next_action": "Continue the next substantive independent original requirement. Retain TODO33 page-context batching and TODO28 explicit HTTP request questions for combined native/public validation only after the unchanged three-requirement build guard is met. Core recovery and Markdown retention are necessary parts of TODO28, not extra queue items. No standalone compile/release, model replay or passed-batch repetition."
+    "next_action": "Run one guarded focused page_request_guidance_batch seven-case target; reuse its implicit server for the three public verifiers. No full/lib suite or separate debug build.",
+    "shipping_source_commit": "de6f234f544b165fc11472e4d67360786571b702",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117",
+    "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117\\source-preparation.json",
+    "native_commands_started": 0,
+    "release_commands_started": 0
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3002,9 +3016,9 @@
   "business_helper_source_leads_progress_20261117": "eval/business-helper-source-leads-progress-20261117.json",
   "method_matrix_selection_source_progress_20261117": "eval/method-matrix-selection-progress-20261117.json",
   "current_turn_progress_classification": {
-    "previous_turn": "PROGRESS_INSTALLED_SOURCE_DELIVERY",
-    "current_turn": "PROGRESS_TODO28_REQUEST_TRACE_SOURCE_COMPLETE",
-    "evidence": "eval/ask-request-trace-progress-20261117.json",
+    "previous_turn": "PROGRESS_TODO28_REQUEST_TRACE_SOURCE_COMPLETE",
+    "current_turn": "PROGRESS_EG01_GUARDED_FOOTPRINT_GUIDANCE_SOURCE_COMPLETE",
+    "evidence": "eval/footprint-guidance-recovery-progress-20261117.json",
     "full_original_goal_active": true
   },
   "webforms_init_context_source_progress_20261117": "eval/webforms-init-context-progress-20261117.json",
@@ -3063,11 +3077,11 @@
     "does_not_pause_or_replace_goal": true
   },
   "active_source_implementation": {
-    "original_requirement_id": "TODO-28",
+    "original_requirement_id": "EG-01",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "progress": "eval/ask-request-trace-progress-20261117.json",
+    "progress": "eval/footprint-guidance-recovery-progress-20261117.json",
     "implementation_items_active": 0,
-    "source_commit": "9896ccf07a8a36b26f867f261198d0df3532ff05"
+    "source_commit": "53215bf279bc03ef20026a89856339d844a6d3aa"
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",

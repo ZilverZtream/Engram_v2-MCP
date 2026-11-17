@@ -1,0 +1,21 @@
+{
+  "original_requirement_ids": [
+    "TODO-33",
+    "TODO-28",
+    "EG-01"
+  ],
+  "status": "THREE_SOURCE_OUTCOMES_FROZEN_NATIVE_READY",
+  "implementation_items_active": 0,
+  "pending_source_outcomes": 3,
+  "native_target": "page_request_guidance_batch",
+  "expected_native_cases": 7,
+  "full_or_lib_suite": false,
+  "extra_debug_build": false,
+  "full_original_goal_active": true,
+  "next_action": "Run one guarded focused page_request_guidance_batch seven-case target; reuse its implicit server for the three public verifiers. No full/lib suite or separate debug build.",
+  "shipping_source_commit": "de6f234f544b165fc11472e4d67360786571b702",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117",
+  "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117\\source-preparation.json",
+  "native_commands_started": 0,
+  "release_commands_started": 0
+}
