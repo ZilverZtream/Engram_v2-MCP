@@ -1,0 +1,110 @@
+{
+  "status": "COMBINED_NATIVE_RUNNING",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
+  "at_utc": "2026-11-17T22:38:58.093957+00:00",
+  "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\source-preparation.json",
+  "shipping_source_commit": "fba1658d0ef541b97a8b40f654d655fae61d3062",
+  "source_outcomes": [
+    {
+      "original_requirement_id": "EG-27",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "138acfab51ea996f9e42d00652734bfe2613b14c",
+      "progress": "eval/edit-session-guidance-drift-progress-20261117.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\contract.json",
+      "behavior": "Opening/current hash comparison on the same planned edit scope, with explicit linked/omitted coverage and immutable drift recovery.",
+      "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+      "runtime_deployed": false
+    },
+    {
+      "original_requirement_id": "EG-19",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "f7dfc6a749e97e4c5722a60e7d703cb7faebfcce",
+      "progress": "eval/review-finding-evidence-links-progress-20261117.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\contract.json",
+      "behavior": "Path-specific finding links to admitted prior-review items and independently scoped events, preserving current findings, conditions, revision assessments and immutable recovery.",
+      "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+      "runtime_deployed": false
+    },
+    {
+      "original_requirement_id": "TODO-4",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "094fa5ea8a06f4479b9205722ebc86df31f1876d",
+      "progress": "eval/history-default-delivery-progress-20261117.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\contract.json",
+      "behavior": "Ordinary history replies default to40KiB with complete immutable original-MCP overflow recovery; explicit caller budgets remain handler-owned.",
+      "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+      "runtime_deployed": false
+    }
+  ],
+  "native_targets": {
+    "edit_session_guidance_drift": 3,
+    "edit_session_policy_tests": 3,
+    "review_finding_evidence_links": 3,
+    "history_default_delivery": 3,
+    "edit_session_maintenance_tests": 3
+  },
+  "native_cases_expected": 15,
+  "native_commands_planned": 1,
+  "release_builds_planned": 1,
+  "native_commands_started": 1,
+  "release_builds_started": 0,
+  "runtime_deployed": false,
+  "full_original_goal_complete": false,
+  "build_constraints": {
+    "unchanged_guard": "scripts/run_delivery_build.py",
+    "unchanged_owned_runner_sha256": "d1e91aaabccb555a33faef525675e0bf62a75d51a366d6549365f8267b372afe",
+    "shared_target": "C:\\ai-projects\\Engram-MCP_v2\\target",
+    "jobs": 1,
+    "priority": "BelowNormal",
+    "offline_locked": true,
+    "full_suites": 0,
+    "separate_debug_builds": 0
+  },
+  "public_acceptance_scripts": [
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\verify-public.py",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\verify-public.py",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\verify-public.py"
+  ],
+  "next_action": "Resume existing native1 session58565. On terminal success, inspect15case result/owned teardown, then verify the implicit debug artifact with the three prepared public scripts. No separate debug build; release remains unstarted.",
+  "active_native": {
+    "status": "RUNNING_COMBINED_NATIVE",
+    "label": "native1",
+    "exec_session_id": 58565,
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
+    "guard_pid": 77920,
+    "guard_priority_class": 16384,
+    "process_live_verified_at_utc": "2026-11-17T22:40:05.826519+00:00",
+    "command": [
+      "C:\\Python314\\python.exe",
+      "-B",
+      "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\scripts\\run_delivery_build.py",
+      "--case",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
+      "--",
+      "--label",
+      "native1",
+      "--",
+      "test",
+      "--locked",
+      "--offline",
+      "-j1",
+      "-p",
+      "engram_server",
+      "--test",
+      "edit_session_guidance_drift",
+      "--test",
+      "edit_session_policy_tests",
+      "--test",
+      "review_finding_evidence_links",
+      "--test",
+      "history_default_delivery",
+      "--test",
+      "edit_session_maintenance_tests",
+      "--",
+      "--test-threads=1"
+    ],
+    "owner_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native1-owner.json",
+    "log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native1.log",
+    "next_action": "Poll existing exec session58565 or inspect its exact owner/guard. Observation timeout is not a restart signal. Never restart native1; inspect terminal result once it exists."
+  }
+}

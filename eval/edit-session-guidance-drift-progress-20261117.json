@@ -59,7 +59,7 @@
     "docs/TOOL_CONTRACT.md": "c6275985ba43f97147e480bfb5b42604db7aec00bcf9cd661f3be580e2513fa7"
   },
   "public_verifier_sha256": "9a4dbe1ae7508fc501c9b6c2c084801ead8bbd9f144d2b4c419bf1811c3074ca",
-  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "validation_status": "RUNNING_COMBINED_NATIVE",
   "next_action": "Preserve this source outcome and advance a different original requirement before combined validation. No standalone Cargo or release.",
   "limits": [
     "This is observation of source identity changes on the original declared planned paths, not proof of applicable-policy completeness, semantic intent or compliance.",
@@ -69,5 +69,6 @@
     "No post-change native/public acceptance or runtime delivery yet. Source syntax does not prove user-facing correctness.",
     "Actual LegacyValidation application source was not read or changed. Normal configuration identity checked; no Site/Q traversal, reindex, closed-tool work or language expansion."
   ],
-  "source_commit": "138acfab51ea996f9e42d00652734bfe2613b14c"
+  "source_commit": "138acfab51ea996f9e42d00652734bfe2613b14c",
+  "validation_batch": "eval/edit-review-history-batch-progress-20261117.json"
 }

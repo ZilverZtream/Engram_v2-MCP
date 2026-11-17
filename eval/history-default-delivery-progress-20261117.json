@@ -55,7 +55,7 @@
   "native_test_cases_written": 3,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\verify-public.py",
   "public_verifier_sha256": "c442c1971e1d37fe467254ccdd05bf94bcbbb011c8f21a2349e75da30c6d498b",
-  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "validation_status": "RUNNING_COMBINED_NATIVE",
   "next_action": "Prepare one combined validation batch for EG27 guidance drift, EG19 finding annotations and this default history overflow delivery. No full suite or separate debug build.",
   "source_sha256": {
     "crates/engram_server/src/retained_results.rs": "b903fc848251829964963a16680f1630535c99d9cc8bbe8d5128d5d42cf3d223",
@@ -70,5 +70,6 @@
     "Native tests and post-change public acceptance/deployment have not run. Baseline establishes the previous public failure; syntax is not runtime proof.",
     "No actual LegacyValidation source access, reindex or mutation, Site/Q traversal, CodeMap/Blast work, target-language expansion, model comparison or preexisting deletion."
   ],
-  "source_commit": "094fa5ea8a06f4479b9205722ebc86df31f1876d"
+  "source_commit": "094fa5ea8a06f4479b9205722ebc86df31f1876d",
+  "validation_batch": "eval/edit-review-history-batch-progress-20261117.json"
 }
