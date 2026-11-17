@@ -2170,6 +2170,8 @@ pub struct SearchHistoryRequest {
     pub query: String,
     pub project_id: String,
     /// Optional complete response budget, estimated as ceil(UTF-8 text bytes/4).
+    /// Ordinary public replies default to40KiB with exact saved overflow recovery
+    /// for JSON and Markdown. An explicit budget retains whole-record paging.
     /// Includes metadata and JSON escaping. A whole record must fit; otherwise
     /// the request refuses with a minimum budget. This is not provider tokenization.
     #[serde(default)]

@@ -1982,6 +1982,22 @@ this collector. No new request fields, schema, decision store, model call or app
 workflow is introduced. Semantic applicability, decision authority and general agent
 usefulness remain unproved where the source evidence does not establish them.
 
+## Default history reply budget
+
+Source change 2026-11-17 (combined validation/deployment pending): ordinary
+`search_history` calls without `max_tokens` use a40KiB complete public reply
+budget in both Markdown and JSON. Fitting results keep their existing format.
+An oversized complete result returns `DEFERRED_READ_REPORT` with the existing
+`response_delivery.next_call`; recover all pages, verify the original hash and
+parse the reconstructed MCP result for its complete history text and metadata.
+Recovery does not repeat retrieval or substitute later source/commit contents.
+Existing8MiB,24hour/32newer-capture retention bounds still apply.
+
+An explicit `max_tokens` continues to use the handler's whole-record budget
+and paging contract. Explicit `retain_response=true` still requires JSON and
+captures the requested window before reply clipping, even when the result fits.
+This bounds delivery, not query latency, ranking quality or history completeness.
+
 ## Prior review evidence on individual findings
 
 Source change 2026-11-17 (combined validation/deployment pending):

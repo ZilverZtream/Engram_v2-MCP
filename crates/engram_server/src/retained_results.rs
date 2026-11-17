@@ -45,6 +45,10 @@ pub fn advertise(mut tool: Tool) -> Tool {
     schema.insert("required".into(), json!(["project_id"]));
     let description = tool.description.as_deref().unwrap_or("");
     tool.description = Some(format!("{description} Retained result window: retain_response=true plus output_json=true captures the requested window before reply clipping. Follow response_delivery.next_call with project_id and returned controls; fresh-query fields are required only for new calls. Recovery never reruns retrieval. max_tokens budgets the reply (default40KiB); captures are limited to8MiB and at most24hours or32newer captures. Reassemble and verify the original MCP result before use. Captured guidance/freshness is historical; source objects and results outside that window are not retained.").into());
+    if tool.name == "search_history" {
+        let description = tool.description.as_deref().unwrap_or("");
+        tool.description = Some(format!("{description} Ordinary history replies also default to40KiB when max_tokens is omitted: oversized JSON or Markdown results use exact saved recovery; fitting replies stay unchanged. Explicit max_tokens retains whole-record paging.").into());
+    }
     tool
 }
 
@@ -88,6 +92,14 @@ pub fn prepare(
         }
         for name in CONTROLS {
             args.remove(*name);
+        }
+        // History handlers intentionally keep complete Git bodies and the
+        // selected query window when no caller budget is supplied. Bound that
+        // ordinary public result here without clipping/repeating retrieval.
+        if tool == "search_history" && controls.max_tokens.is_none() {
+            let project = args.get("project_id").and_then(Value::as_str)
+                .ok_or_else(|| McpError::invalid_params("project_id is required for history delivery", None))?;
+            return Report::handler_owned(tool, project.to_owned(), 40960, None, 0).map(Some);
         }
         return Ok(None);
     }
