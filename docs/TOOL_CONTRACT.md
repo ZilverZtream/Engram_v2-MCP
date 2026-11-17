@@ -1342,6 +1342,18 @@ name unavailable, scope or budget omissions and supply hash-bound read actions
 when a complete fingerprint is known. JSON and Markdown retain the same complete
 linked evidence. Historical contexts never read current linked documents.
 
+Inline Markdown paths retain their original unresolved observation and add
+document-relative and project-root candidate rows with an explicit `path_basis`.
+Both candidates can supply complete first-hop evidence and hash-bound recovery;
+neither wins merely because its file exists. These observations share the existing
+32-reference, eight-document and byte/source budgets. Equal normalized paths use
+one candidate; overflow remains counted. Explicit Markdown link bodies retain
+budget priority over ambiguous inline candidates. Candidate bodies stay in `linked_sources`,
+outside adopted `sources`, and the target's declared scope still applies. JSON and
+Markdown preserve the candidate qualification; a source/hash match does not prove
+which path the author meant or accept policy. Historical candidates use the same
+Git revision and never receive current-file recovery actions.
+
 Revision-pinned planning also supplies first-hop `linked_sources` from the same
 Git tree as its direct guidance, with the same scope and selection budgets.
 `source_revision` pins both kinds of evidence; edited or deleted checkout files

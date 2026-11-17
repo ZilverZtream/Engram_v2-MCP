@@ -64,7 +64,7 @@ pub(super) fn supply_with_reader(
         .iter()
         .filter_map(|path| normalized_relative(path))
         .collect::<Vec<_>>();
-    context.instruction.push_str(" linked_sources supplies complete first-hop Markdown reference evidence only, after direct policy has priority within the same source/character budgets. It does not add adopted policy or establish authority. Declared nonmatching target scope is withheld. At most8distinct targets and256KiB (plus one overflow sentinel byte) are read, at most128KiB/file. Nested links in linked_sources are not recursively discovered; assess them separately.");
+    context.instruction.push_str(" linked_sources supplies complete first-hop Markdown reference evidence, including explicitly qualified inline path candidates, after direct policy has priority within the same source/character budgets. It does not add adopted policy or establish authority or an inline path binding. Declared nonmatching target scope is withheld. At most8distinct targets and256KiB (plus one overflow sentinel byte) are read, at most128KiB/file. Nested links in linked_sources are not recursively discovered; assess them separately.");
     if context.source_revision.is_none() {
         context.instruction.push_str(" Hash-bound read_action pages must reach EOF before claiming complete source recovery.");
     }
@@ -78,7 +78,13 @@ pub(super) fn supply_with_reader(
     let mut slots = budget.max_sources.saturating_sub(context.sources.len());
     let mut read_bytes = READ_BYTES;
     let mut observed = BTreeMap::<String, Observation>::new();
-    for reference in &mut context.references {
+    // Existing explicit Markdown links keep their evidence budget priority.
+    // Adding ambiguous inline candidates must not evict a previously supplied
+    // explicit link merely because the inline spelling appears earlier.
+    let mut order: Vec<_> = (0..context.references.len()).collect();
+    order.sort_by_key(|&index| context.references[index].path_basis.is_some());
+    for index in order {
+        let reference = &mut context.references[index];
         if reference.status != "not_supplied_applicability_unverified" {
             continue;
         }

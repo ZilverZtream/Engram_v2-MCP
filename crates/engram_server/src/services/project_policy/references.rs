@@ -13,10 +13,27 @@ fn same_path(left: &str, right: &str) -> bool {
     if cfg!(windows) { left.eq_ignore_ascii_case(right) } else { left == right }
 }
 
+fn inline_candidates(source: &str, target: &str) -> Vec<(String, Option<String>, &'static str)> {
+    if target.contains(['*', '?']) { return vec![]; }
+    let target = target.replace('\\', "/");
+    let mut candidates: Vec<(String, Option<String>, &'static str)> = Vec::new();
+    for (base, basis) in [(source, "document_relative_candidate"),
+        ("project-root-reference.md", "project_root_candidate")] {
+        let Some((path, fragment)) = normalize(base, &target) else { continue; };
+        if let Some(index) = candidates.iter().position(|(prior, _, _)| same_path(prior, &path)) {
+            candidates[index].2 = "document_relative_and_project_root_candidate";
+        } else {
+            candidates.push((path, fragment, basis));
+        }
+    }
+    candidates
+}
+
 pub(super) fn observe(context: &mut PolicyContext) {
     context.reference_coverage = if context.sources.is_empty() { "not_evaluated" } else { "complete" }.into();
     if context.sources.is_empty() { return; }
     context.instruction.push_str(" Direct-source coverage does not establish linked-document coverage. References observe supported Markdown links and inline Markdown paths in supplied complete sources only. A link does not establish authority, applicability or a valid fragment. Assess the source conditions and target's own scope; resolve missing guidance before claiming complete applicable policy coverage. For historical contexts, references belong to source_revision; never substitute current checkout content.");
+    context.instruction.push_str(" Inline Markdown paths retain their unresolved original spelling plus document-relative and project-root candidate observations within the same reference/read budgets. Supplied candidate bodies and exact recovery do not choose a path base, authenticate policy or establish semantic applicability; assess both when both exist.");
     for source in &context.sources {
         let parsed = markdown_links::parse(&source.content, 256);
         for (status, (_, count)) in parsed.issues {
@@ -46,8 +63,30 @@ pub(super) fn observe(context: &mut PolicyContext) {
                 source_path: source.path.clone(), source_blake3: source.blake3.clone(),
                 byte_range: [link.offset, link.end], target: link.target, path, fragment, status: status.into(),
                 target_blake3: supplied.map(|row| row.blake3.clone()).or_else(|| omitted.and_then(|row| row.blake3.clone())),
+                path_basis: None,
                 read_action: None,
             });
+            if status == "inline_path_basis_unverified" {
+                let original = context.references.last().unwrap().clone();
+                for (path, fragment, basis) in inline_candidates(&source.path, &original.target) {
+                    if context.references.len() >= REFERENCE_LIMIT {
+                        context.references_omitted += 1;
+                        continue;
+                    }
+                    let supplied = context.sources.iter().find(|row| same_path(&row.path, &path));
+                    let omitted = context.omissions.iter().find(|row| same_path(&row.path, &path));
+                    let mut candidate = original.clone();
+                    candidate.path = Some(path);
+                    candidate.fragment = fragment;
+                    candidate.path_basis = Some(basis);
+                    candidate.status = if supplied.is_some() { "supplied" }
+                        else if omitted.is_some() { "omitted_source" }
+                        else { "not_supplied_applicability_unverified" }.into();
+                    candidate.target_blake3 = supplied.map(|row| row.blake3.clone())
+                        .or_else(|| omitted.and_then(|row| row.blake3.clone()));
+                    context.references.push(candidate);
+                }
+            }
         }
     }
     if context.references_omitted > 0 { context.reference_coverage = "incomplete".into(); }

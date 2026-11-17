@@ -85,6 +85,10 @@ pub struct PolicyReference {
     pub fragment: Option<String>,
     pub status: String,
     pub target_blake3: Option<String>,
+    /// An inline spelling does not establish its path base. Candidate rows
+    /// retain this qualification even when their complete body is supplied.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub path_basis: Option<&'static str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub read_action: Option<PolicySourceRead>,
 }
@@ -235,6 +239,9 @@ impl PolicyContext {
             let _ = writeln!(text, "\n- Linked document: `{}` bytes {}..{} (BLAKE3 `{}`) → `{}`; status: {}; normalized path: {}. Assess the source conditions and target scope before applying it.",
                 reference.source_path, reference.byte_range[0], reference.byte_range[1], reference.source_blake3,
                 reference.target, reference.status, reference.path.as_deref().unwrap_or("unresolved"));
+            if let Some(basis) = reference.path_basis {
+                let _ = writeln!(text, "  Path basis: {basis}; candidate evidence only. The inline spelling does not select a binding or adopt this document as policy.");
+            }
             if let Some(action) = &reference.read_action {
                 let _ = writeln!(text, "\n```json\n{}\n```", serde_json::to_string(action).expect("linked source action is serializable"));
             }
