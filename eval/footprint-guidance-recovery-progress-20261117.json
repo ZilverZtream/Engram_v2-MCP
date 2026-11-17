@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-01",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "CURRENT_DEBUG_VALIDATED_AWAITING_COMBINED_DEPLOYMENT",
   "at_utc": "2026-11-17T11:12:58.522598+00:00",
   "source_phase_started_at_utc": "2026-11-17T11:01:21.133772+00:00",
   "original_requirement": "Applicable complete authored guidance and exact recovery reach ordinary planning/retrieval, preserving scope and qualifications.",
@@ -18,8 +18,8 @@
   ],
   "implementation_items_active": 0,
   "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
+  "native_tests_executed": 2,
+  "post_change_public_checks_executed": 7,
   "runtime_deployed": false,
   "full_original_goal_active": true,
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-guidance-recovery-20261117\\contract.json",
@@ -60,7 +60,7 @@
   "combined_native_target": "page_request_guidance_batch",
   "combined_native_cases": 7,
   "limits": [
-    "Source complete only: type checking, two focused native behavior cases and positive public/installed acceptance remain pending.",
+    "Current focused/native and public debug behavior verified; installed acceptance/deployment remain pending.",
     "Recovery supplies current complete-file hash-guarded lines; full-file hashes bind raw bytes while excerpt pages retain complete source lines. Reading guidance does not establish compliance.",
     "Saved report recovery is immutable and retains the original source guards. It is not a fresh policy read; changed sources require refreshing the originating footprint. Existing caps, scope and refusal semantics remain.",
     "No actual LegacyValidation source mutation/reindex, Site/Q read, task/model replay, CodeMap/Blast change, target-language support or standalone build/release."
@@ -72,6 +72,9 @@
     "current_native_or_public_fixtures": 0,
     "retention": "Retain original pins, contract, baseline/wire, verifier and source-phase timing for review. Native fixtures own server/database handles and directories; preexisting inventory untouched."
   },
-  "next_action": "Freeze with TODO33 page-context batching and TODO28 HTTP questions for one seven-case native target and the three public verifiers; no full/lib suite or extra debug build.",
-  "source_commit": "53215bf279bc03ef20026a89856339d844a6d3aa"
+  "next_action": "One combined release and candidate/installed acceptance remain. No native replay, full suite or separate debug build.",
+  "source_commit": "53215bf279bc03ef20026a89856339d844a6d3aa",
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117\\native-acceptance.json",
+  "current_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-guidance-recovery-20261117\\page-request-guidance-batch-20261117-debug2\\receipt.json",
+  "current_debug_sha256": "b1949d5b75972e3b8c2c6294152307eae222161f00282be8d3d7f58d0e48d5e1"
 }

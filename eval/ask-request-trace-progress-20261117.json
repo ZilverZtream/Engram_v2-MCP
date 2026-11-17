@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-28",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "CURRENT_DEBUG_VALIDATED_AWAITING_COMBINED_DEPLOYMENT",
   "at_utc": "2026-11-17T10:47:42.980431+00:00",
   "source_phase_started_at_utc": "2026-11-17T10:32:07.476917+00:00",
   "original_requirement": "Natural-language entry point composes existing source/graph/access capabilities for ordinary LegacyValidation questions.",
@@ -25,8 +25,8 @@
   ],
   "implementation_items_active": 0,
   "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
+  "native_tests_executed": 3,
+  "post_change_public_checks_executed": 8,
   "runtime_deployed": false,
   "full_original_goal_active": true,
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-trace-20261117\\contract.json",
@@ -73,7 +73,7 @@
     "Core advertises trace_user_request so new emitted ordinary/nested trace recovery is callable. This is a dependency of TODO28, not a third independent queue item."
   ],
   "limits": [
-    "Source complete only: type checking, three focused native behavior cases, positive public/installed acceptance and deployment remain pending.",
+    "Current focused/native and public debug behavior verified; installed acceptance/deployment remain pending.",
     "Static routing/handler/source/SQL candidates are not proof of HTTP hosting, dispatch, authorization, values or execution. Existing nested omissions/recovery remain. No new routing or synthesis model request.",
     "At most two explicit HTTP requests are traced; mention detection stops at the third. Explicit natural-language path scopes currently disclose automatic tracing unavailable before unscoped reads; ordinary scoped source retrieval continues.",
     "The ordinary tracer retains its existing50kpath/64MiBsource/2MiBfile/256MiBreservation and graph limits. Deadline expiration may leave the owned blocking reader finishing with its source lease. No end-to-end latency or general task-benefit claim.",
@@ -86,6 +86,9 @@
     "current_fixtures_or_processes": 0,
     "retention": "Retain exact source pins, contract, baseline/wire, verifier and source timing. New native/public fixtures close their server/database owners before removing owned directories, including unwinding. Preexisting folders untouched."
   },
-  "next_action": "Queue this single TODO28 source outcome with retained TODO33 page batching. Continue another substantive independent original requirement; no standalone compile or release. The preceding three-outcome delivery remains installed f8714194.",
-  "source_commit": "9896ccf07a8a36b26f867f261198d0df3532ff05"
+  "next_action": "One combined release and candidate/installed acceptance remain. No native replay, full suite or separate debug build.",
+  "source_commit": "9896ccf07a8a36b26f867f261198d0df3532ff05",
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117\\native-acceptance.json",
+  "current_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-trace-20261117\\page-request-guidance-batch-20261117-debug2\\receipt.json",
+  "current_debug_sha256": "b1949d5b75972e3b8c2c6294152307eae222161f00282be8d3d7f58d0e48d5e1"
 }

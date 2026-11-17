@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-33",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "CURRENT_DEBUG_VALIDATED_AWAITING_COMBINED_DEPLOYMENT",
   "at_utc": "2026-11-17T10:14:01.349782+00:00",
   "original_requirement": "Batch/multi-get hot reads with complete responses and shared budgets; compose existing page orientation for the ordinary multi-page WebForms agent workflow.",
   "priority_basis": "LegacyValidation VB/WebForms changes need multiple page/control contexts with scoped authored guidance. This adds the existing page reader to the accepted batch endpoint, preserving completed method/source/memory/schema batching. It does not reopen those delivered contracts or claim a measured latency benefit.",
@@ -26,8 +26,8 @@
   "runtime_deployed": false,
   "source_commit": "01f3e172486a8892405920bc50eee86d945ff2b2",
   "native_test_cases_written": 2,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
+  "native_tests_executed": 2,
+  "post_change_public_checks_executed": 8,
   "source_sha256": {
     "crates/engram_server/src/models/requests.rs": "ca4cbfc04b1f72cc9a78c8d28ed5fa36f06de0090fc7efdf2918493e2c13008f",
     "crates/engram_server/src/handlers/batch_read_tools.rs": "af21a97d0b31c4cbff8787e72d204de137cc63a64357aef439674836c67bce6e",
@@ -36,7 +36,7 @@
     "docs/TOOL_CONTRACT.md": "0113fba4e4d156afbbb6be3d7816da94d6ac7a25d6beac9e8cce08597c4cdf55"
   },
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-page-context-20261117\\verify-public.py",
-  "public_verifier_sha256": "6640a733009a7d8a0c77b70bc37160d8b32f5ef67d598371c5d5e42ea1872cb2",
+  "public_verifier_sha256": "990eb70f11b7c98383d2dd4c5af99aed002787fd6b4bce57aba1cbe340bde830",
   "work_time": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-page-context-20261117\\reactivated-work-time.json",
   "source_checks": {
     "rustfmt_parse": "PASS; existing files parsed without rewriting; new test formatted",
@@ -44,7 +44,7 @@
     "git_diff_check": "PASS",
     "protected_wip9": "UNCHANGED"
   },
-  "next_action": "Retain as one independent TODO33 source outcome for the next batch. Finish current frozen release/deployment; continue other original source work until the unchanged build guard permits a substantive combined batch. No standalone native/release command.",
+  "next_action": "One combined release and candidate/installed acceptance remain. No native replay, full suite or separate debug build.",
   "temporary_resources": {
     "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-page-context-20261117",
     "baseline_fixture_removed": true,
@@ -52,8 +52,11 @@
     "retained": "Prior failed baseline/disposition and work-time retained; reactivation, contract, verifier and timing are alongside them. No new fixture or process. Source changes are ROOT only; frozen shipping checkout remains unchanged."
   },
   "limits": [
-    "Source complete only: type checking, two native behavior cases, current public/installed acceptance and deployment remain pending.",
+    "Current focused/native and public debug behavior verified; installed acceptance/deployment remain pending.",
     "Shared-budget recovery executes a new ordinary read. Inner context hashes refuse changed evidence. Reads remain sequential with independent errors, without an atomic snapshot or measured latency/productivity benefit.",
     "No actual LegacyValidation read/reindex/mutation, Site/Q read, paid model/task replay, CodeMap/Blast changes, language expansion or standalone compile/release."
-  ]
+  ],
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117\\native-acceptance.json",
+  "current_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-page-context-20261117\\page-request-guidance-batch-20261117-debug2\\receipt.json",
+  "current_debug_sha256": "b1949d5b75972e3b8c2c6294152307eae222161f00282be8d3d7f58d0e48d5e1"
 }
