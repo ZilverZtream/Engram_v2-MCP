@@ -2,12 +2,9 @@
 use anyhow::{Result, ensure};
 use engram_core::RelPath;
 use engram_graph::{GraphStore, Node};
-use engram_server::services::{
-    business_logic_service::extract_logic_methods,
-    request_trace::{
-        execution,
-        routing::{self, Source},
-    },
+use engram_server::services::request_trace::{
+    execution,
+    routing::{self, Source},
 };
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, sync::Arc};
@@ -53,17 +50,23 @@ impl Fixture {
                 ),
             };
             nodes.push(file.clone());
-            if path.ends_with(".vb") {
-                for method in extract_logic_methods(text, "vb") {
-                    let mut node = file.clone();
-                    node.node_id = format!("{path}:{}", method.start_line);
-                    node.node_type = "function".into();
-                    node.name = method.name;
-                    node.start_line = method.start_line;
-                    node.end_line = method.start_line + method.body.lines().count() as u32 - 1;
-                    node.metadata = None;
-                    nodes.push(node);
+            let methods: &[(&str, u32, u32)] = match path.as_str() {
+                "Site/Host.aspx.vb" => {
+                    &[("RootInit", 2, 5), ("RootLoad", 6, 7), ("Page_Init", 8, 10)]
                 }
+                "Site/Child.ascx.vb" => &[("ChildInit", 2, 4), ("ChildLoad", 5, 6), ("Save", 7, 8)],
+                "Site/Layout.master.vb" => &[("MasterInit", 2, 3), ("MasterLoad", 4, 5)],
+                _ => &[],
+            };
+            for &(name, start, end) in methods {
+                let mut node = file.clone();
+                node.node_id = format!("{path}:{start}");
+                node.node_type = "function".into();
+                node.name = name.into();
+                node.start_line = start;
+                node.end_line = end;
+                node.metadata = None;
+                nodes.push(node);
             }
         }
         graph.upsert_nodes("owned", &nodes)?;

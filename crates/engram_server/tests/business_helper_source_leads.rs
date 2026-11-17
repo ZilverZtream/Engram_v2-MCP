@@ -4,7 +4,6 @@ use engram_core::RelPath;
 use engram_graph::{GraphStore, Node};
 use engram_server::services::{
     business_helper_context::Audit,
-    business_logic_service::extract_logic_methods,
     business_outcome_dependencies::{self as outcomes, OutcomeEvidence, SourceContext},
 };
 use serde_json::json;
@@ -35,18 +34,40 @@ fn index(graph: &GraphStore, root: &Path, path: &str, source: &str) -> Result<()
         metadata: Some(json!({"file_hash":blake3::hash(source.as_bytes()).to_hex().to_string()})),
     };
     let mut nodes = vec![file.clone()];
-    for method in extract_logic_methods(source, "vb") {
-        let mut node = file.clone();
-        node.node_id = format!("{path}:{}", method.start_line);
-        node.node_type = "function".into();
-        node.name = format!("{}.{}", method.owner, method.name);
-        node.start_line = method.start_line;
-        node.end_line = method.start_line + method.body.lines().count().saturating_sub(1) as u32;
-        node.metadata = None;
-        nodes.push(node);
-    }
+    // These owned inputs contain one known declaration each. Seed its
+    // independently specified identity/range without importing a private parser.
+    let (name, start, end) = if source == HELPER {
+        ("Support.Helpers.Permitted", 3, 5)
+    } else {
+        let (_, start, end) = caller_body(source)?;
+        ("Ui.Page.ReadItem", start, end)
+    };
+    let mut node = file;
+    node.node_id = format!("{path}:{start}");
+    node.node_type = "function".into();
+    node.name = name.into();
+    node.start_line = start;
+    node.end_line = end;
+    node.metadata = None;
+    nodes.push(node);
     graph.upsert_nodes("owned", &nodes)?;
     Ok(())
+}
+fn caller_body(source: &str) -> Result<(String, u32, u32)> {
+    let lines: Vec<_> = source.lines().collect();
+    let start = lines
+        .iter()
+        .position(|line| line.starts_with("Public Function ReadItem("))
+        .ok_or_else(|| anyhow::anyhow!("Owned caller declaration missing"))?;
+    let end = lines
+        .iter()
+        .position(|line| *line == "End Function")
+        .ok_or_else(|| anyhow::anyhow!("Owned caller end missing"))?;
+    Ok((
+        lines[start..=end].join("\n"),
+        start as u32 + 1,
+        end as u32 + 1,
+    ))
 }
 impl Fixture {
     fn new() -> Result<Self> {
@@ -63,12 +84,12 @@ impl Fixture {
     }
     fn collect(&self, source: &str) -> Result<OutcomeEvidence> {
         index(&self.graph, &self.root, "Caller.vb", source)?;
-        let method = extract_logic_methods(source, "vb").remove(0);
+        let (body, start, _) = caller_body(source)?;
         Ok(outcomes::collect(
-            &method.body,
-            &method.owner,
+            &body,
+            "Ui.Page",
             "vb",
-            method.start_line,
+            start,
             "Caller.vb",
             Some(&SourceContext {
                 graph: &self.graph,
