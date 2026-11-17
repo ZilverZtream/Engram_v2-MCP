@@ -2564,6 +2564,16 @@
         "progress": "eval/workflow-tool-presets-progress-20261117.json",
         "native_target": "workflow_tool_presets",
         "runtime_deployed": false
+      },
+      {
+        "original_requirement_id": "TODO-28",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "behavior": "Ordinary browser-storage questions return source-admitted indexed key and separate store-wide clear candidates with scoped/hash-bound recovery",
+        "source_commit": "72c8b849cce6bc9ac7bc9e789ed6b7c37668c0d1",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\contract.json",
+        "progress": "eval/ask-browser-storage-progress-20261117.json",
+        "native_target": "ask_browser_storage",
+        "runtime_deployed": false
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2795,115 +2805,88 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "original_requirement_id": "EG-18",
+    "original_requirement_id": "TODO-28",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement": "The original tool_roi research explicitly requested dependency-closed development, QA and migration presets after repairing Core. Full discovery remains the default and LegacyValidation .NET tools remain available.",
-    "observed_missing_behavior": "Configuration and tools/list support only Full or Core. Core omits workflow specialists; switching to Full exposes the entire registered catalog. No named workflow surface exists.",
-    "priority_basis": "Original dependency-complete tool-presets shortlist. Current LegacyValidation config is verified Full and remains Full. Opt-in profiles target its existing VB.NET/WebForms, JavaScript/TypeScript and SQL workflows; no claim that an unselected profile already changes its runtime.",
-    "source_phase_started_at_utc": "2026-11-17T15:46:14.764195+00:00",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117\\contract.json",
+    "original_requirement": "The ordinary natural-language entry point composes existing indexed state evidence for LegacyValidation JavaScript/TypeScript workflows, without requiring specialist-tool selection.",
+    "observed_missing_behavior": "ask_codebase literal-state provider recognizes only server Session/ViewState/Application/Cache syntax. Browser LocalStorage/SessionStorage key questions do not receive existing indexed reader/writer or store-wide clear evidence.",
+    "priority_basis": "Current normal LegacyValidation runtime remains Full, with installed browser state tracing. Exact non-Q tabbedModalManager.ts currently contains setItem/removeItem/getItem for tabbedModalExtended at300/304/308. Use an owned exact source copy; no real-project reindex or protected extraction changes.",
+    "source_phase_started_at_utc": "2026-11-17T16:21:12.344448+00:00",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\contract.json",
     "implementation_files": [
-      "crates/engram_core/src/config.rs",
-      "crates/engram_server/src/tool_surface.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/src/handlers/access_layer_tools.rs",
-      "crates/engram_server/src/handlers/planning_tools.rs",
-      "crates/engram_server/src/handlers/schema_tools.rs",
-      "crates/engram_server/src/handlers/ask_schema.rs",
-      "crates/engram_server/tests/workflow_tool_presets.rs",
+      "crates/engram_server/src/services/ask_engine/browser_state.rs",
+      "crates/engram_server/src/services/ask_engine/literal_state.rs",
+      "crates/engram_server/src/services/ask_engine.rs",
+      "crates/engram_server/src/handlers/ask_state.rs",
+      "crates/engram_server/src/handlers/ask_tools.rs",
+      "crates/engram_server/src/handlers/browser_state_tools.rs",
+      "crates/engram_server/tests/ask_browser_storage.rs",
       "docs/TOOL_CONTRACT.md",
-      "crates/engram_server/src/handlers/edit_session_maintenance.rs"
+      "crates/engram_server/src/tools.rs"
     ],
-    "profiles": {
-      "development": [
-        "batch_read",
-        "get_method_info",
-        "search_history",
-        "pre_push_audit"
-      ],
-      "qa": [
-        "derive_test_matrix",
-        "analyze_business_logic",
-        "trace_state_usage",
-        "query_schema",
-        "batch_read",
-        "pre_push_audit"
-      ],
-      "migration": [
-        "query_schema",
-        "analyze_database_intelligence",
-        "generate_migration_blueprint",
-        "generate_migration_plan",
-        "generate_migration_scaffold",
-        "pre_push_audit"
-      ]
+    "source_pins": {
+      "Site/ts/common/tabbedModalWindow/tabbedModalManager.ts": {
+        "original_path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\ts\\common\\tabbedModalWindow\\tabbedModalManager.ts",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\sources\\tabbedModalManager.ts",
+        "sha256": "4f4efdf67928b16b0840c7d4e943d2ec7f01fdebba83209554662e67d1881c6d",
+        "blake3": "55dbdbe2dc112ac77e150e2e28d9c0d2e76f41d704dd82fa8b344fc27377fd10",
+        "bytes": 22079
+      }
     },
     "finite_acceptance": [
-      "Explicit optional tool_preset selects full/core/development/qa/migration. Omitted field preserves advertise_all_tools true/default Full or false/Core; unknown values fail configuration deserialization. Existing normal LegacyValidation config is unchanged.",
-      "Named profiles retain the34 shared Core tools plus their declared workflow roots: development38,qa40,migration40 maximum before actual capability filtering. Use existing registered schemas, source/citation/job/memory/review recovery and capability gating. No new dispatcher or hidden proxy surface.",
-      "Startup/catalog and response navigation use the effective preset, not the legacy boolean. Existing source/schema and completed-edit maintenance recovery emits only an advertised target; named profiles can use their pre_push_audit actions. All Full/default and legacyCore behavior remains.",
-      "Actual MCP tools/list on an owned mixed VB/WebForms+JS/TS+SQL fixture validates profile identities, exact membership, sanitized schema equality and callable source/schema/maintenance/bounded-report recovery. Explicitly scoped coverage only: no universal closure of prose recommendations, model quality, migration-code correctness or task-productivity claim.",
-      "Write finite relevant native/public cases and source checks before consolidated validation with at least two other independent original outcomes. No standalone Cargo/release or full-suite run."
+      "Recognize explicit localStorage/sessionStorage key phrases and getItem/setItem/removeItem literal mentions. Keep stores and legacy state distinct; up to3browser keys plus one overflow witness. No computed-key or runtime store/origin inference.",
+      "Reuse the held selected-source graph/raw-hash reader for browser-key candidates and the existing source-admitted clear reader. Scope checks precede source reads; stale candidates are withheld. Keep clear operations store-wide rather than inventing a literal access for a queried key. Source/candidate caps and omissions remain explicit.",
+      "Ordinary JSON/Markdown answers retain source/guidance, current-file hash-bound recovery callable in Core/named/Full and static origin/execution uncertainty. Mixed legacy/browser questions retain distinct provider diagnostics. The exact retained LegacyValidation source supplies its three known methods; owned JS/TS fixtures exercise store separation and clear-only evidence.",
+      "Native cases plus owned public baseline and post-change source/guidance/recovery/scoped/stale checks. Consolidate validation with other independent original requirements; no standalone Cargo, new model comparison, real LegacyValidation mutation, target-language expansion or CodeMap/Blast work."
     ],
     "engram_builds_started": 0,
     "native_tests_executed": 0,
     "runtime_deployed": false,
     "implementation_items_active": 0,
-    "pending_source_outcomes": 1,
+    "pending_source_outcomes": 2,
     "baseline_source_sha256": {
-      "crates/engram_core/src/config.rs": "7c3592fcef4e2bf50e2875c1152b22e04489e2edf802243659fd486946388761",
-      "crates/engram_server/src/tool_surface.rs": "6db2496d2988bece02164f944f2f6ebc38c8600fef9fb127d8e9d3825ed80fb0",
-      "crates/engram_server/src/tools.rs": "0c99ad0c0c9ee70183affab0ae08d6808dd7fb4bef3a15febbbd13469e8c659d",
-      "crates/engram_server/src/handlers/access_layer_tools.rs": "e7ada9c848c9233e13704c729e5850f78f80819cfa94eb38fefbdd2707d9d60d",
-      "crates/engram_server/src/handlers/planning_tools.rs": "12d712e8a4765a47a3c7f631e32f26d0b638cc5d52764a678b186fd1fc00ce7e",
-      "crates/engram_server/src/handlers/schema_tools.rs": "fd74883cee832203403fc5e9902d08bb39a3bb952c1e1f68ba8defa538fc20cb",
-      "crates/engram_server/src/handlers/ask_schema.rs": "b486d2eec34be293bec384f58fae657fef7b9add36ddf076cdb952a60525dfc3",
-      "docs/TOOL_CONTRACT.md": "e7b38385d732830d8aa916a2f45238eaf47e1abf01c5dc3d1a9574632318afd2"
-    },
-    "actual_runtime_config": {
-      "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
-      "advertise_all_tools": true,
-      "tool_preset": null
+      "crates/engram_server/src/services/ask_engine/literal_state.rs": "62e35ee63540cfcc54945f09b55c523cf0c3509581f23cbfd591c603f561e230",
+      "crates/engram_server/src/services/ask_engine.rs": "9b732ebfc637b263df88683647c89124ebaab88ab5b9ea172867cdc1069a3352",
+      "crates/engram_server/src/handlers/ask_state.rs": "37cccbef477215e2409f67151b38447190e740120935d48ed9fcb00b3d3d13d6",
+      "crates/engram_server/src/handlers/ask_tools.rs": "1066a066fd920f8aef7b11fb72973630a31fb73a5c85c6c277cc50543e06a345",
+      "crates/engram_server/src/handlers/browser_state_tools.rs": "cf36121c53d7a13b704cc1133ee670724e4fd3ea17e62eb759baee93a5ff51c5",
+      "docs/TOOL_CONTRACT.md": "83083f0cbb78221d7ce65b4fab72ad5507f377411c4c761a2fefce2870d6587f",
+      "crates/engram_server/src/tools.rs": "ae4fd44d8e352bdc1771651f45509cba240d5eecf1f93c5ab439a0e708e35200"
     },
     "temporary_resources": {
-      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117",
-      "retention": "Retain finite contract and fixture evidence until delivery. Own new server/database fixture handles and directories; close before cleanup on normal/error paths. No preexisting folder deletion.",
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117",
+      "retention": "Retain exact allowed non-Q source copy, contract and fixture receipts until delivery. New fixtures own and close server/database handles before removal, including errors. Preexisting directories untouched.",
       "current_fixtures_or_processes": 0,
       "baseline_fixture_removed": true,
       "baseline_owners_closed": true
     },
     "previous_goal_turn_classification": {
-      "classification": "PROGRESS_INSTALLED_DELIVERY",
-      "evidence": "eval/maintenance-history-interaction-batch-delivery-20261117.json"
+      "classification": "PROGRESS_SOURCE_DELIVERY",
+      "source_commit": "1bd5f54584c0a18438390d1c9f17425c07c30c05",
+      "record": "eval/workflow-tool-presets-progress-20261117.json"
     },
     "full_original_goal_active": true,
-    "supplemental_baseline_git_blob": {
-      "crates/engram_server/src/handlers/edit_session_maintenance.rs": "91f0d5bd87b81a313571fffce9009101701aa3ee"
-    },
-    "source_phase_completed_at_utc": "2026-11-17T16:06:48.415291+00:00",
+    "source_phase_completed_at_utc": "2026-11-17T16:43:57.193222+00:00",
     "source_sha256": {
-      "crates/engram_core/src/config.rs": "45d24e6e7de9f7fdfe0ff52e4beafcbff61c46f70fef6cf9b7187463e991bea3",
-      "crates/engram_server/src/tool_surface.rs": "c933fdc9c4b8aedad4c6f13b1e38620ecf8ee3123f0e414b4d0a1810c009d5e2",
-      "crates/engram_server/src/tools.rs": "ae4fd44d8e352bdc1771651f45509cba240d5eecf1f93c5ab439a0e708e35200",
-      "crates/engram_server/src/handlers/access_layer_tools.rs": "2b8ab31d8720bc3565ccae3dd4e1bc43841d36cdcc94f7f34e131a0bea91bddd",
-      "crates/engram_server/src/handlers/planning_tools.rs": "9116e20d0c3dbba6a4c0650196c556cf27931e3b3bc2a5a11113812d5f7aa37b",
-      "crates/engram_server/src/handlers/schema_tools.rs": "df5b0335729fd71bbe1b9f5b821680347a96500e063d934040d2567951b81c07",
-      "crates/engram_server/src/handlers/ask_schema.rs": "f1fdca57fad8cba87718ead09dec88eb931de9158ce294e3e53c97a75aa1654f",
-      "crates/engram_server/tests/workflow_tool_presets.rs": "015b356704899563f75ea6b9bd81bfc157c66d47088739f66679fb7fc578d6fd",
-      "docs/TOOL_CONTRACT.md": "83083f0cbb78221d7ce65b4fab72ad5507f377411c4c761a2fefce2870d6587f",
-      "crates/engram_server/src/handlers/edit_session_maintenance.rs": "18e5710a24f5559b316d9c503343cb36e07f58a1778c6be659f52cc71aa2ee45"
+      "crates/engram_server/src/services/ask_engine/browser_state.rs": "2705104a2d4127740cb3d0d288d7bff780e0162778a599e2eb726bb84359f84f",
+      "crates/engram_server/src/services/ask_engine/literal_state.rs": "25a04a1551539660cf4931031fbb10da73470ad24a0ab2ef6af15ecf769251df",
+      "crates/engram_server/src/services/ask_engine.rs": "5b1228b6dd4fa1c664f17a062fd5686389757a94b22e6ee05a764d18f9820286",
+      "crates/engram_server/src/handlers/ask_state.rs": "ced9760190700020c9fcde18939359882201ca3631bbfa567f201403cc912659",
+      "crates/engram_server/src/handlers/ask_tools.rs": "e2c3d5f17faafc5f86bc1885238474def20e21dcc63d213a19568d4b8dcc1406",
+      "crates/engram_server/src/handlers/browser_state_tools.rs": "9a05a018d9556d1e6117fb25a2fd611b20cb82c928ea859f4c8dc6f4e18e2900",
+      "crates/engram_server/tests/ask_browser_storage.rs": "05b3abe4975bf50da9c370050be3217e8428cb4d21f3cdddd74f751fdf1c6f58",
+      "docs/TOOL_CONTRACT.md": "8d40c3e1d00ac252c4b62e2d43365a6686638bb2af9cb0a38d0138c84396fc3a",
+      "crates/engram_server/src/tools.rs": "b6e206037452d39a4f62df3a6da8b466ce2d0e092bd466c28b1872b751dc1d1d"
     },
     "source_checks": {
-      "crates/engram_core/src/config.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/src/tool_surface.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/services/ask_engine/browser_state.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/services/ask_engine/literal_state.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/services/ask_engine.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/handlers/ask_state.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/handlers/ask_tools.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/handlers/browser_state_tools.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/tests/ask_browser_storage.rs": "RUST_SYNTAX_PASS",
       "crates/engram_server/src/tools.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/src/handlers/access_layer_tools.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/src/handlers/planning_tools.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/src/handlers/schema_tools.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/src/handlers/ask_schema.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/tests/workflow_tool_presets.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/src/handlers/edit_session_maintenance.rs": "RUST_SYNTAX_PASS",
       "public_python_syntax": "PASS",
       "diff_whitespace": "PASS",
       "protected_wip9": "UNCHANGED",
@@ -2911,20 +2894,22 @@
       "native_tests_executed": 0,
       "post_change_public_checks_executed": 0
     },
-    "native_target": "workflow_tool_presets",
+    "native_target": "ask_browser_storage",
     "native_test_cases_written": 3,
-    "public_checks_written": 19,
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117\\verify-public.py",
-    "public_verifier_sha256": "8e00633ac700d9d91c5b7afdf64dc928bd0e6bba32fd17c1bff603c4ab6b7ccd",
-    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117\\baseline1\\receipt.json",
-    "baseline_seconds": 2.633704400039278,
+    "public_checks_written": 11,
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\verify-public.py",
+    "public_verifier_sha256": "6fe81688c460c50f8f19dfa2e03593e43c919de86a561e121e7327f4c7921f2a",
+    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\baseline1\\receipt.json",
+    "baseline_seconds": 1.4966830000048503,
     "baseline_checks_passed": 3,
-    "next_action": "Queue this original EG18 named-preset outcome with the next two ready independent original requirements. Do not compile this feature separately or replay the completed installed batch.",
+    "next_action": "Queue this second independent original source outcome with named presets. Continue another ready original requirement before combined validation; do not start a standalone compile/release or reopen delivered components.",
+    "source_correction": "Syntax preflight caught CRCRLF introduced by the tool-description edit. Normalized that file and proved its canonical bytes match HEAD except the intended one description sentence; no build or tests were launched.",
     "limits": [
-      "Source completion only; Rust type/native checks and post-change MCP verification remain pending. Installed46c5e89 is unchanged and stays configured Full.",
-      "Named preset closure covers shared Core dependencies, explicit workflow roots and emitted structured source/schema/maintenance recovery. Every specialist mentioned in prose, backend/model availability, migration-code correctness and task productivity remain unproved."
+      "Source completion only; Rust type/native and post-change public MCP validation remain pending. Installed46c5e89 and normal Full/LegacyValidation data are unchanged.",
+      "Browser facts are static relationship/declaration candidates with current-source checks, not runtime values, shared origin/tab identity, compiler binding or exhaustive absence proof. Browser classification remains partial.",
+      "The exact existing LegacyValidation source was copied from one allowed non-Q file and tested only in an owned index. No actual LegacyValidation reindex, protected modern-language WIP change, model comparison or target-language expansion."
     ],
-    "source_commit": "1bd5f54584c0a18438390d1c9f17425c07c30c05"
+    "source_commit": "72c8b849cce6bc9ac7bc9e789ed6b7c37668c0d1"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3678,7 +3663,7 @@
     "pending_source_outcomes": 1
   },
   "history_header_filter_progress_20261117": "eval/history-header-filter-progress-20261117.json",
-  "last_updated_at": "2026-11-17T16:06:48.415291+00:00",
+  "last_updated_at": "2026-11-17T16:43:57.193222+00:00",
   "maintenance_history_interaction_batch_delivery_20261117": {
     "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
     "original_requirement_ids": [
