@@ -1,7 +1,7 @@
 {
   "original_requirement_id": "TODO-33",
-  "status": "REACTIVATED_IMPLEMENTATION_ACTIVE",
-  "at_utc": "2026-11-17T10:09:26.429438+00:00",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-17T10:14:01.349782+00:00",
   "original_requirement": "Batch/multi-get hot reads with complete responses and shared budgets; compose existing page orientation for the ordinary multi-page WebForms agent workflow.",
   "priority_basis": "LegacyValidation VB/WebForms changes need multiple page/control contexts with scoped authored guidance. This adds the existing page reader to the accepted batch endpoint, preserving completed method/source/memory/schema batching. It does not reopen those delivered contracts or claim a measured latency benefit.",
   "observed_missing_behavior": "BatchReadOperation accepts six read types but rejects get_page_context, forcing separate calls for each page context during a multi-page change.",
@@ -18,10 +18,42 @@
     "Two focused behavior cases cover ordinary JSON/Markdown/option equivalence, independent missing-page errors, shared whole-result omission with executable recovery and guarded inner continuation after guidance edits. Public owned LegacyValidation-copy verification is queued with future independent original source outcomes. No standalone build or timing benchmark."
   ],
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-page-context-20261117\\contract.json",
-  "implementation_items_active": 1,
+  "implementation_items_active": 0,
   "engram_builds_started": 0,
   "full_original_goal_active": true,
   "reactivation_reason": "The ordinary page-policy dependency now passes native/current public acceptance in the frozen maintenance/state/context batch. Resume the retained typed page-context batching outcome; existing baseline rejection is retained without replay.",
   "source_phase_started_at_utc": "2026-11-17T10:09:26.429438+00:00",
-  "runtime_deployed": false
+  "runtime_deployed": false,
+  "source_commit": "01f3e172486a8892405920bc50eee86d945ff2b2",
+  "native_test_cases_written": 2,
+  "native_tests_executed": 0,
+  "post_change_public_checks_executed": 0,
+  "source_sha256": {
+    "crates/engram_server/src/models/requests.rs": "ca4cbfc04b1f72cc9a78c8d28ed5fa36f06de0090fc7efdf2918493e2c13008f",
+    "crates/engram_server/src/handlers/batch_read_tools.rs": "af21a97d0b31c4cbff8787e72d204de137cc63a64357aef439674836c67bce6e",
+    "crates/engram_server/src/tools.rs": "d12705ee5d5484f723324575d78503589ddb5e4254631e4b9e0626b4368bc391",
+    "crates/engram_server/tests/batch_page_context.rs": "9e5867d39b865aae05fd7bdefcc31a9041ce58dc14a1c4153e37af7611b71a19",
+    "docs/TOOL_CONTRACT.md": "0113fba4e4d156afbbb6be3d7816da94d6ac7a25d6beac9e8cce08597c4cdf55"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-page-context-20261117\\verify-public.py",
+  "public_verifier_sha256": "6640a733009a7d8a0c77b70bc37160d8b32f5ef67d598371c5d5e42ea1872cb2",
+  "work_time": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-page-context-20261117\\reactivated-work-time.json",
+  "source_checks": {
+    "rustfmt_parse": "PASS; existing files parsed without rewriting; new test formatted",
+    "public_verifier_syntax": "PASS",
+    "git_diff_check": "PASS",
+    "protected_wip9": "UNCHANGED"
+  },
+  "next_action": "Retain as one independent TODO33 source outcome for the next batch. Finish current frozen release/deployment; continue other original source work until the unchanged build guard permits a substantive combined batch. No standalone native/release command.",
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-page-context-20261117",
+    "baseline_fixture_removed": true,
+    "current_native_or_public_fixtures_created": 0,
+    "retained": "Prior failed baseline/disposition and work-time retained; reactivation, contract, verifier and timing are alongside them. No new fixture or process. Source changes are ROOT only; frozen shipping checkout remains unchanged."
+  },
+  "limits": [
+    "Source complete only: type checking, two native behavior cases, current public/installed acceptance and deployment remain pending.",
+    "Shared-budget recovery executes a new ordinary read. Inner context hashes refuse changed evidence. Reads remain sequential with independent errors, without an atomic snapshot or measured latency/productivity benefit.",
+    "No actual LegacyValidation read/reindex/mutation, Site/Q read, paid model/task replay, CodeMap/Blast changes, language expansion or standalone compile/release."
+  ]
 }

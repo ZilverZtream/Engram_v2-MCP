@@ -2592,7 +2592,16 @@
       "existing_shared_target_reused": true,
       "this_release_was_incremental": false
     },
-    "minimum_is_not_release_schedule": "The three-outcome threshold is a minimum admission gate, not an instruction to compile/deploy every three outcomes. November16 retained43 build/test invocations show that minimum batching alone did not address user complaints. Continue substantive source delivery and consolidate validation; never add filler to trigger Cargo."
+    "minimum_is_not_release_schedule": "The three-outcome threshold is a minimum admission gate, not an instruction to compile/deploy every three outcomes. November16 retained43 build/test invocations show that minimum batching alone did not address user complaints. Continue substantive source delivery and consolidate validation; never add filler to trigger Cargo.",
+    "pending_after_current_release": [
+      {
+        "original_requirement_id": "TODO-33",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "01f3e172486a8892405920bc50eee86d945ff2b2",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-page-context-20261117\\contract.json",
+        "progress": "eval/batch-page-context-progress-20261117.json"
+      }
+    ]
   },
   "member_workflows_delivery": {
     "record": "eval/legacy_validation-member-workflows-delivery-20261115.json",
@@ -2761,7 +2770,9 @@
     "debug_binary_sha256": "992b96ac67c4d1e84e590d4616d3dca9b3e3e0bbcdb5ea457be601595198f61d",
     "release_preflight_metadata_correction": "Guard rejected a changed queue status before any Cargo launch. Preserve the source-complete queue schema and track current debug validation separately; build guard unchanged.",
     "release_exec_session_id": 44850,
-    "release_runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\release1-owner.json"
+    "release_runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\release1-owner.json",
+    "active_source_item": "TODO-33 page-context batching; eval/batch-page-context-progress-20261117.json",
+    "next_source_progress": "eval/batch-page-context-progress-20261117.json"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3094,5 +3105,14 @@
       "later_turn_trigger": "codex_internal_context source=goal"
     },
     "does_not_pause_or_replace_goal": true
+  },
+  "active_source_implementation": {
+    "original_requirement_id": "TODO-33",
+    "progress": "eval/batch-page-context-progress-20261117.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-page-context-20261117\\contract.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "implementation_items_active": 0,
+    "shipping_checkout_untouched": true,
+    "source_commit": "01f3e172486a8892405920bc50eee86d945ff2b2"
   }
 }
