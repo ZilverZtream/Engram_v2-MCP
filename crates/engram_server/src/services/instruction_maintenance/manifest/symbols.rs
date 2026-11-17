@@ -41,6 +41,10 @@ pub struct Reference {
     pub source_blake3: String,
     pub version: Version,
     pub byte_range: [usize; 2],
+    /// For a name inside an inline expression, retain the enclosing original
+    /// Markdown code span as well as the exact matched-name byte range.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub container_byte_range: Option<[usize; 2]>,
     pub literal: String,
     pub form: &'static str,
     pub status: &'static str,
@@ -430,6 +434,35 @@ pub(in crate::services::instruction_maintenance) fn references(
                         };
                         mentions.push((span.start, span.end, value.into_string(), form));
                     }
+                    Event::Code(value) if !markdown_links::path_candidate(&value) => {
+                        // Match observed names in authored snippets such as
+                        // `pr_id = GetTopProjectID()`. Walk original source
+                        // bytes, since CommonMark may normalize code spacing.
+                        // These are mentions, not parsed calls or arity proof.
+                        let raw = &snapshot.content[span.clone()];
+                        let mut first = None;
+                        for (at, character) in raw.char_indices().chain(std::iter::once((raw.len(), ' '))) {
+                            if character.is_alphanumeric() || matches!(character, '_' | '$' | '.' | ':') {
+                                first.get_or_insert(at);
+                            } else if let Some(start) = first.take() {
+                                let token = raw[start..at].trim_end_matches(['.', ':']);
+                                if !identifier(token) { continue; }
+                                let canonical = token.replace("::", ".");
+                                let short = canonical.rsplit('.').next().unwrap_or(&canonical);
+                                let observed = lookup.contains_key(&canonical)
+                                    || vb_lookup.contains_key(&canonical.to_ascii_lowercase())
+                                    || lookup.contains_key(short)
+                                    || vb_lookup.contains_key(&short.to_ascii_lowercase());
+                                let end = start + token.len();
+                                let call_notation = raw[end..].starts_with("()");
+                                if observed || call_notation {
+                                    let end = end + if call_notation { 2 } else { 0 };
+                                    mentions.push((span.start + start, span.start + end,
+                                        raw[start..end].to_owned(), "inline_code_expression_name"));
+                                }
+                            }
+                        }
+                    }
                     Event::Text(_) => {
                         let raw = &snapshot.content[span.clone()];
                         let mut start = None;
@@ -525,6 +558,8 @@ pub(in crate::services::instruction_maintenance) fn references(
                         source_blake3: snapshot.blake3.clone(),
                         version: version.clone(),
                         byte_range: [start, end],
+                        container_byte_range: (form == "inline_code_expression_name")
+                            .then_some([span.start, span.end]),
                         literal,
                         form,
                         status,

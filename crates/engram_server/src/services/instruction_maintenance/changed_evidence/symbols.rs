@@ -78,7 +78,16 @@ impl Discovery {
         for issue in issues {
             omissions.push(json!({"path":instruction.path,"reason":"changed_symbol_reference_coverage","issue":issue}));
         }
-        let indices = (0..references.len()).collect::<Vec<_>>();
+        // Automatic inverse selection requires an explicit authored code
+        // mention. Ordinary prose can coincide with degraded VB candidates
+        // named "for" or "is"; that is not a useful maintenance dependency.
+        // The manifest's existing prose observations remain available.
+        let indices = references
+            .iter()
+            .enumerate()
+            .filter(|(_, reference)| reference.form.starts_with("inline_code"))
+            .map(|(index, _)| index)
+            .collect::<Vec<_>>();
         let mut matches = Vec::new();
         for change in symbols::changes(&references, &indices) {
             if matches!(
@@ -111,7 +120,9 @@ impl Discovery {
             }
             let proofs = references
                 .iter()
-                .filter(|reference| reference.literal == change.literal)
+                .filter(|reference| {
+                    reference.literal == change.literal && reference.form.starts_with("inline_code")
+                })
                 .collect::<Vec<_>>();
             matches.push(json!({"kind":"symbol_reference","symbol_change":change,"references":proofs,
                 "interpretation":"Observed name/declaration evidence for maintenance review only. Ambiguity, qualification and unavailable body coverage remain as reported. This does not establish a compiler binding, semantic effect, accepted policy change or authority outside the instruction's declared scope."}));

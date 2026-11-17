@@ -60,7 +60,7 @@ impl Fixture {
 #[test]
 fn shared_vb_method_selects_referencing_guidance_without_expanding_its_scope() -> Result<()> {
     let path = "Site/Shared/projects.vb";
-    let guide = "---\napplyTo: Site/Prices/**\n---\nUse `GetTopProjectID()` for price-list inheritance.\nException: approved independent projects remain independent.\n";
+    let guide = "---\napplyTo: Site/Prices/**\n---\nUse `projectId = GetTopProjectID()` for price-list inheritance.\nException: approved independent projects remain independent.\n";
     let fixture = Fixture::new(guide, &[(path, VB)])?;
     std::fs::write(fixture.root.join(path), VB.replace("Return 2", "Return 3"))?;
     let unrelated = fixture.capture(&[path])?;
@@ -89,6 +89,14 @@ fn shared_vb_method_selects_referencing_guidance_without_expanding_its_scope() -
     );
     let proof = &source["reference_matches"][0];
     ensure!(proof["symbol_change"]["literal"] == "GetTopProjectID()");
+    for reference in proof["references"].as_array().unwrap() {
+        let lo = reference["byte_range"][0].as_u64().unwrap() as usize;
+        let hi = reference["byte_range"][1].as_u64().unwrap() as usize;
+        ensure!(&guide[lo..hi] == "GetTopProjectID()");
+        let lo = reference["container_byte_range"][0].as_u64().unwrap() as usize;
+        let hi = reference["container_byte_range"][1].as_u64().unwrap() as usize;
+        ensure!(&guide[lo..hi] == "`projectId = GetTopProjectID()`");
+    }
     ensure!(proof["symbol_change"]["status"] == "changed_observed_candidate_bytes");
     let candidate = &proof["symbol_change"]["after_candidates"][0];
     ensure!(candidate["path"] == path && candidate["absence_proof"] == false);
