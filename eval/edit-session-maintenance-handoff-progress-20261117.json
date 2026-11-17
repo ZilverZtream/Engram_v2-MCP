@@ -66,5 +66,6 @@
     "The start commit does not capture an initial dirty working tree. Declared edited paths are caller scope, not a complete verified diff. Separate16path packets do not prove cross-packet dependency closure.",
     "Core/missing-start/no-edit conditions return explicit status without guessed/unadvertised calls. Complete actions are retained in full and immutable deferred reports.",
     "No actual LegacyValidation source read/reindex/mutation, Site/Q read, CodeMap/Blast work, model/task replay, new tool/preset member or language expansion."
-  ]
+  ],
+  "source_commit": "29ce4ad926d06fc0862b14131ed17c07badaa79f"
 }
