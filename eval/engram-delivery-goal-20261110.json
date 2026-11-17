@@ -2573,7 +2573,8 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\contract.json",
         "progress": "eval/ask-browser-storage-progress-20261117.json",
         "native_target": "ask_browser_storage",
-        "runtime_deployed": false
+        "runtime_deployed": false,
+        "correction_source_commit": "83b784d95a8c45f21fc081ba9dbe231e25c4ca61"
       },
       {
         "original_requirement_id": "TODO-4",
@@ -2815,73 +2816,124 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "original_requirement_id": "TODO-4",
+    "original_requirement_id": "TODO-28",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement": "Uniform caller response budgets and complete JSON/recovery for AI project bootstrap.",
-    "observed_missing_behavior": "index_project has no max_tokens, output_json or response recovery; AI callers must parse acknowledgement text for IDs and cannot recover a captured result without repeating registration/indexing.",
-    "priority_basis": "Core/Full indexing bootstraps the existing VB/WebForms, JS/TS and SQL workflow; normal LegacyValidation config stays Full and is not changed.",
+    "original_requirement": "The ordinary natural-language entry point composes existing indexed state evidence for LegacyValidation JavaScript/TypeScript workflows, without requiring specialist-tool selection.",
+    "observed_missing_behavior": "ask_codebase literal-state provider recognizes only server Session/ViewState/Application/Cache syntax. Browser LocalStorage/SessionStorage key questions do not receive existing indexed reader/writer or store-wide clear evidence.",
+    "priority_basis": "Current normal LegacyValidation runtime remains Full, with installed browser state tracing. Exact non-Q tabbedModalManager.ts currently contains setItem/removeItem/getItem for tabbedModalExtended at300/304/308. Use an owned exact source copy; no real-project reindex or protected extraction changes.",
+    "source_phase_started_at_utc": "2026-11-17T16:21:12.344448+00:00",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\contract.json",
     "implementation_files": [
-      "crates/engram_server/src/read_report_delivery.rs",
-      "crates/engram_server/src/read_report_delivery_tests.rs",
-      "crates/engram_server/tests/index_result_delivery.rs",
-      "docs/TOOL_CONTRACT.md"
+      "crates/engram_server/src/services/ask_engine/browser_state.rs",
+      "crates/engram_server/src/services/ask_engine/literal_state.rs",
+      "crates/engram_server/src/services/ask_engine.rs",
+      "crates/engram_server/src/handlers/ask_state.rs",
+      "crates/engram_server/src/handlers/ask_tools.rs",
+      "crates/engram_server/src/handlers/browser_state_tools.rs",
+      "crates/engram_server/tests/ask_browser_storage.rs",
+      "docs/TOOL_CONTRACT.md",
+      "crates/engram_server/src/tools.rs"
     ],
+    "source_pins": {
+      "Site/ts/common/tabbedModalWindow/tabbedModalManager.ts": {
+        "original_path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\ts\\common\\tabbedModalWindow\\tabbedModalManager.ts",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\sources\\tabbedModalManager.ts",
+        "sha256": "4f4efdf67928b16b0840c7d4e943d2ec7f01fdebba83209554662e67d1881c6d",
+        "blake3": "55dbdbe2dc112ac77e150e2e28d9c0d2e76f41d704dd82fa8b344fc27377fd10",
+        "bytes": 22079
+      }
+    },
     "finite_acceptance": [
-      "Expose existing shared controls in Core/Full/named presets; default fitting acknowledgements unchanged. Fresh too-small budgets refuse before registration.",
-      "JSON completed, existing-registration and queued acknowledgements expose typed project/job IDs without inferring background completion. Deferred result retains returned IDs; exact original MCP pages omit operation arguments and do not invoke indexing.",
-      "Native behavior cases exercise complete report warnings and immutable pages, plus inherited update safety. Owned public MCP verifies controls, real completed/queued/dedupe IDs, fresh-argument validation and no mutation on rejected metadata budgets. No claim of ordinary default-budget overflow or measured task usefulness.",
-      "Combine validation with queued workflow presets and browser-state questions. No standalone compile, full suite, new endpoints/stores or actual LegacyValidation mutation."
+      "Recognize explicit localStorage/sessionStorage key phrases and getItem/setItem/removeItem literal mentions. Keep stores and legacy state distinct; up to3browser keys plus one overflow witness. No computed-key or runtime store/origin inference.",
+      "Reuse the held selected-source graph/raw-hash reader for browser-key candidates and the existing source-admitted clear reader. Scope checks precede source reads; stale candidates are withheld. Keep clear operations store-wide rather than inventing a literal access for a queried key. Source/candidate caps and omissions remain explicit.",
+      "Ordinary JSON/Markdown answers retain source/guidance, current-file hash-bound recovery callable in Core/named/Full and static origin/execution uncertainty. Mixed legacy/browser questions retain distinct provider diagnostics. The exact retained LegacyValidation source supplies its three known methods; owned JS/TS fixtures exercise store separation and clear-only evidence.",
+      "Native cases plus owned public baseline and post-change source/guidance/recovery/scoped/stale checks. Consolidate validation with other independent original requirements; no standalone Cargo, new model comparison, real LegacyValidation mutation, target-language expansion or CodeMap/Blast work."
     ],
-    "source_phase_started_at_utc": "2026-11-17T16:59:31.049071+00:00",
-    "engram_builds_started": 0,
-    "native_tests_executed": 0,
+    "engram_builds_started": 3,
+    "native_tests_executed": 3,
     "runtime_deployed": false,
     "implementation_items_active": 0,
     "pending_source_outcomes": 3,
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\index-result-delivery-20261117",
-    "full_original_goal_active": true,
     "baseline_source_sha256": {
-      "crates/engram_server/src/read_report_delivery.rs": "a4f557286080ffbdc196eb8bf5e42cbd3c3853771734b0b7e560fa8a1243f7e0",
-      "crates/engram_server/src/read_report_delivery_tests.rs": "000102ed753c50f72a397e148fdff092d31cdcdd44b61edc599f160f580d0a09",
-      "docs/TOOL_CONTRACT.md": "8d40c3e1d00ac252c4b62e2d43365a6686638bb2af9cb0a38d0138c84396fc3a"
-    },
-    "previous_goal_turn_classification": {
-      "classification": "NO_PROGRESS",
-      "reason": "Answered the user continuation complaint; no implementation or acceptance step advanced. Resume original TODO4 bootstrap delivery now."
+      "crates/engram_server/src/services/ask_engine/literal_state.rs": "62e35ee63540cfcc54945f09b55c523cf0c3509581f23cbfd591c603f561e230",
+      "crates/engram_server/src/services/ask_engine.rs": "9b732ebfc637b263df88683647c89124ebaab88ab5b9ea172867cdc1069a3352",
+      "crates/engram_server/src/handlers/ask_state.rs": "37cccbef477215e2409f67151b38447190e740120935d48ed9fcb00b3d3d13d6",
+      "crates/engram_server/src/handlers/ask_tools.rs": "1066a066fd920f8aef7b11fb72973630a31fb73a5c85c6c277cc50543e06a345",
+      "crates/engram_server/src/handlers/browser_state_tools.rs": "cf36121c53d7a13b704cc1133ee670724e4fd3ea17e62eb759baee93a5ff51c5",
+      "docs/TOOL_CONTRACT.md": "83083f0cbb78221d7ce65b4fab72ad5507f377411c4c761a2fefce2870d6587f",
+      "crates/engram_server/src/tools.rs": "ae4fd44d8e352bdc1771651f45509cba240d5eecf1f93c5ab439a0e708e35200"
     },
     "temporary_resources": {
-      "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\index-result-delivery-20261117",
-      "retention": "Retain contract, verifier and receipts until delivery. Owned fixtures close servers before cleanup; preserve existing folders."
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117",
+      "retention": "Retain exact allowed non-Q source copy, contract and fixture receipts until delivery. New fixtures own and close server/database handles before removal, including errors. Preexisting directories untouched.",
+      "current_fixtures_or_processes": 0,
+      "baseline_fixture_removed": true,
+      "baseline_owners_closed": true
     },
-    "source_phase_completed_at_utc": "2026-11-17T17:05:37.045907+00:00",
-    "native_target": "index_result_delivery",
-    "native_test_cases_written": 3,
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\index-result-delivery-20261117\\verify-public.py",
-    "public_verifier_sha256": "8c8795a6e67fca62e3c120c3a6efb78e03a956acfcec36de6c6de2edad4ae205",
+    "previous_goal_turn_classification": {
+      "classification": "PROGRESS_IMPLEMENTED_AND_NATIVE_PUBLIC_VALIDATED",
+      "source_commits": [
+        "b45665e",
+        "83b784d"
+      ],
+      "native_cases": 15,
+      "public_checks": 41,
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\native-acceptance.json"
+    },
+    "full_original_goal_active": true,
+    "source_phase_completed_at_utc": "2026-11-17T16:43:57.193222+00:00",
+    "source_sha256": {
+      "crates/engram_server/src/services/ask_engine/browser_state.rs": "2705104a2d4127740cb3d0d288d7bff780e0162778a599e2eb726bb84359f84f",
+      "crates/engram_server/src/services/ask_engine/literal_state.rs": "25a04a1551539660cf4931031fbb10da73470ad24a0ab2ef6af15ecf769251df",
+      "crates/engram_server/src/services/ask_engine.rs": "5b1228b6dd4fa1c664f17a062fd5686389757a94b22e6ee05a764d18f9820286",
+      "crates/engram_server/src/handlers/ask_state.rs": "ced9760190700020c9fcde18939359882201ca3631bbfa567f201403cc912659",
+      "crates/engram_server/src/handlers/ask_tools.rs": "9a493b0028a776064f598c2d457e7a6098abf337eac614fd0aff91a20e364d80",
+      "crates/engram_server/src/handlers/browser_state_tools.rs": "9a05a018d9556d1e6117fb25a2fd611b20cb82c928ea859f4c8dc6f4e18e2900",
+      "crates/engram_server/tests/ask_browser_storage.rs": "05b3abe4975bf50da9c370050be3217e8428cb4d21f3cdddd74f751fdf1c6f58",
+      "docs/TOOL_CONTRACT.md": "8d40c3e1d00ac252c4b62e2d43365a6686638bb2af9cb0a38d0138c84396fc3a",
+      "crates/engram_server/src/tools.rs": "b6e206037452d39a4f62df3a6da8b466ce2d0e092bd466c28b1872b751dc1d1d"
+    },
     "source_checks": {
-      "crates/engram_server/src/read_report_delivery.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/src/read_report_delivery_tests.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/tests/index_result_delivery.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/services/ask_engine/browser_state.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/services/ask_engine/literal_state.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/services/ask_engine.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/handlers/ask_state.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/handlers/ask_tools.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/handlers/browser_state_tools.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/tests/ask_browser_storage.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/tools.rs": "RUST_SYNTAX_PASS",
       "public_python_syntax": "PASS",
       "diff_whitespace": "PASS",
-      "protected_wip9": "UNCHANGED"
+      "protected_wip9": "UNCHANGED",
+      "engram_builds_started": 0,
+      "native_tests_executed": 0,
+      "post_change_public_checks_executed": 0
     },
-    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\index-result-delivery-20261117\\baseline1\\receipt.json",
-    "baseline_checks_passed": 4,
-    "baseline_seconds": 1.365968499914743,
+    "native_target": "ask_browser_storage",
+    "native_test_cases_written": 3,
+    "public_checks_written": 11,
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\verify-public.py",
+    "public_verifier_sha256": "2ccfc8b86d760ac513095852cfdff552cc469d2022be1ef35495d3f239a721ba",
+    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\baseline1\\receipt.json",
+    "baseline_seconds": 1.4966830000048503,
+    "baseline_checks_passed": 3,
+    "next_action": "Wait on existing release1 session99625; package and run owned candidate/installed checks using this exact artifact, then record installation and advance original backlog. Do not restart or recompile without concrete failed acceptance.",
+    "source_correction": "Syntax preflight caught CRCRLF introduced by the tool-description edit. Normalized that file and proved its canonical bytes match HEAD except the intended one description sentence; no build or tests were launched.",
     "limits": [
-      "Source complete only; native and post-change public validation pending.",
-      "Native report formatter exercises oversized warning output; no observed normal-project default-budget overflow, exhaustive extraction or task usefulness claim.",
-      "Normal Full config, installed46c5e89, protected WIP9 and actual LegacyValidation data unchanged."
+      "Source completion only; Rust type/native and post-change public MCP validation remain pending. Installed46c5e89 and normal Full/LegacyValidation data are unchanged.",
+      "Browser facts are static relationship/declaration candidates with current-source checks, not runtime values, shared origin/tab identity, compiler binding or exhaustive absence proof. Browser classification remains partial.",
+      "The exact existing LegacyValidation source was copied from one allowed non-Q file and tested only in an owned index. No actual LegacyValidation reindex, protected modern-language WIP change, model comparison or target-language expansion."
     ],
-    "source_sha256": {
-      "crates/engram_server/src/read_report_delivery.rs": "7e8456a2474a5d6b9bc4be3347fc997d629343a9f926bfbc77a18d5de8d3d100",
-      "crates/engram_server/src/read_report_delivery_tests.rs": "0ee7fc6dc7560c109ef3eb0f1efeff20f282f3a1172bdd298f59a274ea104fd5",
-      "crates/engram_server/tests/index_result_delivery.rs": "1e88828109a80b96079243c4f2c57c8555991fccf096a318262caaf458d6f346",
-      "docs/TOOL_CONTRACT.md": "c8e79f325bb0e8e87d452ff9356f1e1f6c35b6d644d8f187dc94969838f1425f"
-    },
-    "source_commit": "b45665e4bcf75da99941e669777e928e71a1d443",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\index-result-delivery-20261117\\contract.json"
+    "source_commit": "72c8b849cce6bc9ac7bc9e789ed6b7c37668c0d1",
+    "correction_source_commit": "83b784d95a8c45f21fc081ba9dbe231e25c4ca61",
+    "validation_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\browser-composition-correction.json",
+    "native_validation_status": "PASS",
+    "native_batch_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\native-acceptance.json",
+    "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\preset-browser-bootstrap-batch-20261117-debug2\\receipt.json",
+    "post_change_public_checks_executed": 11,
+    "validation_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117",
+    "build_count_scope": "Two native Cargo invocations across all3outcomes; first found real browser-composition defect. One optimized release is live; no separate debug/full suite."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3720,5 +3772,20 @@
     },
     "source_commit": "b45665e4bcf75da99941e669777e928e71a1d443",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\index-result-delivery-20261117\\contract.json"
+  },
+  "active_delivery_batch_20261117": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117",
+    "stage": "RELEASE1_RUNNING_NATIVE_AND_DEBUG_ACCEPTANCE_PASSED",
+    "unified_exec_session_id": 99625,
+    "release_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\release1-owner.json",
+    "release_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\release1-state.json",
+    "driver_pid": 41272,
+    "relay_pid": 60280,
+    "native_cases_passed": 15,
+    "public_checks_passed": 41,
+    "shipping_head": "b54808bdaf4c500f10c2ea494f4b52ad24142cce",
+    "runtime_deployed": false,
+    "next_action": "Poll exact live session99625; never restart merely because a wait expires. On PASS run release.py package, deploy7.py (fresh candidate1), finish-install4.py, record-delivery.py; push only origin/master. Helpers are prepared in this case. Restore checks deployment7-state, current installed pins46c5/5a09. Preserve alloriginal backlog.",
+    "active_implementation_items": 0
   }
 }

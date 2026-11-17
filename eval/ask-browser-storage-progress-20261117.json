@@ -33,11 +33,11 @@
     "Ordinary JSON/Markdown answers retain source/guidance, current-file hash-bound recovery callable in Core/named/Full and static origin/execution uncertainty. Mixed legacy/browser questions retain distinct provider diagnostics. The exact retained LegacyValidation source supplies its three known methods; owned JS/TS fixtures exercise store separation and clear-only evidence.",
     "Native cases plus owned public baseline and post-change source/guidance/recovery/scoped/stale checks. Consolidate validation with other independent original requirements; no standalone Cargo, new model comparison, real LegacyValidation mutation, target-language expansion or CodeMap/Blast work."
   ],
-  "engram_builds_started": 0,
-  "native_tests_executed": 0,
+  "engram_builds_started": 3,
+  "native_tests_executed": 3,
   "runtime_deployed": false,
   "implementation_items_active": 0,
-  "pending_source_outcomes": 2,
+  "pending_source_outcomes": 3,
   "baseline_source_sha256": {
     "crates/engram_server/src/services/ask_engine/literal_state.rs": "62e35ee63540cfcc54945f09b55c523cf0c3509581f23cbfd591c603f561e230",
     "crates/engram_server/src/services/ask_engine.rs": "9b732ebfc637b263df88683647c89124ebaab88ab5b9ea172867cdc1069a3352",
@@ -66,7 +66,7 @@
     "crates/engram_server/src/services/ask_engine/literal_state.rs": "25a04a1551539660cf4931031fbb10da73470ad24a0ab2ef6af15ecf769251df",
     "crates/engram_server/src/services/ask_engine.rs": "5b1228b6dd4fa1c664f17a062fd5686389757a94b22e6ee05a764d18f9820286",
     "crates/engram_server/src/handlers/ask_state.rs": "ced9760190700020c9fcde18939359882201ca3631bbfa567f201403cc912659",
-    "crates/engram_server/src/handlers/ask_tools.rs": "e2c3d5f17faafc5f86bc1885238474def20e21dcc63d213a19568d4b8dcc1406",
+    "crates/engram_server/src/handlers/ask_tools.rs": "9a493b0028a776064f598c2d457e7a6098abf337eac614fd0aff91a20e364d80",
     "crates/engram_server/src/handlers/browser_state_tools.rs": "9a05a018d9556d1e6117fb25a2fd611b20cb82c928ea859f4c8dc6f4e18e2900",
     "crates/engram_server/tests/ask_browser_storage.rs": "05b3abe4975bf50da9c370050be3217e8428cb4d21f3cdddd74f751fdf1c6f58",
     "docs/TOOL_CONTRACT.md": "8d40c3e1d00ac252c4b62e2d43365a6686638bb2af9cb0a38d0138c84396fc3a",
@@ -92,16 +92,24 @@
   "native_test_cases_written": 3,
   "public_checks_written": 11,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\verify-public.py",
-  "public_verifier_sha256": "6fe81688c460c50f8f19dfa2e03593e43c919de86a561e121e7327f4c7921f2a",
+  "public_verifier_sha256": "2ccfc8b86d760ac513095852cfdff552cc469d2022be1ef35495d3f239a721ba",
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\baseline1\\receipt.json",
   "baseline_seconds": 1.4966830000048503,
   "baseline_checks_passed": 3,
-  "next_action": "Queue this second independent original source outcome with named presets. Continue another ready original requirement before combined validation; do not start a standalone compile/release or reopen delivered components.",
+  "next_action": "Wait on existing release1 session99625; package and run owned candidate/installed checks using this exact artifact, then record installation and advance original backlog. Do not restart or recompile without concrete failed acceptance.",
   "source_correction": "Syntax preflight caught CRCRLF introduced by the tool-description edit. Normalized that file and proved its canonical bytes match HEAD except the intended one description sentence; no build or tests were launched.",
   "limits": [
     "Source completion only; Rust type/native and post-change public MCP validation remain pending. Installed46c5e89 and normal Full/LegacyValidation data are unchanged.",
     "Browser facts are static relationship/declaration candidates with current-source checks, not runtime values, shared origin/tab identity, compiler binding or exhaustive absence proof. Browser classification remains partial.",
     "The exact existing LegacyValidation source was copied from one allowed non-Q file and tested only in an owned index. No actual LegacyValidation reindex, protected modern-language WIP change, model comparison or target-language expansion."
   ],
-  "source_commit": "72c8b849cce6bc9ac7bc9e789ed6b7c37668c0d1"
+  "source_commit": "72c8b849cce6bc9ac7bc9e789ed6b7c37668c0d1",
+  "correction_source_commit": "83b784d95a8c45f21fc081ba9dbe231e25c4ca61",
+  "validation_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\browser-composition-correction.json",
+  "native_validation_status": "PASS",
+  "native_batch_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\native-acceptance.json",
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-browser-storage-20261117\\preset-browser-bootstrap-batch-20261117-debug2\\receipt.json",
+  "post_change_public_checks_executed": 11,
+  "validation_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117",
+  "build_count_scope": "Two native Cargo invocations across all3outcomes; first found real browser-composition defect. One optimized release is live; no separate debug/full suite."
 }
