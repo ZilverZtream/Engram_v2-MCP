@@ -150,3 +150,66 @@ fn vb_class_header_retains_unavailable_body_coverage_instead_of_claiming_unchang
     ensure!(candidate["absence_proof"] == false);
     fixture.close()
 }
+
+#[test]
+fn authored_method_call_notation_retains_its_literal_and_dependency_specific_changes() -> Result<()>
+{
+    for reference in ["SaveOrder()", "OrderActions.SaveOrder()"] {
+        let fixture = Fixture::new(reference)?;
+        for (source, expected) in [
+            (
+                SOURCE.replace("Return 2", "Return 3"),
+                "same_observed_candidate_bytes",
+            ),
+            (
+                SOURCE.replace("Return 1", "Return 9"),
+                "changed_observed_candidate_bytes",
+            ),
+        ] {
+            let packet = fixture.observe(&source)?;
+            let manifest = &packet["instruction_manifest"];
+            let changes = manifest["instructions"][0]["symbol_changes"]
+                .as_array()
+                .unwrap();
+            ensure!(changes.len() == 1 && changes[0]["literal"] == reference);
+            ensure!(changes[0]["status"] == expected, "{manifest}");
+            let guide = packet["instructions"][0]["current"]["content"]
+                .as_str()
+                .unwrap();
+            let rows = manifest["symbol_references"].as_array().unwrap();
+            ensure!(rows.len() == 2, "{manifest}");
+            for row in rows {
+                ensure!(row["literal"] == reference && row["form"] == "inline_code_call_notation");
+                let start = row["byte_range"][0].as_u64().unwrap() as usize;
+                let end = row["byte_range"][1].as_u64().unwrap() as usize;
+                ensure!(&guide[start..end] == format!("`{reference}`"));
+                let candidate = &row["candidates"][0];
+                ensure!(
+                    candidate["name"].as_str().unwrap().rsplit('.').next() == Some("SaveOrder")
+                        && candidate["absence_proof"] == false
+                );
+            }
+        }
+        fixture.close()?;
+    }
+    Ok(())
+}
+
+#[test]
+fn unavailable_method_call_notation_remains_an_unresolved_reference() -> Result<()> {
+    let fixture = Fixture::new("NotCollectedMethod()")?;
+    let packet = fixture.observe(SOURCE)?;
+    let rows = packet["instruction_manifest"]["symbol_references"]
+        .as_array()
+        .unwrap();
+    ensure!(rows.len() == 2);
+    for row in rows {
+        ensure!(row["literal"] == "NotCollectedMethod()");
+        ensure!(row["status"] == "unresolved_symbol_in_collected_evidence");
+        ensure!(
+            row["observed_candidate_count"] == 0
+                && row["candidates"].as_array().unwrap().is_empty()
+        );
+    }
+    fixture.close()
+}

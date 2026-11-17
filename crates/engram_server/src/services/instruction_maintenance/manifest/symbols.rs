@@ -75,6 +75,13 @@ fn identifier(value: &str) -> bool {
         })
 }
 
+// Documentation commonly writes a method as `Save()` even when its declaration
+// takes arguments. This is name notation, not a call or an arity constraint.
+fn reference_identifier(value: &str) -> Option<&str> {
+    let name = value.strip_suffix("()").unwrap_or(value);
+    identifier(name).then_some(name)
+}
+
 fn names(candidate: &Candidate) -> Vec<String> {
     let mut result = BTreeSet::new();
     for name in [&candidate.name, &candidate.qualified_name] {
@@ -381,9 +388,15 @@ pub(super) fn capture(
                 let mut mentions = Vec::new();
                 match event {
                     Event::Code(value)
-                        if !markdown_links::path_candidate(&value) && identifier(&value) =>
+                        if !markdown_links::path_candidate(&value)
+                            && reference_identifier(&value).is_some() =>
                     {
-                        mentions.push((span.start, span.end, value.into_string(), "inline_code"));
+                        let form = if value.ends_with("()") {
+                            "inline_code_call_notation"
+                        } else {
+                            "inline_code"
+                        };
+                        mentions.push((span.start, span.end, value.into_string(), form));
                     }
                     Event::Text(_) => {
                         let raw = &snapshot.content[span.clone()];
@@ -421,7 +434,7 @@ pub(super) fn capture(
                         row.1 += 1;
                         continue;
                     }
-                    let canonical = literal.replace("::", ".");
+                    let canonical = reference_identifier(&literal).unwrap_or(&literal).replace("::", ".");
                     let mut matching: BTreeSet<_> = lookup
                         .get(&canonical)
                         .into_iter()
@@ -430,7 +443,7 @@ pub(super) fn capture(
                         .chain(
                             vb_lookup
                                 .get(&canonical.to_ascii_lowercase())
-                                .filter(|_| form == "inline_code")
+                                .filter(|_| form.starts_with("inline_code"))
                                 .into_iter()
                                 .flatten()
                                 .copied(),
@@ -448,7 +461,7 @@ pub(super) fn capture(
                             .chain(
                                 vb_lookup
                                     .get(&short.to_ascii_lowercase())
-                                    .filter(|_| form == "inline_code")
+                                    .filter(|_| form.starts_with("inline_code"))
                                     .into_iter()
                                     .flatten()
                                     .copied(),
