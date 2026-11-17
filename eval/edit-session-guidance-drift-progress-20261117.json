@@ -58,7 +58,7 @@
     "crates/engram_server/tests/edit_session_policy_tests.rs": "a0b02395cc8bcb3b5aaea77e965ef6c5c43cc3eb3501877e319ce453418dbe8e",
     "docs/TOOL_CONTRACT.md": "c6275985ba43f97147e480bfb5b42604db7aec00bcf9cd661f3be580e2513fa7"
   },
-  "public_verifier_sha256": "9a4dbe1ae7508fc501c9b6c2c084801ead8bbd9f144d2b4c419bf1811c3074ca",
+  "public_verifier_sha256": "d913e61885ecc37a5b0bd05a82fa6d9ba7e811ff4c004c0c24482e0420723a94",
   "validation_status": "RUNNING_COMBINED_NATIVE",
   "next_action": "Preserve this source outcome and advance a different original requirement before combined validation. No standalone Cargo or release.",
   "limits": [
@@ -71,5 +71,8 @@
   ],
   "source_commit": "138acfab51ea996f9e42d00652734bfe2613b14c",
   "validation_batch": "eval/edit-review-history-batch-progress-20261117.json",
-  "source_correction_commit": "130cfea5520917ebd40136411c86080ed39b1c9a"
+  "source_correction_commit": "130cfea5520917ebd40136411c86080ed39b1c9a",
+  "public_core_transport_coverage": "Prepared the already-contracted Core transport check alongside Full and immutable-recovery cases; no acceptance expansion or post-change execution yet.",
+  "public_core_acceptance_prepared": true,
+  "public_core_acceptance_scope": "Previously selected finite acceptance explicitly requires Full/Core. Prepared Core tools/list plus opening/current-guidance comparison and authored-source preservation on the same owned fixture. Not executed yet; no build source changed."
 }
