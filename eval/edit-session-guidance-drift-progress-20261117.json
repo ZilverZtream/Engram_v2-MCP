@@ -55,7 +55,7 @@
     "crates/engram_server/src/handlers/edit_session_guidance.rs": "27440e6561a19a2228d609036b279a2d25ed78bbf0d5d5b7597371d35274a7c6",
     "crates/engram_server/src/handlers/edit_session_maintenance.rs": "a4fcb4fe7c0e6ad63f3b28ef0b26133e1eeddee7521d08101938dc7bd07cc865",
     "crates/engram_server/tests/edit_session_guidance_drift.rs": "88b2310c4621d2efb314a065b30159d09853a0a0b77bbe1ec28777652d6c5565",
-    "crates/engram_server/tests/edit_session_policy_tests.rs": "a0b02395cc8bcb3b5aaea77e965ef6c5c43cc3eb3501877e319ce453418dbe8e",
+    "crates/engram_server/tests/edit_session_policy_tests.rs": "3e1bcd40fbcc437337df7f68d6c170344ffb520d26e08c55abf596e7d35d9c88",
     "docs/TOOL_CONTRACT.md": "c6275985ba43f97147e480bfb5b42604db7aec00bcf9cd661f3be580e2513fa7"
   },
   "public_verifier_sha256": "d913e61885ecc37a5b0bd05a82fa6d9ba7e811ff4c004c0c24482e0420723a94",
@@ -74,5 +74,6 @@
   "source_correction_commit": "130cfea5520917ebd40136411c86080ed39b1c9a",
   "public_core_transport_coverage": "Prepared the already-contracted Core transport check alongside Full and immutable-recovery cases; no acceptance expansion or post-change execution yet.",
   "public_core_acceptance_prepared": true,
-  "public_core_acceptance_scope": "Previously selected finite acceptance explicitly requires Full/Core. Prepared Core tools/list plus opening/current-guidance comparison and authored-source preservation on the same owned fixture. Not executed yet; no build source changed."
+  "public_core_acceptance_scope": "Previously selected finite acceptance explicitly requires Full/Core. Prepared Core tools/list plus opening/current-guidance comparison and authored-source preservation on the same owned fixture. Not executed yet; no build source changed.",
+  "test_correction_commit": "b0a34dab448c4fc11c29a34efe7acd4029c7fba2"
 }
