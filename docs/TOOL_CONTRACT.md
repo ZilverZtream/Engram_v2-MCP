@@ -1982,6 +1982,25 @@ this collector. No new request fields, schema, decision store, model call or app
 workflow is introduced. Semantic applicability, decision authority and general agent
 usefulness remain unproved where the source evidence does not establish them.
 
+## Prior review evidence on individual findings
+
+Source change 2026-11-17 (combined validation/deployment pending):
+`pre_commit_review` links a selected finding to admitted prior-review items by
+exact referenced file or the existing declared-scope/complete-path event match.
+`prior_review_annotations` contains report-local JSON pointers to the complete
+item, independently matched events and their source/revision assessments.
+A same-file indexed summary remains distinct from an event declaring scope;
+basename overlap or an unrelated event in the same review grants no exception.
+JSON and compact/full Markdown expose the associations and shared limitations.
+
+These are evidence candidates for the reviewing agent, not proof of the same
+issue, authenticated authority or current applicability. All original findings,
+severities and gate outcomes remain. Missing links do not prove that no relevant
+ruling exists; the existing context lookup and omission limits still apply.
+Deferred finding ledgers retain link counts. Recover the complete original report
+for exact pointers, conditions and revision evidence; recovery does not rerun
+gates or substitute decisions appended after capture.
+
 ## Review finding qualifications
 
 Installed 2026-11-17 ([delivery](../eval/guidance-sql-review-batch-delivery-20261117.json)):

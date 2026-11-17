@@ -21,6 +21,7 @@ use crate::tools::Engram;
 mod prior_context;
 mod pre_push_context;
 mod response_delivery;
+mod finding_context;
 
 impl Engram {
     pub async fn handle_pre_commit_review(
@@ -198,6 +199,7 @@ impl Engram {
         payload["project_policy_sources"] = serde_json::to_value(&project_policy_sources)
             .map_err(|error| McpError::internal_error(error.to_string(), None))?;
         payload["prior_review_context"] = prior_review_context.clone();
+        finding_context::annotate(&mut payload);
         if (changed_during_review || snapshot_unavailable) && payload["verdict"] == "green" {
             payload["verdict"] = "yellow".into();
         }
@@ -249,6 +251,7 @@ impl Engram {
                 ));
             }
             report.push_str(&project_policy_sources.render_markdown());
+            report.push_str(&finding_context::markdown(&payload));
             report.push_str("\n## Prior review context — imported evidence; findings remain visible\n\n");
             match serde_json::to_string_pretty(&prior_review_context) {
                 Ok(context) => report.push_str(&format!("```json\n{context}\n```\n")),
