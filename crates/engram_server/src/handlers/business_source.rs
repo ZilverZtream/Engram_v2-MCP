@@ -499,9 +499,19 @@ pub(super) struct SourceAudit {
     raw_file_hashes: HashMap<String, String>,
     bytes_read: u64,
     outcomes: crate::services::business_outcome_dependencies::OutcomeAudit,
+    helper_leads: crate::services::business_helper_context::Audit,
 }
 
 impl SourceAudit {
+    pub(super) fn helper_input_evidence(&mut self, document: &str, root: &Path) -> String {
+        let evidence = crate::services::business_outcome_dependencies::from_document(document);
+        let Some(context) = evidence.as_ref().and_then(|item| item.helper_context.as_ref()) else { return String::new(); };
+        let range = self.verified_range(document,root);
+        let current_hash = range.as_ref().filter(|(file,_,_)| file.replace('\\',"/") == context.caller_file)
+            .and_then(|(file,_,_)| self.raw_file_hashes.get(file)).map(String::as_str);
+        context.qa_evidence(root,current_hash,&mut self.helper_leads)
+    }
+
     pub(super) fn constructor_input_evidence(&mut self, document: &str, root: &Path) -> String {
         let evidence = crate::services::business_outcome_dependencies::from_document(document);
         let Some(origins) = evidence.as_ref().and_then(|item| item.member_origins.as_ref()) else {

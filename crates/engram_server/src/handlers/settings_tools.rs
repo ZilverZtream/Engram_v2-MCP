@@ -1126,7 +1126,7 @@ fn render_rule_cases(out: &mut String, cases: &[super::test_derivation::RuleCase
         let evidence = document_index + 1;
         out.push_str(&format!("\n### Matrix evidence D{evidence}\nSource: {source_status}\nEvidence: get_chunk(doc_id=\"{doc_id}\", namespace=\"business_logic\")\n"));
         out.push_str("Applies only to cases explicitly referencing this evidence ID. Method hashes do not verify inferred rules. Recovery returns the full source business document, not this generated matrix.\n");
-        if let Some(context) = matching.first().and_then(|case| case.constructor_context.as_deref()) {
+        if let Some(context) = matching.first().and_then(|case| case.supporting_context.as_deref()) {
             out.push_str(context);
         }
         if !warnings.is_empty() {
@@ -1498,7 +1498,7 @@ mod tests {
     fn matrix_case(doc: &str, rule: &str, source: &str, reaching: &str) -> super::super::test_derivation::RuleCase {
         super::super::test_derivation::RuleCase {
             requirement: rule.into(), doc_id: doc.into(), source_status: source.into(),
-            constructor_context: None,
+            supporting_context: None,
             source_warnings: Vec::new(), expected_outcome_status: "inferred_unverified_outside_dependency_slice".into(),
             other_outcome_status: "inferred_unverified_outside_dependency_slice".into(),
             source_diagnostic_qualification: "association_unknown; no semantic certification".into(),

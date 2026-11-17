@@ -11,6 +11,7 @@ pub mod business_logic_service;
 pub mod business_branch_contexts;
 pub mod business_outcome_dependencies;
 pub mod business_member_origins;
+pub mod business_helper_context;
 pub mod business_reaching_context;
 pub mod business_return_paths;
 pub mod business_rule_diagnostics;

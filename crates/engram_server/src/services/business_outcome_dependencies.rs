@@ -38,6 +38,8 @@ pub struct OutcomeEvidence {
     pub return_paths: Option<super::business_return_paths::ReturnPathEvidence>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub member_origins: Option<super::business_member_origins::ConstructorContext>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub helper_context: Option<super::business_helper_context::HelperContext>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -204,6 +206,9 @@ impl OutcomeEvidence {
         if let Some(origins) = &self.member_origins {
             text.push_str(&origins.prompt_context());
         }
+        if let Some(helpers) = &self.helper_context {
+            text.push_str(&helpers.prompt_context());
+        }
         text.push_str(&super::business_reaching_context::prompt_context(self.reaching_context.as_ref()));
         let parameter_source = self.return_paths.as_ref();
         for line in super::business_return_paths::parameter_qualification(parameter_source,
@@ -249,7 +254,8 @@ impl OutcomeEvidence {
     }
 }
 
-/// Explicit global qualification only. No suffix, local or receiver guessing.
+/// Immediate-return dependencies require explicit global qualification. Separate
+/// helper_context entries are qualified-name inspection leads, never bindings.
 pub fn collect(
     body: &str,
     owner: &str,
@@ -281,6 +287,9 @@ pub fn collect(
             Some(Err(reason)) => super::business_member_origins::ConstructorContext::unavailable(file, reason),
             None => super::business_member_origins::ConstructorContext::unavailable(file, "No indexed source context supplied; constructor origins unexamined."),
         });
+        evidence.helper_context = super::business_helper_context::collect(
+            file, body, owner, start_line, caller_source.as_ref(), context,
+        );
     }
     static CALL: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(
@@ -444,6 +453,10 @@ fn read_verified_file(context: &SourceContext<'_>, file: &str) -> Result<(String
 }
 
 fn read_bounded_file(root: &Path, file: &str) -> Result<Vec<u8>, String> {
+    read_bounded_file_limit(root, file, MAX_FILE_BYTES)
+}
+
+pub(super) fn read_bounded_file_limit(root: &Path, file: &str, limit: u64) -> Result<Vec<u8>, String> {
     use std::io::Read;
     let root = root.canonicalize().map_err(|e| e.to_string())?;
     let path = safe_join(&root, file)
@@ -456,11 +469,11 @@ fn read_bounded_file(root: &Path, file: &str) -> Result<Vec<u8>, String> {
     let mut bytes = Vec::new();
     std::fs::File::open(path)
         .map_err(|e| e.to_string())?
-        .take(MAX_FILE_BYTES + 1)
+        .take(limit + 1)
         .read_to_end(&mut bytes)
         .map_err(|e| e.to_string())?;
-    if bytes.len() as u64 > MAX_FILE_BYTES {
-        return Err("helper source file exceeds 8 MiB".into());
+    if bytes.len() as u64 > limit {
+        return Err(format!("helper source file exceeds {limit} bytes"));
     }
     Ok(bytes)
 }
@@ -483,6 +496,19 @@ fn resolve(
     } else {
         return Err("Only explicit global-qualified static/shared calls can supply helper source; receiver/local/parameter/field/delegate binding is otherwise unverified.".into());
     };
+    resolve_name(context, &name, language)
+}
+
+/// A matching qualified source spelling is an inspection lead, not a binding.
+pub(super) fn qualified_source_candidate(
+    context: &SourceContext<'_>, name: &str,
+) -> Result<(String, String, u32, u32, String, String), String> {
+    resolve_name(context, name, "vb")
+}
+
+fn resolve_name(
+    context: &SourceContext<'_>, name: &str, language: &str,
+) -> Result<(String, String, u32, u32, String, String), String> {
     let nodes = context
         .graph
         .query_nodes(context.project_id, Some("function"), Some(&name), None, 101)
@@ -541,7 +567,7 @@ fn resolve(
         return Err("helper indexed end line does not match complete source body".into());
     }
     Ok((
-        name,
+        name.to_owned(),
         node.file_path.as_str().to_string(),
         member.start_line,
         end,
