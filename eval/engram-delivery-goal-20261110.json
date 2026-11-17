@@ -2563,7 +2563,10 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117\\contract.json",
         "progress": "eval/scoped-http-ask-progress-20261117.json",
         "native_target": "ask_request_trace",
-        "runtime_deployed": false
+        "runtime_deployed": false,
+        "supporting_source_commits": [
+          "3b590b38f5ba7e78dd13d6862d0bae43830a681a"
+        ]
       },
       {
         "original_requirement_id": "TODO-35",
