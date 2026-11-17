@@ -251,13 +251,14 @@ async fn scoped_action_evidence_recovers_immutably_and_fresh_requests_withhold_c
         let page: Value = serde_json::from_str(body(&page))?;
         ensure!(page["start_byte"] == offset);
         saved.push_str(page["content"].as_str().unwrap());
-        match page["next_offset"].as_u64() {
-            Some(next) => {
-                ensure!(next > offset);
-                offset = next;
-            }
-            None => break,
+        if page["complete"] == true {
+            break;
         }
+        let next = page["next_call"]["arguments"]["response_offset"]
+            .as_u64()
+            .ok_or_else(|| anyhow::anyhow!("Incomplete page must provide its next call"))?;
+        ensure!(next > offset);
+        offset = next;
     }
     ensure!(blake3::hash(saved.as_bytes()).to_hex().as_str() == id);
     let saved: Value = serde_json::from_str(&saved)?;
