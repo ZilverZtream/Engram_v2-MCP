@@ -84,5 +84,6 @@
     "Source implementation only; Rust type checks, focused native cases and post-change public behavior remain unexecuted. Installed binary is unchanged.",
     "Application-root markers are selected path metadata, not source/current hosting proof; excluded registrations/dependencies/callers remain unknown.",
     "No actual LegacyValidation read/reindex/mutation or Site/Q access, no closed tools, model calls, language expansion or broad suites."
-  ]
+  ],
+  "source_commit": "6d53aeb782554e870cc6989befd9aad6f5743372"
 }
