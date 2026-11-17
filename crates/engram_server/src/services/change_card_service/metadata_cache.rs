@@ -1,6 +1,7 @@
 //! Derived metadata only. Immutable Git OIDs retain the existing warm-memory
 //! trust semantics across restart; this is not evidence that every historical
-//! tree/blob remains recoverable. Git traversal/root-tree failures still fail.
+//! tree/blob remains recoverable. Git traversal and selected-card root-tree
+//! failures still fail; header-excluded cards need no tree metadata.
 use super::*;
 use engram_core::Registry;
 use std::collections::{HashMap, HashSet};
@@ -176,6 +177,16 @@ pub(super) fn read(
     known: &HashSet<String>,
     registry: Option<&dyn Store>,
 ) -> anyhow::Result<(Vec<Oid>, Vec<ChangeCard>, CardBuildStats)> {
+    read_filtered(root, tip, known, registry, &CardFilter::default())
+}
+
+pub(super) fn read_filtered(
+    root: &Path,
+    tip: Oid,
+    known: &HashSet<String>,
+    registry: Option<&dyn Store>,
+    filter: &CardFilter,
+) -> anyhow::Result<(Vec<Oid>, Vec<ChangeCard>, CardBuildStats)> {
     let opened = std::time::Instant::now();
     let repo = engram_git::history::GitWalker::open_repo(root)?;
     let mut stats = CardBuildStats {
@@ -186,11 +197,20 @@ pub(super) fn read(
     let line = first_parent_line(&repo, tip)?;
     stats.first_parent_walk_ns = walked.elapsed().as_nanos() as u64;
     stats.line_commits = line.len();
-    let missing: Vec<_> = line
-        .iter()
-        .copied()
-        .filter(|oid| !known.contains(&oid.to_string()))
-        .collect();
+    let mut missing = Vec::new();
+    for &oid in &line {
+        if known.contains(&oid.to_string()) { continue; }
+        // Author/date identity is available without diffing either tree or
+        // loading cached descriptions. Keep full file predicates downstream:
+        // their capped, non-generated file inventory still needs description.
+        if filter.author.is_some() || filter.date_after.is_some() || filter.date_before.is_some() {
+            let commit = repo.find_commit(oid)?;
+            if !filter.admits_identity(commit.author().name().unwrap_or(""), commit.time().seconds().max(0) as u64) {
+                continue;
+            }
+        }
+        missing.push(oid);
+    }
     let scope = registry.map(|_| scope(root, &repo)).transpose()?;
     let mut cached = HashMap::new();
     let mut cached_lengths = HashMap::new();

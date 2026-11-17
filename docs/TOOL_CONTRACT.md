@@ -1592,6 +1592,18 @@ status/base/counts and recover all call details through the existing immutable
 completion report. Following a maintenance action is a fresh disk observation;
 recovering the saved completion does not reopen or complete the session again.
 
+### Cold precedent metadata filtering
+
+Precedent history queries apply exact author and inclusive-after/exclusive-before
+date predicates to commit headers before reading or constructing derived card
+metadata. Header-excluded commits do not populate the metadata cache. File and
+bulk predicates retain their existing non-generated, capped file scope. The
+published first-parent line, revision cutoff, metadata format and embedding
+identities are unchanged; later unfiltered queries can still load other cards.
+This reduces avoidable cold metadata work for selective queries. Git traversal,
+eligible metadata, rendering and local fallback remain outside semantic/rerank
+budgets; no whole-request latency bound or measured LegacyValidation speedup is claimed.
+
 ### Concept-footprint guidance recovery (installed November17)
 
 `get_concept_footprint` already supplied authored guidance for returned paths.

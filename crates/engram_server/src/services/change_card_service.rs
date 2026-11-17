@@ -246,10 +246,14 @@ pub struct CardFilter {
 }
 
 impl CardFilter {
+    fn admits_identity(&self, author: &str, timestamp: u64) -> bool {
+        self.date_after.is_none_or(|after| timestamp >= after)
+            && self.date_before.is_none_or(|before| timestamp < before)
+            && self.author.as_deref().is_none_or(|selected| author == selected)
+    }
+
     fn admits(&self, card: &ChangeCard) -> bool {
-        self.date_after.is_none_or(|after| card.timestamp >= after)
-            && self.date_before.is_none_or(|before| card.timestamp < before)
-            && self.author.as_deref().is_none_or(|author| card.author == author)
+        self.admits_identity(&card.author, card.timestamp)
             && self.file_prefix.as_deref().is_none_or(|prefix| {
                 card.files.iter().any(|path| path.starts_with(prefix))
             })
@@ -360,7 +364,7 @@ pub async fn metadata_for_line_filtered_cached(
     let root = repo_dir.to_path_buf();
     let registry = registry.clone();
     tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-        let (_, cards, _) = metadata_cache::read(&root, tip, &Default::default(), Some(&registry))?;
+        let (_, cards, _) = metadata_cache::read_filtered(&root, tip, &Default::default(), Some(&registry), &filter)?;
         Ok(cards.into_iter().filter(|card| filter.admits(card)).map(Arc::new).collect())
     }).await?
 }
