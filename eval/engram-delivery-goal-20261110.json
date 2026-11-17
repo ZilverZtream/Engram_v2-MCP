@@ -2725,59 +2725,26 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "original_requirement_id": "EG-01",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "at_utc": "2026-11-17T09:14:19.409035+00:00",
-    "original_requirement": "Applicable authored guidance reaches direct context retrieval, with scope, exceptions, source hashes, omissions and exact recovery.",
-    "observed_missing_behavior": "get_page_context returns page/control/code-behind/composition data but PageContextResult and its renderer have no authored project-policy field. Complete JSON and Markdown replies omit the owned root AGENTS.md rule and exception.",
-    "implementation_files": [
-      "crates/engram_server/src/handlers/access_layer_tools.rs",
-      "crates/engram_server/tests/page_context_guidance.rs",
-      "docs/TOOL_CONTRACT.md",
-      "crates/engram_server/src/tools.rs"
+    "original_requirement_ids": [
+      "EG-31",
+      "TODO-28",
+      "EG-01"
     ],
-    "finite_acceptance": [
-      "Use retained complete ordinary JSON and Markdown replies on owned exact non-Q LegacyValidation pages to prove the omission; preserve the original failed assumption and closed fixture evidence. No repeated installed probe or actual project mutation.",
-      "Resolve current authored guidance for the requested page and source composition actually read under the selected code-behind/master options. Supply separate policy context with conditions, exceptions, hashes and bounded omissions/recovery; observed house style is not authored policy.",
-      "Preserve policy in default JSON/Markdown and required metadata on every budgeted context page. Guidance changes affect the assembled context hash, so old continuations refuse mixing. Explicit option/scope exclusions and ordinary source/budget behavior remain.",
-      "Three focused public-handler cases plus an owned MCP verifier join retained EG31 and TODO28 source outcomes. No batch extension, standalone Cargo/release, model tuning, actual LegacyValidation mutation, Site/Q read or new language support."
-    ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-context-guidance-20261117\\contract.json",
-    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-context-guidance-20261117\\baseline.json",
+    "status": "FOCUSED_NATIVE_RUNNING",
+    "shipping_source_commit": "dc55b259551dded58d51c6cf671d5a0cbaad24a5",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117",
+    "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\source-preparation.json",
     "implementation_items_active": 0,
-    "engram_builds_started": 0,
+    "expected_native_cases": 9,
+    "native_commands_started": 1,
+    "release_commands_started": 0,
+    "full_or_lib_suite": false,
+    "extra_debug_build": false,
     "full_original_goal_active": true,
-    "native_test_cases_written": 3,
-    "native_tests_executed": 0,
-    "post_change_public_checks_executed": 0,
-    "runtime_deployed": false,
-    "baseline_binary_sha256": "7fef8de9a7a604768a6f5a1fe0a3d3b27e13f58087cd74c83ee48a25dd7bb0de",
-    "source_sha256": {
-      "crates/engram_server/src/handlers/access_layer_tools.rs": "e7ada9c848c9233e13704c729e5850f78f80819cfa94eb38fefbdd2707d9d60d",
-      "crates/engram_server/tests/page_context_guidance.rs": "0b32cc0a518f98ceca07bc96f24305305a4a809ebf024dfad848ad55fdd76dae",
-      "docs/TOOL_CONTRACT.md": "7360bf6bf4e5dfe5c86e16d22c2ff68835740ee969ba5bc94292c16b8daffcac",
-      "crates/engram_server/src/tools.rs": "d48079bef51f4290b72708625008ae82455e2e1fe1fb7683bc5f4d8010680d7b"
-    },
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-context-guidance-20261117\\verify-public.py",
-    "public_verifier_sha256": "6c239bf8601d31fc5eaca1f49963939597ec83bcedd7ead25fafc1dc62552adc",
-    "source_checks": {
-      "rustfmt_parse": "PASS; existing files parsed without rewriting, new tests formatted",
-      "public_verifier_syntax": "PASS",
-      "git_diff_check": "PASS",
-      "protected_wip9": "UNCHANGED"
-    },
-    "temporary_resources": {
-      "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-context-guidance-20261117",
-      "baseline_resources": "Retained ordinary-page responses come from batch-page-context-20261117/baseline1; its process exited naturally and owned fixture was removed.",
-      "retained": "Contract, baseline reinterpretation, verifier and source timing retained; no live owned fixture or compile process."
-    },
-    "limits": [
-      "Source complete only: type checking, focused execution and positive public/installed acceptance remain pending.",
-      "Source scope covers the requested page and read composition under the options, not every runtime component, sibling-style observation or future edit target. Authored guidance and source hashes do not establish compliance, runtime behavior or task benefit.",
-      "No batch extension, actual LegacyValidation mutation/reindex, Site/Q read, model/task replay, target-language expansion or standalone compilation/release."
-    ],
-    "source_commit": "f5307697f5107ce771fe80016d50f0c398f6a5c8",
-    "next_action": "Retain this original EG01 component with EG31 prior guidance and TODO28 state questions for one focused combined validation. No standalone feature build or full suite."
+    "next_action": "Observe the same native1 session75958; do not restart on observation timeout. If it passes, capture the implicit debug artifact and run the three frozen public contracts. No standalone debug build or broad suite.",
+    "native_session_id": 75958,
+    "runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-context-batch-20261117\\native1-owner.json",
+    "at_utc": "2026-11-17T09:35:15.518267+00:00"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
