@@ -2587,7 +2587,7 @@
         "original_requirement_id": "EG-31",
         "outcome": "Changed shared helpers surface their referencing guidance for scoped maintenance review",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "21889668a748e14a1316ac10fd1d747a4131f90c",
+        "source_commit": "57fedce37f3613626c7e0b0a5f97b97212ddecb7",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-symbol-maintenance-20261117\\contract.json",
         "progress": "eval/shared-symbol-maintenance-progress-20261117.json"
       }
@@ -2740,85 +2740,29 @@
   },
   "current_execution_focus": {
     "original_requirement_id": "EG-31",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement": "Changed shared code selects dependent instruction maintenance by observed symbol references, preserving declared scope and unaffected method stability.",
-    "observed_missing_behavior": "The RoQ guide names GetTopProjectID() but its applyTo excludes grunddata/code/projekt.vb. Changed-file discovery currently follows literal paths only, so changing that shared helper does not select the guide for review.",
-    "source_pins": {
-      ".github/instructions/roq-price-list.instructions.md": {
-        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\.github\\instructions\\roq-price-list.instructions.md",
-        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-symbol-maintenance-20261117\\sources\\roq-price-list.instructions.md",
-        "bytes": 8290,
-        "sha256": "56f2615349fbbea1859f04172d327132c34c8ad4f2c5079c3e1972c953c94119"
-      },
-      "Site/App_Code/grunddata/code/projekt.vb": {
-        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\grunddata\\code\\projekt.vb",
-        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-symbol-maintenance-20261117\\sources\\projekt.vb",
-        "bytes": 94906,
-        "sha256": "b69a260f27dbf6d2e54775862820cde5f3df4d7424bb059eae7037d145e68a13"
-      }
-    },
-    "finite_acceptance": [
-      "Reuse the existing source-only symbol matcher on bounded complete before/current snapshots of caller-selected VB/JS/TS/SQL changed files; parse their declarations once per discovery rather than once per guidance document. No codebase inventory, graph lookup, Roslyn project or model.",
-      "Add current conventional guidance as maintenance candidates when its own before/current authored symbol mentions observe changed, added, unavailable or ambiguous declarations. Keep exact symbol/reference hashes, spans and uncertainty. Unchanged referenced method bytes alone do not select a guide for an unrelated body edit.",
-      "Dependency selection does not extend guidance authority to changed files outside its declared scope. Retain existing literal path/link candidates, eight-complete-instruction and packet limits, and explicit extraction/read/reference omissions. Never rewrite policy or suppress findings.",
-      "Owned exact RoQ/shared-helper source copies prove the installed omission, then exercise changed-helper selection versus unrelated-file edit, retained scope/source evidence and stale refusal. Focused VB/JS/SQL cases verify wanted selection; no standalone Cargo or expanded evaluation."
-    ],
-    "implementation_files": [
-      "crates/engram_server/src/services/instruction_maintenance/manifest.rs",
-      "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/symbols.rs",
-      "crates/engram_server/tests/shared_symbol_maintenance.rs"
-    ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-symbol-maintenance-20261117\\contract.json",
+    "status": "SOURCE_CORRECTION_FOCUSED_NATIVE2_RUNNING",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 4,
+    "original_requirement_ids": [
+      "EG-13",
+      "TODO-31",
+      "EG-27",
+      "EG-31"
+    ],
+    "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\source-preparation.json",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117",
+    "native_target": "guidance_master_source_batch_tests",
+    "native_cases": 10,
+    "shipping_source_commit": "d21eeff05e28c6e0a76ecdaf9fadf9554346c274",
+    "next_action": "Poll the exact native2 session21997; no restart on observation timeout. After terminal PASS capture its implicit debug server and complete public acceptance before any release.",
     "full_original_goal_active": true,
-    "next_action": "Prepare one focused combined acceptance for the four queued source outcomes, preserving existing source and literal-reference behavior. Reuse the existing checkout/shared target and build guard; no full suite or standalone debug build. Do not replay passed acceptance or restart completed pipelines.",
-    "at_utc": "2026-11-17T02:55:07.295372+00:00",
-    "source_commit": "21889668a748e14a1316ac10fd1d747a4131f90c",
-    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-symbol-maintenance-20261117\\baseline1\\receipt.json",
-    "baseline_seconds": 5.586019300040789,
-    "source_behavior": [
-      "Changed-file discovery also selects conventional authored guidance whose direct symbol mentions have changed/new/unavailable/ambiguous observed declaration evidence, without granting authority outside its scope.",
-      "The existing declaration matcher is split into one bounded declaration index and reusable document matching. Only explicitly changed VB/JS/TS/SQL source snapshots are scanned; already-selected guidance does not require this scan.",
-      "Unchanged method bodies do not select a guide solely for unrelated edits. Existing literal path/link proofs retain priority within the16-match cap. Read/extraction/mention/match omissions remain explicit and original before/current hashes and spans are retained."
-    ],
-    "source_checks": {
-      "rustfmt_parse": "PASS; legacy files emitted to stdout only",
-      "git_diff_check": "PASS",
-      "python_verifier_syntax": "PASS",
-      "protected_wip9": "UNCHANGED"
-    },
-    "source_sha256": {
-      "crates/engram_server/src/services/instruction_maintenance/manifest.rs": "576e64f4199f35c8c22b82d39cba098633d5829807ecaccf050f3e71e0a67736",
-      "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "4639e1a6c9820d01e739629d95c84e4da41a3c64cd0b5534bf9d30e7826223c6",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "8f342dc4672cd3193ea794590fc4e2dd5477f219cfff699a7653f832fcd805e0",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs": "0cb9cbeafead06c464f1431c946acfe81a27b859d84a5c8014d70d9940adb31c",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/symbols.rs": "3a7742ddff6c1b307d807d08d6c2a908bb96805b6f5e0ecd84c5bf1a8df18145",
-      "crates/engram_server/tests/shared_symbol_maintenance.rs": "8f41f413bc7d0f5b4bd7be3a673865bfa77df829fa87ca8165b912617e8d4523"
-    },
-    "native_test_cases_added": 2,
-    "native_tests_executed": 0,
-    "post_change_public_checks_executed": 0,
-    "engram_builds_started": 0,
-    "runtime_deployed": false,
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-symbol-maintenance-20261117\\verify-public.py",
-    "public_verifier_sha256": "c1abea73a892b6c4f97233a9981e1e11d3017a6cc093109c45a71571e2356cb0",
-    "depends_on_source_commit": "8ba98f70270c13016ab370280f8be20e493e9fe7",
-    "limits": [
-      "Source complete only: type-checking, focused native execution and positive public/installed acceptance remain pending.",
-      "Direct name/declaration observations are maintenance candidates, not compiler bindings, semantic impact, changed policy or authority over shared code. Linked-document traversal retains existing literal path coverage; this does not claim exhaustive symbol dependency discovery.",
-      "Before/current discovery and final packet capture are separate observations. Existing byte/declaration/mention/document/selection limits and uncertainty remain.",
-      "No actual LegacyValidation mutation/reindex, Site/Q read, CodeMap/Blast change, target-language expansion, model replay or full EG31/goal closure."
-    ],
-    "temporary_resources": {
-      "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-symbol-maintenance-20261117",
-      "baseline_owned_work_removed": true,
-      "baseline_processes_closed": true,
-      "retention": "Retain source pins, contract, verifier and exact receipts for combined validation. New source-capture fixtures close Git owners before their owned short TempDir. No preexisting deletion."
-    }
+    "native_exec_session": 21997,
+    "native_commands_started": 2,
+    "native_driver_pid": 34356,
+    "native_cases_passed": 10,
+    "native_runner_seconds": 224.97168349998537,
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\native1.json",
+    "debug_artifact": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\debug-artifact1.json",
+    "source_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\source-correction1.json"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

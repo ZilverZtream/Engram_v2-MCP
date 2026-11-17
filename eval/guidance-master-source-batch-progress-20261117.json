@@ -1,0 +1,26 @@
+{
+  "original_requirement_id": "EG-31",
+  "status": "SOURCE_CORRECTION_FOCUSED_NATIVE2_RUNNING",
+  "implementation_items_active": 0,
+  "original_requirement_ids": [
+    "EG-13",
+    "TODO-31",
+    "EG-27",
+    "EG-31"
+  ],
+  "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\source-preparation.json",
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117",
+  "native_target": "guidance_master_source_batch_tests",
+  "native_cases": 10,
+  "shipping_source_commit": "d21eeff05e28c6e0a76ecdaf9fadf9554346c274",
+  "next_action": "Poll the exact native2 session21997; no restart on observation timeout. After terminal PASS capture its implicit debug server and complete public acceptance before any release.",
+  "full_original_goal_active": true,
+  "native_exec_session": 21997,
+  "native_commands_started": 2,
+  "native_driver_pid": 34356,
+  "native_cases_passed": 10,
+  "native_runner_seconds": 224.97168349998537,
+  "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\native1.json",
+  "debug_artifact": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\debug-artifact1.json",
+  "source_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\source-correction1.json"
+}

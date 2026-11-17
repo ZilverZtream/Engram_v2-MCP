@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-31",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "SOURCE_CORRECTED_AWAITING_COMBINED_VALIDATION",
   "original_requirement": "Changed shared code selects dependent instruction maintenance by observed symbol references, preserving declared scope and unaffected method stability.",
   "observed_missing_behavior": "The RoQ guide names GetTopProjectID() but its applyTo excludes grunddata/code/projekt.vb. Changed-file discovery currently follows literal paths only, so changing that shared helper does not select the guide for review.",
   "source_pins": {
@@ -37,7 +37,7 @@
   "full_original_goal_active": true,
   "next_action": "Prepare one focused combined acceptance for the four queued source outcomes, preserving existing source and literal-reference behavior. Reuse the existing checkout/shared target and build guard; no full suite or standalone debug build. Do not replay passed acceptance or restart completed pipelines.",
   "at_utc": "2026-11-17T02:55:07.295372+00:00",
-  "source_commit": "21889668a748e14a1316ac10fd1d747a4131f90c",
+  "source_commit": "57fedce37f3613626c7e0b0a5f97b97212ddecb7",
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-symbol-maintenance-20261117\\baseline1\\receipt.json",
   "baseline_seconds": 5.586019300040789,
   "source_behavior": [
@@ -53,11 +53,11 @@
   },
   "source_sha256": {
     "crates/engram_server/src/services/instruction_maintenance/manifest.rs": "576e64f4199f35c8c22b82d39cba098633d5829807ecaccf050f3e71e0a67736",
-    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "4639e1a6c9820d01e739629d95c84e4da41a3c64cd0b5534bf9d30e7826223c6",
-    "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "8f342dc4672cd3193ea794590fc4e2dd5477f219cfff699a7653f832fcd805e0",
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "c737abfaef1383d46c5514c459f0cc4d096cbd310e21230904edc2386ebc912c",
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "2f0f6d36c26ee5ee1485c2480f0ee91eef925c48b749262575d3e5e81fd6c6ad",
     "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs": "0cb9cbeafead06c464f1431c946acfe81a27b859d84a5c8014d70d9940adb31c",
-    "crates/engram_server/src/services/instruction_maintenance/changed_evidence/symbols.rs": "3a7742ddff6c1b307d807d08d6c2a908bb96805b6f5e0ecd84c5bf1a8df18145",
-    "crates/engram_server/tests/shared_symbol_maintenance.rs": "8f41f413bc7d0f5b4bd7be3a673865bfa77df829fa87ca8165b912617e8d4523"
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence/symbols.rs": "1ff9d52b696e65ca6d04d96e51f1fe1067db9896388573bc6245011f2aedb678",
+    "crates/engram_server/tests/shared_symbol_maintenance.rs": "dbd9601789d949f0a7474a39d610abed162d2baa2e83f09cc9a161ce6702bd93"
   },
   "native_test_cases_added": 2,
   "native_tests_executed": 0,
@@ -78,5 +78,6 @@
     "baseline_owned_work_removed": true,
     "baseline_processes_closed": true,
     "retention": "Retain source pins, contract, verifier and exact receipts for combined validation. New source-capture fixtures close Git owners before their owned short TempDir. No preexisting deletion."
-  }
+  },
+  "source_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\source-correction1.json"
 }
