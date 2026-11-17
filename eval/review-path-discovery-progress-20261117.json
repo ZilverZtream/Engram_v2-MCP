@@ -59,7 +59,7 @@
   "baseline_seconds": 0.7393862999742851,
   "baseline_checks_passed": 2,
   "native_test_cases_written": 3,
-  "post_change_public_checks_executed": 0,
+  "post_change_public_checks_executed": 8,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-discovery-20261117\\verify-public.py",
   "public_verifier_sha256": "9d21eb70152b99185b2cfb28c73e4a8bd2acba553beeb3ed384367aad751a78f",
   "limits": [
@@ -67,6 +67,11 @@
     "Existing64identity/256KiB raw-record/24candidate/8KiBevent discovery limits and legacy identity gaps remain. Exact history actions are fresh observations, not immutable corpus recovery or authenticated rulings.",
     "No live project/LegacyValidation read or mutation, Site/Q access, new discovery index, new tool, paid model replay, broad audit, language support or closed-tool work."
   ],
-  "next_action": "Queue this third independent source outcome. Consolidate the focused native/public checks for all three completed workflows; no additional debug build or full/lib suite.",
-  "source_commit": "7062086fd2c5c5087b2e8c48736123ae843552f2"
+  "next_action": "One shared release1 is running in session42538. Reuse its exact artifact for candidate/installed acceptance; do not rebuild or repeat debug/native acceptance.",
+  "source_commit": "7062086fd2c5c5087b2e8c48736123ae843552f2",
+  "validation_status": "FOCUSED_NATIVE_AND_PUBLIC_PASS_RELEASE1_RUNNING",
+  "native_cases_distinct_covered": 3,
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native-acceptance.json",
+  "debug_public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\debug1\\receipt.json",
+  "shipping_source_commit": "3561de67fa32817cf59127bd018fbdab958231ee"
 }

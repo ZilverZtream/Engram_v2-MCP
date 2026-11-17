@@ -40,7 +40,7 @@
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117\\contract.json",
   "implementation_items_active": 0,
-  "next_action": "Retain this one queued original source outcome. Implement the next ready independent original requirement; no Cargo/release or deployment until the consolidated batch is ready.",
+  "next_action": "One shared release1 is running in session42538. Reuse its exact artifact for candidate/installed acceptance; do not rebuild or repeat debug/native acceptance.",
   "at_utc": "2026-11-17T12:25:54.701910+00:00",
   "source_pins": {
     "Site/Area/language.aspx": {
@@ -77,7 +77,7 @@
   },
   "native_test_cases_written": 4,
   "native_test_cases_executed": 0,
-  "post_change_public_checks_executed": 0,
+  "post_change_public_checks_executed": 8,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117\\verify-public.py",
   "public_verifier_sha256": "b6c1a5bc8b0892032b61ce4e533c4898008edcefc7a0a8be588c0e814bb8b7bf",
   "limits": [
@@ -93,6 +93,10 @@
   "supporting_validation_pending": [
     "Core surface focused checks including request-trace dependency and34-tool ceiling"
   ],
-  "validation_status": "NATIVE1_FOUND_INTEGRATION_FAILURE_CORRECTED_SOURCE_AWAITING_NATIVE2",
-  "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native1-correction.json"
+  "validation_status": "FOCUSED_NATIVE_AND_PUBLIC_PASS_RELEASE1_RUNNING",
+  "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native1-correction.json",
+  "native_cases_distinct_covered": 4,
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native-acceptance.json",
+  "debug_public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\debug1\\receipt.json",
+  "shipping_source_commit": "3561de67fa32817cf59127bd018fbdab958231ee"
 }
