@@ -689,6 +689,26 @@ omissions and recovery use the shared policy resolver; guidance changes require
 no reindex. Current guidance does not verify pattern freshness or runtime UI
 behavior. Existing complete-response budgets and captured-result recovery apply.
 
+### Update outcome delivery (source complete; validation pending)
+
+`update_project` accepts the shared `max_tokens`, `output_json`, `response_id`
+and `response_offset` delivery controls. The default complete reply-text budget
+is40KiB, estimated at four UTF-8 bytes per token. A fitting default reply keeps
+the original acknowledgement and separate instruction observation. An oversized
+reply retains the complete original MCP result, including all observation parts,
+and supplies exact hash-bound continuation. Its manifest states that the update
+handler returned; this does not prove background-job completion, rollback,
+current source freshness or policy correctness. Recover the original outcome
+before acting on it; poll `get_job_status` for an acknowledged background job.
+
+Recovery runs before the update handler and needs only the project binding and
+returned delivery controls. It never repeats the update or recollects guidance.
+Budgets too small for recovery metadata fail before the operation. If retaining
+an oversized result fails after the handler returns, the original operation
+outcome is preserved with an explicit delivery-failure warning. That exceptional
+reply exceeds its budget rather than falsely implying the update was rolled
+back. Existing saved-report retention and error/non-text qualifications apply.
+
 ### Root page project-base context
 
 `trace_user_request` can include `base_context` for a VB root page's existing

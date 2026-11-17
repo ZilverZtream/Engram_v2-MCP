@@ -10,6 +10,7 @@ use serde_json::{Value, json};
 use std::path::Path;
 
 const TOOLS: &[&str] = &[
+    "update_project",
     "list_projects",
     "list_advanced_tools",
     "project_info",
@@ -162,6 +163,9 @@ pub fn advertise(mut tool: Tool) -> Tool {
     let description = tool.description.as_deref().unwrap_or("");
     let recovery = if global { "returned delivery controls; no project_id is required" } else { "project_id and returned delivery controls" };
     tool.description = Some(format!("{description} Read-report delivery: max_tokens budgets complete reply text (default40KiB). Original analysis fields are required for fresh calls. Oversized results provide response_delivery.next_call; recovery needs only {recovery} and does not rerun the tool. Reconstruct the original MCP result before interpreting its evidence. Errors and non-text content retain their original delivery.").into());
+    if tool.name == "update_project" {
+        tool.description = Some(format!("{} Delivery recovery never repeats the update. A returned operation is not proof of background-job completion; recover the original acknowledgement and poll its job if queued. If retaining an oversized result fails after the operation, the original outcome is returned with an explicit warning that its delivery budget was exceeded.", tool.description.as_deref().unwrap_or("")).into());
+    }
     tool
 }
 
@@ -269,8 +273,9 @@ impl Report {
         }
         let minimum = self.manifest(&"0".repeat(64), 8 * 1024 * 1024).len();
         if self.budget < minimum {
+            let action = if self.tool == "update_project" { "Operation" } else { "Analysis" };
             return Err(McpError::invalid_params(format!(
-                "max_tokens is too small for read-report identity and recovery metadata; increase to at least {} estimated tokens. Analysis was not run.",
+                "max_tokens is too small for read-report identity and recovery metadata; increase to at least {} estimated tokens. {action} was not run.",
                 minimum.div_ceil(4)), None));
         }
         Ok(self)
@@ -292,6 +297,13 @@ impl Report {
             value.as_object_mut().unwrap().remove("project_id");
             value["report_scope"] = json!("server_discovery");
             Self::discovery_action(&mut value["response_delivery"]["next_call"]);
+        }
+        if self.tool == "update_project" {
+            value["operation"] = json!({
+                "handler_returned":true,
+                "outcome":"Original acknowledgement and any separate instruction observation are in the saved result.",
+                "instruction":"Do not repeat update_project to recover this response. Recover the original acknowledgement before acting on its outcome. A returned background-job acknowledgement does not establish job completion; poll get_job_status for its job_id. Delivery does not establish rollback or current source freshness."
+            });
         }
         value.to_string()
     }
@@ -330,6 +342,36 @@ impl Report {
     }
 
     pub fn finish(
+        &self,
+        data: &Path,
+        original: CallToolResult,
+    ) -> Result<CallToolResult, McpError> {
+        if self.tool != "update_project" {
+            return self.finish_report(data, original);
+        }
+        // The update has already returned. Failure to retain its report must
+        // not replace its outcome with an MCP error that invites a retry.
+        let mut fallback = original.clone();
+        match self.finish_report(data, original) {
+            Ok(delivered) => Ok(delivered),
+            Err(error) => {
+                tracing::warn!(%error, "update result retention failed; preserving original operation outcome");
+                fallback.content.push(Content::text(json!({
+                    "tool":"update_project","project_id":self.project,
+                    "response_delivery":{
+                        "status":"ORIGINAL_OUTCOME_PRESERVED_DELIVERY_FAILED",
+                        "budget_honored":false,"response_budget_bytes":self.budget,
+                        "recovery_available":false,
+                        "reason":error.message,
+                        "instruction":"The update handler already returned. Its complete original outcome is retained above and exceeds the requested delivery budget. Do not repeat the update to recover its result. A queued job still requires get_job_status; this delivery failure does not imply rollback."
+                    }
+                }).to_string()));
+                Ok(fallback)
+            }
+        }
+    }
+
+    fn finish_report(
         &self,
         data: &Path,
         original: CallToolResult,
