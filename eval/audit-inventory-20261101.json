@@ -10259,7 +10259,7 @@
   },
   "last_updated_at": "2026-11-17T20:37:26.054593+00:00",
   "current_execution_focus": {
-    "status": "COMBINED_NATIVE_CORRECTION_VALIDATION_RUNNING",
+    "status": "NATIVE_AND_DEBUG_ACCEPTED_OPTIMIZED_RELEASE_RUNNING",
     "original_requirement_ids": [
       "EG-27",
       "TODO-28",
@@ -10273,8 +10273,8 @@
     "expected_public_checks": 31,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "Poll live12915/native2, not terminal81108/native1. After native2PASS10, record14unique covered cases across17executions and run31public checks on implicit debug. No full suite or separate debug build.",
-    "live_session": 12915
+    "next_action": "Poll live57881/release1 only. Native81108/12915 and debug31494 are terminal; do not restart. After releasePASS, package and execute candidate/installed31checks using prepared deploy7, then restore normal runtime and verify215assets/ZIP.",
+    "live_session": 57881
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -16494,14 +16494,15 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "COMBINED_NATIVE_CORRECTION_RUNNING",
+    "status": "OPTIMIZED_RELEASE_RUNNING",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117",
-    "live_session": 12915,
-    "native_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native2-state.json",
-    "original_failure_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1.json",
-    "retained_sql_native_cases": 4,
-    "running_native_cases": 10,
-    "expected_public_checks": 31,
+    "live_session": 57881,
+    "release_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\release1-state.json",
+    "native_cases_covered": 14,
+    "native_case_executions": 17,
+    "native_commands": 2,
+    "debug_public_checks_passed": 31,
+    "runtime_deployed": false,
     "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],

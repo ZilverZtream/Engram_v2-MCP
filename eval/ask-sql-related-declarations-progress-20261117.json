@@ -22,7 +22,7 @@
     "Owned installed before proof compares existing query_schema relation rows to missing ordinary answer; focused native3 and public10+ checks prepared for combined validation. No standalone compile.",
     "Core deferred-object recovery uses its existing advertised hash-bound file reader; Full retains specialized query_schema actions. Markdown retains complete provider-bounded schema content under existing whole-report budgeting."
   ],
-  "native_tests_executed": 0,
+  "native_tests_executed": 3,
   "engram_builds_started": 0,
   "runtime_deployed": false,
   "full_original_requirement_complete": false,
@@ -48,7 +48,7 @@
   "related_native_case_count": 1,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117\\verify-public.py",
   "public_verifier_sha256": "b78aa3e659172c500ed1484ff7115be8452e81e9bbb159ee88402563ac75a0b1",
-  "post_change_public_checks_executed": 0,
+  "post_change_public_checks_executed": 11,
   "source_after": [
     "Preserve the existing source reader table row rather than projecting out6related categories: indexes/key constraints, triggers, views, procedures, ALTER foreign keys and ALTER columns. Related body omissions, source citations, binding and unapplied-state qualifiers remain intact.",
     "Derive additional authored-guidance scope from typed citations in retained admitted schema evidence, including related SQL files; do not attach every scanned file or widen caller source scope.",
@@ -75,14 +75,18 @@
     "closed_and_removed": true
   },
   "limits": [
-    "Source complete only. Rust type/native and post-change public/candidate/installed checks remain pending; installed ab166a7 and actual LegacyValidation config/data unchanged.",
+    "Focused native and final debug public acceptance passed; optimized release/candidate/installed acceptance is pending. Installed ab166a7 and normal LegacyValidation corpus/config unchanged.",
     "Table CREATE baseline is separate from independently cited ALTER observations. Related views/procedures/triggers can be metadata-only with explicit recovery; no applied migrations, execution, deployment ordering, default-schema/physical database binding or model/task benefit is established.",
     "Existing managed selected/current SQL source, path-scope/deadline/ambiguity/size budgets remain. Historical requests stay on their separate pinned Git path.",
     "The contract documentation paragraph explicitly marks this source change pending combined validation/deployment; reconcile that marker only after acceptance."
   ],
   "next_action": "Queue this genuine TODO-28 source outcome beside EG-27 inline guidance. Continue the next ready independent original requirement before combined validation; no standalone compile or accepted-batch replay.",
-  "validation_status": "COMBINED_NATIVE_CORRECTION_RUNNING",
+  "validation_status": "NATIVE_AND_DEBUG_PASS_RELEASE_RUNNING",
   "validation_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117",
   "native_batch_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native2-state.json",
-  "shared_build_accounting": "native1 ran7cases:4SQLpass,2inlinepass,1inlinecap-countfailure. Corrected3lines only, with unchanged oracle. native2runs3inline+4linked+3reviewcases; retained4SQLpasses have no inline path references and final exact-artifact SQLpublic11checks remain required. No full suite/extra debug build."
+  "shared_build_accounting": "Two focused native invocations:17executions cover14unique cases. Native1found one omission-counter defect;3source lines corrected and native2ran10cases, retaining4unaffected SQLpasses. All31public checks pass on the final implicit debug executable. One optimized release is now running; no full suite/extra debug build.",
+  "native_validation_status": "PASS",
+  "native_batch_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native-acceptance.json",
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117\\guidance-sql-review-batch-20261117-debug1\\receipt.json",
+  "native_unique_primary_cases_covered": 3
 }

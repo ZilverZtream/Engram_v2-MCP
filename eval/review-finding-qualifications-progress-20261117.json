@@ -20,7 +20,7 @@
     "Manual and SonarQube imports retain complete evidence. Actual owned Full MCP baseline/proof checks stored rule identities/text and injected current/stored source; native focused cases and public checks join the existing combined batch.",
     "Do not auto-rewrite/delete/adopt existing truncated promotions or resolve the94live legacy ownership decisions. Correct advertised/result automatic-detection claims; retrieval/injection is not demonstrated recurrence prevention or semantic policy acceptance."
   ],
-  "native_tests_executed": 0,
+  "native_tests_executed": 3,
   "engram_builds_started": 0,
   "runtime_deployed": false,
   "full_original_requirement_complete": false,
@@ -43,7 +43,7 @@
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117\\verify-public.py",
   "public_verifier_sha256": "cfab2d55ec2b1950d4b99f01f819df91606a812cab1925abcc137b4838ff3c46",
   "public_checks_written": 10,
-  "post_change_public_checks_executed": 0,
+  "post_change_public_checks_executed": 10,
   "source_after": [
     "Full submitted finding text now supplies both promoted rule text and existing text-derived identity; distinct qualifications after the same300character prefix no longer collapse.",
     "Existing promotion default/opt-out and blocker/critical/high-with-file eligibility remain. Successful rule writes are counted and errors propagate with accurate partial-write scope. No new transaction, store or model.",
@@ -63,13 +63,17 @@
     "crates/engram_server/tests/review_finding_qualifications.rs": "fb5730431048424b507aa2e3daa0422ddc1ba7aed257758d6e009e51027131b3"
   },
   "limits": [
-    "Source complete only; native/post-change public/candidate/installed acceptance is pending. Installed ab166a7 and normal LegacyValidation corpus/config unchanged.",
+    "Focused native and final debug public acceptance passed; optimized release/candidate/installed acceptance is pending. Installed ab166a7 and normal LegacyValidation corpus/config unchanged.",
     "This prevents new text loss/identity collapse; it does not reconstruct lost qualifications, migrate existing truncated rules, infer ownership or resolve the94live legacy policy decisions.",
     "Complete imported text is not authenticated policy, semantic applicability, guaranteed recurrence prevention or measured agent benefit. Prior index/rule writes can remain after a later promotion error."
   ],
   "next_action": "All3selected independent original source outcomes are ready and native/user-facing validation is now needed. Freeze a combined source checkout and run focused14native cases/31public checks; no full suite or separate debug build.",
-  "validation_status": "COMBINED_NATIVE_CORRECTION_RUNNING",
+  "validation_status": "NATIVE_AND_DEBUG_PASS_RELEASE_RUNNING",
   "validation_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117",
   "native_batch_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native2-state.json",
-  "shared_build_accounting": "native1 ran7cases:4SQLpass,2inlinepass,1inlinecap-countfailure. Corrected3lines only, with unchanged oracle. native2runs3inline+4linked+3reviewcases; retained4SQLpasses have no inline path references and final exact-artifact SQLpublic11checks remain required. No full suite/extra debug build."
+  "shared_build_accounting": "Two focused native invocations:17executions cover14unique cases. Native1found one omission-counter defect;3source lines corrected and native2ran10cases, retaining4unaffected SQLpasses. All31public checks pass on the final implicit debug executable. One optimized release is now running; no full suite/extra debug build.",
+  "native_validation_status": "PASS",
+  "native_batch_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native-acceptance.json",
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117\\guidance-sql-review-batch-20261117-debug1\\receipt.json",
+  "native_unique_primary_cases_covered": 3
 }
