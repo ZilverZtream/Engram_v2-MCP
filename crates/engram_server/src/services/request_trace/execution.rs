@@ -170,6 +170,20 @@ pub(super) fn handler_bindings(
     let lifecycle_context =
         requested.is_none_or(|a| a.eq_ignore_ascii_case("load page")) || click.is_some() || form || control_event.is_some();
     let tags = Regex::new(r"(?s)<[A-Za-z][^>]*>").expect("markup tag syntax");
+    // Markup observations belong to the page, not each candidate method. In
+    // particular, avoid compiling attribute readers for every tag/method pair.
+    let click_bindings: Vec<_> = if click.is_some() || form {
+        tags.find_iter(markup).filter_map(|tag| {
+            let id = attribute(tag.as_str(), "ID");
+            if !form && !click.is_some_and(|target| id.as_deref().is_some_and(|id| id.eq_ignore_ascii_case(target))) {
+                return None;
+            }
+            let handler = attribute(tag.as_str(), "OnClick")?;
+            Some((id.unwrap_or_else(|| "unnamed control".into()), handler))
+        }).collect()
+    } else { Vec::new() };
+    let auto_event_wireup = lifecycle_context && attribute(markup, "AutoEventWireup")
+        .is_some_and(|value| value.eq_ignore_ascii_case("true"));
     let mut selected = Vec::new();
     for node in methods {
         let name = member_name(node);
@@ -216,27 +230,13 @@ pub(super) fn handler_bindings(
                 }
             }
         }
-        for tag in tags.find_iter(markup) {
-            let id = attribute(tag.as_str(), "ID");
-            if click.is_some_and(|target| {
-                id.as_deref()
-                    .is_some_and(|id| id.eq_ignore_ascii_case(target))
-            }) || form
-            {
-                if attribute(tag.as_str(), "OnClick")
-                    .is_some_and(|handler| handler.eq_ignore_ascii_case(name))
-                {
-                    reasons.push(format!(
-                        "{} OnClick={name}",
-                        id.as_deref().unwrap_or("unnamed control")
-                    ));
-                }
+        for (id, handler) in &click_bindings {
+            if handler.eq_ignore_ascii_case(name) {
+                reasons.push(format!("{id} OnClick={name}"));
             }
         }
-        if lifecycle_context
+        if auto_event_wireup
             && (name.eq_ignore_ascii_case("Page_PreInit") || name.eq_ignore_ascii_case("Page_Init") || name.eq_ignore_ascii_case("Page_Load"))
-            && attribute(markup, "AutoEventWireup")
-                .is_some_and(|value| value.eq_ignore_ascii_case("true"))
         {
             reasons.push(format!("{name} with authored AutoEventWireup=true"));
         }
