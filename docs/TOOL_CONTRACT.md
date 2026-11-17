@@ -331,6 +331,18 @@ The provider reads one current snapshot with the existing4MiB raw-file cap. JSON
 ## Cognitive / agent
 - `begin_edit_session(project_id, planned_files, story=null, session_id=null, max_tokens=null, output_json=false, response_id=null, response_offset=0)` — opens a session and returns its lifecycle token, the expectation brief and current authored guidance for the declared planned paths, including new files. Complete policy sources retain hashes and exceptions; oversized or unresolved sources carry recovery instructions.
 - `complete_edit_session(project_id, session_id=null, session_revision=null, edited_files=null, dossier=null, max_tokens=null, output_json=false, response_id=null, response_offset=0)` — checks the declared edited scope and refreshes authored guidance for that scope before closing the session. Omitted `edited_files` uses the planned set; explicit `[]` declares no edits and skips completeness/policy applicability analysis. Use the returned session identity/revision to select the correct lifecycle. Guidance is advisory evidence, not semantic enforcement, approval or proof that edits comply.
+
+  Source change 2026-11-17 (combined validation/deployment pending): opening
+  sessions retain hash-only guidance observations. Completion compares fresh
+  observations for the identical original planned paths and reports changed,
+  newly observed or no-longer-observed sources with opening/current hashes.
+  Guidance for additional edited paths remains separate. Linked evidence is
+  not automatically accepted policy; unchanged observed hashes do not certify
+  complete coverage or compliance. Older sessions without opening observations
+  report unavailable comparison; explicit no-edit completion skips it. Exact
+  evidence survives bounded original-report recovery without repeating the
+  comparison or consuming a reused lifecycle.
+
 - `dream_project(project_id)`
 - `trigger_rem_cycle(project_id)` (alias)
 - `analyze_file_coding_style(project_id, file_path, max_commits=200)`

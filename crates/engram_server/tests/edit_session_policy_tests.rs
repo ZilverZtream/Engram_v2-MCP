@@ -92,7 +92,9 @@ async fn completion_refreshes_changed_guidance_and_includes_unplanned_edited_sco
     fixture.edit("Site/map/New.vb")?;fixture.edit("Site/billing/Invoice.vb")?;
     let closed=fixture.complete(&revision,&["Site/map/New.vb","Site/billing/Invoice.vb"]).await?;
     ensure!(closed.contains(ROOT) && closed.contains(&revised) && closed.contains(BILLING),"{closed}");
-    ensure!(!closed.contains(MAP) && !closed.contains(blake3::hash(MAP.as_bytes()).to_hex().as_str()));
+    ensure!(!closed.contains(MAP));
+    // Opening/current hash evidence now explicitly names the changed guide.
+    ensure!(closed.contains(blake3::hash(MAP.as_bytes()).to_hex().as_str()));
     ensure!(closed.contains(blake3::hash(revised.as_bytes()).to_hex().as_str()));
     fixture.close()
 }

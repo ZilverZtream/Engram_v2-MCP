@@ -46,6 +46,8 @@ mod edit_workflow_delivery;
 
 #[path = "edit_session_maintenance.rs"]
 mod edit_session_maintenance;
+#[path = "edit_session_guidance.rs"]
+mod edit_session_guidance;
 
 #[path = "footprint_delivery.rs"]
 mod footprint_delivery;
@@ -13449,12 +13451,12 @@ fn update_edit_sessions(
     Err(McpError::invalid_params("edit session contention; retry with the same session_id", None))
 }
 
-async fn edit_session_policy(project_id: &str, root: PathBuf, paths: Vec<String>) -> Result<String, McpError> {
+async fn edit_session_policy(project_id: &str, root: PathBuf, paths: Vec<String>) -> Result<crate::services::project_policy::PolicyContext, McpError> {
     let mut policy = tokio::task::spawn_blocking(move || {
         crate::services::project_policy::resolve(&root, &paths, &[])
     }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?.with_source_recovery(project_id);
     policy.notes.push("Guidance is selected for the paths declared in this call. It does not certify the edit set, enforce policy prose, or establish that the implementation complies. Completion resolves current guidance again for the declared edited paths.".into());
-    Ok(policy.render_markdown())
+    Ok(policy)
 }
 
 impl Engram {
@@ -13479,6 +13481,9 @@ impl Engram {
         }
         let record = self.ensure_project_record(&req.project_id).await?;
         let policy = edit_session_policy(&req.project_id, PathBuf::from(&record.directory), planned_files.clone()).await?;
+        let guidance_observation = edit_session_guidance::observe(&policy, &planned_files);
+        let opening_guidance_summary = edit_session_guidance::summary(&guidance_observation);
+        let policy = policy.render_markdown();
         let generation = self.get_active_generation(&req.project_id).await?;
         let head = git2::Repository::discover(&record.directory).ok().and_then(|r| r.head().ok().and_then(|h| h.target())).map(|id| id.to_string());
         let revision = uuid::Uuid::new_v4().to_string();
@@ -13488,6 +13493,7 @@ impl Engram {
             "planned_files": planned_files, "story": req.story,
             "started_ms": crate::utils::now_ms(),
             "snapshot": {"directory":record.directory,"head":head,"index_generation":generation},
+            "guidance_observation": guidance_observation,
         });
 
         // The expectation brief is the same engine, run on the PLANNED set:
@@ -13514,7 +13520,8 @@ impl Engram {
             session["snapshot"],planned_files.join(", "),brief_text);
         let reply=edit_workflow_delivery::finish(&self.state.cfg.data_dir,&req.project_id,change_set_delivery::EditReport::Begin,body,
             serde_json::json!({"tool":"begin_edit_session","session_id":session_id,"session_revision":revision,
-                "snapshot":session["snapshot"],"planned_file_count":planned_files.len(),"session_state":"OPEN"}),req.output_json,budget)?;
+                "snapshot":session["snapshot"],"guidance_observation":opening_guidance_summary,
+                "planned_file_count":planned_files.len(),"session_state":"OPEN"}),req.output_json,budget)?;
 
         let reg = self.state.registry.clone();
         let pid = req.project_id.clone();
@@ -13619,11 +13626,21 @@ impl Engram {
             .join("\n")
         };
 
-        let policy = if edited.is_empty() {
-            String::new()
+        let (policy, guidance_drift) = if edited.is_empty() {
+            (String::new(), edit_session_guidance::compare(&session["guidance_observation"], None))
         } else {
             let record = self.ensure_project_record(&req.project_id).await?;
-            edit_session_policy(&req.project_id, PathBuf::from(record.directory), edited.clone()).await?
+            let current = edit_session_policy(&req.project_id, PathBuf::from(&record.directory), edited.clone()).await?;
+            // Compare the same declared scope, independently of plan expansion/shrinkage.
+            // Reuse the already captured context when those paths are identical.
+            let planned_observation = if edited == planned {
+                edit_session_guidance::observe(&current, &planned)
+            } else {
+                let original_scope = edit_session_policy(&req.project_id, PathBuf::from(&record.directory), planned.clone()).await?;
+                edit_session_guidance::observe(&original_scope, &planned)
+            };
+            let drift = edit_session_guidance::compare(&session["guidance_observation"], Some(&planned_observation));
+            (current.render_markdown(), drift)
         };
 
         let unedited_plan_count=unedited_plan.len();
@@ -13674,6 +13691,10 @@ impl Engram {
         }
         out.push_str("\n");
         out.push_str(&policy);
+        out.push_str("\n## Guidance changes since session opening\n```json\n");
+        out.push_str(&serde_json::to_string_pretty(&guidance_drift)
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?);
+        out.push_str("\n```\n");
         out.push_str(&check_text);
         let maintenance = edit_session_maintenance::handoff(&req.project_id,
             session["snapshot"]["head"].as_str(), &edited,
@@ -13686,7 +13707,7 @@ impl Engram {
             serde_json::json!({"tool":"complete_edit_session","session_id":session_id,"session_revision":session["revision"],
                 "started_snapshot":session["snapshot"],"planned_file_count":planned.len(),"edited_file_count":edited.len(),
                 "unedited_plan_count":unedited_plan_count,"session_state":"COMPLETE",
-                "instruction_maintenance":maintenance,
+                "instruction_maintenance":maintenance,"guidance_drift":guidance_drift,
                 "completeness_analysis":if edited.is_empty() {"NOT_REQUESTED_NO_EDITS"} else {"IN_ORIGINAL_REPORT"}}),req.output_json,budget)?;
 
         // Prepare delivery before consuming the exact lifecycle checked above.

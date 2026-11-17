@@ -35,6 +35,21 @@ pub(super) fn handoff(project: &str, base: Option<&str>, edited: &[String], full
 /// navigation must not make a large edit's required lifecycle manifest unfit.
 pub(super) fn compact_summary(summary: &Value) -> Value {
     let mut summary = summary.clone();
+    if let Some(opening) = summary.get_mut("guidance_observation").and_then(Value::as_object_mut) {
+        opening.remove("interpretation");
+    }
+    if let Some(drift) = summary.get_mut("guidance_drift").and_then(Value::as_object_mut) {
+        let path_count = drift.remove("comparison_paths").and_then(|paths| paths.as_array().map(Vec::len));
+        if let Some(count) = path_count { drift.insert("comparison_path_count".into(), json!(count)); }
+        drift.remove("changes");
+        drift.remove("interpretation");
+        for field in ["opening_observation", "current_observation"] {
+            if let Some(observation) = drift.get_mut(field).and_then(Value::as_object_mut) {
+                observation.remove("interpretation");
+            }
+        }
+        drift.insert("evidence_details".into(), json!("Recover the original report for exact comparison paths and old/current hashes. No compliance or complete coverage is certified."));
+    }
     if let Some(handoff) = summary
         .get_mut("instruction_maintenance")
         .and_then(Value::as_object_mut)
