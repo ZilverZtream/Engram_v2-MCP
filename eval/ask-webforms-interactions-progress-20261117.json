@@ -9,7 +9,8 @@
     "crates/engram_server/src/services/ask_engine/request_trace.rs",
     "crates/engram_server/src/handlers/ask_request_trace.rs",
     "crates/engram_server/tests/ask_webforms_interactions.rs",
-    "docs/TOOL_CONTRACT.md"
+    "docs/TOOL_CONTRACT.md",
+    "crates/engram_server/src/services/request_trace/execution.rs"
   ],
   "finite_acceptance": [
     "Recognize explicit click controlID on/in URL and event controlID.EventName on/in URL phrases. Pass exact action to the ordinary selected-source tracer; deduplicate by entry+action and retain the existing shared two-trace cap. A caption, unnamed page or vague event is not a binding.",
@@ -81,20 +82,58 @@
   "native_test_cases_written": 3,
   "post_change_public_checks_executed": 0,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117\\verify-public.py",
-  "public_verifier_sha256": "2725c0c141e324ab97a7a3eac0676b1f163ee37efd61abc115de845a9dc6b3a6",
+  "public_verifier_sha256": "31902e8a2b5841d5a8fee4595ee3551413ab0fb94f45a176da188a5c081a0193",
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117\\baseline1\\receipt.json",
   "baseline_seconds": 4.712421200005338,
   "baseline_checks_passed": 2,
   "source_sha256": {
     "crates/engram_server/src/services/ask_engine/request_trace.rs": "d610b7dc134a23d84337d9fbb152138806ee2ed8f7b609dc1350051a5711a91d",
     "crates/engram_server/src/handlers/ask_request_trace.rs": "119dd82132e6a9cfce42c16fe8116bbe8560191cff24ad7b08f7055efba81ba8",
-    "crates/engram_server/tests/ask_webforms_interactions.rs": "66d850055a75f0e5ee8d47f75efbf934105bc7473aa7fdd21767c748e2d90097",
-    "docs/TOOL_CONTRACT.md": "e7b38385d732830d8aa916a2f45238eaf47e1abf01c5dc3d1a9574632318afd2"
+    "crates/engram_server/tests/ask_webforms_interactions.rs": "3e47f6f6d6a1c937a7ef5904e670b25a71a3f66934683f159945b0b53453c947",
+    "docs/TOOL_CONTRACT.md": "e7b38385d732830d8aa916a2f45238eaf47e1abf01c5dc3d1a9574632318afd2",
+    "crates/engram_server/src/services/request_trace/execution.rs": "ca1b42dc54bf2febeee727c38ada4323c7dcd93f3914a2a51b1100ae6f77d051"
   },
   "next_action": "Validate EG31 maintenance handoff, EG21 header filtering and this independent TODO28 interaction outcome together. No separate debug build or full/lib suite; retain prior installed deliveries.",
   "limits": [
     "Source completion only; Rust type/native/public post-change validation and deployment remain pending. Installed8de71b3 is unchanged.",
     "Explicit control IDs and page URLs are required. Existing event-binding/parser, source caps and runtime uncertainty remain. No measured task usefulness or model compliance claim."
   ],
-  "source_commit": "c42e34be62c084a59a2bfce777cfae9c5673c8c9"
+  "source_commit": "c42e34be62c084a59a2bfce777cfae9c5673c8c9",
+  "validation_note": {
+    "status": "TEST_FIXTURE_CORRECTION",
+    "native1_terminal": true,
+    "exec_session_id": 65850,
+    "native1_exit_code": 101,
+    "native1_passed_cases": 12,
+    "native1_failed_cases": 1,
+    "seconds": 277.04117129999213,
+    "cause": "New test assumed next_offset; actual recovery contract uses complete/next_call.arguments.response_offset. It stopped after first page and failed full BLAKE3 proof.",
+    "changed_paths": [
+      "crates/engram_server/tests/ask_webforms_interactions.rs"
+    ],
+    "public_verifier_also_corrected": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117\\verify-public.py",
+    "production_source_changed": false,
+    "passed_test_bodies_and_shared_helpers_unchanged": true,
+    "next_command_filter": "interactions::scoped_action_evidence_recovers_immutably_and_fresh_requests_withhold_changed_handlers",
+    "debug_artifact": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\debug-artifact1.json"
+  },
+  "blocking_public_correction": {
+    "status": "CURRENT_DELIVERY_BLOCKER",
+    "source_requirement": "TODO-28",
+    "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117\\maintenance-history-interaction-batch-20261117-debug2\\ask-click.json",
+    "observed": "Exact GIS source direct trace found btnSave_Click; composed public ask at deadline_ms5000 returned request_trace timed_out.",
+    "cause": "handler_bindings iterates/decodes markup tags for each indexed method, including actions that do not request markup clicks. Attribute readers compile regexes per observation.",
+    "fix": "Collect requested click/form bindings once per page and read AutoEventWireup once; reuse identical observations across methods. No attribute/parser/binding syntax expansion or request budget increase.",
+    "changed_production_paths": [
+      "crates/engram_server/src/services/request_trace/execution.rs"
+    ],
+    "rerun_scope": "Seven affected HTTP/interaction native cases; retain six unchanged history/maintenance successes. Reuse public history/maintenance receipts if exact binary-source compatibility permits only the next runtime has new hash so public candidate/installed contracts remain required.",
+    "compile_required": true,
+    "full_lib_no_vector_suite": false
+  },
+  "correction_source_commits": [
+    "86702aaf370f685898a12a3701e2f9c08e37d7a8",
+    "3ec40103c74eb5be186535fe9e1828f78da79f0f"
+  ],
+  "validation_status": "NATIVE3_AFFECTED_SEVEN_CASES_RUNNING"
 }

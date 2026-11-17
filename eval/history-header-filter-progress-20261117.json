@@ -57,7 +57,7 @@
   "native_test_cases_written": 3,
   "post_change_public_checks_executed": 0,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-header-filter-20261117\\verify-public.py",
-  "public_verifier_sha256": "7be74f5022d00b9d00c6e0ef95ac6539a7428e4c19a96d51634348ddd7bf8b72",
+  "public_verifier_sha256": "d1e62975514dfa1abb8dff70894410ef1008564efbb032deb30e43b1c85c6b98",
   "next_action": "Queue this second independent source outcome with EG31. Continue the next ready original source item; no standalone compile/release or replay of installed components.",
   "limits": [
     "Source completion only: Rust type checks, native cases and post-change public behavior remain pending. Installed8de71b3 binary is unchanged.",
@@ -65,5 +65,6 @@
     "Only commit-header author/date work moves earlier. File/bulk predicates still need capped non-generated file metadata. Existing immutable cache identities/formats,8192row/32MiB retention and embedding profiles remain.",
     "No real LegacyValidation read/reindex/mutation or Site/Q access, corruption/fault campaign, model calls, broad benchmark, preset change, new target language, CodeMap or Blast improvement."
   ],
-  "source_commit": "61f2aa3bc254a229eb779f1a1aa925de25068092"
+  "source_commit": "61f2aa3bc254a229eb779f1a1aa925de25068092",
+  "public_fixture_correction": "Follow complete_git_commit retained response pages and verify full saved MCP hash before checking exact commit/title. Initial seven header/cache/scope checks passed. No product-source change or Cargo rebuild."
 }
