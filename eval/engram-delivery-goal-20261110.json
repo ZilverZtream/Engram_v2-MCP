@@ -2732,57 +2732,26 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "original_requirement_id": "TODO-4",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "at_utc": "2026-11-17T07:04:29.797516+00:00",
-    "original_requirement": "Uniform complete response budgets and exact continuation across the normal agent update loop.",
-    "observed_missing_behavior": "update_project lacks shared max_tokens/recovery controls. Optional instruction observations contain full linked-document before/after snapshots; those observations can exceed the default40KiB delivery budget after the source operation has already returned.",
-    "implementation_files": [
-      "crates/engram_server/src/read_report_delivery.rs",
-      "crates/engram_server/tests/update_result_delivery.rs",
-      "docs/TOOL_CONTRACT.md"
+    "original_requirement_ids": [
+      "EG-01",
+      "TODO-31",
+      "TODO-4"
     ],
-    "finite_acceptance": [
-      "An owned actual VB/WebForms source copy with linked instruction evidence demonstrates an oversized unbounded installed reply. No actual project mutation.",
-      "A bounded fresh update retains an explicit returned-operation notice, and exact hash-bound recovery reconstructs every original acknowledgement and instruction-observation part without repeating the update or publishing a generation. Recovery stays possible after owned source changes.",
-      "Too-small metadata budgets fail before operation; queued job acknowledgements remain explicit job acknowledgements. Failure to retain a result preserves the original operation outcome with an explicit unbounded-delivery warning, never a false rollback error.",
-      "Three focused native behavior cases plus owned public acceptance join the existing conformance/base-context source batch. No standalone compile/full suite/fault campaign or CodeMap/Blast work."
-    ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\update-result-delivery-20261117\\contract.json",
+    "status": "FOCUSED_NATIVE_RUNNING",
+    "shipping_source_commit": "d66d80a982c0c7b3b794624c138735c9ad1658ec",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117",
+    "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\source-preparation.json",
     "implementation_items_active": 0,
+    "expected_native_cases": 8,
+    "native_commands_started": 1,
+    "release_commands_started": 0,
+    "full_or_lib_suite": false,
+    "extra_debug_build": false,
     "full_original_goal_active": true,
-    "engram_builds_started": 0,
-    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\update-result-delivery-20261117\\baseline1\\accepted-receipt.json",
-    "baseline_reply_bytes": 76911,
-    "baseline_seconds": 3.4081668000435457,
-    "baseline_binary_sha256": "bceddf7980fe8a959081b2f90af7409c5bab538f456775789893dbc3f5a25358",
-    "native_test_cases_written": 3,
-    "native_tests_executed": 0,
-    "post_change_public_checks_executed": 0,
-    "runtime_deployed": false,
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\update-result-delivery-20261117\\verify-public.py",
-    "source_checks": {
-      "rustfmt_parse": "PASS",
-      "public_verifier_syntax": "PASS",
-      "protected_wip9": "UNCHANGED"
-    },
-    "limits": [
-      "Source complete only; type checking, focused behavior checks and positive public/installed acceptance remain pending.",
-      "Exceptional snapshot-storage failure preserves the returned operation outcome and explicitly exceeds the budget. Errors/media retain original delivery; no claim of universal response uniformity or task benefit.",
-      "No actual LegacyValidation mutation, Site/Q read, CodeMap/Blast change, new language support or full suite."
-    ],
-    "temporary_resources": {
-      "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\update-result-delivery-20261117",
-      "owned_baseline_fixture_removed": true,
-      "retained": "Contracts, verifier, original failed assertion and corrected accepted baseline retained for review; no live fixture/process."
-    },
-    "source_commit": "68b59aabedb361141676855e1c6b9e63caebe707",
-    "source_sha256": {
-      "crates/engram_server/src/read_report_delivery.rs": "a4f557286080ffbdc196eb8bf5e42cbd3c3853771734b0b7e560fa8a1243f7e0",
-      "crates/engram_server/tests/update_result_delivery.rs": "0503dfaf5eb33c9513d3baa5d65220d10b12687dd0cea877071a8079aebd1468",
-      "docs/TOOL_CONTRACT.md": "45a78ea361ee0f534beb59caf660509e254bf5992cb5aaf7e26cb10095b0ac79"
-    },
-    "public_verifier_sha256": "50509ee7ed528801fda4d4ad212d0ed5a7086dd34b238ba0fd98a06d41e05f7e"
+    "next_action": "Observe the same live native1 process/session without restarting on a timeout. If it passes, verify the three frozen public contracts on its implicit debug artifact. Release and installed acceptance remain pending.",
+    "native_session_id": 32692,
+    "runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\native1-owner.json",
+    "at_utc": "2026-11-17T07:14:59.948651+00:00"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

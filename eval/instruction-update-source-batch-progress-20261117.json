@@ -1,0 +1,22 @@
+{
+  "original_requirement_ids": [
+    "EG-01",
+    "TODO-31",
+    "TODO-4"
+  ],
+  "status": "FOCUSED_NATIVE_RUNNING",
+  "shipping_source_commit": "d66d80a982c0c7b3b794624c138735c9ad1658ec",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117",
+  "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\source-preparation.json",
+  "implementation_items_active": 0,
+  "expected_native_cases": 8,
+  "native_commands_started": 1,
+  "release_commands_started": 0,
+  "full_or_lib_suite": false,
+  "extra_debug_build": false,
+  "full_original_goal_active": true,
+  "next_action": "Observe the same live native1 process/session without restarting on a timeout. If it passes, verify the three frozen public contracts on its implicit debug artifact. Release and installed acceptance remain pending.",
+  "native_session_id": 32692,
+  "runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\native1-owner.json",
+  "at_utc": "2026-11-17T07:14:59.948651+00:00"
+}
