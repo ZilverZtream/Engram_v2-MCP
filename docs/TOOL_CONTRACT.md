@@ -1673,3 +1673,32 @@ does not grant every specialist mentioned in prose, satisfy model/backend/data
 requirements, establish migration-code correctness or prove task productivity.
 For the full catalog select `tool_preset: full`; setting the legacy boolean alone
 does not override an explicit workflow preset.
+
+### Browser storage questions in ask_codebase
+
+Current-source questions such as `Where is localStorage key "tabbedModalExtended"
+read and written?` and `Who uses sessionStorage.getItem('selection')?` compose
+existing indexed browser-state relationships. LocalStorage and SessionStorage
+remain distinct from each other and from server Session/ViewState/Application/Cache.
+Computed keys do not activate this provider. At most three distinct browser keys
+are selected; an extra mention discloses the selection cap. Legacy state questions
+retain their own existing bounded provider and diagnostics.
+
+`browser_state` evidence retains selected physical revisions, matching raw source
+hashes, explicit declaration/file scope and hash-bound get_full_method_body reads.
+The ordinary answer includes applicable authored guidance and existing JSON,
+Markdown and complete-report recovery behavior. Source excerpts inside indexed
+members are literal-key windows, not verified access-site or compiler bindings.
+
+The existing clear reader supplies separate source-admitted store-wide candidates,
+including when no literal access exists for the queried key. A clear candidate
+is not a fabricated per-key write. Explicit path scopes exclude source bodies
+before reads; stale candidates are withheld. Browser output retains the existing
+key/source/candidate bounds and at most16combined key/clear facts, with omission
+and clear-coverage notes. No candidate is not proof of absence.
+
+These facts do not establish shared browser origin, tab/session, script inclusion,
+built-in runtime binding, execution order or stored values. Each browser fact marks
+runtime_execution_proven and shared_browser_store_proven false; an otherwise
+answered status is qualified to partial. Historical as_of retrieval remains the
+separate Git-source path and does not reconstruct browser state.

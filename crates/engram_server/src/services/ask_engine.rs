@@ -6,6 +6,7 @@
 //! `EvidenceItem`s straight from the substrate; nothing here parses Markdown.
 
 pub mod evidence;
+pub mod browser_state;
 pub mod historical;
 pub mod literal_settings;
 pub mod literal_state;

@@ -165,7 +165,7 @@ impl Engram {
             raw.append(&mut settings.items);
             providers.push(settings.provider.clone());
         }
-        if let Some(state) = &mut state_evidence {
+        for state in &mut state_evidence {
             raw.append(&mut state.items);
             providers.push(state.provider.clone());
         }
@@ -491,7 +491,7 @@ impl Engram {
         let st = status::assess_status(&plan, &evidence, &providers, &snapshot, adequate);
         let st = schema_evidence.as_ref().map_or(st, |schema| schema.qualify_status(st));
         let st = settings_evidence.as_ref().map_or(st, |settings| settings.qualify_status(st));
-        let st = state_evidence.as_ref().map_or(st, |state| state.qualify_status(st));
+        let st = state_evidence.iter().fold(st, |status, state| state.qualify_status(status));
         let st = request_evidence.as_ref().map_or(st, |request| request.qualify_status(st));
         let mut unknowns = report::coverage_gaps(&plan, &evidence, &providers);
         // Name the premise terms nothing supports, first — the reader must not

@@ -28,7 +28,7 @@ fn number(value: &Value, field: &str) -> Result<usize> {
         .with_context(|| format!("Missing indexed {field}"))
 }
 
-fn collect(
+pub(super) fn collect(
     graph: &GraphStore,
     project: &str,
     root: &Path,
@@ -36,6 +36,7 @@ fn collect(
     key: &str,
     selected: &BTreeMap<String, u64>,
     limit: usize,
+    scopes: &[String],
 ) -> Result<Value> {
     let target = engram_core::ids::NodeId::state(&format!("{store}ClearAll"), "*").0;
     let (incoming, truncated) =
@@ -49,6 +50,11 @@ fn collect(
         gaps.push("No retained indexed clear candidate. This does not prove absence; refresh source extraction for indexes predating the browser clear contract.".into());
     }
     for (id, _, _) in incoming {
+        if !scopes.is_empty() && graph.get_node(project, &id)?.is_some_and(|node| {
+            !scopes.iter().any(|scope| crate::services::ask_engine::resolver::scope_full_prefix(node.file_path.as_str(), scope).is_some())
+        }) {
+            continue;
+        }
         let result = (|| -> Result<Value> {
             let node = graph
                 .get_node(project, &id)?
@@ -201,7 +207,7 @@ impl Engram {
             let _reservation=reservation;
             let result=(|| {
                 let selected=view.selected_file_revisions().context("Managed selected source inventory unavailable; update_project first")?;
-                collect(&graph,&project,Path::new(&record.directory),&store,&key,selected,limit)
+                collect(&graph,&project,Path::new(&record.directory),&store,&key,selected,limit,&[])
             })();
             match result {
                 Ok(value)=>value.to_string(),

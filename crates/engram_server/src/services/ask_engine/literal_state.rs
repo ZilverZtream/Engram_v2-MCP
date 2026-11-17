@@ -8,7 +8,7 @@ use regex::Regex;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, io::Read, path::Path, sync::LazyLock};
 
-const INTERPRETATION: &str = "Indexed legacy state reader/writer candidates whose containing source matches the held selected revision and raw file hash. The excerpt is a literal-key window inside the indexed declaration, not a verified access-site or compiler binding. Static relationships do not prove runtime execution, stored values or shared session identity. Dynamic keys and unsupported extraction remain unknown; independent reads are not an atomic filesystem snapshot.";
+pub(super) const INTERPRETATION: &str = "Indexed legacy state reader/writer candidates whose containing source matches the held selected revision and raw file hash. The excerpt is a literal-key window inside the indexed declaration, not a verified access-site or compiler binding. Static relationships do not prove runtime execution, stored values or shared session identity. Dynamic keys and unsupported extraction remain unknown; independent reads are not an atomic filesystem snapshot.";
 const FILE_SCOPE: &str = "File-level indexed relationship only: no access-site line, method attribution or source excerpt is supplied. Recover the hash-bound file to locate and inspect its accesses; the candidate alone is incomplete location evidence.";
 static MENTIONS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
@@ -76,6 +76,9 @@ impl StateEvidence {
         self.provider.note = Some(format!("{INTERPRETATION} {detail}"));
     }
     pub fn qualify_status(&self, status: AnswerStatus) -> AnswerStatus {
+        if self.provider.provider == "browser_state" && matches!(status, AnswerStatus::Answered) {
+            return AnswerStatus::Partial;
+        }
         if matches!(status, AnswerStatus::Answered | AnswerStatus::Partial)
             && (self.provider.status != ProviderStatus::Hit
                 || self.provider.truncated
