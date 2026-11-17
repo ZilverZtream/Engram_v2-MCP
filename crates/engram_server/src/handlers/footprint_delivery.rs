@@ -22,6 +22,7 @@ pub(super) fn recover(data: &Path,req: &GetConceptFootprintRequest) -> Result<Op
 
 pub(super) fn finish(data: &Path,req: &GetConceptFootprintRequest,text: String,paths: Vec<String>,complete: bool,policy: PolicyContext) -> Result<String,McpError> {
     let limit=budget(req.max_tokens)?;
+    let policy=policy.with_source_recovery(&req.project_id);
     let body=if req.output_json {
         serde_json::to_string_pretty(&json!({"concept":req.concept,"footprint_markdown":text,
             "source_paths":paths,"source_paths_complete":complete,"project_policy_sources":policy}))

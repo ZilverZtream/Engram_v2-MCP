@@ -1531,3 +1531,16 @@ asks retain their revision-bound path. No routing or synthesis model request is
 added, and no latency or general task-usefulness improvement is claimed.
 The Core preset includes `trace_user_request` so the emitted ordinary and nested
 trace recovery actions are advertised and callable; Full remains the default.
+
+### Concept-footprint guidance recovery (source complete; validation pending)
+
+`get_concept_footprint` already supplied authored guidance for returned paths.
+Its delivery step now binds executable `get_full_method_body` actions to
+fingerprinted omitted guidance and linked references before JSON/Markdown
+serialization or immutable response capture. Each action carries the exact
+project, relative path and complete-file BLAKE3. Follow file-excerpt pages to EOF;
+changed source refuses an old guard and requires refreshing the footprint.
+Saved footprint recovery preserves the original action and hash after later
+edits; it does not claim that old guidance is still current. Existing scope,
+policy/discovery budgets, historical/unfingerprinted refusal, response limits
+and source-reader semantics remain. Reading guidance does not certify compliance.
