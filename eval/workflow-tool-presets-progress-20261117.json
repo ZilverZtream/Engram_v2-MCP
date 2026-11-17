@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-18",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement": "The original tool_roi research explicitly requested dependency-closed development, QA and migration presets after repairing Core. Full discovery remains the default and LegacyValidation .NET tools remain available.",
   "observed_missing_behavior": "Configuration and tools/list support only Full or Core. Core omits workflow specialists; switching to Full exposes the entire registered catalog. No named workflow surface exists.",
   "priority_basis": "Original dependency-complete tool-presets shortlist. Current LegacyValidation config is verified Full and remains Full. Opt-in profiles target its existing VB.NET/WebForms, JavaScript/TypeScript and SQL workflows; no claim that an unselected profile already changes its runtime.",
@@ -52,9 +52,9 @@
   ],
   "engram_builds_started": 3,
   "native_tests_executed": 3,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "implementation_items_active": 0,
-  "pending_source_outcomes": 3,
+  "pending_source_outcomes": 0,
   "baseline_source_sha256": {
     "crates/engram_core/src/config.rs": "7c3592fcef4e2bf50e2875c1152b22e04489e2edf802243659fd486946388761",
     "crates/engram_server/src/tool_surface.rs": "6db2496d2988bece02164f944f2f6ebc38c8600fef9fb127d8e9d3825ed80fb0",
@@ -123,10 +123,10 @@
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117\\baseline1\\receipt.json",
   "baseline_seconds": 2.633704400039278,
   "baseline_checks_passed": 3,
-  "next_action": "Wait on existing release1 session99625; package and run owned candidate/installed checks using this exact artifact, then record installation and advance original backlog. Do not restart or recompile without concrete failed acceptance.",
+  "next_action": "Finite component accepted and installed; advance the next ready original requirement without replaying this passed batch. Original scope and broader limitations remain.",
   "limits": [
-    "Source completion only; Rust type/native checks and post-change MCP verification remain pending. Installed46c5e89 is unchanged and stays configured Full.",
-    "Named preset closure covers shared Core dependencies, explicit workflow roots and emitted structured source/schema/maintenance recovery. Every specialist mentioned in prose, backend/model availability, migration-code correctness and task productivity remain unproved."
+    "Named presets are opt-in; actual LegacyValidation remains Full. Closure is limited to shared Core dependencies, role roots and demonstrated structured recovery, not every prose suggestion or backend/model availability.",
+    "Three native and19installed public checks passed; normal LegacyValidation remains Full. This does not prove backend/model availability, semantic migration correctness or improved agent outcomes."
   ],
   "source_commit": "1bd5f54584c0a18438390d1c9f17425c07c30c05",
   "native_validation_status": "PASS",
@@ -134,5 +134,9 @@
   "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117\\preset-browser-bootstrap-batch-20261117-debug2\\receipt.json",
   "post_change_public_checks_executed": 19,
   "validation_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117",
-  "build_count_scope": "Two native Cargo invocations across all3outcomes; first found real browser-composition defect. One optimized release is live; no separate debug/full suite."
+  "build_count_scope": "Two focused native invocations and one release shared by all3outcomes; terminal, all owned resources closed/removed. No separate debug build or full suite.",
+  "delivery_record": "eval/preset-browser-bootstrap-batch-delivery-20261117.json",
+  "native_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\native-acceptance.json",
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117\\preset-browser-bootstrap-batch-20261117-installed1\\receipt.json",
+  "installed_runtime_sha256": "0b590ecb08237997caba8807bdf47bfc7d1388f8b486d4414d9f04bf2aa66660"
 }

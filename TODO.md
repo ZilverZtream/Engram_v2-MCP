@@ -172,6 +172,12 @@ These degrade or improve *every single interaction*. Nothing below matters until
   Nine installed public checks cover this component; original TODO4 remains
   partial. See eval/instruction-update-source-batch-delivery-20261117.json.
 
+  Installed November17: `index_project` supports complete caller budgets, JSON
+  returned project/job identities and project-free immutable result recovery
+  without repeating indexing. Normal plain acknowledgements remain compatible;
+  queued jobs remain queued. Original TODO4 remains partial.
+  [Delivery](eval/preset-browser-bootstrap-batch-delivery-20261117.json).
+
 - [x] **5. Staleness metadata on every response** (S) — *done 2026-06-12: last_index_completed_ms recorded by process_ingest_stats; get_index_freshness tool (generation, age, watcher, disk-drift count, advice); footer on hot read tools.*
   `state.rs`, `metrics.rs`, handlers. There is no "index generation age", "last reindex",
   or "commits behind HEAD" signal anywhere. An agent getting stale results has zero way to
@@ -417,6 +423,12 @@ proposals that duplicate the existing surface:
 `find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
+  Installed November17: explicit browser-storage key questions compose indexed
+  readers/writers and separate store-wide clear candidates, retaining scope,
+  source hashes, authored guidance and current-source recovery. The bounded facts
+  survive generic per-file ranking so two writes cannot hide a reader.
+  Static origin/runtime uncertainty and broader task usefulness remain open.
+  [Delivery](eval/preset-browser-bootstrap-batch-delivery-20261117.json).
   Installed November17: exact literal VB setting-key questions return source-cited
   getter/store observations with raw hashes and complete source lines. Independent
   stores remain distinct; changed source is withheld. Effective values, physical

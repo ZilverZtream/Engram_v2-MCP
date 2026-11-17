@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-4",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement": "Uniform caller response budgets and complete JSON/recovery for AI project bootstrap.",
   "observed_missing_behavior": "index_project has no max_tokens, output_json or response recovery; AI callers must parse acknowledgement text for IDs and cannot recover a captured result without repeating registration/indexing.",
   "priority_basis": "Core/Full indexing bootstraps the existing VB/WebForms, JS/TS and SQL workflow; normal LegacyValidation config stays Full and is not changed.",
@@ -19,9 +19,9 @@
   "source_phase_started_at_utc": "2026-11-17T16:59:31.049071+00:00",
   "engram_builds_started": 3,
   "native_tests_executed": 3,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "implementation_items_active": 0,
-  "pending_source_outcomes": 3,
+  "pending_source_outcomes": 0,
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\index-result-delivery-20261117",
   "full_original_goal_active": true,
   "baseline_source_sha256": {
@@ -54,9 +54,8 @@
   "baseline_checks_passed": 4,
   "baseline_seconds": 1.365968499914743,
   "limits": [
-    "Source complete only; native and post-change public validation pending.",
-    "Native report formatter exercises oversized warning output; no observed normal-project default-budget overflow, exhaustive extraction or task usefulness claim.",
-    "Normal Full config, installed46c5e89, protected WIP9 and actual LegacyValidation data unchanged."
+    "Native real-report formatting exercises oversized warnings. Public bootstrap checks ordinary completed/queued/deduplicated IDs and rejected budgets/recovery. No observed ordinary40KiB overflow or measured agent-task productivity claim.",
+    "Three native and11installed public checks passed; exceptional retention failure preserves the returned outcome and explicitly exceeds the budget. Errors/media retain original delivery."
   ],
   "source_sha256": {
     "crates/engram_server/src/read_report_delivery.rs": "7e8456a2474a5d6b9bc4be3347fc997d629343a9f926bfbc77a18d5de8d3d100",
@@ -71,6 +70,10 @@
   "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\index-result-delivery-20261117\\preset-browser-bootstrap-batch-20261117-debug2\\receipt.json",
   "post_change_public_checks_executed": 11,
   "validation_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117",
-  "build_count_scope": "Two native Cargo invocations across all3outcomes; first found real browser-composition defect. One optimized release is live; no separate debug/full suite.",
-  "next_action": "Wait on existing release1 session99625; package and run owned candidate/installed checks using this exact artifact, then record installation and advance original backlog. Do not restart or recompile without concrete failed acceptance."
+  "build_count_scope": "Two focused native invocations and one release shared by all3outcomes; terminal, all owned resources closed/removed. No separate debug build or full suite.",
+  "next_action": "Finite component accepted and installed; advance the next ready original requirement without replaying this passed batch. Original scope and broader limitations remain.",
+  "delivery_record": "eval/preset-browser-bootstrap-batch-delivery-20261117.json",
+  "native_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\native-acceptance.json",
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\index-result-delivery-20261117\\preset-browser-bootstrap-batch-20261117-installed1\\receipt.json",
+  "installed_runtime_sha256": "0b590ecb08237997caba8807bdf47bfc7d1388f8b486d4414d9f04bf2aa66660"
 }

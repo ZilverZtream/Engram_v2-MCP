@@ -801,6 +801,16 @@
         "delivery": "eval/legacy_validation-core-report-batch-delivery-20261115.json",
         "behavior": "Core now advertises list_memory_bank alongside read_memory_bank; current LegacyValidation Full mode unchanged.",
         "broader_finding_complete": false
+      },
+      "named_workflow_presets_delivery_20261117": {
+        "delivery": "eval/preset-browser-bootstrap-batch-delivery-20261117.json",
+        "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+        "behavior": "Opt-in Development38/QA40/Migration40 surfaces retain shared Core34 dependencies, declared workflow roots and callable source/schema/maintenance navigation; default Full and legacy bool remain compatible.",
+        "normal_legacy_validation_preset_changed": false,
+        "native_cases": 3,
+        "installed_public_checks": 19,
+        "broader_finding_complete": false,
+        "limits": "Named presets are opt-in; actual LegacyValidation remains Full. Closure is limited to shared Core dependencies, role roots and demonstrated structured recovery, not every prose suggestion or backend/model availability."
       }
     },
     {
@@ -16817,5 +16827,14 @@
     "manifest_sha256": "3f4a233c23844794e49b0d7ddfe92dcbd84b05874d572bdbf67064f9d249552b",
     "receipt": "eval/constructor-events-policy-batch-delivery-20261117.json",
     "selected_generation": 3151
+  },
+  "preset_browser_bootstrap_batch_delivery_20261117": {
+    "record": "eval/preset-browser-bootstrap-batch-delivery-20261117.json",
+    "original_requirement_ids": [
+      "EG-18",
+      "TODO-28",
+      "TODO-4"
+    ],
+    "full_original_goal_complete": false
   }
 }

@@ -1,0 +1,134 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-17T17:44:33.079054+00:00",
+  "original_requirement_ids": [
+    "EG-18",
+    "TODO-28",
+    "TODO-4"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117",
+  "source_preparation": {
+    "status": "COMMITTED_SOURCE_PREPARED",
+    "canonical_root_head": "83b784d95a8c45f21fc081ba9dbe231e25c4ca61",
+    "previous_shipping_head": "5bdb0adc1e53cbf525afd600df1453f0e0a58366",
+    "shipping_head": "b54808bdaf4c500f10c2ea494f4b52ad24142cce",
+    "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "changed_source_sha256": {
+      "crates/engram_core/src/config.rs": "591c8815f4b17027e94c3bcbc9a47b88e96f6b47cb843f1f3c0382ec4de069f5",
+      "crates/engram_server/src/handlers/access_layer_tools.rs": "2e119e30aa0e838bff5c05a6c62dc4cce0de7ad5b232374c0474592e971a24c7",
+      "crates/engram_server/src/handlers/ask_schema.rs": "f1fdca57fad8cba87718ead09dec88eb931de9158ce294e3e53c97a75aa1654f",
+      "crates/engram_server/src/handlers/ask_state.rs": "ced9760190700020c9fcde18939359882201ca3631bbfa567f201403cc912659",
+      "crates/engram_server/src/handlers/ask_tools.rs": "9a493b0028a776064f598c2d457e7a6098abf337eac614fd0aff91a20e364d80",
+      "crates/engram_server/src/handlers/browser_state_tools.rs": "9a05a018d9556d1e6117fb25a2fd611b20cb82c928ea859f4c8dc6f4e18e2900",
+      "crates/engram_server/src/handlers/edit_session_maintenance.rs": "18e5710a24f5559b316d9c503343cb36e07f58a1778c6be659f52cc71aa2ee45",
+      "crates/engram_server/src/handlers/planning_tools.rs": "9116e20d0c3dbba6a4c0650196c556cf27931e3b3bc2a5a11113812d5f7aa37b",
+      "crates/engram_server/src/handlers/schema_tools.rs": "0d54429e70d8e74d4f87fd7fea86ba23ca5e93847ea8dc14f794032006e7fbd3",
+      "crates/engram_server/src/read_report_delivery.rs": "4010385b26cfa8b32f354ee4daa63859857ecb21fbd6004aabdec2e9d8bf34b5",
+      "crates/engram_server/src/read_report_delivery_tests.rs": "91a2f87c997294ffde69d183d0b30467b403b667f7c2208edd5ae4289b390b80",
+      "crates/engram_server/src/services/ask_engine.rs": "35d75413e762b223c58136103f5a0f853b26fff322900555244a6a0b815b05cf",
+      "crates/engram_server/src/services/ask_engine/browser_state.rs": "2705104a2d4127740cb3d0d288d7bff780e0162778a599e2eb726bb84359f84f",
+      "crates/engram_server/src/services/ask_engine/literal_state.rs": "25a04a1551539660cf4931031fbb10da73470ad24a0ab2ef6af15ecf769251df",
+      "crates/engram_server/src/tool_surface.rs": "c933fdc9c4b8aedad4c6f13b1e38620ecf8ee3123f0e414b4d0a1810c009d5e2",
+      "crates/engram_server/src/tools.rs": "b6e206037452d39a4f62df3a6da8b466ce2d0e092bd466c28b1872b751dc1d1d",
+      "crates/engram_server/tests/ask_browser_storage.rs": "05b3abe4975bf50da9c370050be3217e8428cb4d21f3cdddd74f751fdf1c6f58",
+      "crates/engram_server/tests/index_result_delivery.rs": "1e88828109a80b96079243c4f2c57c8555991fccf096a318262caaf458d6f346",
+      "crates/engram_server/tests/workflow_tool_presets.rs": "015b356704899563f75ea6b9bd81bfc157c66d47088739f66679fb7fc578d6fd",
+      "docs/TOOL_CONTRACT.md": "90d8cba08cffea32614b7db33aa1822bc81556028c37fa5c9c3261e4163ccbb5"
+    },
+    "protected_wip9": "UNCHANGED_EXCLUDED",
+    "new_worktrees_created": 0,
+    "builds_started": 0,
+    "active_implementation_items": 0,
+    "source_outcomes": 3,
+    "selection": "The three finite original changes are complete; no further selected source changes remain to include. Focused combined native validation now needed before public acceptance; no threshold-driven filler or standalone feature build.",
+    "native_targets": [
+      "workflow_tool_presets",
+      "ask_browser_storage",
+      "index_result_delivery",
+      "update_result_delivery",
+      "ask_legacy_state"
+    ],
+    "previous_preparation_shipping_head": "c7ff6e24d266780b69356f57363856dd3cd77a96",
+    "correction_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\browser-composition-correction.json"
+  },
+  "runtime": {
+    "status": "INSTALLED_ACCEPTANCE_PASS",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\package1",
+    "server_sha256": "0b590ecb08237997caba8807bdf47bfc7d1388f8b486d4414d9f04bf2aa66660",
+    "manifest_sha256": "56b12d187c47d4920ce14c1538279db1e3b93e84e5928f7cca075eb301e5d0dc",
+    "old_server_sha256": "46c5e8925fe638a1f15820c409be1d2839cdf246d71f1eac92748ea6be0d4ef2",
+    "old_manifest_sha256": "5a09c9df3a0fbe4f19667abafb996c889e836d13a3fd6fbcca77f13e4ced9a5a",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\release1.json",
+      "sha256": "e1448eadcce2e521a181ba4f37224d37f09bda47cdcbb769e76611300b0de04e"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "5a09c9df3a0fbe4f19667abafb996c889e836d13a3fd6fbcca77f13e4ced9a5a"
+    },
+    "source_commit": "b54808bdaf4c500f10c2ea494f4b52ad24142cce",
+    "package_pair_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\pair1.json"
+  },
+  "native_acceptance": {
+    "status": "PASS",
+    "native_cases_covered": 15,
+    "native_case_executions": 18,
+    "native_commands": 2,
+    "latest_successful_native_label": "native2",
+    "native_total_seconds": 672.561318699969,
+    "correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\browser-composition-correction.json",
+    "full_suites": 0,
+    "separate_debug_builds": 0
+  },
+  "public_checks_per_artifact": 41,
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3151,
+  "source_format": 9,
+  "protected_wip9": "UNCHANGED",
+  "full_original_goal_complete": false,
+  "build_accounting": {
+    "native_invocations": 2,
+    "release_invocations": 1,
+    "separate_debug_builds": 0,
+    "full_suites": 0,
+    "native_seconds": 672.561318699969,
+    "release_seconds": 984.8595980999526,
+    "combined_runner_seconds": 1657.4209167999215,
+    "pure_coding_percentage": null,
+    "note": "Native1 compiled all selected binaries then stopped after2pass/1browser composition failure. Native2 checks the corrected browser composition and previously unrun affected targets. Source/read/design/fixture time is not pure coding."
+  },
+  "correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\browser-composition-correction.json",
+  "temporary_resources": {
+    "all_new_fixture_processes_closed": true,
+    "all_owned_fixture_and_build_temp_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117",
+    "retained_purpose": "Build, source, public acceptance, managed rollback pair and Windows ZIP evidence; no preexisting directory deletion.",
+    "intentionally_retained_runtime": "Normal installed daemon under ordinary application lifecycle."
+  },
+  "limitations": [
+    "Named presets are opt-in; actual LegacyValidation remains Full. Closure is limited to shared Core dependencies, role roots and demonstrated structured recovery, not every prose suggestion or backend/model availability.",
+    "Browser facts are static, source-admitted candidates with explicit caps and origin/runtime uncertainty; no exhaustive source-coverage claim. All16bounded browser facts survive generic per-file ranking.",
+    "Native real-report formatting exercises oversized warnings. Public bootstrap checks ordinary completed/queued/deduplicated IDs and rejected budgets/recovery. No observed ordinary40KiB overflow or measured agent-task productivity claim.",
+    "The original31findings/19gates, semantic/usefulness findings and held items remain open as previously recorded."
+  ],
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\Engram-win-x64-preset-browser-bootstrap.zip",
+    "sha256": "917C131147F893DA52DE6261EE99DBA77736AADF191CA9EE4EB28231563C2CDF",
+    "entries": 219,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "56B12D187C47D4920CE14C1538279DB1E3B93E84E5928F7CCA075EB301E5D0DC",
+    "archive_before_rename": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preset-browser-bootstrap-batch-20261117\\Engram-win-x64-maintenance-history-interaction.zip",
+    "renamed_without_repackaging": true
+  },
+  "remaining_eg03_inspection_during_release": {
+    "decision": "No new implementation selected",
+    "evidence": "eval/audit-inventory-20261101.json: execution_evidence_20261101.eg03_real_actor_behavior_20261102 and legacy_validation_resource_release_and_matched_query_pair_20261104",
+    "finding": "Retained watcher defects already fixed/verified; broader sustained-resource acceptance remains open. Historical resource-budget failure is not a new current watcher regression. No real-project mutation, new storage campaign or kernel/SSD investigation."
+  }
+}
