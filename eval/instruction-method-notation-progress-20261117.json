@@ -1,0 +1,73 @@
+{
+  "original_requirement_id": "EG-27",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "Instruction manifests retain referenced symbol evidence and distinguish relevant method edits from unrelated body changes in normal LegacyValidation guidance.",
+  "observed_missing_behavior": "Actual RoQ guidance uses backticked GetCurrentlyAppliedPriceList(), UpdateByID() and Create(). The existing inline-code identifier guard ignores their parentheses, so the authored method references have no symbol evidence or method-specific freshness observations.",
+  "source_pins": {
+    ".github/instructions/roq-price-list.instructions.md": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\.github\\instructions\\roq-price-list.instructions.md",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-method-notation-20261117\\sources\\roq-price-list.instructions.md",
+      "sha256": "56f2615349fbbea1859f04172d327132c34c8ad4f2c5079c3e1972c953c94119",
+      "bytes": 8290
+    },
+    "Site/App_Code/redovisning/code/redovisninglista.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\redovisning\\code\\redovisninglista.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-method-notation-20261117\\sources\\redovisninglista.vb",
+      "sha256": "0bd622eec379dd8cf7a91d0aa3bfaa74580b5a5f364665bc885bd5620f8f811f",
+      "bytes": 46938
+    }
+  },
+  "finite_acceptance": [
+    "Recognize a bare or qualified identifier followed by empty parentheses as authored method-reference notation; preserve the complete literal and its original Markdown byte range. Empty parentheses are not a claim about declaration arity or compiler binding.",
+    "Reuse existing bounded declaration matching, VB case handling, ambiguity, qualification and unavailable-evidence reporting. Missing names stay explicitly unresolved; argument expressions are not parsed.",
+    "On an owned exact RoQ guide/VB copy, the observed existing method is initially omitted. After this change its reference exposes source/hash/span evidence, unchanged method bytes survive an unrelated file edit, and a method-body edit is marked changed. Authored guidance remains unchanged; stale proposals still refuse.",
+    "Focused source-capture tests preserve original notation and method-specific comparisons. No standalone Cargo, new parser, source inventory, target-language expansion or model replay."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs",
+    "crates/engram_server/tests/vb_instruction_body_freshness_tests.rs"
+  ],
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-method-notation-20261117\\contract.json",
+  "implementation_items_active": 0,
+  "pending_source_outcomes": 3,
+  "full_original_goal_active": true,
+  "next_action": "Keep the substantive source outcomes queued. Three is the existing minimum, not an automatic release schedule; continue original source work where ready and avoid another tiny-change compile cycle.",
+  "at_utc": "2026-11-17T02:46:15.173848+00:00",
+  "source_commit": "8ba98f70270c13016ab370280f8be20e493e9fe7",
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-method-notation-20261117\\baseline1\\receipt.json",
+  "baseline_seconds": 3.202272299909964,
+  "source_behavior": [
+    "Authored bare/qualified Method() notation reaches the existing bounded symbol matcher while preserving the complete literal, source hash and Markdown byte range.",
+    "Notation is explicitly distinguished from a source call or an arity requirement. Existing ambiguity, VB declaration uncertainty, missing names and declaration/body evidence semantics remain.",
+    "The exact actual RoQ guide and source are pinned for installed acceptance, including unrelated-file versus referenced-method edits and stale proposal refusal."
+  ],
+  "source_checks": {
+    "rustfmt_parse": "PASS; legacy symbol implementation emitted to stdout only",
+    "git_diff_check": "PASS",
+    "python_verifier_syntax": "PASS",
+    "protected_wip9": "UNCHANGED"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "8e12d7f7c20dcc72aa53e256ceafd49db9ce9f0d22e4a548f340dda1d64ef104",
+    "crates/engram_server/tests/vb_instruction_body_freshness_tests.rs": "5af75785d817133f883c41c998d57820578532f85114f9be440a55e3f9b8d1c4"
+  },
+  "native_test_cases_added": 2,
+  "native_test_cases_in_focused_target": 4,
+  "native_tests_executed": 0,
+  "post_change_public_checks_executed": 0,
+  "engram_builds_started": 0,
+  "runtime_deployed": false,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-method-notation-20261117\\verify-public.py",
+  "public_verifier_sha256": "1ad2ae27d41ba15b200a2cdbbd03e9132b5263c502d219572482a0f2addd8e64",
+  "limits": [
+    "Source implementation only; type-checking, focused native execution and positive public/installed acceptance remain pending.",
+    "Only empty-parenthesis name notation is recognized. Argument expressions, compiler binding, semantic correctness and complete dependency discovery are unproved.",
+    "No actual LegacyValidation mutation/reindex, Site/Q read, CodeMap/Blast change, language expansion, fresh model replay or full original EG27 closure."
+  ],
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-method-notation-20261117",
+    "baseline_owned_work_removed": true,
+    "baseline_processes_closed": true,
+    "retention": "Keep source pins, contract, private verifier and receipts for combined acceptance. New tests reuse owned short fixture roots. No preexisting deletion."
+  }
+}
