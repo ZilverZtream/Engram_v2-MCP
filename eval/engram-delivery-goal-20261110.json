@@ -2570,6 +2570,14 @@
         "source_commit": "3bff8df1a2792efff584271ef6d8e45179ebe468",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\contract.json",
         "progress": "eval/control-instance-trace-progress-20261117.json"
+      },
+      {
+        "original_requirement_id": "TODO-28",
+        "outcome": "Natural-language named literal settings return current source getter/store evidence",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "a0c4fb34b80409368cbda4a455dbac8234187c49",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-literal-settings-20261117\\contract.json",
+        "progress": "eval/ask-literal-settings-progress-20261117.json"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2719,33 +2727,30 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Declared user-control instance request paths",
-    "original_requirement_id": "TODO-31",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement": "Trace a URL/action through authored WebForms handler and existing downstream call/database source evidence in normal LegacyValidation UI workflows.",
-    "observed_missing_behavior": "setup_gis_layers.aspx registers and instantiates ctrlLayerNonSpatialImage; its ASCX declares ddlOrder.OnSelectedIndexChanged and a VB handler. Current event actions reject instance/child paths, only load page code-behind, and omit ASCX sources from the trace inventory.",
+    "original_requirement_id": "TODO-28",
+    "original_requirement": "One natural-language entry point supplies useful current source evidence for ordinary LegacyValidation diagnosis instead of requiring the calling AI to discover the settings specialty surface.",
+    "observed_missing_behavior": "Current ask_codebase has lexical/graph/schema evidence but no literal-settings source observations; exact named VB getter keys are not typed Setting evidence. Existing shared VB source reader already supplies literal store/getter/key/line observations.",
     "finite_acceptance": [
-      "Support event instance/child.Event selectors through literal same-application Register TagPrefix/TagName/Src and runat=server instances, bounded to8path components and8distinct source candidates. Preserve source declaration ambiguity and explicit unresolved/deferred coverage rather than guessing types or executing code.",
-      "Retain the original page identity/code-behind and page/control load candidates; select the terminal local event on each resolved ASCX code-behind, then reuse one existing admitted call/SQL traversal. Source order is not execution or lifecycle order.",
-      "Every control route retains parent instance and Register declaration locations, literal attributes including visibility, target source/hash and selected file admission. Changed or missing markup/code-behind is withheld; nonmatching controls and other applications do not become candidate handlers.",
-      "Actual non-Q source copies must reproduce the missing instance path and later yield the declared child handler with exact source citations. Focused synthetic checks cover nested instances, page context and downstream literal SQL; bounded report recovery retains route identities and exact full evidence. No standalone build."
+      "For ordinary current named-setting questions, supply bounded exact literal key/getter call observations from selected admitted VB sources, with full source hashes and line provenance.",
+      "Preserve independent stores/getter kinds rather than inferring physical values, Boolean types, shared storage or execution. Existing extractor syntax limitations stay explicit.",
+      "Changed, unselected, cross-scope or unavailable source cannot supply current setting facts; preserve unaffected observations and disclose incomplete coverage without promoting answer certainty.",
+      "Existing report budgeting/recovery and historical separation remain. Confirm installed gap and existing specialist observation on one owned fixture, then prepare focused native/public acceptance for combined validation only."
     ],
     "implementation_files": [
-      "crates/engram_server/src/services/request_trace/control_routes.rs",
-      "crates/engram_server/src/services/request_trace/control_events.rs",
-      "crates/engram_server/src/services/request_trace/execution.rs",
-      "crates/engram_server/src/handlers/request_trace_tools.rs",
-      "crates/engram_server/src/handlers/request_trace_delivery.rs",
-      "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/src/tools.rs"
+      "crates/engram_server/src/handlers/ask_settings.rs",
+      "crates/engram_server/src/handlers/ask_tools.rs",
+      "crates/engram_server/src/services/ask_engine.rs",
+      "crates/engram_server/src/services/ask_engine/literal_settings.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/ask_literal_settings.rs"
     ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\contract.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "a0c4fb34b80409368cbda4a455dbac8234187c49",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 2,
+    "pending_source_outcomes": 3,
     "full_original_goal_active": true,
-    "next_action": "Select the next ready original source outcome using retained evidence; keep these two outcomes queued. No Cargo: the minimum three is not an automatic release schedule. Positive native/public/deployed acceptance remains pending.",
-    "source_commit": "3bff8df1a2792efff584271ef6d8e45179ebe468",
-    "progress": "eval/control-instance-trace-progress-20261117.json"
+    "next_action": "Keep source queued for combined validation; three is a minimum, not an automatic release schedule. Select further ready original source work before entering Cargo.",
+    "progress": "eval/ask-literal-settings-progress-20261117.json"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2993,5 +2998,6 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "original_goal_complete": false
   },
-  "control_instance_trace_source_progress_20261117": "eval/control-instance-trace-progress-20261117.json"
+  "control_instance_trace_source_progress_20261117": "eval/control-instance-trace-progress-20261117.json",
+  "ask_literal_settings_source_progress_20261117": "eval/ask-literal-settings-progress-20261117.json"
 }

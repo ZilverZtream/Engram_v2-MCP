@@ -1,0 +1,74 @@
+{
+  "original_requirement_id": "TODO-28",
+  "original_requirement": "One natural-language entry point supplies useful current source evidence for ordinary LegacyValidation diagnosis instead of requiring the calling AI to discover the settings specialty surface.",
+  "observed_missing_behavior": "Current ask_codebase has lexical/graph/schema evidence but no literal-settings source observations; exact named VB getter keys are not typed Setting evidence. Existing shared VB source reader already supplies literal store/getter/key/line observations.",
+  "finite_acceptance": [
+    "For ordinary current named-setting questions, supply bounded exact literal key/getter call observations from selected admitted VB sources, with full source hashes and line provenance.",
+    "Preserve independent stores/getter kinds rather than inferring physical values, Boolean types, shared storage or execution. Existing extractor syntax limitations stay explicit.",
+    "Changed, unselected, cross-scope or unavailable source cannot supply current setting facts; preserve unaffected observations and disclose incomplete coverage without promoting answer certainty.",
+    "Existing report budgeting/recovery and historical separation remain. Confirm installed gap and existing specialist observation on one owned fixture, then prepare focused native/public acceptance for combined validation only."
+  ],
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/ask_settings.rs",
+    "crates/engram_server/src/handlers/ask_tools.rs",
+    "crates/engram_server/src/services/ask_engine.rs",
+    "crates/engram_server/src/services/ask_engine/literal_settings.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/ask_literal_settings.rs"
+  ],
+  "implementation_items_active": 0,
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-literal-settings-20261117\\contract.json",
+  "pending_source_outcomes": 3,
+  "full_original_goal_active": true,
+  "next_action": "Keep source queued for combined validation; three is a minimum, not an automatic release schedule. Select further ready original source work before entering Cargo.",
+  "at_utc": "2026-11-17T00:04:19.789920+00:00",
+  "source_commit": "a0c4fb34b80409368cbda4a455dbac8234187c49",
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-literal-settings-20261117\\baseline2\\receipt.json",
+  "baseline_question": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-literal-settings-20261117\\baseline1\\question.json",
+  "baseline_specialist": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-literal-settings-20261117\\baseline2\\specialist.json",
+  "baseline_binary_sha256": "16baba3f184a1c252542cc600b0bcb5240d02dcd7362aea543d8c8ac6264ac2d",
+  "baseline_specialist_check_seconds": 7.213622099952772,
+  "baseline_reconciliation": "First run proved missing typed answer evidence, then its specialist request used the wrong limit parameter. Its failure is retained. Only specialist verification was retried on identical fixture source and binary; the saved first question result was reused.",
+  "retained_setup_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-literal-settings-20261117\\baseline1\\receipt.json",
+  "source_behavior": [
+    "Exact named literal VB keys select indexed setting leads, then current source is independently re-extracted using the existing shared literal-getter parser.",
+    "One evidence item per admitted file carries complete matching store/key/getter/source-line observations, raw-file hash and selected physical revision; independent stores and non-Boolean getters remain distinct.",
+    "Changed/unselected/unavailable source is withheld and coverage failures keep answers partial; shared raw source admission, scope filtering, policy delivery and historical separation remain.",
+    "Bounded observations enter ordinary ranking and complete report budgeting/recovery; no text-generation request is added."
+  ],
+  "source_checks": {
+    "rustfmt_parse": "PASS; legacy files emitted to stdout only",
+    "git_diff_check": "PASS",
+    "python_verifier_syntax": "PASS",
+    "protected_wip9": "UNCHANGED"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/ask_settings.rs": "7a9b07558fea9f4a3b1a3ad2fd93c2a055d45435e5cffe7b7809a82481983a73",
+    "crates/engram_server/src/handlers/ask_tools.rs": "b72793a1a3432e68299b83e948c1a4f373ee38e0f9e1c2b99ecdf6c9456bf285",
+    "crates/engram_server/src/services/ask_engine.rs": "2c66f93c41449b12db77965fb34c82598670d680e098415cc422e65cee288250",
+    "crates/engram_server/src/services/ask_engine/literal_settings.rs": "81b2f5a6d2d40423cf09306c2851a106ac0d67fc00d4f4e886b0ca311d7a59ad",
+    "crates/engram_server/src/tools.rs": "a4ab2e757164da15f7d33eef223d21a8c0714c3625855dc135b93c62302207d3",
+    "crates/engram_server/tests/ask_literal_settings.rs": "dcb155ba87555e746c6b70b3f58a34390e8e9ece1e3e6ea0e2cf110e8a622c71"
+  },
+  "native_test_cases_written": 2,
+  "native_tests_executed": 0,
+  "post_change_public_checks_executed": 0,
+  "builds_started": 0,
+  "runtime_deployed": false,
+  "real_model_calls": 0,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-literal-settings-20261117\\verify-public.py",
+  "public_verifier_sha256": "4b9af64e31dcfde24f1127e2110855218d383d7dddb7ff740f3e65aec92c1a26",
+  "limits": [
+    "Source implementation only. Rust type-checking, focused native behavior, positive public ranking and installed acceptance remain pending.",
+    "Observed getter names are neither effective values nor compiler/store bindings. No deployment or task productivity gain claimed.",
+    "No valid whole-turn coding percentage: initial investigation and initial edit were outside the phase markers."
+  ],
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-literal-settings-20261117",
+    "baseline_fixtures_removed": true,
+    "baseline_processes_closed": true,
+    "retention": "Keep contract, private verifiers, fixed fixture inputs and exact receipts for combined acceptance. No preexisting deletion."
+  }
+}
