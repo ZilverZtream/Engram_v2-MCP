@@ -35,7 +35,7 @@ fn schemas_expose_shared_recovery_for_selected_reports_and_preserve_existing_own
         let advertised = advertise(tool);
         if selected {
             let schema = crate::tool_surface::sanitize_schema(&advertised.input_schema);
-            if server_discovery(advertised.name.as_ref()) {
+            if project_free(advertised.name.as_ref()) {
                 assert!(!schema["required"].as_array()
                     .is_some_and(|fields| fields.iter().any(|field| field == "project_id")));
             } else {

@@ -1702,3 +1702,31 @@ built-in runtime binding, execution order or stored values. Each browser fact ma
 runtime_execution_proven and shared_browser_store_proven false; an otherwise
 answered status is qualified to partial. Historical as_of retrieval remains the
 separate Git-source path and does not reconstruct browser state.
+
+
+### Bounded project bootstrap results
+
+`index_project` accepts `max_tokens`, `output_json`, `response_id` and
+`response_offset` in every preset that includes indexing. Fresh calls still require
+`directory` and `project_name`. Fitting plain acknowledgements retain their existing
+format. Optional JSON contains the complete original MCP result and an `operation`
+with the returned `project_id`, optional `job_id` and acknowledgement kind (`indexed`,
+`existing_registration`, or `index_job_started`). An unrecognized acknowledgement
+supplies no inferred IDs. A queued acknowledgement never proves job completion.
+
+The default complete reply-text budget is 40KiB, estimated at4UTF-8bytes/token.
+Oversized results retain the original acknowledgement, all report warnings and every
+separate guidance part in the existing immutable result store. The deferred reply
+keeps returned IDs and an exact `response_delivery.next_call`. Recovery requires only
+the returned delivery controls: no directory, project name or project ID. It reads the
+saved result before operation routing and never registers or indexes a project.
+Recover all pages and verify their BLAKE3 identity before interpreting the result.
+Captured reports describe the original operation, not current source freshness.
+
+Budgets too small for recovery metadata fail before registration. If result retention
+fails after the handler returns, the complete original outcome is preserved with an
+explicit `ORIGINAL_OUTCOME_PRESERVED_DELIVERY_FAILED` warning and `budget_honored:false`.
+If saved recovery is unavailable, reconcile `list_projects`/`project_info` and any
+returned job with `get_job_status`; do not repeat indexing solely to recover a reply.
+This adds delivery controls; it does not establish typical default-budget overflow,
+exhaustive extraction, runtime correctness or measured agent-task benefit.

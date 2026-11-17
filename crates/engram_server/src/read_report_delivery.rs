@@ -11,6 +11,7 @@ use std::path::Path;
 
 const TOOLS: &[&str] = &[
     "update_project",
+    "index_project",
     "list_projects",
     "list_advanced_tools",
     "project_info",
@@ -95,6 +96,44 @@ fn server_discovery(tool: &str) -> bool {
     matches!(tool, "list_projects" | "list_advanced_tools" | "list_jobs" | "get_job_status")
 }
 
+fn project_free(tool: &str) -> bool {
+    server_discovery(tool) || tool == "index_project"
+}
+
+fn returned_operation(tool: &str) -> bool {
+    matches!(tool, "update_project" | "index_project")
+}
+
+const INDEX_DELIVERY_INSTRUCTION: &str = "Do not repeat index_project to recover this response. The original acknowledgement is in the saved result. A queued job acknowledgement does not establish job completion; poll get_job_status for its job_id. If recovery expires, reconcile list_projects/project_info and any returned job_id before deciding on a new operation. Delivery does not imply rollback.";
+
+// Read identities only from the handler's acknowledgement header, never from
+// report warnings, a project name, a path or a later content part.
+fn index_operation(original: &CallToolResult) -> Value {
+    let mut value = json!({"handler_returned":true,
+        "acknowledgement":"unrecognized", "instruction":INDEX_DELIVERY_INSTRUCTION});
+    if original.is_error == Some(true) { return value; }
+    let Some(text) = original.content.first().and_then(|part| part.as_text()) else { return value; };
+    let mut lines = text.text.lines();
+    let first = lines.next().unwrap_or("");
+    let (kind, project, job) = if let Some(project) = first.strip_prefix("\u{2705} Indexed project_id: ") {
+        ("indexed", Some(project), None)
+    } else if first == "Existing project registration." {
+        ("existing_registration", lines.next().and_then(|line| line.strip_prefix("project_id: ")), None)
+    } else if first == "\u{1f7e1} Index job started." {
+        let job = lines.next().and_then(|line| line.strip_prefix("job_id: "));
+        let project = lines.next().and_then(|line| line.strip_prefix("project_id: "));
+        ("index_job_started", project, job)
+    } else { return value; };
+    if let Some(project) = project.filter(|id| uuid::Uuid::parse_str(id).is_ok()) {
+        value["acknowledgement"] = json!(kind);
+        value["project_id"] = json!(project);
+        if let Some(job) = job.filter(|id| uuid::Uuid::parse_str(id).is_ok()) {
+            value["job_id"] = json!(job);
+        }
+    }
+    value
+}
+
 #[cfg(test)]
 #[path = "read_report_delivery_tests.rs"]
 mod tests;
@@ -109,7 +148,7 @@ pub fn eligible(tool: &Tool) -> Option<&'static str> {
     if properties.is_some_and(|properties| CONTROLS.iter().any(|key| properties.contains_key(*key))) {
         return None;
     }
-    if server_discovery(name) {
+    if project_free(name) {
         return Some(name);
     }
     tool.input_schema
@@ -124,7 +163,7 @@ pub fn advertise(mut tool: Tool) -> Tool {
     if eligible(&tool).is_none() {
         return tool;
     }
-    let global = server_discovery(tool.name.as_ref());
+    let global = project_free(tool.name.as_ref());
     let schema = std::sync::Arc::make_mut(&mut tool.input_schema);
     schema.entry("properties").or_insert_with(|| json!({}));
     let required = schema
@@ -166,6 +205,9 @@ pub fn advertise(mut tool: Tool) -> Tool {
     if tool.name == "update_project" {
         tool.description = Some(format!("{} Delivery recovery never repeats the update. A returned operation is not proof of background-job completion; recover the original acknowledgement and poll its job if queued. If retaining an oversized result fails after the operation, the original outcome is returned with an explicit warning that its delivery budget was exceeded.", tool.description.as_deref().unwrap_or("")).into());
     }
+    if tool.name == "index_project" {
+        tool.description = Some(format!("{} Delivery recovery never repeats indexing or registration and requires no directory/project_name. JSON and deferred results expose returned project/job IDs when present. Queued acknowledgements are not completed jobs. If result retention fails after indexing, the complete original outcome is returned with an explicit budget warning.", tool.description.as_deref().unwrap_or("")).into());
+    }
     tool
 }
 
@@ -186,7 +228,7 @@ pub struct Report {
     offset: usize,
     capture_window: bool,
     json_envelope: bool,
-    server_discovery: bool,
+    project_free: bool,
 }
 
 pub fn prepare(
@@ -202,7 +244,7 @@ pub fn prepare(
     let Some(tool) = eligible(definition) else {
         return Ok(None);
     };
-    let global = server_discovery(tool);
+    let global = project_free(tool);
     // Handler-owned JSON retains its schema, arguments and original result.
     let owns_json = definition.input_schema.get("properties")
         .and_then(|properties| properties.get("output_json")).is_some();
@@ -217,7 +259,9 @@ pub fn prepare(
         "max_tokens":args.get("max_tokens"),"response_id":args.get("response_id"),"response_offset":args.get("response_offset"),
         "output_json":if owns_json {None} else {args.get("output_json")}
     })).map_err(|error| McpError::invalid_params(format!("Invalid read-report delivery controls: {error}"), None))?;
-    let project = if global { "server-discovery".to_owned() } else { args
+    let project = if global {
+        if tool == "index_project" { "server-index-operation" } else { "server-discovery" }.to_owned()
+    } else { args
         .get("project_id")
         .and_then(Value::as_str)
         .ok_or_else(|| {
@@ -235,7 +279,7 @@ pub fn prepare(
         offset: controls.response_offset.unwrap_or(0),
         capture_window: false,
         json_envelope: controls.output_json.unwrap_or(false),
-        server_discovery: global,
+        project_free: global,
     }.checked()?;
     if let Some(args) = request.arguments.as_mut() {
         for key in CONTROLS {
@@ -255,14 +299,14 @@ impl Report {
         tool: &'static str, project: String, budget: usize,
         response_id: Option<String>, offset: usize,
     ) -> Result<Self, McpError> {
-        Self { tool, project, budget, response_id, offset, capture_window: false, json_envelope: false, server_discovery: false }.checked()
+        Self { tool, project, budget, response_id, offset, capture_window: false, json_envelope: false, project_free: false }.checked()
     }
 
     pub(crate) fn retained_window(
         tool: &'static str, project: String, budget: usize,
         response_id: Option<String>, offset: usize,
     ) -> Result<Self, McpError> {
-        Self { tool, project, budget, response_id, offset, capture_window: true, json_envelope: false, server_discovery: false }.checked()
+        Self { tool, project, budget, response_id, offset, capture_window: true, json_envelope: false, project_free: false }.checked()
     }
 
     fn checked(self) -> Result<Self, McpError> {
@@ -273,7 +317,7 @@ impl Report {
         }
         let minimum = self.manifest(&"0".repeat(64), 8 * 1024 * 1024).len();
         if self.budget < minimum {
-            let action = if self.tool == "update_project" { "Operation" } else { "Analysis" };
+            let action = if returned_operation(self.tool) { "Operation" } else { "Analysis" };
             return Err(McpError::invalid_params(format!(
                 "max_tokens is too small for read-report identity and recovery metadata; increase to at least {} estimated tokens. {action} was not run.",
                 minimum.div_ceil(4)), None));
@@ -282,6 +326,20 @@ impl Report {
     }
 
     fn manifest(&self, id: &str, bytes: usize) -> String {
+        // Reserve both full-length IDs before any indexing is admitted. These
+        // placeholders are only a sizing probe; actual replies use the header.
+        let probe = json!({"handler_returned":true,"acknowledgement":"existing_registration",
+            "project_id":"00000000-0000-0000-0000-000000000000",
+            "job_id":"00000000-0000-0000-0000-000000000000",
+            "instruction":INDEX_DELIVERY_INSTRUCTION});
+        self.manifest_for(id, bytes, Some(&probe))
+    }
+
+    fn report_scope(&self) -> &'static str {
+        if self.tool == "index_project" { "server_operation" } else { "server_discovery" }
+    }
+
+    fn manifest_for(&self, id: &str, bytes: usize, operation: Option<&Value>) -> String {
         let mut value = json!({"tool":self.tool,"project_id":self.project,"report_content":"DEFERRED_NOT_SUPPLIED",
             "response_delivery":{"status":"DEFERRED_READ_REPORT","complete":false,
                 "response_id":id,"original_bytes":bytes,"original_format":"mcp_call_tool_result_json",
@@ -293,9 +351,9 @@ impl Report {
         if self.capture_window {
             value["response_delivery"]["capture_scope"] = json!("Immutable original requested result window, captured before reply-budget clipping. Existing retrieval/window/content limits still apply. This retains the report, not underlying source objects or the whole corpus. Guidance and freshness describe capture time. Follow saved next_call pages; original offset actions outside this capture are fresh queries.");
         }
-        if self.server_discovery {
+        if self.project_free {
             value.as_object_mut().unwrap().remove("project_id");
-            value["report_scope"] = json!("server_discovery");
+            value["report_scope"] = json!(self.report_scope());
             Self::discovery_action(&mut value["response_delivery"]["next_call"]);
         }
         if self.tool == "update_project" {
@@ -304,6 +362,9 @@ impl Report {
                 "outcome":"Original acknowledgement and any separate instruction observation are in the saved result.",
                 "instruction":"Do not repeat update_project to recover this response. Recover the original acknowledgement before acting on its outcome. A returned background-job acknowledgement does not establish job completion; poll get_job_status for its job_id. Delivery does not establish rollback or current source freshness."
             });
+        }
+        if self.tool == "index_project" {
+            if let Some(operation) = operation { value["operation"] = operation.clone(); }
         }
         value.to_string()
     }
@@ -326,8 +387,13 @@ impl Report {
                     self.budget,
                     self.tool,
                 )
+                .map_err(|error| {
+                    if returned_operation(self.tool) && error.message.starts_with("Response snapshot unavailable;") {
+                        McpError::invalid_params(format!("Response snapshot unavailable. Do not repeat {} solely to recover its response. Reconcile list_projects/project_info and any returned job_id with get_job_status before deciding on a new operation.", self.tool), None)
+                    } else { error }
+                })
                 .and_then(|page| {
-                    let page = if self.server_discovery {
+                    let page = if self.project_free {
                         let mut value: Value = serde_json::from_str(&page)
                             .map_err(|error| McpError::internal_error(error.to_string(), None))?;
                         // Removing a private storage binding cannot grow a page
@@ -346,16 +412,29 @@ impl Report {
         data: &Path,
         original: CallToolResult,
     ) -> Result<CallToolResult, McpError> {
-        if self.tool != "update_project" {
+        if !returned_operation(self.tool) {
             return self.finish_report(data, original);
         }
-        // The update has already returned. Failure to retain its report must
+        // The operation has already returned. Failure to retain its report must
         // not replace its outcome with an MCP error that invites a retry.
         let mut fallback = original.clone();
         match self.finish_report(data, original) {
             Ok(delivered) => Ok(delivered),
             Err(error) => {
-                tracing::warn!(%error, "update result retention failed; preserving original operation outcome");
+                tracing::warn!(%error, tool=self.tool, "result retention failed; preserving original operation outcome");
+                if self.tool == "index_project" {
+                    fallback.content.push(Content::text(json!({
+                        "tool":self.tool,"report_scope":"server_operation",
+                        "operation":index_operation(&fallback),
+                        "response_delivery":{
+                            "status":"ORIGINAL_OUTCOME_PRESERVED_DELIVERY_FAILED",
+                            "budget_honored":false,"response_budget_bytes":self.budget,
+                            "recovery_available":false,"reason":error.message,
+                            "instruction":"The index handler already returned. Its complete original outcome is retained above and exceeds the requested delivery budget. Do not repeat index_project to recover its result. A queued job still requires get_job_status; this delivery failure does not imply rollback."
+                        }
+                    }).to_string()));
+                    return Ok(fallback);
+                }
                 fallback.content.push(Content::text(json!({
                     "tool":"update_project","project_id":self.project,
                     "response_delivery":{
@@ -384,6 +463,7 @@ impl Report {
         {
             return Ok(original);
         }
+        let operation = (self.tool == "index_project").then(|| index_operation(&original));
         let original = if self.json_envelope {
             let result = serde_json::to_value(&original)
                 .map_err(|error| McpError::internal_error(error.to_string(), None))?;
@@ -394,10 +474,11 @@ impl Report {
                     "scope":"complete_original_selected_report",
                     "coverage":"Existing handler limits, omissions, warnings and freshness remain in result. Complete delivery does not prove exhaustive source coverage or runtime correctness."}
             });
-            if self.server_discovery {
+            if self.project_free {
                 envelope.as_object_mut().unwrap().remove("project_id");
-                envelope["report_scope"] = json!("server_discovery");
+                envelope["report_scope"] = json!(self.report_scope());
             }
+            if let Some(operation) = &operation { envelope["operation"] = operation.clone(); }
             CallToolResult::success(vec![Content::text(envelope.to_string())])
         } else {
             original
@@ -421,7 +502,7 @@ impl Report {
         let body = serde_json::to_string(&original)
             .map_err(|error| McpError::internal_error(error.to_string(), None))?;
         let id = blake3::hash(body.as_bytes()).to_hex().to_string();
-        let manifest = self.manifest(&id, body.len());
+        let manifest = self.manifest_for(&id, body.len(), operation.as_ref());
         if manifest.len() > self.budget {
             return Err(McpError::invalid_params(
                 "Increase max_tokens for complete read-report recovery metadata",
