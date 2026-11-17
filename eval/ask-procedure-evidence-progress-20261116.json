@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_NEXT_BATCH_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-16T18:55:22.737081+00:00",
   "original_requirement_id": "TODO-28",
   "original_requirement": "Natural-language entry point composes existing specialized source evidence",
@@ -58,5 +58,11 @@
     "protected_wip9_preserved": true,
     "retention": "Retain baseline/wire/source contract and future drivers until installed acceptance or supersession. No preexisting folder deletion."
   },
-  "next_action": "Keep outside the compiling browser/JSON/history release. Accumulate further distinct original outcomes for the next combined validation batch."
+  "next_action": "Finite component delivered November16. Do not restart source work or replay validation based on the retained old pending text; original requirement limits remain.",
+  "retained_source_status_before_reconciliation_20261117": "SOURCE_COMPLETE_AWAITING_NEXT_BATCH_VALIDATION",
+  "delivery_record": "eval/procedure-discovery-schema-batch-delivery-20261116.json",
+  "runtime_deployed": true,
+  "implementation_items_active": 0,
+  "validation_status": "RECONCILED_FROM_VERIFIED_RETAINED_NOVEMBER16_DELIVERY",
+  "reconciliation_limit": "Metadata correction only: exact original3 source commits,21candidate/21installed checks, installed deployment cleanup and normal proxy restoration verified by retained hashes. No new runtime acceptance or deployment claimed. Earlier failed completion2 evidence remains retained."
 }

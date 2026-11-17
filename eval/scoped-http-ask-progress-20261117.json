@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-28",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "source_phase_started_at_utc": "2026-11-17T12:20:45.667996+00:00",
   "original_requirement": "Natural-language entry point composes source/graph/access capabilities for LegacyValidation questions while honoring requested path scope.",
   "observed_missing_behavior": "Explicit HTTP questions with a natural-language path qualifier return misunderstood without tracing, although the existing source inventory and trace reader can select files. Ordinary trace recovery currently cannot carry a scope.",
@@ -18,9 +18,9 @@
     "The shared selected map excludes out-of-scope server, dependency and script source reads. Selected Global.asax path markers may establish application-root metadata without reading their bodies; registrations and excluded companions remain unknown. Authored policy dependencies remain explicit guidance, not query code.",
     "Disjoint scope yields no routing facts, stale source withholds handler claims, and unscoped direct/ask behavior remains. Owned native cases plus retained exact non-Q page sources public checks will be queued with at least two other independent original outcomes before Cargo."
   ],
-  "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
+  "engram_builds_started": 3,
+  "native_tests_executed": 4,
+  "runtime_deployed": true,
   "baseline_source_sha256": {
     "crates/engram_server/src/models/requests.rs": "ca4cbfc04b1f72cc9a78c8d28ed5fa36f06de0090fc7efdf2918493e2c13008f",
     "crates/engram_server/src/handlers/ask_request_trace.rs": "1d8dd254a1c48e39811ec2c19828ca5d5126871ebeeb39974a53a751e92ce010",
@@ -40,7 +40,7 @@
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-http-ask-20261117\\contract.json",
   "implementation_items_active": 0,
-  "next_action": "One shared release1 is running in session42538. Reuse its exact artifact for candidate/installed acceptance; do not rebuild or repeat debug/native acceptance.",
+  "next_action": "Finite component installed. Advance remaining original work; do not replay this accepted batch.",
   "at_utc": "2026-11-17T12:25:54.701910+00:00",
   "source_pins": {
     "Site/Area/language.aspx": {
@@ -93,10 +93,15 @@
   "supporting_validation_pending": [
     "Core surface focused checks including request-trace dependency and34-tool ceiling"
   ],
-  "validation_status": "FOCUSED_NATIVE_AND_PUBLIC_PASS_RELEASE1_RUNNING",
+  "validation_status": "INSTALLED_ACCEPTED",
   "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native1-correction.json",
   "native_cases_distinct_covered": 4,
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native-acceptance.json",
   "debug_public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\debug1\\receipt.json",
-  "shipping_source_commit": "3561de67fa32817cf59127bd018fbdab958231ee"
+  "shipping_source_commit": "3561de67fa32817cf59127bd018fbdab958231ee",
+  "delivery_record": "eval/scoped-request-sql-review-batch-delivery-20261117.json",
+  "installed_public_checks": 8,
+  "candidate_public_checks": 8,
+  "public_check_executions": 24,
+  "build_count_scope": "Shared two focused native Cargo invocations (including concrete failed-case correction) and one release for three independent requirements. No extra debug/full suite."
 }

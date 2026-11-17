@@ -823,7 +823,12 @@
       "declared_scope_delivery_20261113": "eval/legacy_validation-review-scope-delivery-20261113.json",
       "review_response_budget_delivery_20261113": "eval/legacy_validation-review-response-budget-delivery-20261113.json",
       "status_reconciliation_20261113": "eval/legacy_validation-shortlist-status-reconciliation-20261113.json",
-      "latest_bounded_delivery_20261115": "eval/ai-workflow-batch-delivery-20261115.json; selected workflow behavior installed, broader finding remains open."
+      "latest_bounded_delivery_20261115": "eval/ai-workflow-batch-delivery-20261115.json; selected workflow behavior installed, broader finding remains open.",
+      "file_first_review_discovery_delivery_20261117": {
+        "record": "eval/scoped-request-sql-review-batch-delivery-20261117.json",
+        "finite_component_installed": true,
+        "full_original_requirement_complete": false
+      }
     },
     {
       "id": "EG-20",
@@ -10201,50 +10206,66 @@
   },
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
-    "original_requirement_ids": [
-      "TODO-33",
-      "TODO-28",
-      "EG-01"
-    ],
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "original_requirement_ids": [
+      "TODO-28",
+      "TODO-35",
+      "EG-19"
+    ],
     "implementation_items_active": 0,
     "pending_source_outcomes": 0,
-    "native_target": "page_request_guidance_batch",
-    "expected_native_cases": 7,
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117",
+    "native_target": "scoped_request_sql_review_batch",
+    "expected_native_cases": 16,
+    "expected_public_checks": 24,
     "full_or_lib_suite": false,
     "extra_debug_build": false,
+    "reason_for_validation": "Three separately useful original workflow gaps are source-complete with finite contracts, existing installed gap evidence and fixed user-facing behavior cases. The selected source items and necessary preset compatibility corrections are finished; no additional source change has been selected for this batch. Validate these integrated outcomes before claiming or deploying behavior. The minimum is not an automatic release schedule.",
+    "engram_builds_started": 3,
     "full_original_goal_active": true,
-    "next_action": "Advance the next ready unfinished original requirement, preserving this installed delivery, all31findings/19gates, held items and frozen matched QA task. No further build/replay for this passed batch.",
-    "shipping_source_commit": "530398b4ee619b5895f67efd2096a39c2fc79984",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117",
-    "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117\\source-preparation.json",
+    "at_utc": "2026-11-17T12:53:41.677623+00:00",
+    "validation_status": "INSTALLED_ACCEPTED",
+    "shipping_source_commit": "3561de67fa32817cf59127bd018fbdab958231ee",
+    "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\source-preparation.json",
     "native_commands_started": 2,
     "release_commands_started": 1,
-    "at_utc": "2026-11-17T11:53:39.525079+00:00",
-    "native_session_id": 98951,
-    "runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117\\native1-owner.json",
-    "native1_terminal_exit_code": 0,
-    "native1_passed_cases": 7,
-    "retained_failed_public": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117\\debug1\\receipt.json",
-    "native_cases_executed": 7,
+    "native_exec_session_id": 17163,
+    "native_runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native2-owner.json",
     "native_commands_terminal": true,
-    "native_terminal_exit_code": 0,
-    "current_artifact_public_checks_passed": 23,
-    "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117\\native-acceptance.json",
-    "debug_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117\\debug2\\receipt.json",
-    "debug_binary_sha256": "b1949d5b75972e3b8c2c6294152307eae222161f00282be8d3d7f58d0e48d5e1",
-    "release_exec_session_id": 70750,
-    "release_runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117\\release1-owner.json",
-    "native_comparison_session_id": 91310,
-    "native_comparison_terminal_exit_code": 0,
-    "delivery_record": "eval/page-request-guidance-batch-delivery-20261117.json",
-    "release_terminal_exit_code": 0,
-    "candidate_public_checks": 23,
-    "installed_public_checks": 23,
-    "normal_daemon_restored": 29580,
+    "public_driver_sha256": "4a013109a9a611b0a3cd494e0e12389d440a61d79c7c8aa3272d576a2387caae",
+    "release_plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\release-plan.json",
+    "native1_terminal_exit_code": 101,
+    "native1_passed_cases": 12,
+    "native1_failed_cases": 4,
+    "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native1-correction.json",
+    "native1_exec_session_id": 86192,
+    "native1_terminal": true,
+    "next_action": "Advance the next ready unfinished original requirement. Preserve this installed delivery, all31findings/19gates, held items and frozen QA task. No replay/build for this accepted batch.",
+    "native2_terminal_exit_code": 0,
+    "native_cases_covered": 16,
+    "unaffected_native_cases_retained": 10,
+    "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native-acceptance.json",
+    "debug_binary_sha256": "d100fd9edfd2561d0ba39eb9df5190969b8fa3eac06dc79afe19a2032450d11c",
+    "debug_public_exec_session_id": 46504,
+    "debug_public_terminal_exit_code": 0,
+    "debug_public_checks_passed": 24,
+    "debug_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\debug1\\receipt.json",
+    "native_runner_total_seconds": 420.3512560001109,
     "release_commands_terminal": true,
+    "release_exec_session_id": 42538,
+    "release_runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\release1-owner.json",
+    "release_terminal_exit_code": 0,
+    "release_runner_seconds": 824.9453492000466,
+    "release_binary_sha256": "8de71b39805dc164a92dc08bc1e3ff0b86431c01dc3920214075fbf99768b7f3",
+    "package_pair": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\pair1.json",
+    "delivery_record": "eval/scoped-request-sql-review-batch-delivery-20261117.json",
+    "candidate_public_checks": 24,
+    "installed_public_checks": 24,
+    "deployment_exec_session_id": 9743,
     "deployment_terminal_exit_code": 0,
-    "completion_terminal_exit_code": 0
+    "completion_exec_session_id": 52472,
+    "completion_terminal_exit_code": 0,
+    "normal_daemon_restored": 46836
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -10411,7 +10432,7 @@
     "record": "eval/revision-guard-history-batch-delivery-20261115.json",
     "full_original_goal_complete": false
   },
-  "next_user_visible_deliverable": "Advance remaining original work without replaying this installed page/request/guidance batch. Feature-plan semantic failure, task usefulness, original storage gates and held items remain unfinished.",
+  "next_user_visible_deliverable": "Advance the next ready unfinished original requirement. Preserve this installed delivery, all31findings/19gates, held items and frozen QA task. No replay/build for this accepted batch.",
   "retained_index_output_source_progress": {
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/retained-index-output-progress-20261115.json",
@@ -10488,35 +10509,7 @@
     "record": "eval/method-schema-area-batch-delivery-20261116.json",
     "full_original_goal_complete": false
   },
-  "following_batch_pending": [
-    {
-      "original_requirement_id": "TODO-28",
-      "outcome": "Complete selected-source procedure evidence in ordinary natural-language answers",
-      "source_commit": "2b045590daa12b3219efb11d803d360e75927426",
-      "progress": "eval/ask-procedure-evidence-progress-20261116.json",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "counts_as_independent_deliverables": 1
-    },
-    {
-      "original_requirement_id": "TODO-4",
-      "outcome": "Bounded project and tool discovery with project-free exact recovery",
-      "source_commit": "149dd541f169a070ba3388858f225b7f56041707",
-      "progress": "eval/discovery-report-delivery-progress-20261116.json",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116\\contract.json",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "counts_as_independent_deliverables": 1
-    },
-    {
-      "original_requirement_id": "TODO-33",
-      "outcome": "Typed SQL schema batches preserve ordinary evidence, errors and recovery",
-      "source_commit": "6b4d52e79d77a8bfd5079438fe78751afc2106fd",
-      "progress": "eval/batch-schema-read-progress-20261116.json",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116\\contract.json",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "counts_as_independent_deliverables": 1
-    }
-  ],
+  "following_batch_pending": [],
   "source_policy_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/source-policy-batch-delivery-20261116.json",
@@ -16565,5 +16558,77 @@
     "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117\\source-preparation.json",
     "native_commands_started": 0,
     "release_commands_started": 0
+  },
+  "scoped_request_sql_review_batch_delivery_20261117": {
+    "record": "eval/scoped-request-sql-review-batch-delivery-20261117.json",
+    "original_requirement_ids": [
+      "TODO-28",
+      "TODO-35",
+      "EG-19"
+    ],
+    "full_original_goal_complete": false
+  },
+  "retained_historical_following_batch_pending_20261117": [
+    {
+      "original_requirement_id": "TODO-28",
+      "outcome": "Complete selected-source procedure evidence in ordinary natural-language answers",
+      "source_commit": "2b045590daa12b3219efb11d803d360e75927426",
+      "progress": "eval/ask-procedure-evidence-progress-20261116.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "counts_as_independent_deliverables": 1
+    },
+    {
+      "original_requirement_id": "TODO-4",
+      "outcome": "Bounded project and tool discovery with project-free exact recovery",
+      "source_commit": "149dd541f169a070ba3388858f225b7f56041707",
+      "progress": "eval/discovery-report-delivery-progress-20261116.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116\\contract.json",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "counts_as_independent_deliverables": 1
+    },
+    {
+      "original_requirement_id": "TODO-33",
+      "outcome": "Typed SQL schema batches preserve ordinary evidence, errors and recovery",
+      "source_commit": "6b4d52e79d77a8bfd5079438fe78751afc2106fd",
+      "progress": "eval/batch-schema-read-progress-20261116.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116\\contract.json",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "counts_as_independent_deliverables": 1
+    }
+  ],
+  "historical_queue_reconciliation_20261117": {
+    "status": "HISTORICAL_SOURCE_PENDING_TEXT_RECONCILED",
+    "original_delivery": "eval/procedure-discovery-schema-batch-delivery-20261116.json",
+    "source_commits": [
+      "2b045590daa12b3219efb11d803d360e75927426",
+      "149dd541f169a070ba3388858f225b7f56041707",
+      "6b4d52e79d77a8bfd5079438fe78751afc2106fd"
+    ],
+    "checked_receipts": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\candidate2\\acceptance.json",
+        "sha256": "6e0ef7f50ca3725a2d4e8a2174e80b6a846cf909cda194e0ca2c715ad2adca46"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\installed1\\acceptance.json",
+        "sha256": "9c70401390444c1a15bdf7ca248b8caa0de8782e7243282879bfc17be3109c5e"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\deployment5-state.json",
+        "sha256": "84de60a12df0922d0edc367aabc65995222cc412b3d91e6dc5a3fa69e5805c44"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\restored-runtime\\receipt.json",
+        "sha256": "7f5a022061eaa566e8a71aa7ce1c25248d549863ffc7313534ac7f54da0483b0"
+      }
+    ],
+    "retained_earlier_failed_completion": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\completion2-state.json",
+      "sha256": "044ef9d2f98aa88b09d7400da1ee344c603ecadfc3e3cbb01df29b6b0ce80dd9"
+    },
+    "new_builds": 0,
+    "new_runtime_checks": 0,
+    "full_original_goal_complete": false
   }
 }

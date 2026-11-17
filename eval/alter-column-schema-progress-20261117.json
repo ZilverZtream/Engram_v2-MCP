@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-35",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "Agents can retrieve source-declared SQL table/column evidence, with qualified identities, nullability/defaults and source freshness, without inventing deployed database state.",
   "observed_missing_behavior": "Catalog records ALTER TABLE only as a coverage gap/operation except separately implemented foreign keys. Table and individual-column queries omit ADD/ALTER/DROP column declarations entirely; newly declared columns have no queryable cited operation.",
   "priority_basis": "LegacyValidation current Full configuration advertises query_schema; its retained db-legacy_validation.sql post-deployment scripts establish the source-migration workflow. This adds source column-operation discovery to the accepted schema requirement. No claim that a specific uninspected live migration is affected.",
@@ -19,9 +19,9 @@
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-column-schema-20261117\\contract.json",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-column-schema-20261117",
   "implementation_items_active": 0,
-  "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
+  "engram_builds_started": 3,
+  "native_tests_executed": 3,
+  "runtime_deployed": true,
   "full_original_goal_active": true,
   "baseline_source_sha256": {
     "crates/engram_server/src/services/schema_query.rs": "9db0147a662f169d187ace09e0161c51880ed44ba87be1a677d458ef63fd586f",
@@ -57,15 +57,19 @@
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-column-schema-20261117\\verify-public.py",
   "public_verifier_sha256": "2d4298312f58293ca1aee74841fde2cbc22e370c07a2ae7f0a70832d4aa85b37",
   "limits": [
-    "Source implementation only. Type checking, focused native cases and post-change public checks are pending; deployed runtime is unchanged.",
     "Supported ADD/ALTER/DROP column declarations remain separate from CREATE baselines. No migration interpreter, execution/order, live schema, dynamic SQL or unsupported syntax claim. Other schema summaries retain their existing CREATE-only scope.",
     "No new model calls, LegacyValidation source reads/reindex/mutation, Site/Q access, closed-tool work, language expansion or full suite."
   ],
-  "next_action": "One shared release1 is running in session42538. Reuse its exact artifact for candidate/installed acceptance; do not rebuild or repeat debug/native acceptance.",
+  "next_action": "Finite component installed. Advance remaining original work; do not replay this accepted batch.",
   "source_commit": "7d8d98fc295f937aeb6f0e155d290ea5c02fa9b4",
-  "validation_status": "FOCUSED_NATIVE_AND_PUBLIC_PASS_RELEASE1_RUNNING",
+  "validation_status": "INSTALLED_ACCEPTED",
   "native_cases_distinct_covered": 3,
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native-acceptance.json",
   "debug_public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\debug1\\receipt.json",
-  "shipping_source_commit": "3561de67fa32817cf59127bd018fbdab958231ee"
+  "shipping_source_commit": "3561de67fa32817cf59127bd018fbdab958231ee",
+  "delivery_record": "eval/scoped-request-sql-review-batch-delivery-20261117.json",
+  "installed_public_checks": 8,
+  "candidate_public_checks": 8,
+  "public_check_executions": 24,
+  "build_count_scope": "Shared two focused native Cargo invocations (including concrete failed-case correction) and one release for three independent requirements. No extra debug/full suite."
 }

@@ -1,0 +1,83 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-17T13:33:23.092377+00:00",
+  "original_requirement_ids": [
+    "TODO-28",
+    "TODO-35",
+    "EG-19"
+  ],
+  "shipping_source_commit": "3561de67fa32817cf59127bd018fbdab958231ee",
+  "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\source-preparation.json",
+  "delivered": [
+    "Path-scoped explicit HTTP questions trace only matching selected code bodies and preserve scopes in ordinary recovery. Selected application-root path metadata is disclosed separately from read files. Complete multi-file facts survive final ask filtering; stale handlers are withheld.",
+    "Table and column queries expose separately cited SQL Server ADD/ALTER/DROP column operations, including later-added columns absent from CREATE. Declared types/defaults/nullability and source hashes remain; CREATE baselines and unknown migration execution/order are preserved.",
+    "get_review_decisions discovers complete admitted latest events from exact file paths without known review IDs, using the existing bounded scope/legacy reader. Conditions, provenance, exact history navigation, partial coverage and no current-head/authentication/suppression claims remain. Saved report recovery retains original discovery after later append."
+  ],
+  "validation": {
+    "distinct_native_cases_covered": 16,
+    "native_case_executions": 22,
+    "native_commands": 2,
+    "unaffected_native_cases_retained": 10,
+    "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native-acceptance.json",
+    "debug_public_checks": 24,
+    "candidate_public_checks": 24,
+    "installed_public_checks": 24,
+    "full_or_lib_suite": false,
+    "extra_debug_build": false,
+    "real_model_calls": 0
+  },
+  "build_cost": {
+    "native_runner_seconds": 420.3512560001109,
+    "release_commands": 1,
+    "release_runner_seconds": 824.9453492000466,
+    "combined_runner_seconds": 1245.2966052001575,
+    "actual_coding_percentage": null,
+    "limits": "Runner totals include compilation, tests and cleanup, not pure compiler CPU or exclusive typing time. First focused run:12pass/4fail. Corrected one scoped-ask integration defect and affected fixtures, then only6 affected cases passed;10 unaffected successes retained. One release, no extra debug/full/lib/no-vector build."
+  },
+  "installed_pair": {
+    "server_sha256": "8de71b39805dc164a92dc08bc1e3ff0b86431c01dc3920214075fbf99768b7f3",
+    "manifest_sha256": "c3e0ca441cffb016bff1b832749b0c93c885cf946e2680f60b036323a7b21d13",
+    "assets_verified": 215,
+    "sidecar_sha256": "0199d344917619ce4b85a212b5b6e08726a0263c4bb52ebf6a362d0b77bc4079",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "selected_generation": 3151
+  },
+  "normal_runtime": {
+    "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+    "daemon_pid": 46836,
+    "normal_proxy_verified": true
+  },
+  "bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\Engram-win-x64-scoped-request-sql-review.zip",
+    "sha256": "79e916ce45ce24a1ffd21ffa2524cd93f71ee070ca6f6a9cf09f1189e443bba6",
+    "entries": 219,
+    "runtime_assets": 215,
+    "public_hosting": false
+  },
+  "resources": {
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117",
+    "compiler_jobs_closed": true,
+    "owned_fixtures_removed": true,
+    "config_hold_closed": true,
+    "owned_config_copy_removed": true,
+    "protected_wip9_unchanged": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-4d0f674099004c1d9c8b447f169edd67",
+    "retention": "Retain contracts, original failures/corrections/passes, package, ZIP and managed rollback pair. Normal daemon belongs to application lifecycle. No preexisting folder deletion."
+  },
+  "retained_failures": {
+    "initial_native": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native1.json",
+    "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native1-correction.json",
+    "review_baseline_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-discovery-20261117\\baseline1\\receipt.json",
+    "review_baseline_wire_reconciliation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-discovery-20261117\\baseline-reconciliation.json"
+  },
+  "limits": [
+    "Full original31findings/19gates and accepted backlog remain active; these are finite component deliveries.",
+    "HTTP traces are static candidates, SQL operations are source declarations, and review rulings are advisory evidence. No dispatch, deployed-schema, authenticated authority, semantic applicability or matched task-benefit proof.",
+    "Existing source/deadline/memory/discovery limits and legacy identity gaps remain. Ordinary recovery/history actions are fresh reads; saved report recovery retains its original data.",
+    "No actual LegacyValidation reindex/mutation, Site/Q read, model/task replay, CodeMap/Blast improvement or target-language expansion."
+  ]
+}

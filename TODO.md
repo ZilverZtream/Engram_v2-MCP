@@ -488,6 +488,9 @@ proposals that duplicate the existing surface:
   evidence, Markdown and callable Core recovery. Static/runtime, scope and
   deadline limits remain. See eval/page-request-guidance-batch-delivery-20261117.json.
 
+  Installed November17: path-qualified HTTP questions retain scoped traces and
+  scope-preserving recovery. See eval/scoped-request-sql-review-batch-delivery-20261117.json.
+
 - [x] **29. Edit Session Protocol (spec 45: begin/complete_edit_session, detect_incomplete_changes)** (M) - *done 2026-06-13: bookends persist intent (registry meta), begin returns the expectation brief on the PLANNED set, complete reports scope drift (planned-but-unedited) + full completeness on actuals, session consumed on close. Was: engine done 2026-06-13: detect_incomplete_changes — untouched co-change partners (with historical evidence, tail-matched against path-spelling variants) + state keys shared with untouched files; 3-case behavioral test through real graph. Both session bookends are delivered; their expectations remain advisory evidence for the agent.*
   Bookends an agent's edit: snapshot expectations at start, verify coupled files/tests/
   state keys at end. Turns Engram from advisor into a loop-closing safety harness — and
@@ -693,7 +696,7 @@ proposals that duplicate the existing surface:
   public calls each on candidate/installed binaries pass. A real LegacyValidation table
   lookup verified four columns, two cascading foreign keys, identity/default,
   primary key and unique index without source or generation changes.
-  SQL declarations do not establish deployed database state; ALTER/DROP,
+  SQL declarations do not establish deployed database state; effective migration order,
   execution and unresolved name binding remain explicit limits.
   Installed November16: post-deployment `ALTER TABLE ... ADD` foreign keys are
   separately cited in table and incoming relationship queries with unknown
@@ -720,6 +723,10 @@ proposals that duplicate the existing surface:
   Evidence: [installed delivery](eval/legacy_validation-query-schema-delivery-20261112.json).
 
 ---
+
+  Installed November17: table and column queries include separately cited
+  ADD/ALTER/DROP column operations without changing CREATE baselines or claiming
+  execution. See eval/scoped-request-sql-review-batch-delivery-20261117.json.
 
 ## P4 — Performance & reliability
 

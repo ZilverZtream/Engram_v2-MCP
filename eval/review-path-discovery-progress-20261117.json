@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-19",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "Supply relevant prior review rulings with scope, provenance, revision applicability and complete qualifications; changed code must never inherit blanket suppression.",
   "observed_missing_behavior": "The public get_review_decisions request requires an exact review_id. Bounded path relevance discovery already exists for internal review consumers, but an agent starting from a file cannot use it through this Core/Full read tool to find those IDs and complete conditions.",
   "priority_basis": "One of the original shortlist workflows; current LegacyValidation Full configuration advertises the existing review decision read. Declared VB/WebForms/JS/SQL paths share the existing provider-neutral scope semantics; no new language or catalog.",
@@ -19,11 +19,10 @@
     "Discovery remains advisory, independent current metadata observations; no authenticated authority, accepted policy inference, current-head fix check, semantic applicability or automatic suppression. Reject combinations with exact-review/discussion/historical selectors instead of silently mixing modes.",
     "Owned recorded transitions and disjoint/legacy paths demonstrate newest relevant evidence and callable exact history; immutable generic report recovery retains the discovery after later event append. Core advertises the same existing reader. Syntax and installed baseline checks are build-free; focused native/public checks join the two queued source outcomes. No new tool, discovery index, model call, broader audit or live project mutation."
   ],
-  "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
+  "engram_builds_started": 3,
+  "native_tests_executed": 3,
+  "runtime_deployed": true,
   "implementation_items_active": 0,
-  "pending_source_outcomes": 2,
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-discovery-20261117\\contract.json",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-discovery-20261117",
   "baseline_source_sha256": {
@@ -67,11 +66,17 @@
     "Existing64identity/256KiB raw-record/24candidate/8KiBevent discovery limits and legacy identity gaps remain. Exact history actions are fresh observations, not immutable corpus recovery or authenticated rulings.",
     "No live project/LegacyValidation read or mutation, Site/Q access, new discovery index, new tool, paid model replay, broad audit, language support or closed-tool work."
   ],
-  "next_action": "One shared release1 is running in session42538. Reuse its exact artifact for candidate/installed acceptance; do not rebuild or repeat debug/native acceptance.",
+  "next_action": "Finite component installed. Advance remaining original work; do not replay this accepted batch.",
   "source_commit": "7062086fd2c5c5087b2e8c48736123ae843552f2",
-  "validation_status": "FOCUSED_NATIVE_AND_PUBLIC_PASS_RELEASE1_RUNNING",
+  "validation_status": "INSTALLED_ACCEPTED",
   "native_cases_distinct_covered": 3,
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native-acceptance.json",
   "debug_public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\debug1\\receipt.json",
-  "shipping_source_commit": "3561de67fa32817cf59127bd018fbdab958231ee"
+  "shipping_source_commit": "3561de67fa32817cf59127bd018fbdab958231ee",
+  "delivery_record": "eval/scoped-request-sql-review-batch-delivery-20261117.json",
+  "installed_public_checks": 8,
+  "candidate_public_checks": 8,
+  "public_check_executions": 24,
+  "build_count_scope": "Shared two focused native Cargo invocations (including concrete failed-case correction) and one release for three independent requirements. No extra debug/full suite.",
+  "source_queue_size_when_implemented": 2
 }
