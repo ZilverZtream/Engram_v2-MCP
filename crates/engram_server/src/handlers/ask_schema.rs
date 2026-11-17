@@ -39,6 +39,56 @@ impl SchemaEvidence {
     }
 }
 
+/// Related declarations can come from different selected SQL files. Recover
+/// their policy scope from the typed citations that actually survived ranking.
+pub(super) fn related_source_paths(evidence: &[EvidenceItem]) -> std::collections::BTreeSet<String> {
+    fn collect(value: &Value, paths: &mut std::collections::BTreeSet<String>) {
+        match value {
+            Value::Object(object) => {
+                if let Some(path) = object.get("citation").and_then(|c| c.get("path")).and_then(Value::as_str) {
+                    paths.insert(path.to_owned());
+                }
+                for value in object.values() { collect(value, paths); }
+            }
+            Value::Array(rows) => for row in rows { collect(row, paths); },
+            _ => (),
+        }
+    }
+    let mut paths = std::collections::BTreeSet::new();
+    for item in evidence.iter().filter(|item| item.provider == "schema"
+        && item.authority == Authority::CurrentCode && item.extraction_method == "source_sql_schema") {
+        if let Ok(body) = serde_json::from_str::<Value>(&item.content) {
+            collect(&body, &mut paths);
+        }
+    }
+    paths
+}
+
+fn table_facts(row: &Value, report: &Value, project: &str, schema_available: bool) -> Value {
+    let mut facts = row.clone();
+    if !schema_available {
+        // The source reader's specialized object handoffs need Full. Core
+        // already has a hash-bound file reader; use that without hiding the
+        // fact that the object body is not inline or a deployed definition.
+        for key in ["triggers", "views", "stored_procedures"] {
+            for related in facts[key].as_array_mut().into_iter().flatten() {
+                let object = &mut related["object"];
+                if object["declaration_included"] != false { continue; }
+                let citation = object["citation"].clone();
+                object["recovery"] = json!({"tool":"get_full_method_body","arguments":{
+                    "project_id":project,"file_path":citation["path"],"line_start":1,
+                    "context_lines":0,"output_json":true,"expected_file_blake3":citation["source_hash"]}});
+                object["recovery_scope"] = json!("Current complete source file in hash-bound pages; follow file_excerpt.next_page to EOF. The object's citation retains its declaration span. This is source recovery, not a live database definition.");
+            }
+        }
+    }
+    facts["source_coverage"] = report["coverage"].clone();
+    facts["table_gaps"] = report["table_gaps"].clone();
+    facts["unknown_nullability_columns"] = report["unknown_nullability_columns"].clone();
+    facts["next_page"] = report["next_page"].clone();
+    facts
+}
+
 pub(super) async fn gather(
     engram: &Engram,
     project_id: &str,
@@ -211,9 +261,13 @@ pub(super) async fn gather(
                         "recovery":recovery}).to_string()
                     } else if is_procedure { json!({"stored_procedure":table,"source_coverage":report["coverage"],
                         "next_page":report["next_page"]}).to_string()
-                    } else { json!({"table":table,"source_coverage":report["coverage"],
-                        "table_gaps":report["table_gaps"],"unknown_nullability_columns":report["unknown_nullability_columns"],
-                        "next_page":report["next_page"]}).to_string() },
+                    } else {
+                        // The reader already admitted and cited related object
+                        // and ALTER declarations. Keep its complete row rather
+                        // than silently projecting them out of ordinary answers.
+                        table_facts(row, &report, project_id,
+                            crate::tool_surface::includes(engram.state.cfg.effective_tool_preset(), "query_schema")).to_string()
+                    },
                     generation: Some(generation), commit: None, timestamp: None,
                     confidence: 0.95, relevance: 1.0, extraction_method: "source_sql_schema".into(),
                     warnings: vec![if is_procedure && ambiguous {
@@ -223,7 +277,7 @@ pub(super) async fn gather(
                     } else if ambiguous {
                         "Ambiguous source-name candidate identity only; columns are not supplied. Choose a qualified name before relying on its schema."
                     } else {
-                        "Complete admitted CREATE TABLE declaration; ALTER/DROP and deployment order are not applied. Omitted nullability remains unknown."
+                        "Complete admitted CREATE TABLE, independently cited related object metadata/index declarations and ALTER candidates. Related bodies may be deferred; follow each object's recovery. These are source observations; ALTER/DROP, deployment order and runtime execution are not applied. Omitted nullability remains unknown."
                     }.into()],
                     provider: "schema".into(), score: None, directness: Some(1.0),
                 });

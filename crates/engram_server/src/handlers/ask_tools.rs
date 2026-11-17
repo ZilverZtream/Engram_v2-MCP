@@ -531,6 +531,7 @@ impl Engram {
         let policy_paths: Vec<String> = evidence.iter()
             .filter(|item| item.authority == crate::services::ask_engine::evidence::Authority::CurrentCode)
             .filter_map(|item| item.path.clone())
+            .chain(schema::related_source_paths(&evidence))
             .collect::<std::collections::BTreeSet<_>>().into_iter().collect();
         let project_policy_sources = {
             let root = std::path::PathBuf::from(&rec.directory);

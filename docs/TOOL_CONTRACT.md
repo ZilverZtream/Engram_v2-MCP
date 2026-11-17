@@ -1452,6 +1452,18 @@ reports through saved recovery. Historical requests keep their separate Git
 source path and never consult current SQL. These are source declarations, not
 deployed database state; ALTER/DROP, default schema and collation are not inferred.
 
+Source change November17 (combined validation/deployment pending): unambiguous
+table answers retain the existing reader's complete row, including index/key
+constraints, trigger/view/procedure metadata, and separately cited ALTER foreign-key
+and column candidates. Related object bodies can remain deferred as disclosed by
+`declaration_included`; metadata is not a deployed definition. Full retains its
+specialist recovery actions. Core substitutes its advertised hash-bound source-file
+reader for deferred bodies, with pagination to EOF. Related source citations in
+retained schema evidence contribute to ordinary authored-guidance scope. Markdown
+keeps the same bounded provider payload as JSON, with whole-report budgeting and
+immutable recovery instead of a second 200-character evidence crop. Existing source
+selection, freshness, ambiguity, scope and SQL execution/order limits remain.
+
 Installed proof for these three changes: [reports, safety and SQL delivery](../eval/reports-safety-sql-batch-delivery-20261116.json). Ambiguous SQL lookup supplies cited candidate identities and qualified recovery actions; candidate identities do not supply columns or establish database name binding.
 
 
