@@ -2575,6 +2575,16 @@
         "progress": "eval/ask-config-declarations-progress-20261117.json",
         "native_target": "ask_config_declarations",
         "runtime_deployed": false
+      },
+      {
+        "original_requirement_id": "EG-19",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "behavior": "Ordinary pre-push rule retrieval retains unchanged outcomes and appends bounded scope/source/revision-aware prior decisions without suppression or approval",
+        "source_commit": "d3c6535a3fa4dc5898a0cc7615622d3f1ab460fa",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pre-push-prior-decisions-20261117\\contract.json",
+        "progress": "eval/pre-push-prior-decisions-progress-20261117.json",
+        "native_target": "pre_push_prior_decisions",
+        "runtime_deployed": false
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2806,65 +2816,56 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "original_requirement_id": "TODO-28",
+    "original_requirement_id": "EG-19",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement": "Compose existing indexed setting knowledge into the ordinary natural-language entry point for LegacyValidation VB/WebForms workflows.",
-    "observed_missing_behavior": "ask_settings only collects literal VB setting_key getter observations. Existing app_setting catalog declarations in Web.config/App.config are not composed as typed source-admitted declaration evidence; get_setting shows catalog identity/usage but does not resolve effective configuration values.",
-    "priority_basis": "LegacyValidation is the retained VB/WebForms workflow and current runtime remains Full. Use owned Web.config/VB fixtures and existing ASP.NET configuration extraction; no claim about an uninspected real LegacyValidation setting, no actual project query/reindex or Site/Q access.",
-    "source_phase_started_at_utc": "2026-11-17T18:12:37.146701+00:00",
+    "original_requirement": "Decision-aware review supplies bounded relevant prior rulings with declared scope, source/revision evidence and exact recovery; changed code never inherits blanket suppression.",
+    "observed_missing_behavior": "pre_commit_review collects prior_review_context, but pre_push_audit only retrieves quality_gate rules. Its empty/no-match rule outcomes also omit existing explicitly recorded decisions, so a normal pre-push caller lacks that existing review context.",
+    "priority_basis": "Pre-push audit is advertised in the unchanged actual Full LegacyValidation runtime and the named workflow presets. Use owned VB/WebForms sources and existing lexical/decision collectors; no actual project mutation, review-model run or new approval workflow.",
+    "source_phase_started_at_utc": "2026-11-17T18:34:28.068859+00:00",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pre-push-prior-decisions-20261117",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pre-push-prior-decisions-20261117\\contract.json",
     "implementation_files": [
-      "crates/engram_server/src/services/ask_engine/config_settings.rs",
-      "crates/engram_server/src/services/ask_engine/literal_state.rs",
-      "crates/engram_server/src/services/ask_engine/literal_settings.rs",
-      "crates/engram_server/src/services/ask_engine.rs",
-      "crates/engram_server/src/handlers/ask_settings.rs",
-      "crates/engram_server/src/handlers/ask_tools.rs",
-      "crates/engram_server/tests/ask_config_declarations.rs",
+      "crates/engram_server/src/handlers/quality_gate_tools.rs",
+      "crates/engram_server/src/handlers/review_tools.rs",
+      "crates/engram_server/src/handlers/review_tools/pre_push_context.rs",
+      "crates/engram_server/tests/pre_push_prior_decisions.rs",
       "docs/TOOL_CONTRACT.md"
     ],
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-config-declarations-20261117",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-config-declarations-20261117\\contract.json",
     "finite_acceptance": [
-      "For up to3named query entities, discover existing app_setting graph nodes, scope/filter selected source revisions before I/O, and reuse current raw-file hash admission plus existing config_extractor. Emit bounded file-level parsed declaration candidates, not invented access positions or effective/default configuration.",
-      "Keep same-key declarations from different files separate from each other and from VB getter observations. Reuse existing source/guidance handling and Core-callable hash-guarded file excerpt recovery. Changed source is withheld; no current configuration inheritance/transform/clear/remove/external-file evaluation, runtime value, store binding or execution claim.",
-      "Provider failures remain independent within the same held source selection/deadline. Preserve every already-bounded configuration fact through generic per-file ranking; no schema/parameter changes or new extraction format. Config results remain partial.",
-      "Three focused native behavior cases plus owned installed baseline/public Full/Core mixed-source, guidance, source recovery, scoped and stale checks. Join the queued EG26 descriptions and another substantive original outcome for combined validation. No standalone Cargo/release/full suite or copied real secrets."
+      "After ordinary rule retrieval, append the existing bounded prior-review context for exact parsed diff paths or an explicit repository-relative file_path. Bind it to the same already-resolved code/diff bytes. Do not reread diff_file or infer scope from prose/basename mentions.",
+      "Reuse existing decision discovery, declared scope/source comparisons, authority warnings, omission and event/summary recovery. Missing path scope or unavailable evidence stays explicit. All quality-rule outcomes remain unchanged; no finding/rule suppression, verified-code or push-approval claim.",
+      "Maintenance-only instruction requests retain their existing return path without new review lookup. Existing request schemas and parameters remain unchanged. Core-callable existing recovery is retained in the named profiles, and shared complete-report recovery captures the new section without replaying audit.",
+      "Three focused native behavior cases and owned installed baseline/public audit checks: relevant and unrelated paths, same-input hash, unchanged inactive/rule outcomes, missing scope, named-profile recovery and bounded exact-result reconstruction. Combine with queued EG26 descriptions/TODO28 configuration questions; no standalone build/full suite, actual LegacyValidation mutation, expanded model comparison or new decision store."
     ],
     "engram_builds_started": 0,
     "native_tests_executed": 0,
     "runtime_deployed": false,
     "implementation_items_active": 0,
-    "pending_source_outcomes": 2,
+    "pending_source_outcomes": 3,
     "full_original_goal_active": true,
     "previous_goal_turn_classification": {
       "classification": "PROGRESS_SOURCE_DELIVERY",
-      "source_commit": "64521cf305250f5a8dd6676770d6f8fc81de0a98",
-      "record": "eval/tool-description-usability-progress-20261117.json"
+      "source_commit": "8034a95cbe44b7bd7231158370457049edbd92e2",
+      "record": "eval/ask-config-declarations-progress-20261117.json"
     },
     "baseline_source_sha256": {
-      "crates/engram_server/src/services/ask_engine/literal_state.rs": "25a04a1551539660cf4931031fbb10da73470ad24a0ab2ef6af15ecf769251df",
-      "crates/engram_server/src/services/ask_engine/literal_settings.rs": "81b2f5a6d2d40423cf09306c2851a106ac0d67fc00d4f4e886b0ca311d7a59ad",
-      "crates/engram_server/src/services/ask_engine.rs": "5b1228b6dd4fa1c664f17a062fd5686389757a94b22e6ee05a764d18f9820286",
-      "crates/engram_server/src/handlers/ask_settings.rs": "7a9b07558fea9f4a3b1a3ad2fd93c2a055d45435e5cffe7b7809a82481983a73",
-      "crates/engram_server/src/handlers/ask_tools.rs": "7bbbb007eddeaae26ba26184b769546cb7437a51349f79fb4829d71faea11341",
-      "docs/TOOL_CONTRACT.md": "00baacef529d955e52444942480454a54bfa0b07c30575830bd61f0ba789fd30"
+      "crates/engram_server/src/handlers/quality_gate_tools.rs": "f966314c94ace76a9c70980388d3b19f87b5c6009a035281e686d1de9c2d31b2",
+      "crates/engram_server/src/handlers/review_tools.rs": "cc9159c346e47d326dbf6d6383d30f114f3a77ed24845334408d1ab3ac2b8800",
+      "docs/TOOL_CONTRACT.md": "24dd89805f13aab521503a396debb0ea441cb7eb28f9e29a3b6fff24ccb5b482"
     },
     "temporary_resources": {
-      "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-config-declarations-20261117",
-      "retention": "Keep contract, verifier and owned-fixture receipts until delivery. New fixtures own graph/server/database handles and close them before cleanup on completion/unwinding; preserve all preexisting directories.",
+      "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pre-push-prior-decisions-20261117",
+      "retention": "Retain contract, source/verifier and owned baseline/public receipts until delivery. New fixtures own graph/server/Git handles and close them before cleanup on completion/unwinding. Preserve all preexisting directories.",
       "baseline_owner_closed": true,
       "baseline_fixture_removed": true,
       "current_fixtures_or_processes": 0
     },
-    "source_phase_completed_at_utc": "2026-11-17T18:23:46.171035+00:00",
+    "source_phase_completed_at_utc": "2026-11-17T18:56:57.840727+00:00",
     "source_checks": {
-      "crates/engram_server/src/services/ask_engine/config_settings.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/src/services/ask_engine/literal_state.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/src/services/ask_engine/literal_settings.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/src/services/ask_engine.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/src/handlers/ask_settings.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/src/handlers/ask_tools.rs": "RUST_SYNTAX_PASS",
-      "crates/engram_server/tests/ask_config_declarations.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/handlers/quality_gate_tools.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/handlers/review_tools.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/src/handlers/review_tools/pre_push_context.rs": "RUST_SYNTAX_PASS",
+      "crates/engram_server/tests/pre_push_prior_decisions.rs": "RUST_SYNTAX_PASS",
       "public_python_syntax": "PASS",
       "protected_wip9": "UNCHANGED",
       "diff_whitespace": "PASS",
@@ -2872,33 +2873,30 @@
       "native_tests_executed": 0,
       "post_change_public_checks_executed": 0
     },
-    "native_target": "ask_config_declarations",
+    "native_target": "pre_push_prior_decisions",
     "native_test_cases_written": 3,
-    "public_checks_written": 10,
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-config-declarations-20261117\\verify-public.py",
-    "public_verifier_sha256": "b31efb9d4c2af06187c03f547f6338c3f41e8382c2bce7f7088303ab3edb0152",
-    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-config-declarations-20261117\\baseline1\\receipt.json",
-    "baseline_checks_passed": 3,
-    "baseline_seconds": 2.235702499980107,
+    "public_checks_written": 12,
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pre-push-prior-decisions-20261117\\verify-public.py",
+    "public_verifier_sha256": "3d65fd9e6e39cabf59fdcf9f3d6cc2e2999172bf4aaf6f860b2f07e291a416dd",
+    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pre-push-prior-decisions-20261117\\baseline1\\receipt.json",
+    "baseline_checks_passed": 4,
+    "baseline_seconds": 2.00350150000304,
     "baseline_binary_sha256": "0b590ecb08237997caba8807bdf47bfc7d1388f8b486d4414d9f04bf2aa66660",
     "post_change_public_checks_executed": 0,
-    "next_action": "Queue this second independent original source outcome with EG26 tool contracts. Continue another substantive original source requirement before combined validation; no standalone Cargo/release. Native3 plus existing getter behavior and actual MCP10 checks remain pending.",
+    "next_action": "Queue this third original outcome with metadata compaction and configuration questions. One combined native9 check (new config3, new pre-push3, affected existing getter3), reuse its implicit server for MCP metadata12/config10/pre-push12, then one optimized release. No standalone feature build/full suite or extra debug build.",
     "limits": [
-      "Source completion only: no Rust type/native or post-change MCP validation yet; installed0b590ecb and actual Full/LegacyValidation data remain unchanged.",
-      "AppSettings values are raw source attribute observations in admitted UTF8files, not decoded/effective/default runtime values, merged configuration, getter/store binding or execution. Existing parser coverage,1MiB/file and discovery/row/output caps remain explicit.",
-      "Only owned Web.config/VB fixtures were indexed. No actual LegacyValidation query/reindex, Site/Q access, connection-string value collection, extraction-format change, target-language expansion, model comparison or closed-tool improvement."
+      "Source completion only; native type/behavior and post-change public acceptance remain pending. Installed0b590ecb and actual Full/LegacyValidation data are unchanged.",
+      "Prior decisions remain imported advisory evidence with unverified authority/semantic applicability. Scope/source matches cannot approve a push, suppress a rule/finding or prove a submitted patch was applied. Existing current-observation/coverage/candidate/source/response bounds remain.",
+      "No new request schema/fields, decision store, language support, model call/comparison, CodeMap/Blast work or actual LegacyValidation mutation. Source context uses the registered project directory, not an independently selected linked worktree."
     ],
     "source_sha256": {
-      "crates/engram_server/src/services/ask_engine/config_settings.rs": "d23e5c202fbd239fa560197c85a594edab6c3ef5f38386fbd58bd1bd58d82750",
-      "crates/engram_server/src/services/ask_engine/literal_state.rs": "338711a0572cffc1f4964312db16059b1ed4c0b2b8e63294571f8c0b931e82c7",
-      "crates/engram_server/src/services/ask_engine/literal_settings.rs": "455d8938c7f6071716b25225c1f1327e7ed81de7a372683194cd823552215a86",
-      "crates/engram_server/src/services/ask_engine.rs": "5bb4fa8de5992ca671773f33f703280672b76c6d9a205e1db4c1ae5487dfdbcd",
-      "crates/engram_server/src/handlers/ask_settings.rs": "8675193849676378ee24d8b2b58a88f2fc350cf669b991e83e4baeaa403a2ba3",
-      "crates/engram_server/src/handlers/ask_tools.rs": "d7410d83239ef200647241347d64393d20707d4598661e3ab22b77cd020c9424",
-      "crates/engram_server/tests/ask_config_declarations.rs": "802a41865f70c2c661000a65b3eceb0006a974437bbdf4760ac3fdc23e599134",
-      "docs/TOOL_CONTRACT.md": "24dd89805f13aab521503a396debb0ea441cb7eb28f9e29a3b6fff24ccb5b482"
+      "crates/engram_server/src/handlers/quality_gate_tools.rs": "c50b1ebf42dc802136e42c8602edd03dcd4b1f8a4c37fd87e4a653df02d25498",
+      "crates/engram_server/src/handlers/review_tools.rs": "afb426fa8800722ba1f4c79293fd66d9b04d391b9e42cc527864b89c308b87c8",
+      "crates/engram_server/src/handlers/review_tools/pre_push_context.rs": "febe30d9c94fbc5e0dce5607c29b7539d7c8ad3e4ab28b01bb1d3ee78d9eb540",
+      "crates/engram_server/tests/pre_push_prior_decisions.rs": "96091cf82d6585aeccb4a4da1ba747b5eb64caac982dae44b3299f3813fa799d",
+      "docs/TOOL_CONTRACT.md": "b905bea96452700c2875e1e1d4f85596a509e7241eabcf149f6cf37d52672529"
     },
-    "source_commit": "8034a95cbe44b7bd7231158370457049edbd92e2"
+    "source_commit": "d3c6535a3fa4dc5898a0cc7615622d3f1ab460fa"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3790,6 +3788,14 @@
     "source_commit": "8034a95cbe44b7bd7231158370457049edbd92e2",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "pending_source_outcomes": 2,
+    "runtime_deployed": false,
+    "engram_builds_started": 0
+  },
+  "queued_pre_push_prior_decisions_20261117": {
+    "progress": "eval/pre-push-prior-decisions-progress-20261117.json",
+    "source_commit": "d3c6535a3fa4dc5898a0cc7615622d3f1ab460fa",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "pending_source_outcomes": 3,
     "runtime_deployed": false,
     "engram_builds_started": 0
   }
