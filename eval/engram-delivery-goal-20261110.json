@@ -2740,7 +2740,7 @@
   },
   "current_execution_focus": {
     "original_requirement_id": "EG-31",
-    "status": "SOURCE_CORRECTION_FOCUSED_NATIVE2_RUNNING",
+    "status": "NATIVE_AND_PUBLIC_PASS_SINGLE_RELEASE_RUNNING",
     "implementation_items_active": 0,
     "original_requirement_ids": [
       "EG-13",
@@ -2753,16 +2753,24 @@
     "native_target": "guidance_master_source_batch_tests",
     "native_cases": 10,
     "shipping_source_commit": "d21eeff05e28c6e0a76ecdaf9fadf9554346c274",
-    "next_action": "Poll the exact native2 session21997; no restart on observation timeout. After terminal PASS capture its implicit debug server and complete public acceptance before any release.",
+    "next_action": "Poll the exact release1 session70934. After terminal PASS reuse the prepared paired package, candidate and installed verifiers, existing installer and normal-runtime restoration. Do not restart this release on a timeout, repeat passed native/debug acceptance or launch another build.",
     "full_original_goal_active": true,
     "native_exec_session": 21997,
     "native_commands_started": 2,
     "native_driver_pid": 34356,
     "native_cases_passed": 10,
-    "native_runner_seconds": 224.97168349998537,
-    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\native1.json",
-    "debug_artifact": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\debug-artifact1.json",
-    "source_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\source-correction1.json"
+    "native_runner_seconds": 182.35885720001534,
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\native2.json",
+    "debug_artifact": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\debug-artifact2.json",
+    "source_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\source-correction1.json",
+    "debug_public_checks_passed": 26,
+    "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\debug2\\receipt.json",
+    "release_plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\release-plan.json",
+    "release_commands_started": 1,
+    "release_exec_session": 70934,
+    "release_driver_pid": 6212,
+    "native_runner_seconds_total": 407.3305407000007,
+    "native_current_cases_passed": 10
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
