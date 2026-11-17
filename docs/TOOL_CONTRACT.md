@@ -672,6 +672,25 @@ scope. Current guidance does not validate inferred migration recommendations,
 report freshness or runtime behavior. Shared response budgets and immutable
 captured-result recovery include the added guidance.
 
+### Literal legacy-state questions (source complete; validation pending)
+
+Current `ask_codebase` questions that explicitly name `Session("key")`,
+`ViewState("key")`, `Application("key")` or `Cache("key")` also retrieve indexed
+reader/writer candidates. Bracketed and single-quoted question notation is
+accepted; computed keys do not activate this provider. Store types remain
+separate. Candidates require matching held physical source revisions, graph
+edge revisions and current raw file hashes. Changed, unavailable or unselected
+evidence is withheld and disclosed; requested path scope still applies.
+
+The `legacy_state` evidence records roles, the actual indexed declaration ID,
+containing lines, a literal-key source window and its hash. Its evidence identity
+distinguishes each declaration/key relationship. This is an indexed candidate,
+not a verified access-site, runtime value or executed reader/writer. Coverage is
+bounded and omissions do not prove absence. Incomplete requested state evidence
+qualifies the answer as partial. Existing report budgets, source guidance and
+immutable result recovery apply. Historical requests retain their separate
+revision-pinned source path. No state extraction, project data or policy is changed.
+
 ### Prior guidance in changed-file maintenance (source complete; validation pending)
 
 Changed-file instruction maintenance compares current discovery with bounded

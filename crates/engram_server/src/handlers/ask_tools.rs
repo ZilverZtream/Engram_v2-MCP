@@ -24,6 +24,9 @@ mod schema;
 #[path = "ask_settings.rs"]
 mod settings;
 
+#[path = "ask_state.rs"]
+mod state;
+
 /// Round-2 audit P1-4: the dreamer-insight arm is OFF unless the caller asks
 /// for it (`include_insights: true`) — the ablation showed no measurable
 /// effect, so the default must not spend retrieval budget on it.
@@ -144,10 +147,11 @@ impl Engram {
             generation: gen_,
             source_view: source_view.clone(),
         };
-        let ((mut raw, mut providers), mut schema_evidence, mut settings_evidence) = tokio::join!(
+        let ((mut raw, mut providers), mut schema_evidence, mut settings_evidence, mut state_evidence) = tokio::join!(
             retrieval::gather_evidence_selected_source(&ctx, &plan, &req.question, depth, deadline, cancel, source_selection),
             schema::gather(self, &req.project_id, &plan, gen_, source_view.clone(), deadline),
             settings::gather(self, &req.project_id, &plan, gen_, source_view.clone(), deadline),
+            state::gather(self, &req.project_id, &req.question, &plan, gen_, source_view.clone(), deadline),
         );
         if let Some(schema) = &mut schema_evidence {
             raw.append(&mut schema.items);
@@ -156,6 +160,10 @@ impl Engram {
         if let Some(settings) = &mut settings_evidence {
             raw.append(&mut settings.items);
             providers.push(settings.provider.clone());
+        }
+        if let Some(state) = &mut state_evidence {
+            raw.append(&mut state.items);
+            providers.push(state.provider.clone());
         }
         // Round-2 audit P0-4c (owner 2026-08-30): one bounded call-graph hop
         // from the files the first pass cited — the answer to "how does X get
@@ -464,10 +472,12 @@ impl Engram {
         // coverage remain separate qualifications of the resulting answer.
         known.extend(schema_evidence.iter().flat_map(|schema| schema.matched_names.iter().cloned()));
         known.extend(settings_evidence.iter().flat_map(|settings| settings.matched_names.iter().cloned()));
+        known.extend(state_evidence.iter().flat_map(|state| state.matched_names.iter().cloned()));
         let adequate = status::has_adequate_support_with(&req.question, &evidence, &known);
         let st = status::assess_status(&plan, &evidence, &providers, &snapshot, adequate);
         let st = schema_evidence.as_ref().map_or(st, |schema| schema.qualify_status(st));
         let st = settings_evidence.as_ref().map_or(st, |settings| settings.qualify_status(st));
+        let st = state_evidence.as_ref().map_or(st, |state| state.qualify_status(st));
         let mut unknowns = report::coverage_gaps(&plan, &evidence, &providers);
         // Name the premise terms nothing supports, first — the reader must not
         // fill them in from the answer's other evidence.
