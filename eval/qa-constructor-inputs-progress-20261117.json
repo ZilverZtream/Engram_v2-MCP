@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-25",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "Supply useful current source and configuration evidence to existing OX diagnosis/QA workflows; keep input provenance and inference qualifications through the analysis-to-test-matrix handoff.",
   "observed_missing_behavior": "Constructor source now reaches and persists with business analysis, but test_derivation only consumes return/reaching evidence and render_rule_cases has no constructor context. QA matrix readers must separately recover the document to identify the constructor setting that affects a referenced member.",
   "implementation_files": [
@@ -32,7 +32,7 @@
   "prospective_phase_log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-constructor-inputs-20261117\\effort.jsonl",
   "native_tests_executed": 0,
   "builds_started": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "real_model_calls": 0,
   "limits": [
     "Source implementation only; post-change native and public matrix acceptance remain pending. Installed binary still16baba3f.",
@@ -49,5 +49,19 @@
   "source_commit": "6ef0a736b851e10d4dbe5442598a875c830bd8a5",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-constructor-inputs-20261117\\verify-public.py",
   "public_verifier_sha256": "65d8a87a64f2f063df76908b64e5490a2b6959b11a83d5c6f32fce4c649d3aec",
-  "positive_verifier_scope": "Pending positive run uses two fixed-response rule cases to prove one shared constructor context. Baseline1 retains the one-rule missing-context proof and exact original verifier text. This is not a matched model/task comparison."
+  "positive_verifier_scope": "Pending positive run uses two fixed-response rule cases to prove one shared constructor context. Baseline1 retains the one-rule missing-context proof and exact original verifier text. This is not a matched model/task comparison.",
+  "deployed": true,
+  "combined_validation": {
+    "receipt": "eval/qa-controls-settings-source-batch-delivery-20261117.json",
+    "shipping_source_commit": "cf9b6929a923f62e2bd9f8ea5b0639741ef79dbc",
+    "native_cases_in_batch": 6,
+    "debug_public_checks_in_batch": 23,
+    "candidate_public_checks_in_batch": 23,
+    "installed_public_checks_in_batch": 23,
+    "native_commands": 1,
+    "release_commands": 1
+  },
+  "runtime_server_sha256": "1e243455a55905c0c6b4d874a431ce3b42ee9c727f954f4402b3807be53e50dd",
+  "post_change_public_checks_executed": 7,
+  "builds_started_scope": "Original source-authoring window only; shared batch commands are recorded in combined_validation."
 }

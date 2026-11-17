@@ -1,0 +1,103 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-17T01:04:23.404408+00:00",
+  "original_requirement_ids": [
+    "EG-25",
+    "TODO-31",
+    "TODO-28",
+    "EG-13"
+  ],
+  "storage_gate_scope": [
+    "S06",
+    "S07",
+    "S16"
+  ],
+  "shipping_source_commit": "cf9b6929a923f62e2bd9f8ea5b0639741ef79dbc",
+  "source_commits": {
+    "EG-25": "6ef0a736b851e10d4dbe5442598a875c830bd8a5",
+    "TODO-31": "3bff8df1a2792efff584271ef6d8e45179ebe468",
+    "TODO-28": "a0c4fb34b80409368cbda4a455dbac8234187c49",
+    "EG-13": "c9ad7ac7087208d3e8f3e7b5e1c2a275f4ccf43e"
+  },
+  "delivered": [
+    "QA matrices carry constructor input source once per document, including line/hash and uncertainty; changed constructor source is withheld even when the analyzed method is unchanged.",
+    "WebForms instance/child event selectors follow literal same-application ASCX registrations, preserve root page/load context and visibility declarations, and recover exact captured route evidence after source edits.",
+    "Natural-language questions about exact literal VB setting keys return distinct source getter/store observations with hashes and source lines; changed supporting source is withheld.",
+    "graph_search admits symbol and expansion observations against its held physical source selection, preserves inherited revisions and rejects unselected graph bridges while retaining selected lexical source."
+  ],
+  "validation": {
+    "native_cases_passed": 6,
+    "native_commands": 1,
+    "native_same_artifact_fixture_retries": 1,
+    "debug_public_checks": 23,
+    "candidate_public_checks": 23,
+    "installed_public_checks": 23,
+    "full_or_lib_suite": false,
+    "extra_debug_build": false,
+    "real_model_calls": 0
+  },
+  "build_cost": {
+    "native_runner_seconds": 361.26271599996835,
+    "native_fixture_retry_seconds": 2.8097177000017837,
+    "release_commands": 1,
+    "release_runner_seconds": 1042.0409143000143,
+    "combined_runner_seconds": 1403.3036302999826,
+    "actual_coding_percentage": null,
+    "limits": "Runner totals include compilation/tests/teardown; not pure compiler CPU or a whole-session coding-versus-testing percentage."
+  },
+  "installed_pair": {
+    "server_sha256": "1e243455a55905c0c6b4d874a431ce3b42ee9c727f954f4402b3807be53e50dd",
+    "manifest_sha256": "854ad15c96d38b0d585a2e9c81147a28613d97d39bcaeb555a4cf3ee5b7354ea",
+    "sidecar_sha256": "0199d344917619ce4b85a212b5b6e08726a0263c4bb52ebf6a362d0b77bc4079",
+    "assets_verified": 215,
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "selected_generation": 3151
+  },
+  "normal_runtime": {
+    "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+    "daemon_pid": 23908,
+    "normal_proxy_verified": true,
+    "intentional_application_owned_daemon": true
+  },
+  "bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\Engram-win-x64-qa-controls-settings.zip",
+    "sha256": "3702e370e5b864597b9007f15541bc61f5978b8e7153c696bd43d9a01ff2ff01",
+    "entries": 219,
+    "runtime_assets": 215,
+    "public_hosting": false
+  },
+  "retained_failures": {
+    "native": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\native1.json",
+    "same_artifact_native_retry": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\native-retry1.json",
+    "public_budget_fixtures": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\debug1\\receipt.json",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\debug2\\receipt.json"
+    ],
+    "accepted_debug": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\debug-accepted1\\receipt.json",
+    "candidate_budget_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\candidate1\\acceptance.json",
+    "deployment_prepare": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\deployment6-prepare-failure.json"
+  },
+  "resources": {
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117",
+    "native_owned_temp_removed": true,
+    "public_owned_fixtures_removed": true,
+    "compiler_jobs_closed": true,
+    "config_hold_closed": true,
+    "owned_config_copy_removed": true,
+    "protected_wip9_unchanged": true,
+    "retention": "Keep source pins, contracts, private verifiers, exact receipts, package, ZIP and managed installer rollback pair for review/recovery. Normal daemon is application-owned. No preexisting deletion.",
+    "retained_old_pair_backups": [
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-82092c66495f44c1b48025064979736d"
+    ]
+  },
+  "limits": [
+    "The full original31findings/19storagegates and broader task usefulness remain unfinished.",
+    "Graph edges are live observations, not an atomic historical graph/disk/runtime snapshot. Name/neighbor discovery retains existing caps.",
+    "Literal getter and markup declarations do not prove physical store binding, effective values/visibility or execution. Master/dynamic controls remain unresolved.",
+    "No matched-task/model replay, unmeasured productivity claim, actual LegacyValidation reindex or Site/Q read."
+  ]
+}

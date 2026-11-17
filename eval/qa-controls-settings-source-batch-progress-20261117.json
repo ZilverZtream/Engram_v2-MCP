@@ -1,6 +1,6 @@
 {
   "at_utc": "2026-11-17T00:39:03.440019+00:00",
-  "status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117",
   "plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\plan1.json",
   "shipping_source_commit": "cf9b6929a923f62e2bd9f8ea5b0639741ef79dbc",
@@ -51,7 +51,7 @@
   "release_commands_started": 1,
   "standalone_debug_build": false,
   "full_or_lib_suite": false,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "original_storage_gates_complete": false,
   "previous_goal_turn": "PROGRESS: c9ad7ac source-bound graph-search observations committed and pushed.",
   "resources": "Existing shipping checkout and shared target reused. Native runner owns its Job, relay and recorded temp. Preserve original nine uncommitted files; no preexisting deletion.",
@@ -60,7 +60,8 @@
     "Canonical EG-13 queue identity maps the same retained S06/S07/S16 work to its original parent finding; build guard is unchanged.",
     "An accidentally repeated already-delivered shipping commit was empty and skipped; four source picks and the explicit harness commit are retained.",
     "Initial native4passed/2setupfail retained; only graph2rerun on unchanged executable with a short owned TEMP passed.",
-    "Control recovery checker assumed64KiB deferral, then asked16KiB below reported19115B minimum; changed only private budget to20KiB and reran only that fixture against same debug artifact. All23checks now pass."
+    "Control recovery checker assumed64KiB deferral, then asked16KiB below reported19115B minimum; changed only private budget to20KiB and reran only that fixture against same debug artifact. All23checks now pass.",
+    "Optimized trace was larger than debug; failed fixed20KiB candidate recovery check retained. Private recovery budget now derives from captured full report (capped64KiB); original passing QA reused and candidate2 passed23checks on unchanged packaged executable. A prepare-only hold-log collision was retained before the resumed hold opened; no build or production upgrade occurred in that failed preparation."
   ],
   "native_cases_passed": 6,
   "native_same_artifact_fixture_retries": 1,
@@ -71,5 +72,11 @@
   "debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\debug-accepted1\\receipt.json",
   "debug_server_sha256": "abfc734d9612d28b9a10c4b80fa88673dd1266c7632efbd10ff4b0325de8f08a",
   "release_owner_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\release1-owner.json",
-  "completion_owner_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\completion1-state.json"
+  "completion_owner_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\completion1-state.json",
+  "release_status": "PASS",
+  "release_runner_seconds": 1042.0409143000143,
+  "candidate_public_checks_passed": 23,
+  "candidate_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\candidate2\\acceptance.json",
+  "resumed_deployment": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\deployment6-state.json",
+  "delivery": "eval/qa-controls-settings-source-batch-delivery-20261117.json"
 }

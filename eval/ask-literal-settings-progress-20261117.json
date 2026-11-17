@@ -18,7 +18,7 @@
     "crates/engram_server/tests/ask_literal_settings.rs"
   ],
   "implementation_items_active": 0,
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-literal-settings-20261117\\contract.json",
   "pending_source_outcomes": 3,
   "full_original_goal_active": true,
@@ -53,10 +53,10 @@
     "crates/engram_server/tests/ask_literal_settings.rs": "dcb155ba87555e746c6b70b3f58a34390e8e9ece1e3e6ea0e2cf110e8a622c71"
   },
   "native_test_cases_written": 2,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
+  "native_tests_executed": 2,
+  "post_change_public_checks_executed": 4,
   "builds_started": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "real_model_calls": 0,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-literal-settings-20261117\\verify-public.py",
   "public_verifier_sha256": "4b9af64e31dcfde24f1127e2110855218d383d7dddb7ff740f3e65aec92c1a26",
@@ -70,5 +70,18 @@
     "baseline_fixtures_removed": true,
     "baseline_processes_closed": true,
     "retention": "Keep contract, private verifiers, fixed fixture inputs and exact receipts for combined acceptance. No preexisting deletion."
-  }
+  },
+  "deployed": true,
+  "combined_validation": {
+    "receipt": "eval/qa-controls-settings-source-batch-delivery-20261117.json",
+    "shipping_source_commit": "cf9b6929a923f62e2bd9f8ea5b0639741ef79dbc",
+    "native_cases_in_batch": 6,
+    "debug_public_checks_in_batch": 23,
+    "candidate_public_checks_in_batch": 23,
+    "installed_public_checks_in_batch": 23,
+    "native_commands": 1,
+    "release_commands": 1
+  },
+  "runtime_server_sha256": "1e243455a55905c0c6b4d874a431ce3b42ee9c727f954f4402b3807be53e50dd",
+  "builds_started_scope": "Original source-authoring window only; shared batch commands are recorded in combined_validation."
 }

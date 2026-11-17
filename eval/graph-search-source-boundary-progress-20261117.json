@@ -2,7 +2,7 @@
   "original_requirement_id": "EG-13",
   "original_requirement": "Source readers retain one selected source view and direct graph observations respect selected physical file revisions, including inherited and deleted files, with a documented live-graph boundary.",
   "observed_missing_behavior": "handle_graph_search pins source for lexical results, but symbol lookup, parent boosts and expansion endpoints admit arbitrary live graph file revisions. Existing SelectedSourceRevisionLookup already supplies exact managed and bounded legacy membership.",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "finite_acceptance": [
     "Memory-namespace direct symbol seeds and their file boosts require membership in the same held selected physical source view; valid inherited revisions remain, while deleted/unselected/future/unknown-source symbols are withheld.",
     "Graph expansion may proceed only from admitted source endpoints and cannot use an unselected intermediary to reach an otherwise selected target. Existing lexical hits remain usable when their live graph file node has been overwritten.",
@@ -39,10 +39,10 @@
     "crates/engram_server/tests/graph_search_source_boundary.rs": "c827432ddcca5a6ae371de996094126a79df711229d4f8e983ec02ba87894885"
   },
   "native_test_cases_written": 2,
-  "native_tests_executed": 0,
-  "public_post_change_checks_executed": 0,
+  "native_tests_executed": 2,
+  "public_post_change_checks_executed": 3,
   "builds_started": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "real_model_calls": 0,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-search-source-boundary-20261117\\verify-public.py",
   "public_verifier_sha256": "6755f89fc8357e27b6a95b2030e358ac493e050ba55e768e4aaec0ccc467078c",
@@ -62,5 +62,19 @@
     "S06",
     "S07",
     "S16"
-  ]
+  ],
+  "deployed": true,
+  "combined_validation": {
+    "receipt": "eval/qa-controls-settings-source-batch-delivery-20261117.json",
+    "shipping_source_commit": "cf9b6929a923f62e2bd9f8ea5b0639741ef79dbc",
+    "native_cases_in_batch": 6,
+    "debug_public_checks_in_batch": 23,
+    "candidate_public_checks_in_batch": 23,
+    "installed_public_checks_in_batch": 23,
+    "native_commands": 1,
+    "release_commands": 1
+  },
+  "runtime_server_sha256": "1e243455a55905c0c6b4d874a431ce3b42ee9c727f954f4402b3807be53e50dd",
+  "post_change_public_checks_executed": 3,
+  "builds_started_scope": "Original source-authoring window only; shared batch commands are recorded in combined_validation."
 }

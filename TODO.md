@@ -410,6 +410,11 @@ proposals that duplicate the existing surface:
 `find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
+  Installed November17: exact literal VB setting-key questions return source-cited
+  getter/store observations with raw hashes and complete source lines. Independent
+  stores remain distinct; changed source is withheld. Effective values, physical
+  binding and broader task usefulness remain unproven.
+  [Delivery](eval/qa-controls-settings-source-batch-delivery-20261117.json).
   Installed November17: historical answers return scoped guidance from the same
   immutable Git revision as their source, preserving exceptions, hashes and exact
   saved recovery. Current guidance stays excluded; historical graph reconstruction
@@ -493,6 +498,12 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  Installed November17: `event instance/child.Event` follows literal same-application
+  ASCX registrations and server instances, preserves root page/load context and
+  declared visibility, and recovers exact captured route evidence after source edits.
+  Actual non-Q LegacyValidation source copies select the registered dropdown handler.
+  Master/dynamic composition and runtime reachability remain unresolved.
+  [Delivery](eval/qa-controls-settings-source-batch-delivery-20261117.json).
   Installed November17: `event controlID.EventName` selects declared server
   markup events and VB Handles bindings with source lines/hashes. The copied
   LegacyValidation dropdown entry and default-budget exact recovery passed installed checks;

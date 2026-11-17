@@ -2554,45 +2554,7 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "EG-25",
-        "outcome": "Current constructor input source carried once into QA matrix document evidence; stale support withheld",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "6ef0a736b851e10d4dbe5442598a875c830bd8a5",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-constructor-inputs-20261117\\contract.json",
-        "progress": "eval/qa-constructor-inputs-progress-20261117.json"
-      },
-      {
-        "original_requirement_id": "TODO-31",
-        "outcome": "Literal WebForms user-control instance event paths with preserved page context and source recovery",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "3bff8df1a2792efff584271ef6d8e45179ebe468",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\contract.json",
-        "progress": "eval/control-instance-trace-progress-20261117.json"
-      },
-      {
-        "original_requirement_id": "TODO-28",
-        "outcome": "Natural-language named literal settings return current source getter/store evidence",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "a0c4fb34b80409368cbda4a455dbac8234187c49",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-literal-settings-20261117\\contract.json",
-        "progress": "eval/ask-literal-settings-progress-20261117.json"
-      },
-      {
-        "original_requirement_id": "EG-13",
-        "outcome": "graph_search selected physical source admission for symbol seeds and expansion endpoints",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "c9ad7ac7087208d3e8f3e7b5e1c2a275f4ccf43e",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-search-source-boundary-20261117\\contract.json",
-        "progress": "eval/graph-search-source-boundary-progress-20261117.json",
-        "storage_gate_ids": [
-          "S06",
-          "S07",
-          "S16"
-        ]
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2740,23 +2702,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Combined acceptance of four queued source outcomes",
-    "status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
-    "original_requirement_ids": [
-      "EG-25",
-      "TODO-31",
-      "TODO-28",
-      "EG-13"
-    ],
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117",
+    "status": "BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
+    "delivery": "eval/qa-controls-settings-source-batch-delivery-20261117.json",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 4,
+    "pending_source_outcomes": 0,
     "full_original_goal_active": true,
-    "next_action": "Follow existing release driver89600/relay7196 and completion controller; do not restart. Controller packages this artifact, verifies23candidate and23installed checks, restores normal runtime and records all215asset identities. Full original goal remains active.",
-    "native_cases_passed": 6,
-    "debug_public_checks_passed": 23,
-    "release_commands_started": 1,
-    "progress": "eval/qa-controls-settings-source-batch-progress-20261117.json"
+    "next_action": "Continue the original unfinished backlog from retained evidence. Preserve installed deliveries and failed usefulness findings; do not reopen passed acceptance or CodeMap/Blast. Record the short native TEMP workaround so future fixtures reuse the existing recorded fixture root."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3006,5 +2957,10 @@
   },
   "control_instance_trace_source_progress_20261117": "eval/control-instance-trace-progress-20261117.json",
   "ask_literal_settings_source_progress_20261117": "eval/ask-literal-settings-progress-20261117.json",
-  "graph_search_source_boundary_progress_20261117": "eval/graph-search-source-boundary-progress-20261117.json"
+  "graph_search_source_boundary_progress_20261117": "eval/graph-search-source-boundary-progress-20261117.json",
+  "qa_controls_settings_source_batch_delivery_20261117": {
+    "receipt": "eval/qa-controls-settings-source-batch-delivery-20261117.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "shipping_source_commit": "cf9b6929a923f62e2bd9f8ea5b0639741ef79dbc"
+  }
 }

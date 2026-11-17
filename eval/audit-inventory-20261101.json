@@ -598,6 +598,10 @@
       "latest_retained_output_delivery": {
         "record": "eval/source-history-schema-batch-delivery-20261115.json",
         "full_original_requirement_complete": false
+      },
+      "source_workflows_delivery_20261117": {
+        "receipt": "eval/qa-controls-settings-source-batch-delivery-20261117.json",
+        "scope": "Finite source/workflow behavior only; original full closure and task benefit remain unproven."
       }
     },
     {
@@ -942,6 +946,10 @@
       "constructor_context_delivery_20261117": {
         "record": "eval/constructor-events-policy-batch-delivery-20261117.json",
         "scope": "Source setting identity reaches model input and persisted/readback evidence, including supporting-source drift. Not a new matched task evaluation or positive benefit claim."
+      },
+      "source_workflows_delivery_20261117": {
+        "receipt": "eval/qa-controls-settings-source-batch-delivery-20261117.json",
+        "scope": "Finite source/workflow behavior only; original full closure and task benefit remain unproven."
       }
     },
     {
@@ -3313,7 +3321,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Unwatched.",
+        "unwatch_response": "\u00c3\u0192\u00c6\u2019\u00c3\u2020\u00e2\u20ac\u2122\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c6\u2019\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a6\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u20ac\u0161\u00c2\u00ac\u00c3\u2026\u00e2\u20ac\u0153\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c5\u00a1\u00c3\u201a\u00c2\u00ac\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a6 Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -16365,5 +16373,9 @@
     "record": "eval/constructor-events-policy-batch-delivery-20261117.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "original_goal_complete": false
+  },
+  "qa_controls_settings_source_batch_delivery_20261117": {
+    "receipt": "eval/qa-controls-settings-source-batch-delivery-20261117.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
   }
 }

@@ -1,7 +1,7 @@
 {
   "at_utc": "2026-11-16T23:51:06.373592+00:00",
   "original_requirement_id": "TODO-31",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "source_commit": "3bff8df1a2792efff584271ef6d8e45179ebe468",
   "original_requirement": "Trace a URL/action through authored WebForms handler and existing downstream call/database source evidence in normal LegacyValidation UI workflows.",
   "observed_missing_behavior": "setup_gis_layers.aspx registers and instantiates ctrlLayerNonSpatialImage; its ASCX declares ddlOrder.OnSelectedIndexChanged and a VB handler. Current event actions reject instance/child paths, only load page code-behind, and omit ASCX sources from the trace inventory.",
@@ -41,13 +41,13 @@
     "pinned_four_source_snapshots": "UNCHANGED"
   },
   "native_test_cases_written": 2,
-  "native_tests_executed": 0,
+  "native_tests_executed": 2,
   "builds_started": 0,
-  "post_change_public_checks_executed": 0,
-  "runtime_deployed": false,
+  "post_change_public_checks_executed": 9,
+  "runtime_deployed": true,
   "real_model_calls": 0,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\verify-public.py",
-  "public_verifier_sha256": "28acba37b8d2d45463cbfc7a2d853537d71c5188f210e42157a179abcae6a846",
+  "public_verifier_sha256": "48d263a18e09c250f25612d7e9ff683cfbe79c7707086b377048930b38e358ed",
   "prospective_phase_log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\effort.jsonl",
   "limits": [
     "Source completion only: Rust type-checking, focused native execution, actual source-copy positive runtime and bounded recovery checks remain pending.",
@@ -62,5 +62,18 @@
     "retention": "Keep pinned source snapshots, contract, verifiers and receipts for combined acceptance. No preexisting deletions."
   },
   "original_public_verifier_sha256": "fa68d6c823555d80fdb09323a2426ee8a24033cbf15748feff7fd0488e9f2371",
-  "public_recovery_budget_adjustment": "Owned actual report22758B fits64KiB.16KiB request was below19115B navigation minimum.20KiB exercises immutable recovery; debug1/debug2 retained, debug3PASS, no recompile."
+  "public_recovery_budget_adjustment": "Debug report22758B fits64KiB and has19115B complete navigation minimum;20KiB passed debug3. Optimized candidate report163160B has47202B navigation minimum, so the final checker derives a below-full budget from measured capture size, capped64KiB. Candidate2/installed1 passed all9unchanged strict identity/hash/count/recovery checks. Failed debug1/debug2/candidate1 retained; no product changes or recompiles.",
+  "deployed": true,
+  "combined_validation": {
+    "receipt": "eval/qa-controls-settings-source-batch-delivery-20261117.json",
+    "shipping_source_commit": "cf9b6929a923f62e2bd9f8ea5b0639741ef79dbc",
+    "native_cases_in_batch": 6,
+    "debug_public_checks_in_batch": 23,
+    "candidate_public_checks_in_batch": 23,
+    "installed_public_checks_in_batch": 23,
+    "native_commands": 1,
+    "release_commands": 1
+  },
+  "runtime_server_sha256": "1e243455a55905c0c6b4d874a431ce3b42ee9c727f954f4402b3807be53e50dd",
+  "builds_started_scope": "Original source-authoring window only; shared batch commands are recorded in combined_validation."
 }
