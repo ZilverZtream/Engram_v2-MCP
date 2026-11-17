@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-31",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "Normal WebForms request traces include source-authored initialization context before reusing existing call/database traversal.",
   "observed_missing_behavior": "The actual permit edit page assigns its upload control document type in Handles Me.Init. Existing handler_bindings includes only Load lifecycle context, so a normal page or control-event trace omits this authored setup.",
   "source_pins": {
@@ -32,8 +32,8 @@
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-init-context-20261117\\contract.json",
   "implementation_items_active": 0,
   "full_original_goal_active": true,
-  "engram_builds_started": 0,
-  "next_action": "Continue independent accepted source work; retain this TODO31 change and both EG25 source commits for combined validation. No standalone compile or release.",
+  "engram_builds_started": 4,
+  "next_action": "Finite component installed and accepted. Advance the original backlog without replaying this passed batch; broader semantic/task-usefulness limits remain.",
   "at_utc": "2026-11-17T04:56:25.772354+00:00",
   "source_commit": "c8e770d38d37db8e4d37c1eeb3b027afc49a0b97",
   "pending_source_outcomes": 2,
@@ -56,10 +56,10 @@
     "crates/engram_server/tests/request_trace_init_context.rs": "10e86b0de24f2047b0e4a1afe75bdb8efbb024763ae5389af71c77842bee9f68"
   },
   "native_test_cases_written": 2,
-  "native_tests_executed": 0,
+  "native_tests_executed": 2,
   "post_change_public_checks_executed": 0,
   "real_model_calls": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-init-context-20261117\\verify-public.py",
   "public_verifier_sha256": "b8801bc1c4b77899378cebc0764bb8b95d8b9ca369ac84ce3f899127668c8c11",
   "limits": [
@@ -72,5 +72,11 @@
     "baseline_owned_work_removed": true,
     "baseline_processes_closed": true,
     "retention": "Retain actual-source pins, finite contract, public baseline transport and verifier for combined acceptance. New focused fixtures drop graph handles before owned directories on completion and unwinding. No preexisting deletion."
-  }
+  },
+  "delivery_record": "eval/qa-ui-guidance-source-batch-delivery-20261117.json",
+  "shipping_source_commit": "bab3f41a48daca97a86380429379a21ef0fbdd4e",
+  "installed_public_checks": 5,
+  "candidate_public_checks": 5,
+  "build_count_scope": "Three focused Cargo invocations and one release are shared by all source outcomes. The two UI native cases cover both UI progress records; batch total is9, not a sum of record counts.",
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\native3.json"
 }

@@ -2554,53 +2554,7 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "EG-25",
-        "outcome": "Qualified VB helper evidence and exact requested-method QA selection",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "525aa59565d6249c51de4cd349c49d261ba07110",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-matrix-selection-20261117\\combined-eg25-contract.json",
-        "progress": "eval/method-matrix-selection-progress-20261117.json",
-        "source_commits": [
-          "32afc2d551eebed96f1661061b97be7567cf60de",
-          "525aa59565d6249c51de4cd349c49d261ba07110"
-        ],
-        "progress_records": [
-          "eval/business-helper-source-leads-progress-20261117.json",
-          "eval/method-matrix-selection-progress-20261117.json"
-        ],
-        "source_preparation": "Apply every source_commits entry in order to the existing shipping checkout; the latest source commit alone does not contain the preceding helper-source delivery."
-      },
-      {
-        "original_requirement_id": "TODO-31",
-        "outcome": "Authored WebForms initialization reaches normal request context",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "c8e770d38d37db8e4d37c1eeb3b027afc49a0b97",
-        "source_commits": [
-          "c8e770d38d37db8e4d37c1eeb3b027afc49a0b97"
-        ],
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-init-context-20261117\\contract.json",
-        "progress": "eval/webforms-init-context-progress-20261117.json"
-      },
-      {
-        "original_requirement_id": "EG-01",
-        "outcome": "Current scoped guidance accompanies UI layouts and four related WebForms inspection reports",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "ea442cdd29fcacd522859ca4b940690182907acc",
-        "source_commits": [
-          "89e7f4cb62fbe1b6936b55128c04658ac8cc9873",
-          "ea442cdd29fcacd522859ca4b940690182907acc"
-        ],
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-policy-20261117\\combined-eg01-contract.json",
-        "progress": "eval/webforms-report-policy-progress-20261117.json",
-        "progress_records": [
-          "eval/ui-blueprint-policy-progress-20261117.json",
-          "eval/webforms-report-policy-progress-20261117.json"
-        ],
-        "source_preparation": "Apply every source_commits entry in order to the existing shipping checkout; the report adapter depends on the preceding UI blueprint policy source."
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2753,7 +2707,7 @@
       "TODO-31",
       "EG-01"
     ],
-    "status": "ONE_COMBINED_RELEASE_RUNNING",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "shipping_source_commit": "bab3f41a48daca97a86380429379a21ef0fbdd4e",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117",
     "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\source-preparation.json",
@@ -2764,7 +2718,7 @@
     "full_or_lib_suite": false,
     "extra_debug_build": false,
     "full_original_goal_active": true,
-    "next_action": "Observe the same live release1 session41193 to its terminal receipt; never restart on observation timeout. Then package the same binary with unchanged215asset companion, run all five public verifiers on candidate/installed fixtures through existing managed config hold/production exclusion/deployment helpers, restore normal runtime, record exact identities and delivered limits. Do not run another native/debug build or full suite. Full original goal remains active.",
+    "next_action": "Advance the next ready unfinished original requirement, preserving this installed delivery, all31findings/19gates, held items and frozen matched QA task. No further build/replay for this passed batch.",
     "native_exec_session": 65490,
     "native_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\native3-state.json",
     "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\fixture-correction1.json",
@@ -2803,7 +2757,15 @@
     "release_plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\release-plan.json",
     "release_exec_session": 41193,
     "release_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\release1-state.json",
-    "native_runner_seconds_total": 474.5826805001125
+    "native_runner_seconds_total": 474.5826805001125,
+    "release_terminal_exit_code": 0,
+    "release_runner_seconds": 758.0048566000769,
+    "deployment_exec_session": 5915,
+    "deployment_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\deployment5-state.json",
+    "delivery_record": "eval/qa-ui-guidance-source-batch-delivery-20261117.json",
+    "candidate_public_checks": 40,
+    "installed_public_checks": 40,
+    "normal_daemon_restored": 54452
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3077,13 +3039,17 @@
   "business_helper_source_leads_progress_20261117": "eval/business-helper-source-leads-progress-20261117.json",
   "method_matrix_selection_source_progress_20261117": "eval/method-matrix-selection-progress-20261117.json",
   "current_turn_progress_classification": {
-    "previous_turn": "PROGRESS_ORIGINAL_EG01_SOURCE_CHANGE_COMMITTED",
-    "current_turn": "PROGRESS_RELATED_EG01_INSPECTIONS_SOURCE_COMMITTED",
-    "evidence": "eval/webforms-report-policy-progress-20261117.json",
-    "engram_builds_started": 0,
+    "previous_turn": "PROGRESS_VALIDATION_AND_VERIFIED_RELEASE_WAIT",
+    "current_turn": "PROGRESS_INSTALLED_SOURCE_DELIVERY",
+    "evidence": "eval/qa-ui-guidance-source-batch-delivery-20261117.json",
     "full_original_goal_active": true
   },
   "webforms_init_context_source_progress_20261117": "eval/webforms-init-context-progress-20261117.json",
   "ui_blueprint_policy_source_progress_20261117": "eval/ui-blueprint-policy-progress-20261117.json",
-  "webforms_report_policy_source_progress_20261117": "eval/webforms-report-policy-progress-20261117.json"
+  "webforms_report_policy_source_progress_20261117": "eval/webforms-report-policy-progress-20261117.json",
+  "qa_ui_guidance_source_batch_delivery_20261117": {
+    "record": "eval/qa-ui-guidance-source-batch-delivery-20261117.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_original_goal_complete": false
+  }
 }

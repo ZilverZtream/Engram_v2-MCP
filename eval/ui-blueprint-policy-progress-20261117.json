@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-01",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "Applicable authored guidance accompanies source context used by an agent to plan UI changes.",
   "observed_missing_behavior": "get_ui_blueprint returns a layout tree without applicable repository instructions. Current LegacyValidation UI/UX guidance applies to the selected permit page but is absent from that report.",
   "source_pins": {
@@ -39,8 +39,8 @@
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\contract.json",
   "implementation_items_active": 0,
   "full_original_goal_active": true,
-  "engram_builds_started": 0,
-  "next_action": "Continue substantive accepted source work and consolidate combined validation. Reaching the three-requirement minimum does not schedule a compile or deployment.",
+  "engram_builds_started": 4,
+  "next_action": "Finite component installed and accepted. Advance the original backlog without replaying this passed batch; broader semantic/task-usefulness limits remain.",
   "at_utc": "2026-11-17T05:04:49.319931+00:00",
   "source_commit": "89e7f4cb62fbe1b6936b55128c04658ac8cc9873",
   "pending_source_outcomes": 3,
@@ -68,10 +68,10 @@
     "docs/TOOL_CONTRACT.md": "240f07c8188e19a85d0ec5dd777d6ec2ed7079cf7f654eb35fc282c185e1b7f9"
   },
   "native_test_cases_written": 2,
-  "native_tests_executed": 0,
+  "native_tests_executed": 2,
   "post_change_public_checks_executed": 0,
   "real_model_calls": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\verify-public.py",
   "public_verifier_sha256": "4d1bf95c49d23949a65692754081d305c953259b37d4e06386646b55a943ec9d",
   "limits": [
@@ -84,5 +84,11 @@
     "baseline_owned_fixtures_removed": true,
     "baseline_processes_closed": true,
     "retention": "Retain exact non-Q source pins, finite contract, failed and passed baseline transports and verifier until combined acceptance. New native fixtures close project/runtime handles before owned directory teardown. No preexisting deletion."
-  }
+  },
+  "delivery_record": "eval/qa-ui-guidance-source-batch-delivery-20261117.json",
+  "shipping_source_commit": "bab3f41a48daca97a86380429379a21ef0fbdd4e",
+  "installed_public_checks": 6,
+  "candidate_public_checks": 6,
+  "build_count_scope": "Three focused Cargo invocations and one release are shared by all source outcomes. The two UI native cases cover both UI progress records; batch total is9, not a sum of record counts.",
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\native3.json"
 }

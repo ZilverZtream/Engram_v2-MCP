@@ -597,6 +597,11 @@ proposals that duplicate the existing surface:
   binary passed. Physical binding, execution, dynamic SQL, batches and broader
   TODO31 remain unresolved. [Delivery](eval/legacy_validation-vb-text-command-delivery-20261115.json).
 
+  Authored WebForms Init context installed November17: page/control/master
+  entries retain source verification alongside Load. Conventional Page_Init
+  requires AutoEventWireup=true; runtime execution/order remains unproven.
+  [Delivery](eval/qa-ui-guidance-source-batch-delivery-20261117.json).
+
 - [~] **32. `one_shot_feature_plan` (spec 42-1)** (L)
   Compiles a full pre-edit dossier for a feature request (relevant files, patterns,
   safety, test plan). Build after #28/#30 exist to compose them.

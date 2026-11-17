@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-01",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "Applicable authored guidance accompanies file-scoped UI evidence used to plan changes.",
   "observed_missing_behavior": "map_validation_controls, map_page_lifecycle, analyze_viewstate_deps and map_ajax_regions return source-derived inspection reports without the applicable authored UI/UX guidance already present for their explicit LegacyValidation file paths.",
   "tools": [
@@ -44,8 +44,8 @@
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-policy-20261117\\contract.json",
   "implementation_items_active": 0,
   "full_original_goal_active": true,
-  "engram_builds_started": 0,
-  "next_action": "Keep both EG01 source commits and contracts together, finish substantive source work before combined validation; the minimum queue count is not a release schedule.",
+  "engram_builds_started": 4,
+  "next_action": "Finite component installed and accepted. Advance the original backlog without replaying this passed batch; broader semantic/task-usefulness limits remain.",
   "at_utc": "2026-11-17T05:12:32.109871+00:00",
   "source_commit": "ea442cdd29fcacd522859ca4b940690182907acc",
   "pending_source_outcomes": 3,
@@ -72,10 +72,10 @@
     "docs/TOOL_CONTRACT.md": "3857fa56d58fa7eb9ce9cab8a38433092f38d81da29077c00e66ea84a775eb30"
   },
   "native_test_cases_updated": 2,
-  "native_tests_executed": 0,
+  "native_tests_executed": 2,
   "post_change_public_checks_executed": 0,
   "real_model_calls": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-policy-20261117\\verify-public.py",
   "public_verifier_sha256": "9d281f43bda7e437e9b242e3a5304ba0deba3d7e391ea6426add6982709d141f",
   "limits": [
@@ -88,5 +88,11 @@
     "baseline_owned_work_removed": true,
     "baseline_processes_closed": true,
     "retention": "Keep finite contract, prior exact source pins, raw eight-check baseline transports, original failed-format receipt and reconciliation for combined acceptance. Existing two owned native fixtures now cover all five UI adapters and close runtime before directory teardown. No preexisting deletion."
-  }
+  },
+  "delivery_record": "eval/qa-ui-guidance-source-batch-delivery-20261117.json",
+  "shipping_source_commit": "bab3f41a48daca97a86380429379a21ef0fbdd4e",
+  "installed_public_checks": 15,
+  "candidate_public_checks": 15,
+  "build_count_scope": "Three focused Cargo invocations and one release are shared by all source outcomes. The two UI native cases cover both UI progress records; batch total is9, not a sum of record counts.",
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\native3.json"
 }

@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-25",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "Useful method-specific generation and QA context includes bounded cited supporting source, preserving uncertainty and changed-source disclosure.",
   "observed_missing_behavior": "Actual GetCurrentlyAppliedPriceList assigns _gd.projekt.GetTopProjectID(...) before its query. Existing helper source is restricted to explicit-global standalone calls immediately preceding returns; the ordinary namespaced helper body is not supplied to generation or handed into QA evidence.",
   "source_pins": {
@@ -36,7 +36,7 @@
   "implementation_items_active": 0,
   "pending_source_outcomes": 1,
   "full_original_goal_active": true,
-  "next_action": "Continue substantive original source work and retain this outcome for combined validation. No standalone Cargo or tiny-change release; the independent frozen QA task remains unchanged and pending its explicit agent request.",
+  "next_action": "Finite component installed and accepted. Advance the original backlog without replaying this passed batch; broader semantic/task-usefulness limits remain.",
   "at_utc": "2026-11-17T04:08:28.442153+00:00",
   "source_commit": "32afc2d551eebed96f1661061b97be7567cf60de",
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-helper-source-leads-20261117\\baseline1\\receipt.json",
@@ -63,11 +63,11 @@
     "crates/engram_server/tests/business_helper_source_leads.rs": "15b689116848375cc5e387bdde8459f7f10b3be6f4329884dde7aeb02d3a69f7"
   },
   "native_test_cases_written": 2,
-  "native_tests_executed": 0,
+  "native_tests_executed": 3,
   "post_change_public_checks_executed": 0,
-  "engram_builds_started": 0,
+  "engram_builds_started": 4,
   "real_model_calls": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-helper-source-leads-20261117\\verify-public.py",
   "public_verifier_sha256": "cc39384d31e4aa0da463bdbf6a604c0611df8e096f7659eea7e1512681d316ff",
   "limits": [
@@ -81,5 +81,11 @@
     "baseline_processes_closed": true,
     "local_fixed_response_endpoint_closed": true,
     "retention": "Keep exact source pins, contract, baseline requests/receipt and verifier for combined acceptance. Native fixtures own graph/temp resources and close the graph first. No preexisting deletion."
-  }
+  },
+  "delivery_record": "eval/qa-ui-guidance-source-batch-delivery-20261117.json",
+  "shipping_source_commit": "bab3f41a48daca97a86380429379a21ef0fbdd4e",
+  "installed_public_checks": 9,
+  "candidate_public_checks": 9,
+  "build_count_scope": "Three focused Cargo invocations and one release are shared by all source outcomes. The two UI native cases cover both UI progress records; batch total is9, not a sum of record counts.",
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-ui-guidance-source-batch-20261117\\native3.json"
 }
