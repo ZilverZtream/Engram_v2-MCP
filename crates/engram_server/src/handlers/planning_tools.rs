@@ -13036,7 +13036,7 @@ impl Engram {
         let full=self.detect_incomplete_changes_with(req,None).await?;
         let mut body=full.content.iter().filter_map(|c|c.as_text().map(|t|t.text.as_str())).collect::<Vec<_>>().join("\n");
         let root=PathBuf::from(self.ensure_project_record(&project).await?.directory);
-        body.push_str(&edit_session_policy(&project,root,normalize_edit_files(&policy_paths)?).await?);
+        body.push_str(&edit_session_policy(&project,root,normalize_edit_files(&policy_paths)?).await?.render_markdown());
         let reply=edit_workflow_delivery::finish(&self.state.cfg.data_dir,&project,change_set_delivery::EditReport::Completeness,body,summary,output_json,budget)?;
         Ok(CallToolResult::success(vec![Content::text(reply)]))
     }
