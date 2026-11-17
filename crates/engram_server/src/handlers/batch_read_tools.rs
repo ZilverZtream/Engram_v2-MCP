@@ -163,6 +163,11 @@ impl Engram {
                     // authored guidance and immutable report continuations.
                     self.handle_get_full_method_body(arguments).await
                 }
+                BatchReadOperation::PageContext(arguments) => {
+                    // Preserve page options, scoped policy and hash-bound
+                    // context continuation before applying the shared budget.
+                    self.handle_get_page_context(arguments).await
+                }
             };
             let (status, response) = match result {
                 Ok(result) => (

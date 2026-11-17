@@ -1496,3 +1496,15 @@ The initial native run passed history/memory and failed job-fixture setup; the
 corrected job case passed alone, reusing the existing library and server artifacts.
 The original setup failure is retained. These finite deliveries do not establish
 overall task productivity or close the original storage/resource gates.
+
+### Page contexts in batch reads (source complete; validation pending)
+
+`batch_read` accepts typed `get_page_context` reads using the ordinary request
+schema and handler. JSON/Markdown output, code-behind/master/house-style options,
+applicable authored policy and hash-guarded context continuations remain the
+single-reader contract. Results stay ordered; a failed page does not suppress
+other reads. The shared response budget omits whole underlying replies and
+retains a callable single-tool recovery request, including inner page budgets,
+options, offsets and expected context hashes. Recovery performs a new read;
+changed evidence can refuse an old continuation. Reads are sequential and do
+not form an atomic snapshot. No latency or task-usefulness benefit is claimed.

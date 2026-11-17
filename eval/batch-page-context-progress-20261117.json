@@ -1,0 +1,27 @@
+{
+  "original_requirement_id": "TODO-33",
+  "status": "REACTIVATED_IMPLEMENTATION_ACTIVE",
+  "at_utc": "2026-11-17T10:09:26.429438+00:00",
+  "original_requirement": "Batch/multi-get hot reads with complete responses and shared budgets; compose existing page orientation for the ordinary multi-page WebForms agent workflow.",
+  "priority_basis": "LegacyValidation VB/WebForms changes need multiple page/control contexts with scoped authored guidance. This adds the existing page reader to the accepted batch endpoint, preserving completed method/source/memory/schema batching. It does not reopen those delivered contracts or claim a measured latency benefit.",
+  "observed_missing_behavior": "BatchReadOperation accepts six read types but rejects get_page_context, forcing separate calls for each page context during a multi-page change.",
+  "implementation_files": [
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/handlers/batch_read_tools.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/batch_page_context.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "finite_acceptance": [
+    "Owned exact non-Q LegacyValidation page copies verify that ordinary page reads work while the installed batch schema rejects the same operation. No actual project mutation or model calls.",
+    "Typed get_page_context batches call the ordinary handler and preserve its JSON/Markdown, composition options, source/guidance/hash and context continuation contracts. Ordered independent errors remain independent; no source evidence is cut inside a row.",
+    "Two focused behavior cases cover ordinary JSON/Markdown/option equivalence, independent missing-page errors, shared whole-result omission with executable recovery and guarded inner continuation after guidance edits. Public owned LegacyValidation-copy verification is queued with future independent original source outcomes. No standalone build or timing benchmark."
+  ],
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-page-context-20261117\\contract.json",
+  "implementation_items_active": 1,
+  "engram_builds_started": 0,
+  "full_original_goal_active": true,
+  "reactivation_reason": "The ordinary page-policy dependency now passes native/current public acceptance in the frozen maintenance/state/context batch. Resume the retained typed page-context batching outcome; existing baseline rejection is retained without replay.",
+  "source_phase_started_at_utc": "2026-11-17T10:09:26.429438+00:00",
+  "runtime_deployed": false
+}

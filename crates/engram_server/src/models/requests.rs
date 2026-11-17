@@ -4045,6 +4045,8 @@ pub enum BatchReadOperation {
     Schema(QuerySchemaRequest),
     #[serde(rename = "read_memory_bank")]
     MemorySection(ReadMemoryBankRequest),
+    #[serde(rename = "get_page_context")]
+    PageContext(GetPageContextRequest),
 }
 
 /// Navigate a URL/page and optional action through authored WebForms bindings.
