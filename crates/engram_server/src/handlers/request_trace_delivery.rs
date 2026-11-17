@@ -37,6 +37,14 @@ fn compact_control_event(event: &mut Value, counts: &mut [usize; 3]) {
 }
 
 fn compact(trace: &mut Value, counts: &mut [usize; 3]) {
+    if let Some(bindings)=trace.get_mut("master_pages").and_then(|plan|plan.get_mut("bindings")).and_then(Value::as_array_mut) {
+        for binding in bindings {
+            if let Some(object)=binding.as_object_mut() {
+                if let Some(excerpt)=object.remove("directive_excerpt") {counts[1]+=1;counts[2]+=excerpt.as_str().map(str::len).unwrap_or(0);}
+                object.insert("source_excerpt_deferred".into(),json!(true));
+            }
+        }
+    }
     if let Some(event) = trace.get_mut("control_event") { compact_control_event(event, counts); }
     if let Some(routes) = trace.get_mut("control_routes") {
         for event in routes["terminal_events"].as_array_mut().into_iter().flatten() {

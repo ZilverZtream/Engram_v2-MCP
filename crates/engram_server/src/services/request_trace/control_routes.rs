@@ -74,7 +74,7 @@ fn line(markup: &str, start: usize) -> u32 {
         + 1
 }
 
-fn admitted(
+pub(super) fn admitted(
     graph: &GraphStore,
     project: &str,
     source: &Source<'_>,

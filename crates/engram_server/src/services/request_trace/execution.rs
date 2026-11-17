@@ -43,6 +43,8 @@ pub struct PageTrace {
     pub control_event: Option<super::control_events::Evidence>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub control_routes: Option<super::control_routes::Resolution>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub master_pages: Option<super::master_pages::Resolution>,
     pub handlers: Vec<Handler>,
     pub paths: Vec<Hop>,
     pub source_members: Vec<serde_json::Value>,
@@ -270,6 +272,9 @@ pub fn trace_page(
         return trace_control_instances(graph, project, result, *page, control, event,
             include_db, sources, selected);
     }
+    let mut master_entries=Vec::new();
+    add_master_context(graph,project,&mut result,*page,&mut master_entries,sources,selected)?;
+    let finish=|result,chosen|trace_selected(graph,project,result,chosen,include_db,sources,selected);
     let markup = without_markup_comments(page.content);
     let directive =
         Regex::new(r"(?is)<%@\s*(?:Page|WebHandler|WebService)\b.*?%>").expect("directive syntax");
@@ -277,20 +282,20 @@ pub fn trace_page(
         result
             .gaps
             .push("Page/handler directive unavailable".into());
-        return Ok(result);
+        return finish(result,master_entries);
     };
     let Some(raw) = attribute(directive.as_str(), "CodeFile")
         .or_else(|| attribute(directive.as_str(), "CodeBehind"))
     else {
         result.gaps.push("No authored code-behind directive; inline/inherited handler resolution is not established".into());
-        return Ok(result);
+        return finish(result,master_entries);
     };
     let root = super::routing::app_root(page.path, sources);
     let Some(path) = relative_target(page.path, &raw, root) else {
         result
             .gaps
             .push("Code-behind target escapes the project or lacks hosting evidence".into());
-        return Ok(result);
+        return finish(result,master_entries);
     };
     let matches: Vec<_> = sources
         .iter()
@@ -301,7 +306,7 @@ pub fn trace_page(
             "Code-behind {path} has {} selected source matches",
             matches.len()
         ));
-        return Ok(result);
+        return finish(result,master_entries);
     }
     let source = matches[0];
     result.codebehind = Some(source.path.into());
@@ -314,21 +319,47 @@ pub fn trace_page(
             .push(format!("Method inventory truncated at {MAX_METHODS}"));
     }
     result.control_event = requested_event.map(|(control, event)| super::control_events::collect(page.path, page.content, control, event));
-    let chosen = handler_bindings(&markup, source.content, &methods, action, result.control_event.as_ref());
+    let mut chosen = handler_bindings(&markup, source.content, &methods, action, result.control_event.as_ref());
     if chosen.is_empty() {
         result.gaps.push("No requested authored handler binding found; dynamic, multiline and inherited bindings are not inferred".into());
     }
     if action.is_some_and(|a| a.eq_ignore_ascii_case("submit form")) {
         result.gaps.push("Submit control unspecified; returned click handlers are alternatives, not an execution sequence".into());
     }
-    trace_selected(
-        graph, project, result, chosen, include_db, sources, selected,
-    )
+    for (node,binding) in master_entries { merge_context_entry(&mut chosen,node,binding,&mut result.gaps); }
+    finish(result,chosen)
+}
+
+fn merge_context_entry(chosen:&mut Vec<(Node,String)>,node:Node,binding:String,gaps:&mut Vec<String>) {
+    if let Some((_,existing))=chosen.iter_mut().find(|(existing,_)|existing.node_id==node.node_id) {
+        if !existing.contains(&binding) {existing.push_str("; ");existing.push_str(&binding);}
+    } else if chosen.len()<MAX_NODES {chosen.push((node,binding));}
+    else if !gaps.iter().any(|gap|gap.starts_with("Master context entry cap")) {
+        gaps.push(format!("Master context entry cap{MAX_NODES} reached; remaining entries unexamined"));
+    }
+}
+
+fn add_master_context<'a>(graph:&Arc<GraphStore>,project:&str,result:&mut PageTrace,page:Source<'a>,chosen:&mut Vec<(Node,String)>,sources:&[Source<'a>],selected:&BTreeMap<String,u64>)->anyhow::Result<()> {
+    let Some(mut plan)=super::master_pages::resolve(graph,project,page,sources,selected)? else {return Ok(())};
+    for path in &plan.sources {
+        let Some(master)=sources.iter().find(|source|source.path==path) else {continue};
+        let Some(code)=control_codebehind(*master,sources,&mut plan.gaps) else {continue};
+        if !super::control_routes::admitted(graph,project,&code,selected)? {
+            plan.gaps.push(format!("{}: master code-behind revision/hash not admitted; Load entries withheld",code.path));continue;
+        }
+        let mut methods=graph.query_nodes_in_file(project,Some("function"),code.path,MAX_METHODS+1)?;
+        if methods.len()>MAX_METHODS {methods.truncate(MAX_METHODS);plan.truncated=true;plan.gaps.push(format!("{}: master method inventory capped at{MAX_METHODS}",code.path));}
+        let markup=without_markup_comments(master.content);
+        for (node,binding) in handler_bindings(&markup,code.content,&methods,Some("load page"),None) {
+            merge_context_entry(chosen,node,format!("master source context {}: {binding}; not lifecycle order",master.path),&mut result.gaps);
+        }
+    }
+    result.master_pages=Some(plan);Ok(())
 }
 
 fn control_codebehind<'a>(markup_source: Source<'a>, sources: &[Source<'a>], gaps: &mut Vec<String>) -> Option<Source<'a>> {
     let markup=without_markup_comments(markup_source.content);
-    let directive=Regex::new(r"(?is)<%@\s*(?:Page|Control)\b.*?%>").expect("page/control directive");
+    let directive=Regex::new(r"(?is)<%@\s*(?:Page|Control|Master)\b.*?%>").expect("page/control/master directive");
     let Some(directive)=directive.find(&markup) else {
         gaps.push(format!("{}: authored Page/Control directive unavailable",markup_source.path));return None;
     };
@@ -383,6 +414,7 @@ fn trace_control_instances<'a>(
     }
     if routes.terminals.is_empty() {result.gaps.push("No complete admitted control-instance route; inspect control_routes gaps".into());}
     if chosen.is_empty() {result.gaps.push("No admitted page/control load or terminal event entry found".into());}
+    add_master_context(graph,project,&mut result,page,&mut chosen,sources,selected)?;
     result.control_routes=Some(routes);
     trace_selected(graph,project,result,chosen,include_db,sources,selected)
 }
@@ -393,6 +425,7 @@ pub(super) fn empty_trace(path: &str, include_db: bool, include_triggers: bool) 
         codebehind: None,
         control_event: None,
         control_routes: None,
+        master_pages: None,
         handlers: Vec::new(),
         paths: Vec::new(),
         source_members: Vec::new(),
