@@ -80,5 +80,9 @@
     "Existing managed selected/current SQL source, path-scope/deadline/ambiguity/size budgets remain. Historical requests stay on their separate pinned Git path.",
     "The contract documentation paragraph explicitly marks this source change pending combined validation/deployment; reconcile that marker only after acceptance."
   ],
-  "next_action": "Queue this genuine TODO-28 source outcome beside EG-27 inline guidance. Continue the next ready independent original requirement before combined validation; no standalone compile or accepted-batch replay."
+  "next_action": "Queue this genuine TODO-28 source outcome beside EG-27 inline guidance. Continue the next ready independent original requirement before combined validation; no standalone compile or accepted-batch replay.",
+  "validation_status": "COMBINED_NATIVE_RUNNING",
+  "validation_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117",
+  "native_batch_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-state.json",
+  "shared_build_accounting": "One-j1 BelowNormal native invocation14cases across5focused targets for3genuine source outcomes; no full suite or separate debug build. Individual source-phase counters are not per-feature compile counts."
 }
