@@ -1,0 +1,70 @@
+{
+  "original_requirement_id": "EG-19",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "Original tool_roi priority2: annotate relevant review findings with scoped prior decisions, evidence and revision applicability; preserve findings and require reassessment of changed code.",
+  "observed_missing_behavior": "pre_commit_review returns complete prior_review_context separately from its findings. Selected findings contain no path-specific link to admitted prior decisions or their scope/revision assessments, so the reviewing agent must reconstruct every association.",
+  "priority_basis": "Original decision-aware-review shortlist; current LegacyValidation Full preset configuration unchanged and checked by hash. Owned VB/JS workflow fixtures only.",
+  "source_phase_started_at_utc": "2026-11-17T22:20:40.608888+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\contract.json",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/review_tools.rs",
+    "crates/engram_server/src/handlers/review_tools/finding_context.rs",
+    "crates/engram_server/src/handlers/review_tools/response_delivery.rs",
+    "crates/engram_server/tests/review_finding_evidence_links.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "finite_acceptance": [
+    "Link each selected finding to retained prior-review items only by exact referenced file or event relevance through the existing declared-scope/complete-path matcher. Link declared event scope and source/revision assessment separately from same-file indexed summary evidence; basename and unrelated same-review events do not become finding decisions.",
+    "JSON and compact/full Markdown expose finding identity, item/event pointers and a shared applicability warning. Keep original finding IDs, severities, messages, gate outcomes and verdict. Source/path relevance is a candidate for semantic review, never proof of the same issue, accepted authority or current applicability.",
+    "Default/caller response budgets preserve findings and per-finding evidence-link counts with complete original-report recovery. Recovery after source/event changes preserves original links and complete conditions without rerunning gates or silently using new decisions. Owned fixtures clean on completion/unwinding."
+  ],
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117",
+    "purpose": "Finite contract, owned baseline and future acceptance evidence",
+    "cleanup_condition": "Close all server/registry/Git resources before removing fixture directories; retain evidence through delivery; no preexisting deletion.",
+    "baseline_fixture_removed": true,
+    "baseline_server_owners_closed": true,
+    "current_fixtures_or_processes": 0
+  },
+  "build_policy": "Source only until a meaningful combined batch with at least three distinct original requirement outcomes. No standalone Cargo/release, broad suite, model run or new decision store.",
+  "source_phase_completed_at_utc": "2026-11-17T22:26:53.924005+00:00",
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\baseline1\\receipt.json",
+  "baseline_checks_passed": 5,
+  "baseline_seconds": 2.874491299968213,
+  "baseline_binary_sha256": "7762462734af91f0f634e078e106b333c6a20ccfdbb1f813e3d1f6b3f1f17e0f",
+  "source_checks": {
+    "rust_syntax": "PASS via rustfmt parse; new files formatted, existing sources parsed without rewriting",
+    "python_verifier_syntax": "PASS via compile(); no bytecode artifact",
+    "diff_whitespace": "PASS",
+    "protected_wip9": "UNCHANGED",
+    "engram_builds_started": 0,
+    "native_tests_executed": 0,
+    "post_change_public_checks_executed": 0
+  },
+  "native_target": "review_finding_evidence_links",
+  "native_test_cases_written": 3,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\verify-public.py",
+  "public_verifier_sha256": "54b5dee92b9c71c4869d11d8639b30cb4728f2e614568f9783f6d8d97be3531d",
+  "implementation_items_active": 0,
+  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "next_action": "Retain source outcome beside EG27; advance another distinct original requirement. No standalone Cargo/release.",
+  "source_sha256": {
+    "crates/engram_server/src/handlers/review_tools.rs": "af1f366a6f932592f226ee61197c42e437e7b8ef5da75a82aa72d9d7a754687a",
+    "crates/engram_server/src/handlers/review_tools/finding_context.rs": "a9dc69441eead3aa534a0ff8b0fa1a15842719a1f279da94159f7015e4c174dd",
+    "crates/engram_server/src/handlers/review_tools/response_delivery.rs": "f82f201dd276783a7d023a1622279dd1f8ee1913f54a02f7900d77ed5c0b3609",
+    "crates/engram_server/tests/review_finding_evidence_links.rs": "55612e934a2776ee646baa3fc6a81dad1b8339f725a2bc2ede379ccdd251bc43",
+    "docs/TOOL_CONTRACT.md": "2c3cce1657d7263867f96d5566984a87e6444c47175d4f08aa8bc295bad72e20"
+  },
+  "limits": [
+    "Links connect findings to already-retained evidence by path relevance only. They do not identify the same defect, authenticate author authority, accept an exception or validate semantic/current applicability.",
+    "Summary file evidence and each event are matched independently; the original context collection/byte/omission bounds and revision assessments remain unchanged. No new retrieval, model call, decision store or finding suppression.",
+    "Pointers resolve within the complete original report, not the compact deferred manifest. Manifest ledgers retain per-finding link counts and existing exact original-report recovery.",
+    "Syntax checks and installed baseline prove source readiness and the previous missing behavior only. Post-change native/public acceptance and deployment are pending.",
+    "No actual LegacyValidation source read, reindex/mutation, Site/Q access, CodeMap/Blast work, target-language expansion or preexisting deletion."
+  ],
+  "source_commit": "f7dfc6a749e97e4c5722a60e7d703cb7faebfcce"
+}
