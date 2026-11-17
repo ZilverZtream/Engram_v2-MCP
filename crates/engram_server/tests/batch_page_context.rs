@@ -106,11 +106,21 @@ impl Fixture {
 fn body(result: &CallToolResult) -> &str {
     &result.content[0].as_text().unwrap().text
 }
-fn json_response(value: &Value) -> Result<Value> {
+fn response(value: &Value, json_output: bool) -> Result<Value> {
     let mut value = value.clone();
+    let age = regex::Regex::new(
+        r"(\[engram\] gen=\d+ \| last project update )\d+[smhd]( ago \| stale\? call get_index_freshness)",
+    )?;
     for block in value["content"].as_array_mut().unwrap() {
         if block["type"] == "text" {
-            block["text"] = serde_json::from_str(block["text"].as_str().unwrap())?;
+            let text = age
+                .replace_all(block["text"].as_str().unwrap(), "$1<elapsed>$2")
+                .into_owned();
+            block["text"] = if json_output {
+                serde_json::from_str(&text)?
+            } else {
+                Value::String(text)
+            };
         }
     }
     Ok(value)
@@ -145,8 +155,14 @@ async fn multiple_pages_match_ordinary_json_markdown_options_and_keep_errors_ind
         batch["results"][0]["request_id"] == "first"
             && batch["results"][2]["request_id"] == "second"
     );
-    ensure!(json_response(&batch["results"][0]["response"])? == json_response(&serde_json::to_value(&singles[0])?)?);
-    ensure!(batch["results"][2]["response"] == serde_json::to_value(&singles[1])?);
+    ensure!(
+        response(&batch["results"][0]["response"], true)?
+            == response(&serde_json::to_value(&singles[0])?, true)?
+    );
+    ensure!(
+        response(&batch["results"][2]["response"], false)?
+            == response(&serde_json::to_value(&singles[1])?, false)?
+    );
     ensure!(
         batch["results"][1]["status"] == "request_error"
             || batch["results"][1]["status"] == "tool_error"
@@ -173,9 +189,15 @@ async fn whole_page_recovery_and_inner_continuations_preserve_policy_and_reject_
     let row = &omitted["results"][0];
     ensure!(row["response"].is_null() && row["recovery"]["tool"] == "get_page_context");
     let recovered = fixture.read(row["recovery"]["arguments"].clone()).await?;
-    ensure!(json_response(&serde_json::to_value(recovered)?)? == json_response(&serde_json::to_value(&ordinary)?)?);
+    ensure!(
+        response(&serde_json::to_value(recovered)?, true)?
+            == response(&serde_json::to_value(&ordinary)?, true)?
+    );
     let (_, complete) = fixture.batch(vec![("first", first)], 65536).await?;
-    ensure!(json_response(&complete["results"][0]["response"])? == json_response(&serde_json::to_value(&ordinary)?)?);
+    ensure!(
+        response(&complete["results"][0]["response"], true)?
+            == response(&serde_json::to_value(&ordinary)?, true)?
+    );
     let next = inner["continuation"]["arguments"].clone();
     let (_, continued) = fixture.batch(vec![("next", next.clone())], 65536).await?;
     ensure!(continued["results"][0]["status"] == "ok");
