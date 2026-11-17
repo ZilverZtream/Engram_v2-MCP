@@ -1497,7 +1497,7 @@ corrected job case passed alone, reusing the existing library and server artifac
 The original setup failure is retained. These finite deliveries do not establish
 overall task productivity or close the original storage/resource gates.
 
-### Page contexts in batch reads (source complete; validation pending)
+### Page contexts in batch reads (installed November17)
 
 `batch_read` accepts typed `get_page_context` reads using the ordinary request
 schema and handler. JSON/Markdown output, code-behind/master/house-style options,
@@ -1509,7 +1509,7 @@ options, offsets and expected context hashes. Recovery performs a new read;
 changed evidence can refuse an old continuation. Reads are sequential and do
 not form an atomic snapshot. No latency or task-usefulness benefit is claimed.
 
-### HTTP requests in natural-language answers (source complete; validation pending)
+### HTTP requests in natural-language answers (installed November17)
 
 `ask_codebase` recognizes explicit HTTP-method/URL mentions, for example
 `Explain POST /language.aspx/change`, and composes at most two ordinary
@@ -1532,7 +1532,7 @@ added, and no latency or general task-usefulness improvement is claimed.
 The Core preset includes `trace_user_request` so the emitted ordinary and nested
 trace recovery actions are advertised and callable; Full remains the default.
 
-### Concept-footprint guidance recovery (source complete; validation pending)
+### Concept-footprint guidance recovery (installed November17)
 
 `get_concept_footprint` already supplied authored guidance for returned paths.
 Its delivery step now binds executable `get_full_method_body` actions to

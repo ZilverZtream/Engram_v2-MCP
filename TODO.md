@@ -483,11 +483,10 @@ proposals that duplicate the existing surface:
   readers have no invented method or access line; changed sources are withheld.
   See eval/maintenance-state-context-batch-delivery-20261117.json.
 
-  November17 source complete, awaiting combined validation: explicit HTTP
-  request questions compose the existing static tracer with the ask-held source
-  selection, source/guidance/recovery and callable Core recovery. Three behavior
-  cases are written; execution/deployment remain pending. See
-  eval/ask-request-trace-progress-20261117.json.
+  Installed November17: explicit HTTP request questions compose ordinary static
+  request tracing with the ask-held source selection, complete source/guidance
+  evidence, Markdown and callable Core recovery. Static/runtime, scope and
+  deadline limits remain. See eval/page-request-guidance-batch-delivery-20261117.json.
 
 - [x] **29. Edit Session Protocol (spec 45: begin/complete_edit_session, detect_incomplete_changes)** (M) - *done 2026-06-13: bookends persist intent (registry meta), begin returns the expectation brief on the PLANNED set, complete reports scope drift (planned-but-unedited) + full completeness on actuals, session consumed on close. Was: engine done 2026-06-13: detect_incomplete_changes — untouched co-change partners (with historical evidence, tail-matched against path-spelling variants) + state keys shared with untouched files; 3-case behavioral test through real graph. Both session bookends are delivered; their expectations remain advisory evidence for the agent.*
   Bookends an agent's edit: snapshot expectations at start, verify coupled files/tests/
@@ -667,6 +666,11 @@ proposals that duplicate the existing surface:
   one actual LegacyValidation batch matched three individual responses. No atomic snapshot
   or latency/productivity improvement is claimed.
   Evidence: `eval/legacy_validation-batch-read-delivery-20261112.json`.
+
+  Installed November17: typed batches also accept `get_page_context`, preserving
+  ordinary JSON/Markdown/options, scoped guidance, independent errors and guarded
+  inner continuations. Whole-result recovery reruns the ordinary reader.
+  [Delivery](eval/page-request-guidance-batch-delivery-20261117.json).
 
 - [x] **34. Next-tool hints in every response** (S?M) ? *remaining applicable specialty tier delivered 2026-11-13.*
   Bounded `next_tools` with reasons and complete arguments where source identity

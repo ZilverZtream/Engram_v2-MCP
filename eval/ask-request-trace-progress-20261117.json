@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-28",
-  "status": "CURRENT_DEBUG_VALIDATED_AWAITING_COMBINED_DEPLOYMENT",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "at_utc": "2026-11-17T10:47:42.980431+00:00",
   "source_phase_started_at_utc": "2026-11-17T10:32:07.476917+00:00",
   "original_requirement": "Natural-language entry point composes existing source/graph/access capabilities for ordinary LegacyValidation questions.",
@@ -24,10 +24,10 @@
     "Focused parsing, report/scope/source qualification and shared-view direct-handler behavior cases plus owned public acceptance are queued with other original source outcomes. No standalone build/release, broader graph/parser work, task/model replay or timing benchmark."
   ],
   "implementation_items_active": 0,
-  "engram_builds_started": 0,
+  "engram_builds_started": 3,
   "native_tests_executed": 3,
   "post_change_public_checks_executed": 8,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "full_original_goal_active": true,
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-trace-20261117\\contract.json",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-trace-20261117",
@@ -73,7 +73,7 @@
     "Core advertises trace_user_request so new emitted ordinary/nested trace recovery is callable. This is a dependency of TODO28, not a third independent queue item."
   ],
   "limits": [
-    "Current focused/native and public debug behavior verified; installed acceptance/deployment remain pending.",
+    "Finite component validated on the focused native target and current debug/candidate/installed public fixtures; broader semantic/usefulness limits below remain.",
     "Static routing/handler/source/SQL candidates are not proof of HTTP hosting, dispatch, authorization, values or execution. Existing nested omissions/recovery remain. No new routing or synthesis model request.",
     "At most two explicit HTTP requests are traced; mention detection stops at the third. Explicit natural-language path scopes currently disclose automatic tracing unavailable before unscoped reads; ordinary scoped source retrieval continues.",
     "The ordinary tracer retains its existing50kpath/64MiBsource/2MiBfile/256MiBreservation and graph limits. Deadline expiration may leave the owned blocking reader finishing with its source lease. No end-to-end latency or general task-benefit claim.",
@@ -86,9 +86,14 @@
     "current_fixtures_or_processes": 0,
     "retention": "Retain exact source pins, contract, baseline/wire, verifier and source timing. New native/public fixtures close their server/database owners before removing owned directories, including unwinding. Preexisting folders untouched."
   },
-  "next_action": "One combined release and candidate/installed acceptance remain. No native replay, full suite or separate debug build.",
+  "next_action": "Finite component installed and accepted. Advance the original backlog without replaying this passed batch; broader semantic/task-usefulness limits remain.",
   "source_commit": "9896ccf07a8a36b26f867f261198d0df3532ff05",
   "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-request-guidance-batch-20261117\\native-acceptance.json",
   "current_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-trace-20261117\\page-request-guidance-batch-20261117-debug2\\receipt.json",
-  "current_debug_sha256": "b1949d5b75972e3b8c2c6294152307eae222161f00282be8d3d7f58d0e48d5e1"
+  "current_debug_sha256": "b1949d5b75972e3b8c2c6294152307eae222161f00282be8d3d7f58d0e48d5e1",
+  "delivery_record": "eval/page-request-guidance-batch-delivery-20261117.json",
+  "shipping_source_commit": "530398b4ee619b5895f67efd2096a39c2fc79984",
+  "installed_public_checks": 8,
+  "candidate_public_checks": 8,
+  "build_count_scope": "Two focused Cargo invocations including a test-only fresh-read comparison correction and one release are shared by three source outcomes. Seven distinct cases:2page batching,3HTTP asks,2guidance recovery; five unaffected first-run cases are retained."
 }
