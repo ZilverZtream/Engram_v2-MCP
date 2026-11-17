@@ -502,8 +502,26 @@ fn resolve(
 /// A matching qualified source spelling is an inspection lead, not a binding.
 pub(super) fn qualified_source_candidate(
     context: &SourceContext<'_>, name: &str,
-) -> Result<(String, String, u32, u32, String, String), String> {
-    resolve_name(context, name, "vb")
+) -> Result<(String, String, u32, u32, String, String, Option<String>), String> {
+    match resolve_name(context, name, "vb") {
+        Ok((identity, file, start, end, body, hash)) =>
+            return Ok((identity, file, start, end, body, hash, None)),
+        Err(original) => {
+            // A graph label can retain the wrong owner after a nested type.
+            // Use a unique indexed member-name observation only as a locator;
+            // the current complete declaration must establish the requested FQN.
+            let terminal = name.rsplit('.').next().ok_or("helper name unavailable")?;
+            let nodes = context.graph.query_nodes(context.project_id, Some("function"), Some(terminal), None, 101)
+                .map_err(|error| error.to_string())?;
+            if nodes.len() > 100 { return Err(format!("{original}; member-name lookup capped; source qualification unknown")); }
+            let matches: Vec<_> = nodes.into_iter().filter(|node|
+                node.name.rsplit('.').next().is_some_and(|observed| observed.eq_ignore_ascii_case(terminal))).collect();
+            if matches.len() != 1 { return Err(format!("{original}; {} member-name observations, unique source locator unavailable", matches.len())); }
+            let node = &matches[0];
+            let (identity, file, start, end, body, hash) = verify_helper_declaration(context, name, "vb", node)?;
+            Ok((identity, file, start, end, body, hash, Some(node.name.clone())))
+        }
+    }
 }
 
 fn resolve_name(
@@ -531,7 +549,12 @@ fn resolve_name(
             "helper {name} is absent or ambiguous under exact-name resolution"
         ));
     }
-    let node = &matches[0];
+    verify_helper_declaration(context, name, language, &matches[0])
+}
+
+fn verify_helper_declaration(
+    context: &SourceContext<'_>, name: &str, language: &str, node: &engram_graph::Node,
+) -> Result<(String, String, u32, u32, String, String), String> {
     let (source, hash) = read_verified_file(context, node.file_path.as_str())?;
     let members = super::business_logic_service::extract_logic_methods(&source, language);
     let matching: Vec<_> = members

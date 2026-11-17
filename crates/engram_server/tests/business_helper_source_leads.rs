@@ -179,3 +179,36 @@ fn ambiguous_sources_and_shadowable_simple_receivers_do_not_gain_helper_binding(
     );
     fixture.close()
 }
+
+#[test]
+fn wrong_indexed_owner_can_locate_verified_source_without_relaxing_outcome_binding() -> Result<()> {
+    let fixture = Fixture::new()?;
+    let mut node = fixture.graph.get_node("owned", "Helpers.vb:3")?.unwrap();
+    node.name = "Support.Helpers.NestedRecord.Permitted".into();
+    fixture.graph.upsert_nodes("owned", &[node])?;
+    let evidence = fixture.collect(CALLER)?;
+    let context = evidence.helper_context.as_ref().unwrap();
+    ensure!(context.candidates.len() == 1);
+    let candidate = &context.candidates[0];
+    ensure!(
+        candidate.identity == "Support.Helpers.Permitted"
+            && candidate.observed_graph_identity.as_deref()
+                == Some("Support.Helpers.NestedRecord.Permitted")
+    );
+    ensure!(
+        context.prompt_context().contains("Return id > 0")
+            && context.prompt_context().contains("Indexed locator label")
+    );
+    let source = CALLER.replace(
+        "Dim allowed = Support.Helpers.Permitted(id)\nReturn allowed",
+        "Global.Support.Helpers.Permitted(id)\nReturn True",
+    );
+    let strict = fixture.collect(&source)?;
+    ensure!(
+        strict.helper_context.is_none()
+            && strict.dependencies.len() == 1
+            && strict.dependencies[0].evidence_status == "unavailable",
+        "A source locator must not grant an immediate-return outcome binding"
+    );
+    fixture.close()
+}

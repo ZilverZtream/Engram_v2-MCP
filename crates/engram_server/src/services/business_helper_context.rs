@@ -27,6 +27,9 @@ pub struct Candidate {
     pub expression: String,
     pub call_lines: Vec<u32>,
     pub identity: String,
+    /// A fallback graph label is a locator, not the verified declaration owner.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub observed_graph_identity: Option<String>,
     pub file: String,
     pub start_line: u32,
     pub end_line: u32,
@@ -139,7 +142,7 @@ pub fn collect(
             break;
         }
         match outcomes::qualified_source_candidate(context, expression) {
-            Ok((identity, path, first, last, text, hash)) => {
+            Ok((identity, path, first, last, text, hash, observed_graph_identity)) => {
                 if !supplied.insert(identity.clone()) {
                     continue;
                 }
@@ -154,6 +157,7 @@ pub fn collect(
                     expression: expression.clone(),
                     call_lines: calls[&expression.to_ascii_lowercase()].clone(),
                     identity,
+                    observed_graph_identity,
                     file: path,
                     start_line: first,
                     end_line: last,
@@ -175,6 +179,9 @@ impl HelperContext {
             self.interpretation
         );
         for candidate in &self.candidates {
+            if let Some(observed) = &candidate.observed_graph_identity {
+                text.push_str(&format!("Indexed locator label {observed}; candidate identity below is checked against the current source declaration, not inferred from this label.\n"));
+            }
             if let Some(body) = &candidate.body {
                 text.push_str(&format!("Inspection candidate {} for source spelling {} at caller lines {:?}; separate source {}:{}-{}; file BLAKE3 {}; body BLAKE3 {}. This is not a resolved callee:\n{}\n",
                     candidate.identity, candidate.expression, candidate.call_lines, candidate.file, candidate.start_line,
