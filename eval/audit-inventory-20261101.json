@@ -10197,14 +10197,17 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "original_requirement_ids": [
-      "TODO-33"
+      "TODO-33",
+      "TODO-28"
     ],
-    "status": "SOURCE_QUEUE_WAITING_FOR_COMBINED_VALIDATION",
+    "status": "TWO_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
     "implementation_items_active": 0,
-    "source_progress": "eval/batch-page-context-progress-20261117.json",
-    "source_commit": "01f3e172486a8892405920bc50eee86d945ff2b2",
+    "pending_source_outcomes": 2,
+    "source_progress": "eval/ask-request-trace-progress-20261117.json",
+    "source_commit": "9896ccf07a8a36b26f867f261198d0df3532ff05",
+    "at_utc": "2026-11-17T10:50:36.884750+00:00",
     "full_original_goal_active": true,
-    "next_action": "Continue substantive independent original source work. Retain the queued TODO33 page-context batching outcome; do not compile this single source item. The preceding maintenance/state/context batch is installed and accepted; do not replay it."
+    "next_action": "Continue the next substantive independent original requirement. Retain TODO33 page-context batching and TODO28 explicit HTTP request questions for combined native/public validation only after the unchanged three-requirement build guard is met. Core recovery and Markdown retention are necessary parts of TODO28, not extra queue items. No standalone compile/release, model replay or passed-batch repetition."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -16409,7 +16412,22 @@
     "delivery": "eval/browser-json-history-batch-delivery-20261116.json",
     "normal_daemon_restored": 76584
   },
-  "next_source_batch_pending": [],
+  "next_source_batch_pending": [
+    {
+      "original_requirement_id": "TODO-33",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "01f3e172486a8892405920bc50eee86d945ff2b2",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-page-context-20261117\\contract.json",
+      "progress": "eval/batch-page-context-progress-20261117.json"
+    },
+    {
+      "original_requirement_id": "TODO-28",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "9896ccf07a8a36b26f867f261198d0df3532ff05",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-trace-20261117\\contract.json",
+      "progress": "eval/ask-request-trace-progress-20261117.json"
+    }
+  ],
   "browser_json_history_batch_delivery": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\browser-json-history-batch-delivery-20261116.json",
     "sha256": "a0cdde6e96500e17221ed373128a0150cdbb6485d7a53bcec1e61642f95243b9"
@@ -16483,5 +16501,10 @@
     "installed_checks": 20,
     "additional_installed_event_recovery_checks": 3,
     "normal_runtime_restored": true
+  },
+  "ask_request_trace_source_progress_20261117": {
+    "record": "eval/ask-request-trace-progress-20261117.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "runtime_deployed": false
   }
 }
