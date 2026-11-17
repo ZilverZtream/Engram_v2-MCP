@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-01",
-  "status": "FOCUSED_NATIVE_AND_PUBLIC_DEBUG_PASS_AWAITING_DEPLOYMENT",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "at_utc": "2026-11-17T06:13:03.975688+00:00",
   "original_requirement": "Applicable authored guidance accompanies pre-edit UI context; observed implementation patterns do not become approved policy.",
   "observed_missing_behavior": "get_ui_conformance supplies indexed family/class observations without current applicable instructions. Its no-family reply says no house contract exists, and its structure axis can display a successful check despite being uncheckable from class names.",
@@ -42,10 +42,9 @@
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-conformance-guidance-20261117\\contract.json",
   "implementation_items_active": 0,
   "full_original_goal_active": true,
-  "engram_builds_started": 0,
-  "next_action": "Continue substantive accepted source work. Retain this single EG01 requirement for combined validation; no standalone compile or release.",
+  "engram_builds_started": 2,
+  "next_action": "Finite component installed and accepted. Advance the original backlog without replaying this passed batch; broader semantic/task-usefulness limits remain.",
   "source_commit": "679e1753c529cd2154ca69c043ab99ba0501ff4f",
-  "pending_source_outcomes": 1,
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-conformance-guidance-20261117\\baseline1\\receipt.json",
   "baseline_seconds": 3.8808156999293715,
   "baseline_binary_sha256": "bceddf7980fe8a959081b2f90af7409c5bab538f456775789893dbc3f5a25358",
@@ -72,11 +71,11 @@
   "native_tests_executed": 3,
   "post_change_public_checks_executed": 5,
   "real_model_calls": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-conformance-guidance-20261117\\verify-public.py",
   "public_verifier_sha256": "320588a3025103f14bccf5dab6224248c0c48161029a02f80be0d2201af3064b",
   "limits": [
-    "Source completion only: type checking, focused execution and positive public/installed acceptance remain pending. Installed runtime remains the completed QA/UI batch.",
+    "Finite component validated on the focused native target and current debug/candidate/installed public fixtures; broader semantic/usefulness limits below remain.",
     "Directory/glob guidance covers a bounded indexed selection, not every future or unindexed file. Class comparison remains limited to observed class sets; authored policy compliance and overall task usefulness are not established.",
     "No actual LegacyValidation mutation/reindex, Site/Q read, model/task replay, CodeMap/Blast change, parser/graph producer expansion or target-language expansion."
   ],
@@ -87,5 +86,12 @@
     "retention": "Retain finite contract, references to prior exact non-Q source pins, baseline transport and verifier for combined acceptance. New native fixtures drop graph/project/runtime handles before owned directory teardown. No preexisting deletion."
   },
   "native_batch_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\native1.json",
-  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-conformance-guidance-20261117\\instruction-update-source-batch-20261117-debug1\\receipt.json"
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-conformance-guidance-20261117\\instruction-update-source-batch-20261117-debug1\\receipt.json",
+  "delivery_record": "eval/instruction-update-source-batch-delivery-20261117.json",
+  "shipping_source_commit": "d66d80a982c0c7b3b794624c138735c9ad1658ec",
+  "installed_public_checks": 5,
+  "candidate_public_checks": 5,
+  "build_count_scope": "One focused Cargo invocation and one release are shared by all three source outcomes. Native total is8:3conformance,2base-context,3update-delivery cases.",
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\native1.json",
+  "source_queue_size_when_implemented": 1
 }

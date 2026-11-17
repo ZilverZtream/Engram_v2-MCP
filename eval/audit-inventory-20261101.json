@@ -290,6 +290,11 @@
         "record": "eval/qa-ui-guidance-source-batch-delivery-20261117.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
+      },
+      "instruction_update_source_batch_delivery_20261117": {
+        "record": "eval/instruction-update-source-batch-delivery-20261117.json",
+        "finite_component_installed": true,
+        "full_original_requirement_complete": false
       }
     },
     {
@@ -16419,6 +16424,15 @@
       "EG-25",
       "TODO-31",
       "EG-01"
+    ],
+    "full_original_goal_complete": false
+  },
+  "instruction_update_source_batch_delivery_20261117": {
+    "record": "eval/instruction-update-source-batch-delivery-20261117.json",
+    "original_requirement_ids": [
+      "EG-01",
+      "TODO-31",
+      "TODO-4"
     ],
     "full_original_goal_complete": false
   }

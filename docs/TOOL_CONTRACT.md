@@ -689,7 +689,7 @@ omissions and recovery use the shared policy resolver; guidance changes require
 no reindex. Current guidance does not verify pattern freshness or runtime UI
 behavior. Existing complete-response budgets and captured-result recovery apply.
 
-### Update outcome delivery (source complete; validation pending)
+### Update outcome delivery (installed November17)
 
 `update_project` accepts the shared `max_tokens`, `output_json`, `response_id`
 and `response_offset` delivery controls. The default complete reply-text budget

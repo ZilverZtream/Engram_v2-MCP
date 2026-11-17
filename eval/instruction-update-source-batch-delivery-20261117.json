@@ -1,0 +1,101 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-17T07:40:23.731205+00:00",
+  "original_requirement_ids": [
+    "EG-01",
+    "TODO-31",
+    "TODO-4"
+  ],
+  "shipping_source_commit": "d66d80a982c0c7b3b794624c138735c9ad1658ec",
+  "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\source-preparation.json",
+  "delivered": [
+    "UI conformance reports separate observed family/class-set consistency from authored policy. Exact requested files, planned new files and bounded indexed directory/glob targets receive live scoped guidance, including accepted exceptions. Unassessed structure is not presented as passing.",
+    "WebForms root-page request context follows current admitted project inheritance edges to bounded authored PreInit/Init/Load subscriptions, retaining base links, hashes, declaring owners, gaps and existing source/database traversal. Conditional master assignment remains source evidence, not proven effective-master selection or lifecycle execution.",
+    "update_project supports bounded complete response delivery and exact original-result recovery, including separate large instruction observations and linked before/after snapshots. Recovery bypasses the operation even after owned source changes. Too-small budgets fail before updating; retention failure preserves the returned outcome with an explicit exceeded-budget warning."
+  ],
+  "validation": {
+    "current_native_cases_passed": 8,
+    "native_commands": 1,
+    "debug_current_artifact_checks": 22,
+    "retained_prior_debug_checks": 0,
+    "candidate_public_checks": 22,
+    "installed_public_checks": 22,
+    "public_receipts": {
+      "candidate1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\candidate1\\acceptance.json",
+      "installed1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\installed1\\acceptance.json"
+    },
+    "debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\debug1\\receipt.json",
+    "full_or_lib_suite": false,
+    "extra_debug_build": false,
+    "real_model_calls": 0
+  },
+  "build_cost": {
+    "native_runner_seconds": 262.1064128000289,
+    "release_commands": 1,
+    "release_runner_seconds": 930.3654190999223,
+    "combined_runner_seconds": 1192.4718318999512,
+    "actual_coding_percentage": null,
+    "limits": "Runner totals include compilation, tests and cleanup. They are neither pure compiler CPU nor an exclusive whole-session coding percentage. One focused eight-case run and one release; no failed Cargo invocation. Source-work timing is recorded separately and does not establish an exclusive whole-session coding percentage."
+  },
+  "installed_pair": {
+    "server_sha256": "7fef8de9a7a604768a6f5a1fe0a3d3b27e13f58087cd74c83ee48a25dd7bb0de",
+    "manifest_sha256": "aa4ec5bd0b6e7fd275723b6c56619353ba4999024c6ae708ef1fba5711e6c311",
+    "sidecar_sha256": "0199d344917619ce4b85a212b5b6e08726a0263c4bb52ebf6a362d0b77bc4079",
+    "assets_verified": 215,
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "selected_generation": 3151
+  },
+  "normal_runtime": {
+    "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+    "daemon_pid": 23500,
+    "normal_proxy_verified": true,
+    "intentional_application_owned_daemon": true
+  },
+  "bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\Engram-win-x64-instruction-update.zip",
+    "sha256": "401582299615f0ef51caf8816770e608c3d6c6296d496d698d87915410b289f1",
+    "entries": 219,
+    "runtime_assets": 215,
+    "public_hosting": false
+  },
+  "resources": {
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117",
+    "compiler_jobs_closed": true,
+    "native_owned_temps_removed": true,
+    "public_owned_fixtures_removed": true,
+    "config_hold_closed": true,
+    "owned_config_copy_removed": true,
+    "protected_wip9_unchanged": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-b7f492d90b5f4b039142568ffe33ff3f",
+    "retention": "Retain source pins/contracts, original failed and passed receipts, correction provenance, package, ZIP and managed rollback pair for review/recovery. Normal daemon belongs to application lifecycle. No preexisting deletion."
+  },
+  "retained_failures": {
+    "baseline_checker": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\update-result-delivery-20261117\\baseline1\\receipt.json",
+    "baseline_line_ending_reconciliation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\update-result-delivery-20261117\\baseline1\\accepted-receipt.json"
+  },
+  "limits": [
+    "The full original31findings/19gates and accepted backlog remain active. These finite components do not close their original requirements.",
+    "Observed UI patterns are not authored policy. Source-bound base handlers and conditional assignments do not prove compiler binding, effective master selection, lifecycle order, authorization, runtime execution or measured agent usefulness.",
+    "Conformance directory/glob guidance is a bounded indexed inventory and does not cover every unindexed planned file. Update-result retention failure explicitly exceeds its delivery budget rather than replacing the operation outcome with an error.",
+    "No actual LegacyValidation reindex/mutation, Site/Q read, model/task replay, CodeMap/Blast improvement or target-language expansion."
+  ],
+  "time_accounting": {
+    "started_at_utc": "2026-11-17T07:04:29.797516+00:00",
+    "phase": "source_work",
+    "definition": "Elapsed active implementation phase, including source inspection, design, editing and static checks; not keystroke time or an estimate of historical coding time.",
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "previous_goal_turn": "NO_PROGRESS_STATUS_ONLY",
+    "events": [],
+    "source_phase_ended_at_utc": "2026-11-17T07:11:37.493488+00:00",
+    "source_phase_elapsed_seconds": 427.695972,
+    "measured_public_baseline_seconds": 3.4081668000435457,
+    "remaining_source_phase_and_overhead_seconds": 424.28780519995644,
+    "engram_compile_test_seconds": 0,
+    "actual_keystroke_coding_percentage": null,
+    "limits": "Elapsed source phase includes reasoning, edits, static checks, tool overhead and conversation. It is not pure coding. Only the measured baseline fixture runner is subtracted. No historical coding percentage is reconstructed."
+  }
+}

@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-31",
-  "status": "FOCUSED_NATIVE_AND_PUBLIC_DEBUG_PASS_AWAITING_DEPLOYMENT",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "at_utc": "2026-11-17T06:46:23.579932+00:00",
   "original_requirement": "Normal WebForms request navigation includes source-authored project-base lifecycle context that can affect the selected page.",
   "observed_missing_behavior": "The cost-center page explicitly inherits DashboardBasePage. That project base has Handles Me.PreInit and a conditional MasterPageFile assignment, but request tracing selects only direct code-file and literal master handlers.",
@@ -41,10 +41,9 @@
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\contract.json",
   "implementation_items_active": 0,
   "full_original_goal_active": true,
-  "engram_builds_started": 0,
-  "next_action": "Continue substantive independent accepted source work. Retain UI conformance and this TODO31 context for combined validation; no standalone build or release.",
+  "engram_builds_started": 2,
+  "next_action": "Finite component installed and accepted. Advance the original backlog without replaying this passed batch; broader semantic/task-usefulness limits remain.",
   "source_commit": "58baa63c6fb9621ef2a024547560f32828e9745d",
-  "pending_source_outcomes": 2,
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\baseline2\\receipt.json",
   "baseline_seconds": 2.1834378999192268,
   "baseline_binary_sha256": "bceddf7980fe8a959081b2f90af7409c5bab538f456775789893dbc3f5a25358",
@@ -73,11 +72,11 @@
   "native_tests_executed": 2,
   "post_change_public_checks_executed": 8,
   "real_model_calls": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\verify-public.py",
   "public_verifier_sha256": "57297db2dd33edb738e7cae8016365a04d2089655aa6166fffe5eae824e8d1d1",
   "limits": [
-    "Source completion only: type checking, focused execution and positive public/installed acceptance remain pending. Installed runtime remains the preceding QA/UI batch.",
+    "Finite component validated on the focused native target and current debug/candidate/installed public fixtures; broader semantic/usefulness limits below remain.",
     "This is source-bound root-page context, not compiler base binding, guaranteed base-handler execution, authorization, lifecycle order or effective master selection. Overrides, root namespace/import binding and master/control/framework inheritance remain unexamined.",
     "No actual LegacyValidation mutation/reindex, Site/Q read, model/task replay, graph/parser producer repair, CodeMap/Blast change or target-language expansion."
   ],
@@ -88,5 +87,12 @@
     "retention": "Retain exact non-Q page/base source pins, contract, failed and corrected baseline transports and verifier for combined acceptance. Native graph fixtures close handles before owned directories on completion/unwinding. No preexisting deletion."
   },
   "native_batch_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\native1.json",
-  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\instruction-update-source-batch-20261117-debug1\\receipt.json"
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\instruction-update-source-batch-20261117-debug1\\receipt.json",
+  "delivery_record": "eval/instruction-update-source-batch-delivery-20261117.json",
+  "shipping_source_commit": "d66d80a982c0c7b3b794624c138735c9ad1658ec",
+  "installed_public_checks": 8,
+  "candidate_public_checks": 8,
+  "build_count_scope": "One focused Cargo invocation and one release are shared by all three source outcomes. Native total is8:3conformance,2base-context,3update-delivery cases.",
+  "source_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\native1.json",
+  "source_queue_size_when_implemented": 2
 }

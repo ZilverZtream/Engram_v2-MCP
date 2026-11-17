@@ -165,13 +165,12 @@ These degrade or improve *every single interaction*. Nothing below matters until
   changes lifecycle ownership. Remaining TODO4 coverage stays open.
   [Delivery](eval/legacy_validation-edit-workflow-batch-delivery-20261115.json).
 
-  November17 source complete, awaiting combined validation: `update_project`
-  gains complete-reply budgeting and exact original-outcome recovery, including
-  separate large instruction observations. Recovery bypasses the operation; a
-  post-operation retention failure preserves its original outcome and explicitly
-  discloses an exceeded budget. Installed baseline returned76,911bytes without
-  delivery controls. See eval/update-result-delivery-progress-20261117.json; this
-  change is not yet type checked, validated or deployed.
+  Installed November17: `update_project` complete replies now support budgets
+  and exact original-outcome recovery without repeating the operation. Separate
+  linked instruction observations remain complete; post-operation retention
+  failure explicitly exceeds the budget and preserves the original outcome.
+  Nine installed public checks cover this component; original TODO4 remains
+  partial. See eval/instruction-update-source-batch-delivery-20261117.json.
 
 - [x] **5. Staleness metadata on every response** (S) — *done 2026-06-12: last_index_completed_ms recorded by process_ingest_stats; get_index_freshness tool (generation, age, watcher, disk-drift count, advice); footer on hot read tools.*
   `state.rs`, `metrics.rs`, handlers. There is no "index generation age", "last reindex",
@@ -609,6 +608,11 @@ proposals that duplicate the existing surface:
   entries retain source verification alongside Load. Conventional Page_Init
   requires AutoEventWireup=true; runtime execution/order remains unproven.
   [Delivery](eval/qa-ui-guidance-source-batch-delivery-20261117.json).
+
+  Root project-base lifecycle context installed November17: source-admitted
+  PreInit/Init/Load subscriptions and conditional master assignment are visible
+  with hashes/gaps, without claiming runtime execution or effective-master
+  selection. [Delivery](eval/instruction-update-source-batch-delivery-20261117.json).
 
 - [~] **32. `one_shot_feature_plan` (spec 42-1)** (L)
   Compiles a full pre-edit dossier for a feature request (relevant files, patterns,
