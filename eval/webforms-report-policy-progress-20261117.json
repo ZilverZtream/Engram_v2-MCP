@@ -1,0 +1,92 @@
+{
+  "original_requirement_id": "EG-01",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "Applicable authored guidance accompanies file-scoped UI evidence used to plan changes.",
+  "observed_missing_behavior": "map_validation_controls, map_page_lifecycle, analyze_viewstate_deps and map_ajax_regions return source-derived inspection reports without the applicable authored UI/UX guidance already present for their explicit LegacyValidation file paths.",
+  "tools": [
+    "map_validation_controls",
+    "map_page_lifecycle",
+    "analyze_viewstate_deps",
+    "map_ajax_regions"
+  ],
+  "source_pins": {
+    "Site/modules/dashboard/pages/admin/permits/permit_edit.aspx": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\modules\\dashboard\\pages\\admin\\permits\\permit_edit.aspx",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\sources\\permit_edit.aspx",
+      "sha256": "fa8e6d486e448356e9fa4fe3c6b2501adb5296f82eb2ab24a0e457345b23d287",
+      "bytes": 19587
+    },
+    "Site/modules/dashboard/pages/admin/permits/permit_edit.aspx.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\modules\\dashboard\\pages\\admin\\permits\\permit_edit.aspx.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\sources\\permit_edit.aspx.vb",
+      "sha256": "ca9e680ae57758c703865fc223570ab876a9b2227c0ad863fcf1ffcabd5c8ddd",
+      "bytes": 19692
+    },
+    ".github/instructions/ui-ux.instructions.md": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\.github\\instructions\\ui-ux.instructions.md",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\sources\\ui-ux.instructions.md",
+      "sha256": "041d51529e787313ec6fbd2fc8cd6d80ab3564f247e9c81f654de8cb3f3a7bd2",
+      "bytes": 22533
+    }
+  },
+  "finite_acceptance": [
+    "Supply current project_policy_sources for the explicit requested file in each of the four JSON reports; preserve existing report fields, source checks, graph/semantic limitations and advisory recommendations.",
+    "Markdown preserves its complete original report followed by the same complete applicable guidance, exceptions, hashes, omissions and callable source recovery. Reuse the shared resolver and existing response delivery.",
+    "Fresh guidance changes require no reindex; unrelated scopes stay excluded. Scope covers requested files only and does not certify report compliance, freshness or all future edit paths.",
+    "One owned exact page/code/UI-guide fixture reproduces installed omission across the four tools. Focused JSON/Markdown report-preservation and live-guidance checks plus combined public recovery establish wanted behavior. This remains one EG01 queue entry together with the blueprint change; no standalone compile or filler build admission."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/handlers/ui_blueprint_policy.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/ui_blueprint_policy.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-policy-20261117\\contract.json",
+  "implementation_items_active": 0,
+  "full_original_goal_active": true,
+  "engram_builds_started": 0,
+  "next_action": "Keep both EG01 source commits and contracts together, finish substantive source work before combined validation; the minimum queue count is not a release schedule.",
+  "at_utc": "2026-11-17T05:12:32.109871+00:00",
+  "source_commit": "ea442cdd29fcacd522859ca4b940690182907acc",
+  "pending_source_outcomes": 3,
+  "source_behavior": [
+    "Validation, lifecycle, ViewState and AJAX public tool routes use a shared explicit-file policy adapter. Existing JSON analysis fields are preserved; Markdown retains the original report followed by full bounded guidance with authored conditions, hashes, omissions and callable source recovery.",
+    "The legacy AJAX handler ignores output_json and formats Markdown. The adapter retains that exact formatted report in an explicit JSON report/report_format pair when JSON is requested, alongside project_policy_sources. Native report fields are not invented.",
+    "All five UI tool adapters share the same current-file policy resolver/recovery and existing complete-response delivery. Scope is explicitly the requested path, not a claim about every companion or eventual edit. Protected cognitive_tools work remains unchanged."
+  ],
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-policy-20261117\\baseline-accepted1.json",
+  "baseline_seconds": 1.4731753999367356,
+  "baseline_binary_sha256": "ba9750324b87ec00cda653e0257e5d1c1bd229385b542b6d19230efb6d7d98a2",
+  "retained_failed_verifier_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-policy-20261117\\baseline1\\receipt.json",
+  "baseline_reconciliation": "The first verifier assumed every output_json report was JSON. Retained AJAX output is Markdown despite output_json=true; the intact report names the expected page and omits guidance. All four omission checks are established from retained responses, without replay. The source adapter will retain that legacy report explicitly inside JSON rather than drop its data.",
+  "source_checks": {
+    "rustfmt_parse": "PASS; changed small module/tests formatted; tools parsed without rewriting",
+    "public_verifier_syntax": "PASS",
+    "git_diff_check": "PASS",
+    "protected_wip9": "UNCHANGED"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/ui_blueprint_policy.rs": "3ba025d237b7db68c74b6c0849244c5a082c73ab6cd5e4e9d578841845db7d7a",
+    "crates/engram_server/src/tools.rs": "b1492dbb51a01b7ea1bf745a59d7b02ce051a88495e7d26d1f87ce235d0c24b9",
+    "crates/engram_server/tests/ui_blueprint_policy.rs": "1634c82a831066edd9387c571796569330c5fff91956f2b0a3911a13943fc24a",
+    "docs/TOOL_CONTRACT.md": "3857fa56d58fa7eb9ce9cab8a38433092f38d81da29077c00e66ea84a775eb30"
+  },
+  "native_test_cases_updated": 2,
+  "native_tests_executed": 0,
+  "post_change_public_checks_executed": 0,
+  "real_model_calls": 0,
+  "runtime_deployed": false,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-policy-20261117\\verify-public.py",
+  "public_verifier_sha256": "9d281f43bda7e437e9b242e3a5304ba0deba3d7e391ea6426add6982709d141f",
+  "limits": [
+    "Source completion only. Type checking, focused execution and positive public/installed guidance/recovery checks remain pending. Installed runtime is unchanged.",
+    "Guidance does not validate source freshness, inferred migration recommendations, code compliance, runtime behavior or complete edit scope. Companion/final-edit guidance still requires explicit checking.",
+    "This is one EG01 requirement with the queued layout change, not four additional independent backlog deliveries. No actual LegacyValidation mutation/reindex, Site/Q read, model call, task replay, CodeMap/Blast change or target-language expansion."
+  ],
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-policy-20261117",
+    "baseline_owned_work_removed": true,
+    "baseline_processes_closed": true,
+    "retention": "Keep finite contract, prior exact source pins, raw eight-check baseline transports, original failed-format receipt and reconciliation for combined acceptance. Existing two owned native fixtures now cover all five UI adapters and close runtime before directory teardown. No preexisting deletion."
+  }
+}
