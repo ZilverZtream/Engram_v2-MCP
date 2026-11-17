@@ -7,6 +7,7 @@
 
 pub mod evidence;
 pub mod historical;
+pub mod literal_settings;
 pub mod model_routing;
 pub mod plan;
 pub mod planner;
