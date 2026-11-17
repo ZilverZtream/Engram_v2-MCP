@@ -80,7 +80,7 @@
   },
   "native_target": "ask_webforms_interactions",
   "native_test_cases_written": 3,
-  "post_change_public_checks_executed": 0,
+  "post_change_public_checks_executed": 9,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117\\verify-public.py",
   "public_verifier_sha256": "31902e8a2b5841d5a8fee4595ee3551413ab0fb94f45a176da188a5c081a0193",
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117\\baseline1\\receipt.json",
@@ -135,5 +135,7 @@
     "86702aaf370f685898a12a3701e2f9c08e37d7a8",
     "3ec40103c74eb5be186535fe9e1828f78da79f0f"
   ],
-  "validation_status": "NATIVE3_AFFECTED_SEVEN_CASES_RUNNING"
+  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-interaction-batch-20261117\\debug3\\receipt.json",
+  "release_exec_session_id": 30832
 }
