@@ -12,6 +12,7 @@ mod caller_excerpts;
 mod unresolved_callers;
 pub mod code_review_tools;
 pub mod cognitive_tools;
+pub mod ui_blueprint_policy;
 pub mod explain_change_tools;
 pub mod git_tools;
 mod history_refresh;

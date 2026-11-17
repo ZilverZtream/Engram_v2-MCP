@@ -866,7 +866,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] UI layout tree for a page/form: containers, controls, nesting (WebForms markup + WinForms designer)."
+        description = "[.NET legacy] UI layout tree for a page/form: containers, controls, nesting (WebForms markup + WinForms designer), plus current applicable authored guidance with source hashes and explicit omissions/recovery. Guidance does not establish layout freshness or UI compliance."
     )]
     pub async fn get_ui_blueprint(
         &self,
@@ -875,7 +875,7 @@ impl Engram {
         if let Some(result) = self.legacy_tool_applicability("get_ui_blueprint", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
             return Ok(result);
         }
-        self.handle_get_ui_blueprint(params.0).await
+        self.handle_get_ui_blueprint_with_policy(params.0).await
     }
 
     #[tool(

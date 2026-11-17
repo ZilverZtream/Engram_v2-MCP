@@ -649,6 +649,19 @@ the class symbol's `heritage_unresolved` metadata instead of invented type edges
 Existing indexed files need source re-extraction before these new relationships
 are available through `find_references` or `traverse_graph`.
 
+### UI layout guidance
+
+`get_ui_blueprint` retains its indexed layout fields and supplies live
+`project_policy_sources` for the requested project-relative layout path. Complete
+authored instructions retain their hashes, scope and exceptions; sources outside
+the shared policy budget have explicit omissions and hash-bound `read_action`
+recovery. Guidance refreshes without reindexing. If no layout is indexed, the
+response retains the original message as `layout_unavailable` alongside guidance.
+The shared complete-response budget and captured-result recovery still apply;
+saved recovery retains the original guidance rather than reading later edits.
+Current instructions do not certify layout freshness, UI compliance or runtime
+behavior. Recheck guidance for the final edit scope.
+
 ### Database analysis delivery
 
 Database intelligence table/column/key reports use the same declaration
