@@ -22,6 +22,7 @@ mod prior_context;
 mod pre_push_context;
 mod response_delivery;
 mod finding_context;
+mod maintenance_context;
 
 impl Engram {
     pub async fn handle_pre_commit_review(
@@ -148,6 +149,21 @@ impl Engram {
                 prior_head.as_deref(), &prior_root, prior_input)
         }).await.unwrap_or_else(|error| prior_context::unavailable(&format!("Evidence worker unavailable: {error}")));
 
+        // Evidence only: ordinary review does not silently become a policy
+        // drafting or write operation. Use this review checkout and file scope.
+        let maintenance_root = project_dir.clone();
+        let maintenance_project = req.project_id.clone();
+        let maintenance_mode = req.diff.clone();
+        let maintenance_head = head_before.clone();
+        let maintenance_paths = parsed.iter().map(|file| file.path.clone()).collect();
+        let instruction_maintenance_context = tokio::task::spawn_blocking(move || {
+            maintenance_context::collect(&maintenance_root, &maintenance_project,
+                &maintenance_mode, maintenance_head.as_deref(), maintenance_paths)
+        }).await.unwrap_or_else(|error| serde_json::json!({
+            "status":"maintenance_evidence_unavailable","reason":format!("Evidence worker unavailable: {error}"),
+            "evidence_collection_performed":false,"maintenance_semantic_review_performed":false,
+            "authored_files_written":0}));
+
         let elapsed_ms = start.elapsed().as_millis();
         let source_after = source_snapshot(&project_dir, &parsed);
         let head_after = head_commit(&project_dir);
@@ -199,6 +215,7 @@ impl Engram {
         payload["project_policy_sources"] = serde_json::to_value(&project_policy_sources)
             .map_err(|error| McpError::internal_error(error.to_string(), None))?;
         payload["prior_review_context"] = prior_review_context.clone();
+        payload["instruction_maintenance_context"] = instruction_maintenance_context.clone();
         finding_context::annotate(&mut payload);
         if (changed_during_review || snapshot_unavailable) && payload["verdict"] == "green" {
             payload["verdict"] = "yellow".into();
@@ -251,6 +268,7 @@ impl Engram {
                 ));
             }
             report.push_str(&project_policy_sources.render_markdown());
+            report.push_str(&maintenance_context::markdown(&instruction_maintenance_context));
             report.push_str(&finding_context::markdown(&payload));
             report.push_str("\n## Prior review context — imported evidence; findings remain visible\n\n");
             match serde_json::to_string_pretty(&prior_review_context) {

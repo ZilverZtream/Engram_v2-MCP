@@ -29,6 +29,7 @@ pub(super) fn finish(req: &PreCommitReviewRequest, data: &Path, body: String, re
     let manifest = json!({
         "verdict":report["verdict"],"summary":report["summary"],"finding_ledger":ledger,
         "gate_status":report["gate_status"],
+        "instruction_maintenance_context":super::maintenance_context::summary(&report["instruction_maintenance_context"]),
         "coverage":{
             "submitted_files":count("submitted_files"),"textual_diff_files":count("textual_diff_files"),
             "unexamined_files":count("unexamined_files"),"unindexed_files":count("unindexed_files"),

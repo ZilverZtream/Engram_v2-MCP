@@ -2166,3 +2166,34 @@ default 8192, maximum 65536). Identity and recovery metadata are reserved before
 new reads; insufficient metadata budgets fail before execution. Existing 1..16
 read limits and independent per-read errors remain.
 [Pending source record](../eval/batch-read-immutable-results-progress-20261118.json).
+
+
+## Instruction-maintenance evidence in ordinary reviews
+
+Source change 2026-11-18 (following batch; validation/deployment pending):
+`pre_commit_review` native Git modes (`staged`, `unstaged`, `head`) compose the
+existing instruction-maintenance collector for the distinct parsed review paths
+in the selected review checkout. The comparison is the captured starting HEAD
+for staged/unstaged and its first parent for head. JSON
+`instruction_maintenance_context` and the matching Markdown section retain the
+existing complete before/current instruction/code snapshots, packet BLAKE3,
+changed-evidence/dependency manifest, source scopes, exceptions and coverage.
+The existing explicit maintenance limit is 16 changed paths and the existing
+complete-file/packet budgets still apply. Oversized or unavailable captures are
+reported without silently choosing a subset or declaring no change necessary.
+
+Raw and `.patch` inputs do not establish a comparison commit; their maintenance
+state is explicitly unavailable rather than guessing that current HEAD was the
+patch base. Evidence collection is separate from the original gate findings and
+verdict. It runs no model, submits no draft, adopts no policy and writes no
+authored file. Current-disk after evidence can include staged/unstaged differences;
+the diff and maintenance capture are separate, non-atomic observations. An
+implementation conflict may require fixing code rather than weakening policy.
+Draft and validate decisions against the same checkout and complete packet.
+
+A deferred review retains a maintenance-state/hash summary and marks the full
+context as deferred. Existing review continuations recover the exact original
+packet after later edits without running gates or reading current guidance again.
+This does not expand source discovery, certify semantic maintenance/compliance or
+establish LegacyValidation task benefit.
+[Pending source record](../eval/review-instruction-maintenance-progress-20261118.json).

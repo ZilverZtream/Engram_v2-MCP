@@ -989,7 +989,7 @@ impl Engram {
                        When the agent edits a linked worktree instead of the indexed checkout, pass \
                        `working_directory`; Engram verifies repository identity and binds both the diff \
                        and current-file snapshots to that worktree. Markdown defaults to a bounded compact \
-                       ledger; pass `detail_level=full` for all explanations and snippets. No LLM calls."
+                       ledger; pass `detail_level=full` for all explanations and snippets. Native Git diff modes also collect bounded instruction-maintenance before/current evidence and dependency manifests for this checkout and reviewed file scope; semantic drafting and policy decisions remain open. Raw/patch comparison bases are not guessed. Deferred reports retain the complete maintenance packet. No LLM calls."
     )]
     pub async fn pre_commit_review(
         &self,

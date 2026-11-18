@@ -1,0 +1,79 @@
+{
+  "original_requirement_id": "EG-31",
+  "related_original_requirement": "EG-27",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "Evidence-driven instruction maintenance after code changes, with changed evidence/rationale and preservation of authored exceptions.",
+  "finite_acceptance": [
+    "Ordinary native-Git pre_commit_review supplies a bounded before/current evidence packet and dependency manifest for its reviewed changed-file scope using the existing maintenance service, without model calls or authored writes. Applicable guidance and gate findings remain distinct from semantic instruction review.",
+    "Known Git diff modes supply an exact comparison commit and expose current-disk/non-atomic coverage. Unknown raw/patch comparison bases, capture failures and budgets report unavailable/incomplete maintenance evidence rather than guessing policy or silently claiming no change.",
+    "JSON and Markdown contain the same evidence state; oversized review responses retain an explicit summary and exact immutable recovery of the full maintenance context. Prove owned JS/TS/SQL/guidance workflow behavior; do not rerun previous area-draft pilots or CodeMap/Blast Radius improvement."
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118\\contract.json",
+  "source_phase_started_at_utc": "2026-11-18T03:28:59.967162+00:00",
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "current_release_excludes_this_work": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
+  "next_action": "Retain as one following source outcome while the already-validated three-outcome release continues. Accumulate substantive original source work before future combined validation; use the recorded short Git fixture environment. No standalone compile or release for this item.",
+  "baseline1_failure": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118\\baseline1\\receipt.json",
+    "reason": "Owned Git fixture path exceeded libgit2 Windows path limit before review ran. First receipt retained, all owners closed and fixture removed. No intended maintenance behavior was exercised.",
+    "scope": "Fixture correction only. Product long-path issue recorded, not selected for implementation."
+  },
+  "temporary_resources": {
+    "evidence_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118",
+    "owned_fixture_parent": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+    "reason": "Short central recorded scratch path for owned Git fixture; libgit2 open rejects the deeper evidence-case path.",
+    "cleanup_condition": "Owned server/database/Git resources close before fixture removal; retain receipts; no preexisting deletion."
+  },
+  "source_phase_completed_at_utc": "2026-11-18T03:43:02.701794+00:00",
+  "implementation_items_active": 0,
+  "observed_missing_behavior": "Installed a027ca4c owned native-Git review supplies scoped guidance and changed-file hashes but no maintenance packet/manifest. Baseline2 passed4checks in2.25s after correcting only the owned Git fixture path; original path-limit failure retained.",
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118\\baseline2\\receipt.json",
+  "baseline_checks_passed": 4,
+  "implementation_files": [
+    "crates/engram_server/src/handlers/review_tools.rs",
+    "crates/engram_server/src/handlers/review_tools/maintenance_context.rs",
+    "crates/engram_server/src/handlers/review_tools/response_delivery.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/review_instruction_maintenance.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "native_test_cases_written": 3,
+  "native_target": "review_instruction_maintenance",
+  "native_environment": {
+    "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118\\verify-public.py",
+  "public_verifier_sha256": "03ea4a1dd7d6f54890a22fbb8568161d2c450573174ff2b2ed949f12aff918c8",
+  "source_sha256": {
+    "crates/engram_server/src/handlers/review_tools.rs": "cd33a2a572e8876735da7d417a2997f1a9c2ca0238055a3b05565d6a3edb1e2c",
+    "crates/engram_server/src/handlers/review_tools/maintenance_context.rs": "426544c01471206d4592b9cac024fabef163f962878e563daf6c834bc885cb23",
+    "crates/engram_server/src/handlers/review_tools/response_delivery.rs": "53e6d733f7cdb6bf337b6b97dc944b032ea034d76995da564d5b6fdb780607bb",
+    "crates/engram_server/src/tools.rs": "437cbc76912164e5ca28f8eb93402bc8e63d5ae277d555129b9ae26f799cc0ff",
+    "crates/engram_server/tests/review_instruction_maintenance.rs": "2856c39309bb13755a556f8266a37dd0bae8460a60a61ae93a81fba61ab0137b",
+    "docs/TOOL_CONTRACT.md": "8cb62003c17b7850bd3d5cd00075a7a328f7c23c2b8c2391395a9943ae51ac9d"
+  },
+  "validation_status": "PENDING_FOLLOWING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "priority_basis": "Normal LegacyValidation configuration remains Full/Ollama with the retained config identity; pre_commit_review is available. Owned TS/SQL/guidance fixtures test the instruction-maintenance workflow, not actual LegacyValidation semantic policy or task benefit.",
+  "source_checks": {
+    "rust_syntax": "PASS via rustfmt; new helper/test formatted, existing modules parsed without broad rewrite",
+    "python_syntax": "PASS via compile(); no bytecode artifact",
+    "diff_whitespace": "PASS",
+    "interfaces": "Existing MaintenanceRequest/Report reused with explicit fields; current review checkout and parsed file scope retained. No new request flags, models or authored writes.",
+    "protected_wip9": "UNCHANGED",
+    "current_release_inputs": "Frozen shipping checkout remains clean at cfefe85a; this following source change is excluded from its running build",
+    "engram_builds_started_for_this_item": 0,
+    "native_tests_executed": 0
+  },
+  "limitations": [
+    "Source implementation and three focused checks/public verifier are unrun; not part of the current frozen release and not deployed. One following original EG31 outcome, not separate outcomes per mode/format/capture.",
+    "Evidence collection reuses existing explicit16-path, complete-file/packet and discovery/reference budgets. Unavailable/incomplete context is reported; it is not no_change, policy acceptance, semantic maintenance review or compliance clearance.",
+    "Native modes use exact comparison commits but current disk after evidence may differ from staged content. Review diffs, existing gate/source observations and maintenance captures are separate, non-atomic observations; no matching-patch or runtime claim.",
+    "Raw/patch bases remain unknown rather than inferred. Existing parsed file identities are used; semantic rename reconstruction and exhaustive dependency discovery are not introduced.",
+    "Guidance exceptions/scope remain in complete captures. Semantic proposals need an agent and validation against the same checkout/packet; an implementation conflict is not permission to weaken policy.",
+    "No actual LegacyValidation source/Q/index/data mutation, real model calls, CodeMap/Blast Radius improvement, language expansion, preexisting deletion or new build. General task benefit and full original requirements remain open."
+  ]
+}
