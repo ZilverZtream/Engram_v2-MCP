@@ -2554,7 +2554,20 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "TODO-28",
+        "related_original_requirement": "TODO-2",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "e10df98c9e51b83bb871023b7aff97b6fa1674e7",
+        "progress": "eval/ask-provider-availability-progress-20261118.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118\\contract.json",
+        "behavior": "Natural-language search-backed arms retain filtered lexical evidence and honest unavailable semantic coverage under optional provider failure/timeout.",
+        "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+        "runtime_deployed": false,
+        "counting_rule": "One availability outcome across arms and formats; not separate deliveries per provider."
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2784,13 +2797,15 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
-    "record": "eval/query-property-fallback-batch-delivery-20261118.json",
-    "pending_source_outcomes": 0,
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "progress": "eval/ask-provider-availability-progress-20261118.json",
+    "original_requirement": "TODO-28",
+    "pending_source_outcomes": 1,
     "implementation_items_active": 0,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "Advance the next ready unfinished original requirement. Preserve31findings/19gates and held work; do not restart terminal builds or replay this batch."
+    "previous_batch_delivery": "eval/query-property-fallback-batch-delivery-20261118.json",
+    "next_action": "Retain this one source outcome and advance another substantive original requirement before combined validation. Do not compile/deploy this availability change alone."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3100,9 +3115,9 @@
     "does_not_pause_or_replace_goal": true
   },
   "active_source_implementation": {
-    "status": "NONE_PREVIOUS_BATCH_DELIVERED",
+    "status": "NONE_SOURCE_OUTCOME_PENDING_VALIDATION",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 0
+    "pending_source_outcomes": 1
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -3167,8 +3182,9 @@
   },
   "previous_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T01:46:47.749000+00:00",
-    "reason": "Three original outcomes passed installed acceptance and normal runtime restoration; full original backlog remains active.",
+    "at_utc": "2026-11-18T02:17:02.733229+00:00",
+    "reason": "Installed owned proof established natural-language source-arm evidence loss. Implemented typed lexical fallback/coverage disclosure, wrote four wanted-behavior cases, syntax checked and committed source. No Cargo or test-suite run; full original goal active.",
+    "source_commit": "e10df98c9e51b83bb871023b7aff97b6fa1674e7",
     "full_original_goal_complete": false
   },
   "scoped_http_ask_progress_20261117": "eval/scoped-http-ask-progress-20261117.json",
@@ -3955,5 +3971,17 @@
       "TODO-2"
     ],
     "full_original_goal_complete": false
+  },
+  "ask_provider_availability_source_progress_20261118": {
+    "original_requirement_id": "TODO-28",
+    "related_original_requirement": "TODO-2",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "e10df98c9e51b83bb871023b7aff97b6fa1674e7",
+    "progress": "eval/ask-provider-availability-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118\\contract.json",
+    "behavior": "Natural-language search-backed arms retain filtered lexical evidence and honest unavailable semantic coverage under optional provider failure/timeout.",
+    "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+    "runtime_deployed": false,
+    "counting_rule": "One availability outcome across arms and formats; not separate deliveries per provider."
   }
 }
