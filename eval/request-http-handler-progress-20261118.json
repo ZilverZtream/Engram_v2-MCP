@@ -1,16 +1,16 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_DEBUG_ACCEPTANCE_PASS_RELEASE_RUNNING",
   "original_requirement_id": "TODO-31",
   "progress": "eval/request-http-handler-progress-20261118.json",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118\\contract.json",
   "implementation_items_active": 0,
   "runtime_deployed": false,
   "not_in_frozen_release": "agent-instruction-batch-20261118",
-  "next_action": "Retain for the next substantive combined source batch. Do not compile or move the current shipping checkout.",
+  "next_action": "Finite native/debug contracts passed first invocation; preserve passes and reuse one optimized release for candidate/installed acceptance. Do not expand scope.",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118",
   "at_utc": "2026-11-18T14:34:57.497944+00:00",
   "source_stage_cargo_invocations": 0,
-  "native_cases_executed": 0,
+  "native_cases_executed": 2,
   "full_original_goal_complete": false,
   "implementation_files": [
     "crates/engram_server/src/services/request_trace.rs",
@@ -36,7 +36,7 @@
   "public_verifier_sha256": "f12f942c59a3b45269f2bfe01771fcd56393720b3d5cf1132e4a464f1f12387f",
   "syntax_validation": "Changed Rust source and test parsed with rustfmt stdin; no typecheck/test pass claimed.",
   "limitations": [
-    "Source complete only; native and new-code public acceptance remain pending. Existing current release remains frozen at bf4abd6a and excludes this change.",
+    "Native and public debug contracts passed on owned fixtures; optimized release and candidate/installed acceptance remain pending. Actual LegacyValidation use and incremental task usefulness are not established.",
     "Literal explicit code-behind and directive Class with an authored single-line VB instance Implements IHttpHandler.ProcessRequest binding only. Inline/App_Code-only/inherited handlers, aliases and multiline headers remain disclosed gaps.",
     "No actual LegacyValidation handler presence or task benefit demonstrated. No source/Q/index mutation, CodeMap/Blast work, language expansion, provider calls or preexisting folder deletion."
   ],
@@ -46,5 +46,14 @@
     "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118",
     "cleanup_condition": "Retain oracles, wire and receipts until separately accounted; new native/public fixtures own and close all resources."
   },
-  "source_commit": "65942c3542daa9bcfc8a6fc1074127ceaa6d4a39"
+  "source_commit": "65942c3542daa9bcfc8a6fc1074127ceaa6d4a39",
+  "historical_source_stage_limits": [
+    "Source complete only; native and new-code public acceptance remain pending. Existing current release remains frozen at bf4abd6a and excludes this change.",
+    "Literal explicit code-behind and directive Class with an authored single-line VB instance Implements IHttpHandler.ProcessRequest binding only. Inline/App_Code-only/inherited handlers, aliases and multiline headers remain disclosed gaps.",
+    "No actual LegacyValidation handler presence or task benefit demonstrated. No source/Q/index mutation, CodeMap/Blast work, language expansion, provider calls or preexisting folder deletion."
+  ],
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\native-acceptance.json",
+  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\debug1\\receipt.json",
+  "validation_status": "NATIVE_AND_DEBUG_PASS",
+  "release_progress": "eval/request-guidance-function-batch-progress-20261118.json"
 }

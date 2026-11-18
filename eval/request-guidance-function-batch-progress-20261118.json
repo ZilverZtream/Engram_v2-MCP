@@ -1,5 +1,5 @@
 {
-  "status": "PREPARING_FOCUSED_COMBINED_ACCEPTANCE",
+  "status": "OPTIMIZED_RELEASE_RUNNING",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118",
   "original_requirement_ids": [
     "TODO-31",
@@ -8,8 +8,28 @@
   ],
   "native_target": "request_guidance_function_delivery",
   "expected_cases": 7,
-  "native_cargo_invocations": 0,
+  "native_cargo_invocations": 1,
   "runtime_deployed": false,
   "full_original_goal_complete": false,
-  "next_action": "Freeze the existing clean shipping checkout at the aggregate target commit, then one gated focused native invocation. No separate debug build, full/lib suite, no-vector matrix or passed-test replay."
+  "next_action": "Observe existing release5870/postrelease7496. Reuse one optimized artifact for candidate/installed31-assertion checks, restore the normal runtime and record delivery. No passed native/debug replay, duplicate build or separate debug build.",
+  "source_commit": "100679586dde457755b70be02ec20489e69f4814",
+  "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\source-preparation1.json",
+  "native_session_id": null,
+  "native_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\native-owner-pin1.json",
+  "public_driver": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\verify-public.py",
+  "public_driver_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\public-driver-pin1.json",
+  "postnative_session_id": null,
+  "native_and_debug_sessions_terminal": true,
+  "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\native-acceptance.json",
+  "native_cases_passed": 7,
+  "native_seconds": 531.0232252999995,
+  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\debug1\\receipt.json",
+  "public_debug_assertions": 31,
+  "public_debug_seconds": 29.562253899999632,
+  "debug_binary_sha256": "f3ef19a007c2f3eda7272a455486786bb37a90dbde71fbeb3d9dd9f625b7f195",
+  "release_session_id": 5870,
+  "postrelease_session_id": 7496,
+  "release_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\release-owner-pin1.json",
+  "postrelease_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\postrelease1-state.json",
+  "no_shipping_source_mutation_until_terminal": true
 }

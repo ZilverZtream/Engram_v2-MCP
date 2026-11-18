@@ -1,15 +1,15 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_DEBUG_ACCEPTANCE_PASS_RELEASE_RUNNING",
   "original_requirement_id": "TODO-28",
   "progress": "eval/ask-sql-functions-progress-20261118.json",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118\\contract.json",
   "implementation_items_active": 0,
   "runtime_deployed": false,
-  "next_action": "Retain with pending HTTP-handler and selective-instruction changes. The three-outcome minimum is not a command to compile; continue substantive source work and consolidate the next validation batch.",
+  "next_action": "Finite native/debug contracts passed first invocation; preserve passes and reuse one optimized release for candidate/installed acceptance. Do not expand scope.",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118",
   "at_utc": "2026-11-18T15:07:43.524657+00:00",
   "source_stage_cargo_invocations": 0,
-  "native_cases_executed": 0,
+  "native_cases_executed": 3,
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118\\baseline1\\receipt.json",
   "baseline_runtime_sha256": "103dc1d77b44ead3ffafc056a0dccf45ce9ee367a0ac9b70094dc02292613208",
   "full_original_goal_complete": false,
@@ -43,7 +43,7 @@
   "implementation": "Admit SQL FUNCTION declaration objects to the shared bounded source catalog and named schema query; compose explicit SQL-function questions with complete token-normalized signature/body, lexical references, exact source hash/span, qualified ambiguity and callable Full/Core clarification. Reuse selected-source admission and authored guidance.",
   "actual_legacy_validation_function_presence_verified": false,
   "limitations": [
-    "Source complete only; native/new-code public acceptance remains pending. No claim that LegacyValidation currently uses these functions or gains task productivity.",
+    "Native and public debug contracts passed on owned fixtures; optimized release and candidate/installed acceptance remain pending. Actual LegacyValidation use and incremental task usefulness are not established.",
     "Declared SQL source only; runtime return-type checking, live/deployed definitions, dependency execution, function-call binding, dynamic SQL and effective ALTER/DROP ordering remain unknown.",
     "Existing SQL source/batch/object bounds apply. Other language functions are not rerouted without an explicit SQL-function cue. No new tool, language target, database schema/source-format change, CodeMap/Blast work or actual LegacyValidation source/Q/index mutation."
   ],
@@ -53,5 +53,14 @@
     "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118",
     "cleanup_condition": "Retain contract/source oracle/wire/receipt; native/public fixtures close stores and handles before teardown; no preexisting directory deletion."
   },
-  "source_commit": "54b3ea292571f158cf5c47072b04e79b3167fcb7"
+  "source_commit": "54b3ea292571f158cf5c47072b04e79b3167fcb7",
+  "historical_source_stage_limits": [
+    "Source complete only; native/new-code public acceptance remains pending. No claim that LegacyValidation currently uses these functions or gains task productivity.",
+    "Declared SQL source only; runtime return-type checking, live/deployed definitions, dependency execution, function-call binding, dynamic SQL and effective ALTER/DROP ordering remain unknown.",
+    "Existing SQL source/batch/object bounds apply. Other language functions are not rerouted without an explicit SQL-function cue. No new tool, language target, database schema/source-format change, CodeMap/Blast work or actual LegacyValidation source/Q/index mutation."
+  ],
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\native-acceptance.json",
+  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\debug1\\receipt.json",
+  "validation_status": "NATIVE_AND_DEBUG_PASS",
+  "release_progress": "eval/request-guidance-function-batch-progress-20261118.json"
 }

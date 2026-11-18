@@ -1,14 +1,14 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_DEBUG_ACCEPTANCE_PASS_RELEASE_RUNNING",
   "original_requirement_id": "EG-27",
   "progress": "eval/selective-instruction-update-progress-20261118.json",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selective-instruction-update-20261118\\contract.json",
   "implementation_items_active": 0,
   "runtime_deployed": false,
-  "next_action": "Retain for the next substantive source batch. Do not compile at the current two-outcome queue or replay delivered acceptance.",
+  "next_action": "Finite native/debug contracts passed first invocation; preserve passes and reuse one optimized release for candidate/installed acceptance. Do not expand scope.",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selective-instruction-update-20261118",
   "at_utc": "2026-11-18T14:53:58.821720+00:00",
-  "native_cases_executed": 0,
+  "native_cases_executed": 2,
   "source_stage_cargo_invocations": 0,
   "full_original_goal_complete": false,
   "implementation_files": [
@@ -34,9 +34,9 @@
   "public_verifier_sha256": "37cc1c3f410715161d94a302ba9de2dd06975dc74709d77a07591698d8b8614c",
   "source_syntax_validation": "Changed production Rust and focused test parsed with rustfmt stdin; only the new test was formatted. No typecheck or test pass claimed.",
   "limitations": [
+    "Native and public debug contracts passed on owned fixtures; optimized release and candidate/installed acceptance remain pending. Actual LegacyValidation use and incremental task usefulness are not established.",
     "Existing only_paths admission/source-identity and nonmaintenance update semantics remain. Implicit changed-path guidance selection uses existing16-path maintenance bounds and refuses before source work if exceeded.",
-    "Guidance/Git/source evidence may be read outside the refresh paths; indexed outside revisions remain inherited and are not certified current. Instruction observation and index publication remain separate.",
-    "Source complete only; native and new-code public acceptance pending. No actual LegacyValidation source/Q/index mutation or demonstrated task gain, CodeMap/Blast work, provider/model request, language expansion or preexisting deletion."
+    "Guidance/Git/source evidence may be read outside the refresh paths; indexed outside revisions remain inherited and are not certified current. Instruction observation and index publication remain separate."
   ],
   "temporary_resources": {
     "baseline_owners_closed": true,
@@ -44,5 +44,14 @@
     "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selective-instruction-update-20261118",
     "cleanup_condition": "Retain oracles/wire/receipts; all new native/public fixtures own and close handles before removing their directories."
   },
-  "source_commit": "aac8cd34ad439a30b0a491ce238cb33bdd3a8095"
+  "source_commit": "aac8cd34ad439a30b0a491ce238cb33bdd3a8095",
+  "historical_source_stage_limits": [
+    "Existing only_paths admission/source-identity and nonmaintenance update semantics remain. Implicit changed-path guidance selection uses existing16-path maintenance bounds and refuses before source work if exceeded.",
+    "Guidance/Git/source evidence may be read outside the refresh paths; indexed outside revisions remain inherited and are not certified current. Instruction observation and index publication remain separate.",
+    "Source complete only; native and new-code public acceptance pending. No actual LegacyValidation source/Q/index mutation or demonstrated task gain, CodeMap/Blast work, provider/model request, language expansion or preexisting deletion."
+  ],
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\native-acceptance.json",
+  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\debug1\\receipt.json",
+  "validation_status": "NATIVE_AND_DEBUG_PASS",
+  "release_progress": "eval/request-guidance-function-batch-progress-20261118.json"
 }
