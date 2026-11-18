@@ -1,0 +1,60 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-3",
+  "supporting_original_requirement": "EG-26",
+  "at_utc": "2026-11-18T12:29:24.807201+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\contract.json",
+  "observed_missing_behavior": "Shared delivery advertisement still repeats the same long argument/reassembly/replay instructions in every eligible tool description. Full discovery is active in the verified normal LegacyValidation configuration; this repeated metadata consumes its AI tool context. The prior5-primary-description delivery remains accepted and is not replayed.",
+  "implementation_files": [
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/src/retained_results.rs",
+    "crates/engram_server/src/read_report_delivery_tests.rs",
+    "crates/engram_server/src/read_report_delivery_tests.rs"
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/read_report_delivery.rs": "4411e9e1ace8068d4f2870fef1fe75dae6f0c6965ecf8bc04e5fae8cdf9a2fd4",
+    "crates/engram_server/src/retained_results.rs": "75842705d5ab2e04efa96b3357d24f9a1783be1aa7c5888f4928e06ee91394e9",
+    "crates/engram_server/src/read_report_delivery_tests.rs": "35918baafe58330b5d5b211d89e582eb988c3378fe8b0255ece0a3262d3e1f02"
+  },
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\baseline1\\receipt.json",
+  "baseline_binary_scope": "Validated debug6546c6b0 from the frozen health/refresh/constant batch; following metadata-only delta is separate from its running release.",
+  "source_projection": {
+    "status": "SOURCE_ONLY_PASS",
+    "baseline_description_bytes": 82408,
+    "projected_description_bytes": 73591,
+    "projected_reduction_bytes": 8817,
+    "projected_reduction_percent": 10.699203960780507,
+    "shared_read_report_tools_changed": 62,
+    "tool_count": 125,
+    "all_non_description_catalog_fields_preserved": true,
+    "runtime_claim": false,
+    "native_tests_written": 0,
+    "native_tests_executed": 0,
+    "cargo_invocations": 0,
+    "changed_strings_only": true
+  },
+  "projected_catalog": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\projected-tools.json",
+  "native_target": null,
+  "native_tests_required": 0,
+  "native_tests_written": 0,
+  "native_tests_executed": 0,
+  "source_stage_cargo_invocations": 0,
+  "runtime_deployed": false,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\verify-public.py",
+  "public_verifier_sha256": "1b58fc283994d8062cef4225611ff80dfa996af5208a2a24b639273a4c4bcb3e",
+  "counting_rule": "One reduction of repeated Full-catalog delivery descriptions. Read-report and retained-window strings, output modes and profiles are not separate outcomes.",
+  "limits": [
+    "Actual updated MCP advertisement comparison awaits a later combined build. The10.7percent figure is a source projection, not a delivered runtime measurement.",
+    "Owned125-tool Full catalog is not an actual LegacyValidation tool count. Normal Full configuration is verified unchanged, but provider tokens, latency, tool-choice quality and task usefulness are unmeasured.",
+    "Request schemas, dispatch, runtime result/recovery implementation, unique safeguards and profiles are unchanged by this description-only delta.",
+    "This source is not part of the currently frozen health/refresh/constant release; do not recompile that accepted batch for it."
+  ],
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118",
+    "baseline_owner_closed": true,
+    "baseline_fixture_removed": true,
+    "retention": "Baseline/projection/contracts retained; no live new fixture or preexisting deletion."
+  },
+  "next_action": "Preserve this following source outcome; add two further distinct original ready implementation outcomes before another Cargo. First finish the existing optimized release via exec1047/postrelease99115."
+}

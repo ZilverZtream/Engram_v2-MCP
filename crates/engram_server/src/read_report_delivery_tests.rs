@@ -44,13 +44,13 @@ fn schemas_expose_shared_recovery_for_selected_reports_and_preserve_existing_own
             for name in CONTROLS {
                 assert!(schema["properties"].get(*name).is_some());
             }
-            assert!(
-                advertised
-                    .description
-                    .as_deref()
-                    .unwrap()
-                    .contains("Original analysis fields are required")
-            );
+            // Recovery must disclose that each original required argument
+            // belongs to a fresh call; do not pin the shared summary wording.
+            for field in before["inputSchema"]["required"].as_array().into_iter().flatten()
+                .filter_map(Value::as_str).filter(|field| *field != "project_id") {
+                assert!(schema["properties"][field]["description"].as_str()
+                    .is_some_and(|description| description.contains("response_id recovery")));
+            }
         } else {
             assert_eq!(
                 serde_json::to_value(advertised).unwrap(),

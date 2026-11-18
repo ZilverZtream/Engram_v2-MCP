@@ -44,9 +44,9 @@ pub fn advertise(mut tool: Tool) -> Tool {
     }
     schema.insert("required".into(), json!(["project_id"]));
     let description = tool.description.as_deref().unwrap_or("");
-    tool.description = Some(format!("{description} Retained result window: retain_response=true plus output_json=true captures the requested window before reply clipping. Follow response_delivery.next_call with project_id and returned controls; fresh-query fields are required only for new calls. Recovery never reruns retrieval. max_tokens budgets the reply (default40KiB); captures are limited to8MiB and at most24hours or32newer captures. Reassemble and verify the original MCP result before use. Captured guidance/freshness is historical; source objects and results outside that window are not retained.").into());
+    tool.description = Some(format!("{description} retain_response=true requires output_json=true and captures the requested window before clipping. Recover its immutable MCP result through response_delivery.next_call with project_id and returned controls; no query or retrieval replay. Reassemble and verify before use. Limits:8MiB,24hours or32newer captures. Guidance/freshness stays at capture time; source objects and other windows are not retained.").into());
     let description = tool.description.as_deref().unwrap_or("");
-    tool.description = Some(format!("{description} Ordinary query replies also default to40KiB when max_tokens is omitted: oversized JSON or Markdown results use exact saved recovery; fitting replies stay unchanged. Explicit max_tokens retains whole-record paging.").into());
+    tool.description = Some(format!("{description} Replies default to40KiB; oversized JSON/Markdown uses exact saved recovery and fitting replies stay unchanged. Explicit max_tokens retains live whole-record paging.").into());
     tool
 }
 

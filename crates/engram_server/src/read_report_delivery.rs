@@ -201,9 +201,9 @@ pub fn advertise(mut tool: Tool) -> Tool {
     // strict function-schema clients must also be able to invoke recovery.
     schema.insert("required".into(), if global { json!([]) } else { json!(["project_id"]) });
     let description = tool.description.as_deref().unwrap_or("");
-    let recovery = if global { "returned delivery controls; no project_id is required" } else { "project_id and returned delivery controls" };
+    let recovery = if global { " Project-free recovery." } else { "" };
     let error_scope = if tool.name == "refresh_corpora" { "Stage-error reports retain isError and also support bounded delivery; non-text results remain unchanged." } else { "Errors/non-text unchanged." };
-    tool.description = Some(format!("{description} Complete-text budget: max_tokens (default40KiB). Original analysis fields are required for fresh calls. Follow response_delivery.next_call with {recovery} for the immutable original MCP result; reassemble before use. Recovery never reruns the tool. {error_scope}").into());
+    tool.description = Some(format!("{description} 40KiB default reply (max_tokens). Reassemble the immutable original MCP result via response_delivery.next_call; no rerun or fresh-call fields needed.{recovery} {error_scope}").into());
     if tool.name == "refresh_corpora" {
         tool.description = Some(format!("{} Refresh stage-error reports also honor this budget and retain aggregate isError on the initial response. Recovery does not repeat any refresh stage. Retention failure preserves the original outcome and explicitly reports a budget overrun; it does not roll back earlier writes.", tool.description.as_deref().unwrap_or("" )).into());
     }
