@@ -2826,13 +2826,14 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "FOCUSED_NATIVE_RUNNING",
+    "status": "NATIVE_AND_PUBLIC_DEBUG_ACCEPTANCE_PASS_AWAITING_OPTIMIZED_RELEASE",
     "record": "eval/cache-guidance-attribute-batch-progress-20261118.json",
     "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Observe the existing native1 owner until terminal. Preserve its result; do not relaunch. Then run the three public contracts against the emitted debug artifact before one optimized release.",
-    "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\native1-owner.json"
+    "next_action": "Prepare the existing paired release helpers for this accepted delta, binding the latest clean source-preparation2 commit and actual generation3154 baseline. Then one optimized release through unchanged run_delivery_build.py; reuse the artifact for candidate/installed acceptance. Do not replay passed native/debug checks or expand fallback-parser support.",
+    "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\native-acceptance.json",
+    "public_debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\debug-acceptance1.json"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3028,10 +3029,11 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "FOCUSED_NATIVE_RUNNING",
+    "status": "NATIVE_AND_PUBLIC_DEBUG_ACCEPTANCE_PASS_AWAITING_OPTIMIZED_RELEASE",
     "record": "eval/cache-guidance-attribute-batch-progress-20261118.json",
     "full_original_goal_complete": false,
-    "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\native1-owner.json"
+    "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\native-acceptance.json",
+    "public_debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\debug-acceptance1.json"
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {

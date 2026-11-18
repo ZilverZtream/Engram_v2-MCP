@@ -1,6 +1,6 @@
 {
-  "status": "FOCUSED_NATIVE_RUNNING",
-  "at_utc": "2026-11-18T17:29:42.547978+00:00",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_ACCEPTANCE_PASS_AWAITING_OPTIMIZED_RELEASE",
+  "at_utc": "2026-11-18T17:39:04.484969+00:00",
   "original_requirement_ids": [
     "EG-12",
     "EG-27",
@@ -18,11 +18,11 @@
     "attributes::registration_verbs_and_current_source_gate_attributes_while_conventional_candidates_remain",
     "attributes::literal_method_routes_work_without_a_class_prefix"
   ],
-  "public_contracts": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\public-contracts1.json",
+  "public_contracts": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\public-contracts2.json",
   "runtime_deployed": false,
   "full_original_goal_complete": false,
   "implementation_items_active": 0,
-  "builds_started": 1,
+  "builds_started": 2,
   "build_rule": "One combined5-case integration target for3original source outcomes; EG12 error disclosure is verified through public MCP. No full/lib/no-vector suite or separate debug build. Keep passed behavior; rerun only affected failures after relevant corrections.",
   "review": {
     "external": "CodeRabbit unavailable: trusted host auth status authenticated:false; no review or login started.",
@@ -33,47 +33,45 @@
     "fixture_parent": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
     "cleanup": "Owned build Job/temp and native/public fixtures close before removal; retain source/contract/wire/receipt evidence. No preexisting deletion."
   },
-  "next_action": "Observe the existing native1 owner until terminal. Preserve its result; do not relaunch. Then run the three public contracts against the emitted debug artifact before one optimized release.",
-  "native_run": {
-    "owner": {
-      "status": "JOB_ASSIGNED_BEFORE_GO",
-      "owned_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\nz1ftun7x",
-      "driver_pid": 59976,
-      "relay_pid": 80012,
-      "command": [
-        "C:\\Users\\Dennis\\.cargo\\bin\\cargo.exe",
-        "test",
-        "--locked",
-        "--offline",
-        "-j1",
-        "-p",
-        "engram_server",
-        "--test",
-        "cache_guidance_attribute_delivery",
-        "--",
-        "--test-threads=1",
-        "--nocapture"
-      ],
-      "cleanup_condition": "Only after exact owned Job empty and relay/handles closed; retain on interruption"
-    },
-    "state": {
-      "status": "RUNNING",
-      "owned_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\nz1ftun7x",
-      "driver_pid": 59976,
-      "relay_pid": 80012,
-      "elapsed_seconds": 250.22839620000013,
-      "log_bytes": 761
-    },
-    "owner_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\native1-owner.json",
-    "state_path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\native1-state.json",
-    "source_frozen": "80573c44dd3b37b4176a2abf661461db1bb144fd",
-    "session_output": "Original tool output was truncated; exact driver59976 and relay80012 command lines and creation times verified without relaunch."
-  },
+  "next_action": "Prepare the existing paired release helpers for this accepted delta, binding the latest clean source-preparation2 commit and actual generation3154 baseline. Then one optimized release through unchanged run_delivery_build.py; reuse the artifact for candidate/installed acceptance. Do not replay passed native/debug checks or expand fallback-parser support.",
   "public_verifier": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\verify-public.py",
-    "sha256": "a2aa3791431272203d9d233db4242df496543c7b64b7e58ac349eea282f1917b",
+    "sha256": "ba3e316efe6d34c0158055b4667f9baf022cbf3dbf9e8c577b75e8f2b0d6feca",
     "expected_assertions": 21,
     "baseline_replays": 0,
-    "only_harness_change": "Allow debug1 label in existing EG12 verifier; assertions and fixtures unchanged."
-  }
+    "only_harness_change": "Debug label admission; explicit paired-sidecar option in owned attribute verifier after transport stripped parent override. Candidate/installed use their packaged sidecar. No assertion weakening."
+  },
+  "source_commit": "7cf2949384d1edb45c1cbce6438922c5ae4df822",
+  "native_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\native-acceptance.json",
+    "cases": 5,
+    "invocations": 2,
+    "seconds": 392.92386219999025
+  },
+  "public_debug_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\debug-acceptance1.json",
+    "checks": 21,
+    "all_owners_closed": true,
+    "all_owned_fixtures_removed": true
+  },
+  "retained_failures": [
+    {
+      "stage": "native1",
+      "reason": "Missing file Contains controller edge in new native fixture; fixture-only correction77bcf5b4. Two SQL passes retained; only three route failures rerun."
+    },
+    {
+      "stage": "public debug1",
+      "reason": "Unpaired debug executable used fallback parser; no attribute route selected."
+    },
+    {
+      "stage": "public debug2",
+      "reason": "Transport stripped the parent sidecar override. Exact owned child environment corrected; debug3 passes nine assertions with unchanged installed sidecar, no recompilation."
+    }
+  ],
+  "limitations": [
+    "New batch not optimized, packaged or installed. Native/debug acceptance is not deployment.",
+    "Attribute acceptance requires existing paired Roslyn sidecar; fallback parser support not claimed or expanded.",
+    "CodeRabbit unavailable; no external review ran.",
+    "No actual LegacyValidation source/Q/index mutation, matched-task replay or task usefulness claim."
+  ]
 }
