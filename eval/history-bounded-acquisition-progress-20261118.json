@@ -16,12 +16,11 @@
   "native_environment": {
     "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
   },
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\contract.json",
   "source_phase_started_at_utc": "2026-11-18T04:49:03.554933+00:00",
-  "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
+  "native_tests_executed": 3,
+  "runtime_deployed": true,
   "observed_missing_behavior": "Installed308 owned baseline: all6 first-parent changes acquired/ranked with no bounded-window/older-continuation metadata. Code confirms full line walk and metadata materialization precede optional provider budgets. Historical40.49s is not a new/current latency measurement.",
   "implementation_files": [
     "crates/engram_server/src/services/change_card_service.rs",
@@ -63,15 +62,15 @@
     "engram_builds_started": 0,
     "native_tests_executed": 0
   },
-  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_PENDING",
+  "validation_status": "PASS",
   "priority_basis": "Normal LegacyValidation configuration retains Full tools/Ollama identity; search_history is available. Owned JS/SQL history tests the common acquisition workflow; no actual LegacyValidation history/source/index is accessed.",
   "limitations": [
-    "Source and3native cases/public verifier are not executed or deployed. Shared combined validation remains required.",
-    "Default precedent results now cover the newest1000 first-parent commits. Follow the explicit older-window action for earlier history. Windows rank independently, not a global top-k; filters can make a window empty.",
-    "This is a commit-work bound, not a hard OS-call or whole-request latency deadline. Existing card previews, cache limits and optional provider budgets remain; no LegacyValidation speedup, ranking quality or task benefit is claimed.",
-    "No CodeMap/Blast Radius improvement, target-language expansion, model request, actual LegacyValidation source/Q access or preexisting deletion. All baseline owners closed and owned fixture removed."
+    "Ordinary-review maintenance supplies exact native comparison commits with current-disk after evidence. The review diff, policy capture and maintenance packet are separate non-atomic observations; no automatic proposal, semantic review, policy adoption or compliance clearance.",
+    "Memory provenance is a recorded stored claim, not authenticated authority. Recovery guards the project/section content and metadata; it is not an immutable archive. Missing/changed records require fresh evidence. Full recovery is required for late conditions/exceptions.",
+    "Precedent acquisition defaults to1000recent first-parent commits. Older history requires explicit continuation; each window ranks independently rather than globally. Commit work is bounded, not wall-clock, provider time, OS calls or process memory. Existing metadata cache/card/provider limits remain.",
+    "All31 original findings and19 gates retain their previous completed/unfinished states; remaining semantic/usefulness and broader acceptance gaps stay open. No actual LegacyValidation source/Q/index mutation, models, CodeMap/Blast Radius improvement, target-language expansion or preexisting deletion."
   ],
-  "next_action": "Finite native and public debug acceptance passed. Current one shared release build21751 is running; candidate/installed acceptance remains. Do not rerun these accepted checks without relevant changes or an observed failure.",
+  "next_action": "Finite component accepted and installed; advance the original unfinished backlog without replaying this batch.",
   "source_commit": "094d048f535d749b86230ace8b644f560c72a4a4",
   "public_recovery_fixture_correction": {
     "status": "HARNESS_CAPTURE_RECOVERY_CORRECTION",
@@ -87,5 +86,28 @@
   },
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native-acceptance.json",
   "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\review-memory-history-20261118-debug3-history\\receipt.json",
-  "public_debug_checks_passed": 11
+  "public_debug_checks_passed": 11,
+  "source_stage_limits_retained": [
+    "Source and3native cases/public verifier are not executed or deployed. Shared combined validation remains required.",
+    "Default precedent results now cover the newest1000 first-parent commits. Follow the explicit older-window action for earlier history. Windows rank independently, not a global top-k; filters can make a window empty.",
+    "This is a commit-work bound, not a hard OS-call or whole-request latency deadline. Existing card previews, cache limits and optional provider budgets remain; no LegacyValidation speedup, ranking quality or task benefit is claimed.",
+    "No CodeMap/Blast Radius improvement, target-language expansion, model request, actual LegacyValidation source/Q access or preexisting deletion. All baseline owners closed and owned fixture removed."
+  ],
+  "delivery_record": "eval/review-memory-history-delivery-20261118.json",
+  "installed_runtime_sha256": "1efb13336d019a70a001a3f8422a670c786865871e9b17ebfbabd4e4e24ebf2b",
+  "installed_public_receipts": [
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\review-memory-history-20261118-installed1-history\\receipt.json"
+  ],
+  "installed_public_checks": 11,
+  "native_cases_distinct_covered": 3,
+  "source_stage_engram_builds_started": 0,
+  "source_checks_capture_phase": "Historical source-only checks; runtime acceptance is recorded separately below.",
+  "shared_delivery_build_accounting": {
+    "record": "eval/review-memory-history-delivery-20261118.json",
+    "native_invocations": 3,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "note": "One combined batch; do not sum these shared invocations across components. source_stage_engram_builds_started counts only the pre-validation phase."
+  }
 }

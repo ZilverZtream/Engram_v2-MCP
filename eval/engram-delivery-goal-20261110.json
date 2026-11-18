@@ -2554,60 +2554,11 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "EG-31",
-        "related_original_requirement": "EG-27",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "a467a3f8564180eaeae3dd1a09593ff17a9c3508",
-        "progress": "eval/review-instruction-maintenance-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118\\contract.json",
-        "behavior": "Ordinary native-Git reviews supply existing before/current instruction-maintenance evidence and dependency manifests; raw bases remain unknown and full packets survive immutable review recovery.",
-        "validation_status": "PENDING_FOLLOWING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
-        "runtime_deployed": false,
-        "native_target": "review_instruction_maintenance",
-        "native_environment": {
-          "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
-        },
-        "counting_rule": "One ordinary-review maintenance workflow outcome; formats, diff modes, evidence kinds and saved recovery are not separate deliveries.",
-        "original_source_commit": "8868b9f63e666c5b904b01a01fc4ac4b8e3644c8",
-        "fixture_only_correction": true
-      },
-      {
-        "original_requirement_id": "TODO-28",
-        "related_original_requirement": "EG-19",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "0da6e25afc190393fb8999f39de3d32e9620c1c5",
-        "progress": "eval/memory-decision-provenance-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118\\contract.json",
-        "behavior": "Natural-language memory evidence retains exact stored record provenance and full guarded read actions; metadata-only changes refuse old recovery and categories do not imply approved policy.",
-        "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
-        "runtime_deployed": false,
-        "native_target": "memory_decision_provenance",
-        "counting_rule": "One source-bound full memory context/provenance recovery outcome for the natural-language entry point. Category-authority correction supports that outcome; it is not an additional deliverable or a reused Markdown-classification outcome.",
-        "original_source_commit": "0fcf9d775297dca094f9ecad9041756705c3ce24",
-        "production_selection_correction": true
-      },
-      {
-        "original_requirement_id": "EG-21",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "094d048f535d749b86230ace8b644f560c72a4a4",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\contract.json",
-        "behavior": "Bound precedent acquisition to a recent first-parent commit window and supply an exact older-window continuation rather than reconstructing all history for each request.",
-        "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
-        "runtime_deployed": false,
-        "native_target": "history_bounded_acquisition",
-        "native_environment": {
-          "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
-        },
-        "counting_rule": "One bounded precedent-acquisition workflow outcome. Window traversal, filter preservation, JSON/Markdown and continuation are not separate outcomes.",
-        "progress": "eval/history-bounded-acquisition-progress-20261118.json"
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
-    "last_completed_batch": "eval/ask-authority-batch-recovery-delivery-20261118.json",
+    "last_completed_batch": "eval/review-memory-history-delivery-20261118.json",
     "incremental_codegen": {
       "enabled_for_future_runs": true,
       "source_commit": "48ec7f6cd9e93a43f90674ce4f7504ae98bd2e35",
@@ -2833,14 +2784,13 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "RELEASE_BUILD_RUNNING",
-    "progress": "eval/review-memory-history-progress-20261118.json",
-    "pending_source_outcomes": 3,
+    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
+    "record": "eval/review-memory-history-delivery-20261118.json",
+    "pending_source_outcomes": 0,
     "implementation_items_active": 0,
-    "runtime_deployed": false,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "Observe existing release21751 and postrelease57420; do not start another build/package/deploy. Postrelease waits for the exact91888build owner, then runs existing package, candidate/install acceptance and normal restoration/ZIP. Once postrelease is INSTALLED_READY_TO_RECORD, run record-delivery.py exactly once and commit/push its intended metadata/docs; preserve any following source work. Stop on an actual failed stage and inspect its retained log."
+    "next_action": "Advance the next ready unfinished original requirement. Preserve31findings/19gates and held work; no terminal build restart or acceptance replay."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2948,10 +2898,10 @@
     "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
   },
   "latest_delivered_runtime": {
-    "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
-    "server_sha256": "308e5347837f8148eee937c13a141b54b2a0b3282934c181532ba78ca67d7ebe",
-    "manifest_sha256": "891461c4e4c71f193a47caac782d26a2e0d40f9d6f0102b91493ad86462cf0cd",
-    "shipping_source_commit": "cfefe85adfab3af87bf0c07b53702c5d2ded2adb",
+    "record": "eval/review-memory-history-delivery-20261118.json",
+    "server_sha256": "1efb13336d019a70a001a3f8422a670c786865871e9b17ebfbabd4e4e24ebf2b",
+    "manifest_sha256": "6d431321bc8684ee3e6966960f018cfd8318a0bf7220757768b08056d6c8b8ae",
+    "shipping_source_commit": "ca579ceb967eb515ee602dfc33656de5629aad1e",
     "selected_generation": 3151,
     "source_format": 9,
     "assets_verified": 215,
@@ -3036,15 +2986,10 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "RELEASE_BUILD_RUNNING",
-    "progress": "eval/review-memory-history-progress-20261118.json",
-    "release_session_id": 21751,
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118",
-    "shipping_source_commit": "ca579ceb967eb515ee602dfc33656de5629aad1e",
-    "runtime_deployed": false,
-    "full_original_goal_complete": false,
-    "postrelease_session_id": 57420,
-    "postrelease_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\postrelease1-state.json"
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": "eval/review-memory-history-delivery-20261118.json",
+    "all_build_sessions_terminal": true,
+    "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
@@ -3155,10 +3100,9 @@
     "does_not_pause_or_replace_goal": true
   },
   "active_source_implementation": {
-    "status": "CURRENT_FROZEN_SOURCE_VALIDATED_RELEASE_PENDING",
+    "status": "NONE_PREVIOUS_BATCH_DELIVERED",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 3,
-    "progress": "eval/review-memory-history-progress-20261118.json"
+    "pending_source_outcomes": 0
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -3223,8 +3167,8 @@
   },
   "previous_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T05:30:51.473072+00:00",
-    "reason": "Completed2affected memory native cases, retained6unaffected passes, corrected2public fixture errors without a rebuild, obtained30public checks and started one guarded release for3original outcomes.",
+    "at_utc": "2026-11-18T06:20:24.948560+00:00",
+    "reason": "Three original source outcomes passed installed public acceptance and normal runtime restoration; full original goal remains active.",
     "full_original_goal_complete": false
   },
   "scoped_http_ask_progress_20261117": "eval/scoped-http-ask-progress-20261117.json",
@@ -4076,15 +4020,17 @@
     "progress": "eval/review-instruction-maintenance-progress-20261118.json",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118\\contract.json",
     "behavior": "Ordinary native-Git reviews supply existing before/current instruction-maintenance evidence and dependency manifests; raw bases remain unknown and full packets survive immutable review recovery.",
-    "validation_status": "PENDING_FOLLOWING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
-    "runtime_deployed": false,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "runtime_deployed": true,
     "native_target": "review_instruction_maintenance",
     "native_environment": {
       "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
     },
     "counting_rule": "One ordinary-review maintenance workflow outcome; formats, diff modes, evidence kinds and saved recovery are not separate deliveries.",
     "original_source_commit": "8868b9f63e666c5b904b01a01fc4ac4b8e3644c8",
-    "fixture_only_correction": true
+    "fixture_only_correction": true,
+    "delivery_record": "eval/review-memory-history-delivery-20261118.json",
+    "historical_source_status": true
   },
   "previous_runtime_before_ask_authority_batch_recovery_20261118": {
     "record": "eval/query-property-fallback-batch-delivery-20261118.json",
@@ -4114,12 +4060,14 @@
     "progress": "eval/memory-decision-provenance-progress-20261118.json",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118\\contract.json",
     "behavior": "Natural-language memory evidence retains exact stored record provenance and full guarded read actions; metadata-only changes refuse old recovery and categories do not imply approved policy.",
-    "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
-    "runtime_deployed": false,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "runtime_deployed": true,
     "native_target": "memory_decision_provenance",
     "counting_rule": "One source-bound full memory context/provenance recovery outcome for the natural-language entry point. Category-authority correction supports that outcome; it is not an additional deliverable or a reused Markdown-classification outcome.",
     "original_source_commit": "0fcf9d775297dca094f9ecad9041756705c3ce24",
-    "production_selection_correction": true
+    "production_selection_correction": true,
+    "delivery_record": "eval/review-memory-history-delivery-20261118.json",
+    "historical_source_status": true
   },
   "pre_push_complete_delivery_hypothesis_20261118": {
     "progress": "eval/pre-push-complete-delivery-progress-20261118.json",
@@ -4132,17 +4080,19 @@
     "source_commit": "094d048f535d749b86230ace8b644f560c72a4a4",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\contract.json",
     "behavior": "Bound precedent acquisition to a recent first-parent commit window and supply an exact older-window continuation rather than reconstructing all history for each request.",
-    "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
-    "runtime_deployed": false,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "runtime_deployed": true,
     "native_target": "history_bounded_acquisition",
     "native_environment": {
       "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
     },
     "counting_rule": "One bounded precedent-acquisition workflow outcome. Window traversal, filter preservation, JSON/Markdown and continuation are not separate outcomes.",
-    "progress": "eval/history-bounded-acquisition-progress-20261118.json"
+    "progress": "eval/history-bounded-acquisition-progress-20261118.json",
+    "delivery_record": "eval/review-memory-history-delivery-20261118.json",
+    "historical_source_status": true
   },
   "review_memory_history_source_batch_20261118": {
-    "status": "RELEASE_BUILD_RUNNING",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "progress": "eval/review-memory-history-progress-20261118.json",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118",
     "original_requirement_ids": [
@@ -4150,22 +4100,42 @@
       "TODO-28",
       "EG-21"
     ],
-    "runtime_deployed": false,
+    "runtime_deployed": true,
     "validation_sequence_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\validation-sequence1-state.json",
-    "exec_session_id": 21751,
+    "exec_session_id": null,
     "native_cases_distinct_covered": 8,
     "validation_sequence_terminal": "FAIL_AT_DEBUG1_FIXTURE_NEWLINES",
     "debug_public_checks_passed": 30,
     "release_builds_started": 1,
-    "postrelease_session_id": 57420,
-    "postrelease_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\postrelease1-state.json"
+    "postrelease_session_id": null,
+    "postrelease_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\postrelease1-state.json",
+    "delivery_record": "eval/review-memory-history-delivery-20261118.json",
+    "all_build_sessions_terminal": true
   },
   "current_goal_turn_classification": {
-    "classification": "VERIFIED_WAIT",
-    "at_utc": "2026-11-18T05:42:43.129537+00:00",
-    "release_session_id": 21751,
-    "verified_release_driver_pid": 91888,
-    "postrelease_session_id": 57420,
-    "new_builds_started_this_turn": 0
+    "status": "PROGRESS",
+    "at_utc": "2026-11-18T06:20:24.948560+00:00",
+    "reason": "Three original source outcomes passed installed public acceptance and normal runtime restoration; full original goal remains active.",
+    "full_original_goal_complete": false
+  },
+  "previous_runtime_before_review_memory_history_20261118": {
+    "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
+    "server_sha256": "308e5347837f8148eee937c13a141b54b2a0b3282934c181532ba78ca67d7ebe",
+    "manifest_sha256": "891461c4e4c71f193a47caac782d26a2e0d40f9d6f0102b91493ad86462cf0cd",
+    "shipping_source_commit": "cfefe85adfab3af87bf0c07b53702c5d2ded2adb",
+    "selected_generation": 3151,
+    "source_format": 9,
+    "assets_verified": 215,
+    "normal_runtime_restored": true,
+    "full_original_goal_complete": false
+  },
+  "review_memory_history_delivery_20261118": {
+    "record": "eval/review-memory-history-delivery-20261118.json",
+    "original_requirement_ids": [
+      "EG-31",
+      "TODO-28",
+      "EG-21"
+    ],
+    "full_original_goal_complete": false
   }
 }

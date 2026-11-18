@@ -2170,7 +2170,7 @@ read limits and independent per-read errors remain.
 
 ## Instruction-maintenance evidence in ordinary reviews
 
-Source change 2026-11-18 (following batch; validation/deployment pending):
+Installed 2026-11-18 ([delivery](../eval/review-memory-history-delivery-20261118.json)):
 `pre_commit_review` native Git modes (`staged`, `unstaged`, `head`) compose the
 existing instruction-maintenance collector for the distinct parsed review paths
 in the selected review checkout. The comparison is the captured starting HEAD
@@ -2196,12 +2196,12 @@ context as deferred. Existing review continuations recover the exact original
 packet after later edits without running gates or reading current guidance again.
 This does not expand source discovery, certify semantic maintenance/compliance or
 establish LegacyValidation task benefit.
-[Pending source record](../eval/review-instruction-maintenance-progress-20261118.json).
+[Source and acceptance record](../eval/review-instruction-maintenance-progress-20261118.json).
 
 
 ## Source-bound memory context in natural-language evidence
 
-Source change 2026-11-18 (following batch; validation/deployment pending):
+Installed 2026-11-18 ([delivery](../eval/review-memory-history-delivery-20261118.json)):
 `ask_codebase` memory-bank evidence retains a typed `memory_record`: project and
 section identity, recorded author/kind/timestamps, declared related files/tags,
 full stored-content size/hash, captured-excerpt size, logical record hash and a
@@ -2227,10 +2227,19 @@ hash guards, byte/line budgets and ordinary unguarded reads remain compatible.
 Changed or removed records require fresh evidence; this is guarded current-record
 recovery, not an immutable historical archive. No actual LegacyValidation task benefit is
 claimed by source implementation or owned checks.
-[Pending source record](../eval/memory-decision-provenance-progress-20261118.json).
+[Source and acceptance record](../eval/memory-decision-provenance-progress-20261118.json).
 
 
-Source change 2026-11-18 (following batch; validation/deployment pending):
+When the same project/section arrives from both the registry memory provider and
+its search-index copy, the provenance-bearing record replaces the indexed copy
+before lookup selection and required-evidence reserves. Indexed memory-bank hits
+also retain recorded-memory authority; they do not become current authored policy
+through the document provider. A search-only hit does not supply stored-record
+provenance, and its warning and original indexed-source recovery remain explicit.
+
+## Bounded precedent acquisition
+
+Installed 2026-11-18 ([delivery](../eval/review-memory-history-delivery-20261118.json)):
 
 `search_history` precedent acquisition now scans a finite recent first-parent
 window before optional embedding/reranking. `max_commits` accepts1..10000 and

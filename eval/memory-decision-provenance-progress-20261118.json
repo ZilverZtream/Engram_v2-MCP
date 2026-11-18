@@ -1,7 +1,7 @@
 {
   "original_requirement_id": "TODO-28",
   "related_original_requirement": "EG-19",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement": "Natural-language evidence must retain recoverable complete memory context and exact provenance rather than an untraceable clipped decision excerpt.",
   "finite_acceptance": [
     "Memory-bank decision/reference categories remain recorded context, not automatically approved requirements. Natural-language evidence retains exact record identity, author/kind/time and declared scope/qualifications with a usable full-record recovery action.",
@@ -11,11 +11,10 @@
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118\\contract.json",
   "source_phase_started_at_utc": "2026-11-18T03:54:28.034268+00:00",
-  "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
+  "native_tests_executed": 4,
+  "runtime_deployed": true,
   "current_release_excludes_this_work": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
-  "next_action": "Finite native and public debug acceptance passed. Current one shared release build21751 is running; candidate/installed acceptance remains. Do not rerun these accepted checks without relevant changes or an observed failure.",
+  "next_action": "Finite component accepted and installed; advance the original unfinished backlog without replaying this batch.",
   "related_original_authority_requirement": "EG-14",
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118\\baseline1\\receipt.json",
   "baseline_checks_passed": 4,
@@ -123,7 +122,7 @@
     "crates/engram_server/src/handlers/ask_tools.rs": "3dbe7682570e5d41e76df662d1bcc28a26f899a0716db4ae1088c7b2909d84d7"
   },
   "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
-  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_PENDING",
+  "validation_status": "PASS",
   "source_checks": {
     "rust_syntax": "PASS via rustfmt; all changed constructors and logic parsed without broad rewrites",
     "python_syntax": "PASS via compile(); no bytecode artifact",
@@ -136,12 +135,10 @@
   },
   "priority_basis": "Actual normal LegacyValidation Full/Ollama configuration retains3f966... identity; natural-language memory lookup and read_memory_bank are available. Owned TS and long memory-record baseline proves missing recovery/provenance and unsupported authority only; no actual LegacyValidation note or source mutation.",
   "limitations": [
-    "Two focused native cases and the public verifier are written but unrun; source is not compiled or deployed. Installed308e5347 covers only the earlier three-outcome batch, not this following change.",
-    "One complete memory-record provenance/recovery outcome. Category authority correction is part of it, not a separately counted provider/format/approval feature.",
-    "Recorded author/kind/tags/related files are claims, not authenticated authorship, accepted scope, policy approval or code/revision bindings. No manual enforcement or ownership receipt is changed.",
-    "Record guard binds the project plus serialized logical stored section. Dynamic display age/source freshness and raw database byte identity are excluded; no digital signature or immutable historical archive is introduced. Missing/changed records require fresh evidence.",
-    "The1200-character provider capture and shorter Markdown presentation limits remain; capture sizes describe source evidence, not proof every condition was supplied inline. Full guarded read/citation is required for omitted qualifications. Existing response/file/record budgets remain.",
-    "No actual LegacyValidation source/Q/index/data mutation, real model calls, CodeMap/Blast Radius improvement, target-language expansion, preexisting deletion or new compile for this item. Full original gates and task-benefit requirements remain open."
+    "Ordinary-review maintenance supplies exact native comparison commits with current-disk after evidence. The review diff, policy capture and maintenance packet are separate non-atomic observations; no automatic proposal, semantic review, policy adoption or compliance clearance.",
+    "Memory provenance is a recorded stored claim, not authenticated authority. Recovery guards the project/section content and metadata; it is not an immutable archive. Missing/changed records require fresh evidence. Full recovery is required for late conditions/exceptions.",
+    "Precedent acquisition defaults to1000recent first-parent commits. Older history requires explicit continuation; each window ranks independently rather than globally. Commit work is bounded, not wall-clock, provider time, OS calls or process memory. Existing metadata cache/card/provider limits remain.",
+    "All31 original findings and19 gates retain their previous completed/unfinished states; remaining semantic/usefulness and broader acceptance gaps stay open. No actual LegacyValidation source/Q/index mutation, models, CodeMap/Blast Radius improvement, target-language expansion or preexisting deletion."
   ],
   "pre_runtime_correction": "An editing script stopped at a mismatched source-section marker after preparing guard/schema/defaults. Provider/renderer changes were completed and all affected source parsed before any compilation or post-change public execution.",
   "temporary_resources": {
@@ -162,5 +159,30 @@
   },
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native-acceptance.json",
   "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118\\review-memory-history-20261118-debug2-memory\\receipt.json",
-  "public_debug_checks_passed": 9
+  "public_debug_checks_passed": 9,
+  "source_stage_limits_retained": [
+    "Two focused native cases and the public verifier are written but unrun; source is not compiled or deployed. Installed308e5347 covers only the earlier three-outcome batch, not this following change.",
+    "One complete memory-record provenance/recovery outcome. Category authority correction is part of it, not a separately counted provider/format/approval feature.",
+    "Recorded author/kind/tags/related files are claims, not authenticated authorship, accepted scope, policy approval or code/revision bindings. No manual enforcement or ownership receipt is changed.",
+    "Record guard binds the project plus serialized logical stored section. Dynamic display age/source freshness and raw database byte identity are excluded; no digital signature or immutable historical archive is introduced. Missing/changed records require fresh evidence.",
+    "The1200-character provider capture and shorter Markdown presentation limits remain; capture sizes describe source evidence, not proof every condition was supplied inline. Full guarded read/citation is required for omitted qualifications. Existing response/file/record budgets remain.",
+    "No actual LegacyValidation source/Q/index/data mutation, real model calls, CodeMap/Blast Radius improvement, target-language expansion, preexisting deletion or new compile for this item. Full original gates and task-benefit requirements remain open."
+  ],
+  "delivery_record": "eval/review-memory-history-delivery-20261118.json",
+  "installed_runtime_sha256": "1efb13336d019a70a001a3f8422a670c786865871e9b17ebfbabd4e4e24ebf2b",
+  "installed_public_receipts": [
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118\\review-memory-history-20261118-installed1-memory\\receipt.json"
+  ],
+  "installed_public_checks": 9,
+  "native_cases_distinct_covered": 2,
+  "source_stage_engram_builds_started": 0,
+  "source_checks_capture_phase": "Historical source-only checks; runtime acceptance is recorded separately below.",
+  "shared_delivery_build_accounting": {
+    "record": "eval/review-memory-history-delivery-20261118.json",
+    "native_invocations": 3,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "note": "One combined batch; do not sum these shared invocations across components. source_stage_engram_builds_started counts only the pre-validation phase."
+  }
 }

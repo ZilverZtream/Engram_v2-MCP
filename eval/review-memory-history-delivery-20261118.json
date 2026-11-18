@@ -1,0 +1,144 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-18T06:20:24.948560+00:00",
+  "original_requirement_ids": [
+    "EG-31",
+    "TODO-28",
+    "EG-21"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118",
+  "source_preparation": {
+    "shipping_head": "ca579ceb967eb515ee602dfc33656de5629aad1e",
+    "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\debug3\\receipt.json",
+    "debug_artifact": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\debug-artifact1.json",
+    "native_target": "review_memory_history_delivery",
+    "native_expected_cases": 8,
+    "native_environment": {
+      "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+    },
+    "fixture_correction": {
+      "failed_native": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native1.json",
+      "cause": "Fixture called unavailable git2 Diff::to_buf; switched to supported print callback preserving ordinary patch line origins. Production behavior/criteria unchanged.",
+      "native_cases_executed_before_correction": 0,
+      "source_commit": "a467a3f8564180eaeae3dd1a09593ff17a9c3508"
+    },
+    "production_selection_correction": {
+      "failed_native": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native2.json",
+      "cause": "Lookup cap admitted three implementation rows and two higher-authority indexed copies of the same notes, excluding both provenance-bearing registry records. Indexed bank hits now retain AgentMemory authority and canonical typed records replace matching indexed copies before ranking/reserve capture. No cap expansion or authority promotion.",
+      "source_commit": "0da6e25afc190393fb8999f39de3d32e9620c1c5",
+      "affected_native_cases": 2,
+      "unaffected_native_passes_retained": 6
+    },
+    "public_fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\public-fixture-correction1.json",
+    "public_recovery_fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\public-fixture-correction2.json"
+  },
+  "runtime": {
+    "status": "INSTALLED_ACCEPTANCE_PASS",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\package1",
+    "server_sha256": "1efb13336d019a70a001a3f8422a670c786865871e9b17ebfbabd4e4e24ebf2b",
+    "manifest_sha256": "6d431321bc8684ee3e6966960f018cfd8318a0bf7220757768b08056d6c8b8ae",
+    "old_server_sha256": "308e5347837f8148eee937c13a141b54b2a0b3282934c181532ba78ca67d7ebe",
+    "old_manifest_sha256": "891461c4e4c71f193a47caac782d26a2e0d40f9d6f0102b91493ad86462cf0cd",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\release1.json",
+      "sha256": "fbd36cb496cf3e4e4dbede556a7146544a22128adb2147c225b46ae20c5e354b"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "891461c4e4c71f193a47caac782d26a2e0d40f9d6f0102b91493ad86462cf0cd",
+      "capture_phase": "Before pair swap; immutable input companion manifest, not current installed identity."
+    },
+    "source_commit": "ca579ceb967eb515ee602dfc33656de5629aad1e",
+    "package_pair_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\pair1.json"
+  },
+  "native_acceptance": {
+    "status": "PASS",
+    "native_cases_covered": 8,
+    "native_test_executions": 10,
+    "latest_successful_native_label": "native3",
+    "retained_passes": [
+      "history_acquisition::bounded_windows_recover_older_changes_without_duplicates_or_new_head_leaks",
+      "history_acquisition::empty_recent_window_keeps_older_matching_history_and_all_filters_in_both_formats",
+      "history_acquisition::invalid_or_irrelevant_acquisition_controls_refuse_before_unknown_project_lookup",
+      "review_maintenance::deferred_review_recovers_original_complete_maintenance_packet_after_inputs_change",
+      "review_maintenance::native_review_supplies_before_current_ts_sql_guidance_and_same_markdown_packet",
+      "review_maintenance::raw_diff_without_explicit_base_does_not_guess_current_head_as_maintenance_authority"
+    ],
+    "current_passes": [
+      "memory_provenance::decision_and_reference_records_keep_declared_provenance_and_full_guarded_recovery_without_approval",
+      "memory_provenance::metadata_only_changes_refuse_old_record_guard_while_body_only_and_fresh_reads_remain_usable"
+    ],
+    "initial_compile_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native1.json",
+    "first_runtime_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native2.json",
+    "scope": "Native1 fixture API compile failure:0tests. Native2:6passed/2failed. Canonical memory-source correction touched only ask composition/provider paths;6review/history passes retained. Native3 reruns only2memory cases. No criteria weakened, full/lib/no-vector suite or separate debug build."
+  },
+  "public_checks_per_artifact": 30,
+  "public_receipts": {
+    "debug3": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\debug3\\receipt.json",
+    "candidate1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\candidate1\\acceptance.json",
+    "installed1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\installed1\\acceptance.json"
+  },
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\restored-runtime\\receipt.json",
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3151,
+  "source_format": 9,
+  "protected_wip9": "UNCHANGED",
+  "full_original_goal_complete": false,
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\Engram-win-x64-review-memory-history.zip",
+    "sha256": "9A384DB8436C3683BF1F0EC378401866C087FE8AA96B81103863CDAD729C9746",
+    "entries": 219,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "6D431321BC8684EE3E6966960F018CFD8318A0BF7220757768B08056D6C8B8AE",
+    "rename_record": {
+      "at_utc": "2026-11-18T06:20:23.295081+00:00",
+      "previous_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\bundle1.json",
+      "previous_receipt_sha256": "73dd9ace18e1c9f9c7d94b7debe0bfdc75e9a38e3768a5662964cb22604cc303",
+      "reason": "Inherited bundle basename described the previous batch. Rename this run-owned ZIP to the current batch name; bytes/hash/entries unchanged. Original receipt retained as pre-rename evidence."
+    }
+  },
+  "windows_zip_sha256": "9a384db8436c3683bf1f0ec378401866c087fe8aa96b81103863cdad729c9746",
+  "build_accounting": {
+    "native_invocations": 3,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "native_unique_cases": 8,
+    "native_test_executions": 10,
+    "native_seconds": 1072.120516700088,
+    "release_seconds": 2670.0272098999703,
+    "pure_coding_percentage": null,
+    "note": "Native1 compiled the production library but the test fixture used an unavailable Git API; no test executed. Fixture-only correction reused the library for native2:6PASS2FAIL. Production canonical-memory correction;6unaffected review/history passes retained and only2memory cases rerun in native3. One release. No full/lib/no-vector suite or separate debug build. No measured compile speedup or coding percentage claimed."
+  },
+  "temporary_resources": {
+    "native_and_release_jobs_closed": true,
+    "owned_build_temps_removed": true,
+    "completed_public_owners_closed_and_owned_fixtures_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118",
+    "retained_component_locations": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118"
+    ],
+    "managed_rollback_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-f77006f0ff5b434dbdfb810e924bc3c0",
+    "retention": "Retain evidence, ZIP and rollback under recorded cleanup conditions; no preexisting deletion.",
+    "intentionally_retained_runtime": {
+      "pid": 102180,
+      "executable": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+      "purpose": "Normal installed daemon",
+      "cleanup_condition": "Regular application lifecycle, not temporary fixture."
+    }
+  },
+  "limitations": [
+    "Ordinary-review maintenance supplies exact native comparison commits with current-disk after evidence. The review diff, policy capture and maintenance packet are separate non-atomic observations; no automatic proposal, semantic review, policy adoption or compliance clearance.",
+    "Memory provenance is a recorded stored claim, not authenticated authority. Recovery guards the project/section content and metadata; it is not an immutable archive. Missing/changed records require fresh evidence. Full recovery is required for late conditions/exceptions.",
+    "Precedent acquisition defaults to1000recent first-parent commits. Older history requires explicit continuation; each window ranks independently rather than globally. Commit work is bounded, not wall-clock, provider time, OS calls or process memory. Existing metadata cache/card/provider limits remain.",
+    "All31 original findings and19 gates retain their previous completed/unfinished states; remaining semantic/usefulness and broader acceptance gaps stay open. No actual LegacyValidation source/Q/index mutation, models, CodeMap/Blast Radius improvement, target-language expansion or preexisting deletion."
+  ]
+}
