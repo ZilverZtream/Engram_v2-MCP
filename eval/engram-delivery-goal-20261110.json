@@ -2599,6 +2599,18 @@
         },
         "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\verify-public.py",
         "counting_rule": "One original complete maintenance-result delivery outcome across4operations. Tool variants, errors, expiry and retention checks are not independent deliverables."
+      },
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "EG-01",
+        "source_commit": "95a98795a448efc4caf54756f142605792749853",
+        "progress": "eval/feature-plan-final-guidance-progress-20261118.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\contract.json",
+        "native_target": null,
+        "native_cases_expected": 0,
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\verify-public.py",
+        "public_assertions_expected": 6,
+        "counting_rule": "One original final-plan scoped-instruction handoff; VB/TS/SQL guides, exceptions, exclusion and freshness are acceptance variants, not separate outcomes."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2830,12 +2842,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "OPTIMIZED_RELEASE_RUNNING_NATIVE_DEBUG_ACCEPTED",
-    "record": "eval/source-health-maintenance-batch-progress-20261118.json",
+    "status": "SOURCE_COMPLETE_AWAITING_BASELINE_AND_COMBINED_VALIDATION",
+    "record": "eval/feature-plan-final-guidance-progress-20261118.json",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 3,
+    "pending_source_outcomes": 4,
     "full_original_goal_complete": false,
-    "next_action": "Observe this exact release owner. On terminal PASS, the pinned observer packages once, runs27candidate and27installed public assertions, verifies metadata unchanged, and restores normal runtime. No native/debug replay, rebuild or full suite. Root records installed delivery after terminal evidence."
+    "next_action": "An exact-owner observer will run the prepared owned baseline once after current release deployment/restoration has finished. Accumulate further original source outcomes before any new compile; preserve current frozen release and protected WIP."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3145,9 +3157,17 @@
     "does_not_pause_or_replace_goal": true
   },
   "active_source_implementation": {
-    "status": "NONE_SOURCE_BATCH_UNDER_VALIDATION",
-    "implementation_items_active": 0,
-    "validation_batch": "eval/source-health-maintenance-batch-progress-20261118.json"
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement_id": "EG-01",
+    "source_commit": "95a98795a448efc4caf54756f142605792749853",
+    "progress": "eval/feature-plan-final-guidance-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\contract.json",
+    "native_target": null,
+    "native_cases_expected": 0,
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\verify-public.py",
+    "public_assertions_expected": 6,
+    "counting_rule": "One original final-plan scoped-instruction handoff; VB/TS/SQL guides, exceptions, exclusion and freshness are acceptance variants, not separate outcomes.",
+    "implementation_items_active": 0
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -4157,8 +4177,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T21:32:18.511334+00:00",
-    "reason": "Verified original EG31 change/no_change/conflict/refusal artifacts and current validator contract; closed original functional maintenance requirements while preserving the exact historical cleanup rejection and broader usefulness limits. No new fixture, build or model."
+    "at_utc": "2026-11-18T21:45:58.538163+00:00",
+    "reason": "Closed original EG31 functional maintenance contract and implemented EG01 final proposed-path guidance handoff in19source lines. Prepared6public checks; source committed but uncompiled. Existing optimized release unchanged; no new Cargo invocation or task replay."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4617,5 +4637,6 @@
     "status": "PRESERVED: automatic approval review rejected exact owned recursive teardown, blocked by policy. Command was not executed. Do not retry equivalent deletion via another tool/language/GC.",
     "retention_condition": "Preserve until a permitted disposition is available; not silently complete.",
     "deleted_or_retried": false
-  }
+  },
+  "feature_plan_final_guidance_source_progress_20261118": "eval/feature-plan-final-guidance-progress-20261118.json"
 }

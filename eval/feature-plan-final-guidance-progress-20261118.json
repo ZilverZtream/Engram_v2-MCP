@@ -1,0 +1,26 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-18T21:39:21.125815+00:00",
+  "original_requirement_id": "EG-01",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\contract.json",
+  "implementation_items_active": 0,
+  "source_files": [
+    "crates/engram_server/src/handlers/feature_plan_tools.rs"
+  ],
+  "builds_started": 0,
+  "runtime_deployed": false,
+  "full_original_goal_complete": false,
+  "current_runtime_applicability": "Current Full runtime exposes one_shot_feature_plan; supported stack is webforms_vbnet, and proposed source paths may be VB/JS/TS/SQL. No measured LegacyValidation task benefit is inferred.",
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "next_action": "An exact-owner observer will run the prepared owned baseline once after current release deployment/restoration has finished. Accumulate further original source outcomes before any new compile; preserve current frozen release and protected WIP.",
+  "source_commit": "95a98795a448efc4caf54756f142605792749853",
+  "progress": "eval/feature-plan-final-guidance-progress-20261118.json",
+  "native_target": null,
+  "native_cases_expected": 0,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\verify-public.py",
+  "public_assertions_expected": 6,
+  "counting_rule": "One original final-plan scoped-instruction handoff; VB/TS/SQL guides, exceptions, exclusion and freshness are acceptance variants, not separate outcomes.",
+  "validation_status": "RUST_SYNTAX_AND_RESOLVER_INTERFACE_CHECKED_UNCOMPILED_PUBLIC_PENDING",
+  "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\source-preparation1.json"
+}
