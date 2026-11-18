@@ -1,4 +1,4 @@
-//! Opt-in immutable delivery of existing bounded query windows.
+//! Default overflow and opt-in immutable delivery of bounded query windows.
 //! Retrieval/filtering remains owned by the original tools; this only removes
 //! reply clipping for capture and reuses the existing project/tool snapshot store.
 use crate::read_report_delivery::Report;

@@ -10,7 +10,8 @@
   "implementation_files": [
     "crates/engram_server/src/retained_results.rs",
     "crates/engram_server/tests/query_default_delivery.rs",
-    "docs/TOOL_CONTRACT.md"
+    "docs/TOOL_CONTRACT.md",
+    "crates/engram_server/src/models/requests.rs"
   ],
   "finite_acceptance": [
     "Ordinary default search_memory/vector_search/grep_project complete MCP text or JSON results fit40KiB or return existing exact saved-result recovery; fitting results and explicit max_tokens/retained-window controls retain original behavior. Existing internal result/window/source caps and provider capability errors remain truthful.",
@@ -57,12 +58,13 @@
     "native_tests_executed": 0
   },
   "source_sha256": {
-    "crates/engram_server/src/retained_results.rs": "959b9fde9e26bf179d418d55c34f1234202f93a5368f7e9988da1e59b0c3c437",
+    "crates/engram_server/src/retained_results.rs": "41f160403e8efd67b6ee7eaab23ed92754329c86f900920f416eba929b6f7e3d",
     "crates/engram_server/tests/query_default_delivery.rs": "4113efc4cb6079e4561c4a53704fcc1cd82422818260b6c02d478295d6d2aa55",
-    "docs/TOOL_CONTRACT.md": "a340febc75562c05dc3fd1eaad9c4e75815f6e96a916bb719ab609804809af53"
+    "docs/TOOL_CONTRACT.md": "b6334c1999cfb82b6381104fdde4694b771dc82dbf0559dc87382224110c1954",
+    "crates/engram_server/src/models/requests.rs": "ec3c8904b201ba3c1c617478635bd89d7f07b5dd3e501a110351649c54bbd6e9"
   },
   "public_verifier_sha256": {
-    "verify-public.py": "593db72613f2ec5ff9fe622a82fadfd5f0b77756ae2e23ed8cd1cd303cfe37d2",
+    "verify-public.py": "13d4a273b89057f172aeade6da8802cede4f36d1d715cf2345398da787e25388",
     "verify-vector.py": "6810ea7987db3418859a2eab9f41e018a1c76bdf30f27b65b1c813e7a28e5f17"
   },
   "limits": [
@@ -73,5 +75,15 @@
     "The compiling edit/review/history release uses its frozen shipping checkout and excludes this later change. No source copied there, no extra compile/full suite, no actual LegacyValidation source/reindex/mutation, no Site/Q, no closed-tool or language expansion, and no preexisting deletion."
   ],
   "source_commit": "028d57dfdbcf83821b89bd6c8068b80375386363",
-  "current_runtime_relationship": "Latest installed edit/review/history release excludes this later query-default source change; queued source remains undeployed."
+  "current_runtime_relationship": "Latest installed edit/review/history release excludes this later query-default source change; queued source remains undeployed.",
+  "source_followups": [
+    {
+      "at_utc": "2026-11-18T00:16:06.653419+00:00",
+      "reason": "Public max_tokens field descriptions still said Default: none or omitted default overflow recovery; vector offset documentation implied only opt-in retention can save results.",
+      "scope": "Align three actual request schemas with queued default-overflow behavior. Retain original query outcome; this is not a new independent deliverable.",
+      "validation": "rustfmt syntax parse and diff-check passed; existing public verifier will check emitted tools/list descriptions in the shared acceptance run.",
+      "native_test_cases_added": 0,
+      "engram_builds_started": 0
+    }
+  ]
 }

@@ -1608,7 +1608,9 @@ pub struct SearchMemoryRequest {
     /// Optional approximate token budget for the complete reply text, including
     /// metadata, guidance and pagination: ceil(UTF-8 bytes / 4), not a provider
     /// tokenizer or JSON transport size. Returns whole hits and the next offset;
-    /// rejects a budget too small for one hit plus mandatory context. Default: none.
+    /// rejects a budget too small for one hit plus mandatory context. When omitted,
+    /// public replies default to 40 KiB: oversized results offer exact saved-result
+    /// recovery; fitting replies stay unchanged. Explicit budgets use live paging.
     #[serde(default)]
     pub max_tokens: Option<usize>,
     #[serde(default = "default_true")]
@@ -1722,6 +1724,9 @@ pub struct GrepProjectRequest {
     /// serialized JSON or Markdown metadata, warnings and recovery actions.
     /// This is not provider-token or MCP transport-envelope accounting.
     /// Returns whole match records; too-small budgets report a usable minimum.
+    /// When omitted, public replies default to 40 KiB: oversized results offer
+    /// exact saved-result recovery; fitting replies stay unchanged. Explicit
+    /// budgets use live paging within the selected match window.
     #[serde(default)]
     pub max_tokens: Option<usize>,
     /// Source freshness: "strict" (default) hash-checks and overlays changed/new
@@ -2612,14 +2617,18 @@ pub struct VectorSearchRequest {
     pub top_k: usize,
     /// Offset within the same top_k ranking window. Keep query, filters, top_k
     /// and use_mmr unchanged across ordinary pages. Mutable ranking is not
-    /// snapshotted unless retain_response=true and output_json=true capture
-    /// the selected window for immutable response_id/response_offset recovery.
+    /// snapshotted across live pages. Explicit retain_response=true with
+    /// output_json=true captures the selected window. Oversized default replies
+    /// also retain their original result for response_id/response_offset recovery.
     /// To widen the window, increase top_k (max 200) and restart at offset=0.
     #[serde(default)]
     pub offset: usize,
     /// Optional complete reply-text budget estimated as ceil(UTF-8 bytes / 4),
     /// not provider tokens or JSON transport size. Returns complete hits;
     /// too-small budgets report the minimum needed with required context.
+    /// When omitted, public replies default to 40 KiB: oversized results offer
+    /// exact saved-result recovery; fitting replies stay unchanged. Explicit
+    /// budgets use live paging within the selected ranking window.
     #[serde(default)]
     pub max_tokens: Option<usize>,
     /// Use MMR (Maximal Marginal Relevance) for diverse results (default false).
