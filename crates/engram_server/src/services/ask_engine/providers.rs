@@ -155,7 +155,10 @@ fn hit_to_evidence(
     let commit = indexed_commit_id(namespace, h.path.as_str()).map(str::to_owned);
     let complete_message = commit.is_some();
     let documentary = documentary_source(h.path.as_str(), kind, authority);
-    let (kind, authority) = if documentary {
+    let bank_record = namespace == namespaces::NAMESPACE_MEMORY_BANK;
+    let (kind, authority) = if bank_record {
+        (EvidenceKind::MemoryNote, Authority::AgentMemory)
+    } else if documentary {
         (EvidenceKind::DocSection, Authority::CurrentDocs)
     } else {
         (kind, authority)
@@ -167,6 +170,9 @@ fn hit_to_evidence(
     };
     if documentary {
         warnings.push(DOCUMENTARY_SOURCE_WARNING.into());
+    }
+    if bank_record {
+        warnings.push("Indexed memory-bank excerpt, not approval or current authored policy. Stored record provenance is not established by this search hit; prefer the guarded memory record when supplied, otherwise recover the original indexed source before interpreting qualifications.".into());
     }
     EvidenceItem {
         memory_record: None,
@@ -498,7 +504,25 @@ pub(crate) async fn knowledge_evidence_in_view(
     .await
 }
 
-/// Memory-bank notes (kind-aware authority) via a registry scan + lexical filter.
+/// A search-index copy must not consume an additional lookup slot ahead of
+/// the same record's provenance-bearing registry evidence. Do this before both
+/// ranking and reserve-pool capture; never raise recorded-memory authority.
+pub fn prefer_memory_records(items: &mut Vec<EvidenceItem>, project: &str) {
+    let records: std::collections::HashSet<String> = items.iter()
+        .filter_map(|item| item.memory_record.as_ref())
+        .filter(|record| record.project_id == project)
+        .map(|record| record.section_id.clone()).collect();
+    items.retain(|item| {
+        if item.memory_record.is_some()
+            || item.document_namespace.as_deref() != Some(namespaces::NAMESPACE_MEMORY_BANK) {
+            return true;
+        }
+        !item.path.as_deref().and_then(|path| path.strip_prefix("memory_bank:"))
+            .is_some_and(|section| records.contains(section))
+    });
+}
+
+/// Memory-bank notes retain recorded authority via a registry scan + lexical filter.
 pub fn memory_evidence(
     registry: &Registry,
     project_id: &str,

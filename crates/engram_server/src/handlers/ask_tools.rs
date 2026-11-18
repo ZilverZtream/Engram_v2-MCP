@@ -316,6 +316,9 @@ impl Engram {
         if let Some(request) = &mut request_evidence {
             raw.append(&mut request.items);
         }
+        // Keep the source-bound memory record rather than its unqualified
+        // indexed duplicate, before either lookup selection or required reserves.
+        crate::services::ask_engine::providers::prefer_memory_records(&mut raw, &req.project_id);
         // Round-2 audit P0-4: the requested modality survives the cap.
         let raw_pool = raw.clone();
         // Doc-13 Phase C (round-3 audit P0-2): a Callees + ExhaustiveSet
