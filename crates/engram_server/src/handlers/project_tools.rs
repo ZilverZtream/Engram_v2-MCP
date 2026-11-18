@@ -2905,7 +2905,7 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let Some(rec) = rec else {
-            return Err(McpError::invalid_params("Unknown project", None));
+            return Err(crate::error::EngramError::ProjectNotFound(req.project_id).into());
         };
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let observation = async {

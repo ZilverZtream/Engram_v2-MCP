@@ -58,7 +58,8 @@ fn project_info_preserves_legacy_unpublished_and_unknown_project_semantics() -> 
                 missing
                     .as_ref()
                     .err()
-                    .is_some_and(|error| error.message == "Unknown project")
+                    .is_some_and(|error| ["never-registered", "list_projects", "index_project"]
+                        .into_iter().all(|part| error.message.contains(part)))
             );
             ensure!(
                 engram
