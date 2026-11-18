@@ -21,6 +21,9 @@ use std::collections::{HashMap, VecDeque};
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
 
+#[path = "git_refresh_scope.rs"]
+pub(super) mod git_refresh_scope;
+
 fn is_safe_zip_member_path(name: &str) -> bool {
     let p = std::path::Path::new(name);
     if name.is_empty() || name.contains('\0') || p.is_absolute() {
@@ -674,6 +677,35 @@ impl ReachableHistory {
 }
 
 impl Engram {
+    /// Source-update enrichment has narrower intent than an explicit request
+    /// to index repository history. Check that intent before opening writers.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn git_update_for_source_refresh(
+        &self,
+        project_id: &str,
+        directory: &str,
+        generation: u64,
+        max_commits: usize,
+        index_antipatterns: bool,
+        cancel: &tokio_util::sync::CancellationToken,
+        progress_cb: Box<dyn FnMut(usize, usize) + Send>,
+        job_progress: Option<Reporter>,
+    ) -> Result<String, McpError> {
+        let root = PathBuf::from(directory);
+        let skip = tokio::task::spawn_blocking(move || git_refresh_scope::skip_reason(&root))
+            .await.map_err(|error| McpError::internal_error(error.to_string(), None))?
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        if let Some(reason) = skip {
+            return Ok(format!(
+                "commits=0\nhistory_enrichment: skipped ({reason})\nretained_history_scope: existing history and temporal records are unchanged and unverified by this refresh. Use index_git_history for explicitly requested repository history."
+            ));
+        }
+        self.git_update_stream(project_id, directory, generation, max_commits,
+            GitHistoryMode::Forward, index_antipatterns,
+            engram_git::history::MergeCommitPolicy::AllParents, cancel,
+            progress_cb, job_progress, false).await
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub(crate) async fn git_update_stream(
         &self,

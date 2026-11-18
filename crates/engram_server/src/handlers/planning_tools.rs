@@ -1007,6 +1007,9 @@ pub(crate) fn warm_co_change_snapshot_blocking(
         .registry
         .get_project(project_id)?
         .ok_or_else(|| anyhow::anyhow!("project {project_id} not registered"))?;
+    if super::git_tools::git_refresh_scope::skip_reason(std::path::Path::new(&rec.directory))?.is_some() {
+        return Ok(());
+    }
     let disk_path = state
         .cfg
         .data_dir

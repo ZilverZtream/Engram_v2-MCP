@@ -1947,7 +1947,7 @@ impl Engram {
                     .process_ingest_stats(&project_id_for_job, new_gen, &stats)
                     .await?;
                 let history_result = engram
-                    .git_update_stream(
+                    .git_update_for_source_refresh(
                         &project_id_for_job,
                         &ps.info.directory,
                         new_gen,
@@ -1956,13 +1956,12 @@ impl Engram {
                 // Backfill is a one-time historical ingest - running it
                 // here re-walked (and re-weighted) hundreds of already-
                 // indexed commits on every routine update.
-                crate::models::GitHistoryMode::Forward,
+
                         index_antipatterns,
-                        engram_git::history::MergeCommitPolicy::AllParents,
+
                         &token,
                         Box::new(|_, _| {}),
                         Some(phase.clone()),
-                        false,
             )
                     .await;
                 let history_warning = match history_result {
@@ -2375,18 +2374,17 @@ impl Engram {
             "Source head or identity changed during unchanged-source verification; retry"
         );
         let history = self
-            .git_update_stream(
+            .git_update_for_source_refresh(
                 project_id,
                 directory,
                 generation,
                 max_commits,
-                crate::models::GitHistoryMode::Forward,
+
                 index_antipatterns,
-                engram_git::history::MergeCommitPolicy::AllParents,
+
                 cancel,
                 Box::new(|_, _| {}),
                 job_progress,
-                false,
             )
             .await;
         anyhow::ensure!(
@@ -2644,7 +2642,7 @@ impl Engram {
         let git_result = if only_paths.is_some() {
             Ok("history_enrichment: skipped (exclusive source scope; outside paths preserved without checking current bytes)".to_owned())
         } else { self
-            .git_update_stream(
+            .git_update_for_source_refresh(
                 project_id,
                 &ps.info.directory,
                 new_gen,
@@ -2653,13 +2651,12 @@ impl Engram {
                 // Backfill is a one-time historical ingest - running it
                 // here re-walked (and re-weighted) hundreds of already-
                 // indexed commits on every routine update.
-                crate::models::GitHistoryMode::Forward,
+
                 index_antipatterns,
-                engram_git::history::MergeCommitPolicy::AllParents,
+
                 cancel,
                 Box::new(|_, _| {}),
                 None,
-                false,
             )
             .await };
         observe_source_update(project_id, new_gen, "git_enrichment", "returned");
