@@ -11,10 +11,12 @@ use engram_core::registry::Registry;
 use engram_graph::{EdgeKind, GraphStore, Node};
 use engram_index::{HybridHit, HybridQuery, HybridSearchEngine, SourceSnapshotGuard};
 use std::sync::Arc;
+use std::time::Duration;
 use tokio_util::sync::CancellationToken;
 
 use super::evidence::{Authority, EvidenceItem, EvidenceKind};
 use super::status::ProviderStatus;
+mod semantic_delivery;
 
 /// Doc-13 Phase B (round-3 audit item 2): what an arm actually looked at.
 /// Zeros mean NOT MEASURED — never "complete"; `truncated` true means the
@@ -183,6 +185,7 @@ async fn search_arm(
     cancel: &CancellationToken,
     id: &mut usize,
     source_view: Option<Arc<SourceSnapshotGuard>>,
+    semantic_budget: Option<Duration>,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
     let mut q = base_query(project_id, namespace, generation, query, top_k);
     // Batch 8 (live r64 usage_5): a question-named path scope STEERS the
@@ -190,7 +193,7 @@ async fn search_arm(
     if !scopes.is_empty() {
         q.include_path_prefixes = Some(scopes.to_vec());
     }
-    search_with(search, q, kind, authority, provider, generation, cancel, id, source_view).await
+    search_with(search, q, kind, authority, provider, generation, cancel, id, source_view, semantic_budget).await
 }
 
 /// Round-2 audit P0-4: source evidence restricted to the paths of a requested
@@ -210,7 +213,7 @@ pub async fn modality_evidence(
     id: &mut usize,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
     modality_evidence_in_view(search, project_id, generation, suffixes, provider,
-        query, top_k, scopes, cancel, id, None).await
+        query, top_k, scopes, cancel, id, None, None).await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -226,6 +229,7 @@ pub(crate) async fn modality_evidence_in_view(
     cancel: &CancellationToken,
     id: &mut usize,
     source_view: Option<Arc<SourceSnapshotGuard>>,
+    semantic_budget: Option<Duration>,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
     let mut q = base_query(
         project_id,
@@ -249,6 +253,7 @@ pub(crate) async fn modality_evidence_in_view(
         cancel,
         id,
         source_view,
+        semantic_budget,
     )
     .await
 }
@@ -264,6 +269,7 @@ async fn search_with(
     cancel: &CancellationToken,
     id: &mut usize,
     source_view: Option<Arc<SourceSnapshotGuard>>,
+    semantic_budget: Option<Duration>,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
     // This lease spans both asynchronous search and exact physical-body
     // recovery. A supplied capability may already be retired; validate it
@@ -280,98 +286,116 @@ async fn search_with(
                 "Selected source view unavailable; refresh source selection and retry: {error:#}"))),
         }
     } else { None };
-    match search.search(&q, None, cancel).await {
-        Err(e) => (vec![], ProviderOutcome::failed(e.to_string())),
-        Ok(hits) if hits.is_empty() => (vec![], ProviderOutcome::empty()),
-        Ok(hits) => {
-            #[cfg(test)]
-            if q.namespace == namespaces::NAMESPACE_MEMORY {
-                super::retrieval::source_lifetime_tests::after_search(search, &q.project_id, provider).await;
-            }
-            // Doc-13 Phase B: coverage is measured BEFORE the quality
-            // filters — the question is what the index gave us to examine.
-            let examined_before_filters = hits.len();
-            // Grind cycle 38 (doc 11): a type declaration or a review-config
-            // file is never CODE evidence — held-out hx_golden_2/hx_causal_4
-            // cited google.maps typings and the camera row cited
-            // .coderabbit.yaml through this arm after the hop was fixed.
-            // Cycle 39 (doc 11): Engram's own system sections (the reserved
-            // memory_bank:engram/ prefix — the index report above all) are
-            // meta, not project knowledge; they only qualify when the question
-            // is about the index itself. Applies to EVERY arm and kind.
-            let asks_about_index = q.text.to_lowercase().split_whitespace().any(|t| {
-                matches!(
-                    t,
-                    "index" | "indexing" | "indexed" | "engram" | "generation" | "reindex"
+    let (result, fallback) = semantic_delivery::search(search, &q, cancel, semantic_budget).await;
+    let (mut items, mut outcome) = async {
+        match result {
+            Err(e) => (vec![], ProviderOutcome::failed(e.to_string())),
+            Ok(hits) if hits.is_empty() => (vec![], ProviderOutcome::empty()),
+            Ok(hits) => {
+                #[cfg(test)]
+                if q.namespace == namespaces::NAMESPACE_MEMORY {
+                    super::retrieval::source_lifetime_tests::after_search(search, &q.project_id, provider).await;
+                }
+                // Doc-13 Phase B: coverage is measured BEFORE the quality
+                // filters — the question is what the index gave us to examine.
+                let examined_before_filters = hits.len();
+                // Grind cycle 38 (doc 11): a type declaration or a review-config
+                // file is never CODE evidence — held-out hx_golden_2/hx_causal_4
+                // cited google.maps typings and the camera row cited
+                // .coderabbit.yaml through this arm after the hop was fixed.
+                // Cycle 39 (doc 11): Engram's own system sections (the reserved
+                // memory_bank:engram/ prefix — the index report above all) are
+                // meta, not project knowledge; they only qualify when the question
+                // is about the index itself. Applies to EVERY arm and kind.
+                let asks_about_index = q.text.to_lowercase().split_whitespace().any(|t| {
+                    matches!(
+                        t,
+                        "index" | "indexing" | "indexed" | "engram" | "generation" | "reindex"
+                    )
+                });
+                let hits: Vec<_> = hits
+                    .into_iter()
+                    .filter(|h| {
+                        let p = h.path.as_str().to_lowercase();
+                        if p.starts_with("memory_bank:engram/") && !asks_about_index {
+                            return false;
+                        }
+                        if !matches!(kind, EvidenceKind::SourceCode) {
+                            return true;
+                        }
+                        !(p.ends_with(".d.ts") || p.ends_with(".coderabbit.yaml"))
+                    })
+                    .collect();
+                if hits.is_empty() {
+                    return (vec![], ProviderOutcome::empty());
+                }
+                // Cycle 37 (doc 11): window the content around the query's terms —
+                // the longest term first, so identifiers beat filler words.
+                let mut terms: Vec<String> = q
+                    .text
+                    .to_lowercase()
+                    .split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+                    .filter(|t| t.len() >= 4)
+                    .map(|s| s.to_string())
+                    .collect();
+                terms.sort_by_key(|t| std::cmp::Reverse(t.len()));
+                terms.dedup();
+                let mut items = Vec::with_capacity(hits.len());
+                for h in &hits {
+                    let full = if let Some(view) = &source_view {
+                        match search.recover_selected_source_hit(&q.project_id, view, h) {
+                            Ok(Some((_, _, body, _, _))) => body,
+                            Ok(None) => return (vec![], ProviderOutcome::failed(
+                                "Selected source physical body is unavailable; repair source before retrying")),
+                            Err(error) => return (vec![], ProviderOutcome::failed(format!(
+                                "Selected source body recovery failed: {error:#}"))),
+                        }
+                    } else {
+                        search.get_doc_by_pk(&h.pk).ok().flatten().map(|t| t.2)
+                            .or_else(|| h.snippet.clone()).unwrap_or_default()
+                    };
+                    let content = if indexed_commit_id(&q.namespace, h.path.as_str()).is_some() {
+                        full
+                    } else {
+                        windowed_snippet(&full, &terms)
+                    };
+                    items.push(hit_to_evidence(
+                        h,
+                        kind,
+                        authority,
+                        provider,
+                        &q.namespace,
+                        generation,
+                        content,
+                        id,
+                    ));
+                }
+                (
+                    items,
+                    ProviderOutcome::hit_with_coverage(
+                        examined_before_filters,
+                        None,
+                        examined_before_filters >= q.top_k,
+                    ),
                 )
-            });
-            let hits: Vec<_> = hits
-                .into_iter()
-                .filter(|h| {
-                    let p = h.path.as_str().to_lowercase();
-                    if p.starts_with("memory_bank:engram/") && !asks_about_index {
-                        return false;
-                    }
-                    if !matches!(kind, EvidenceKind::SourceCode) {
-                        return true;
-                    }
-                    !(p.ends_with(".d.ts") || p.ends_with(".coderabbit.yaml"))
-                })
-                .collect();
-            if hits.is_empty() {
-                return (vec![], ProviderOutcome::empty());
             }
-            // Cycle 37 (doc 11): window the content around the query's terms —
-            // the longest term first, so identifiers beat filler words.
-            let mut terms: Vec<String> = q
-                .text
-                .to_lowercase()
-                .split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
-                .filter(|t| t.len() >= 4)
-                .map(|s| s.to_string())
-                .collect();
-            terms.sort_by_key(|t| std::cmp::Reverse(t.len()));
-            terms.dedup();
-            let mut items = Vec::with_capacity(hits.len());
-            for h in &hits {
-                let full = if let Some(view) = &source_view {
-                    match search.recover_selected_source_hit(&q.project_id, view, h) {
-                        Ok(Some((_, _, body, _, _))) => body,
-                        Ok(None) => return (vec![], ProviderOutcome::failed(
-                            "Selected source physical body is unavailable; repair source before retrying")),
-                        Err(error) => return (vec![], ProviderOutcome::failed(format!(
-                            "Selected source body recovery failed: {error:#}"))),
-                    }
-                } else {
-                    search.get_doc_by_pk(&h.pk).ok().flatten().map(|t| t.2)
-                        .or_else(|| h.snippet.clone()).unwrap_or_default()
-                };
-                let content = if indexed_commit_id(&q.namespace, h.path.as_str()).is_some() {
-                    full
-                } else {
-                    windowed_snippet(&full, &terms)
-                };
-                items.push(hit_to_evidence(
-                    h,
-                    kind,
-                    authority,
-                    provider,
-                    &q.namespace,
-                    generation,
-                    content,
-                    id,
-                ));
-            }
-            (
-                items,
-                ProviderOutcome::hit_with_coverage(
-                    examined_before_filters,
-                    None,
-                    examined_before_filters >= q.top_k,
-                ),
-            )
         }
+    }.await;
+    if let Some(fallback) = fallback {
+        for item in &mut items {
+            item.warnings.push(fallback.note.clone());
+        }
+        if outcome.status == ProviderStatus::Empty {
+            // A clean lexical miss does not establish semantic absence while
+            // that optional channel is unavailable.
+            outcome.status = fallback.status;
+        }
+        outcome.note = Some(match outcome.note {
+            Some(note) => format!("{note} {}", fallback.note),
+            None => fallback.note,
+        });
     }
+    (items, outcome)
 }
 
 /// Source-code evidence from the code (memory) namespace.
@@ -398,6 +422,7 @@ pub async fn code_evidence(
         cancel,
         id,
         None,
+        None,
     )
     .await
 }
@@ -420,7 +445,7 @@ pub async fn knowledge_evidence(
     id: &mut usize,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
     knowledge_evidence_in_view(search, project_id, generation, namespace, kind,
-        authority, provider, query, top_k, scopes, cancel, id, None).await
+        authority, provider, query, top_k, scopes, cancel, id, None, None).await
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -438,10 +463,11 @@ pub(crate) async fn knowledge_evidence_in_view(
     cancel: &CancellationToken,
     id: &mut usize,
     source_view: Option<Arc<SourceSnapshotGuard>>,
+    semantic_budget: Option<Duration>,
 ) -> (Vec<EvidenceItem>, ProviderOutcome) {
     search_arm(
         search, project_id, namespace, generation, kind, authority, provider, query, top_k, scopes,
-        cancel, id, source_view,
+        cancel, id, source_view, semantic_budget,
     )
     .await
 }

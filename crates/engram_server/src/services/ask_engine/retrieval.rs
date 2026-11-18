@@ -114,7 +114,7 @@ fn search_arm(
             let mut id = 0usize;
             let (mut items, mut out) = providers::knowledge_evidence_in_view(
                 &search, &pid, gen_, namespace, kind, authority, provider, &q, top_k, &scopes,
-                &cancel, &mut id, source_view,
+                &cancel, &mut id, source_view, Some(deadline / 2),
             )
             .await;
             if kind == EvidenceKind::BusinessRule && !items.is_empty() {
@@ -138,9 +138,13 @@ fn search_arm(
                     Ok(Ok((checked, unverified))) => {
                         items = checked;
                         if unverified > 0 {
-                            out.note = Some(format!(
+                            let note = format!(
                                 "{unverified} business-rule packs have stale or unverified source versions; inspect evidence warnings"
-                            ));
+                            );
+                            out.note = Some(match out.note {
+                                Some(previous) => format!("{previous} {note}"),
+                                None => note,
+                            });
                         }
                     }
                     Ok(Err(error)) => {
@@ -207,6 +211,7 @@ fn modality_arm(
                 &cancel,
                 &mut id,
                 source_view,
+                Some(deadline / 2),
             )
             .await;
             (provider.clone(), items, out)

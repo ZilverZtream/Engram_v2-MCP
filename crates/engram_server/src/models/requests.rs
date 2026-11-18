@@ -1201,6 +1201,9 @@ pub struct AskCodebaseRequest {
     #[serde(default = "default_ask_output")]
     pub output_format: String,
     /// Overall retrieval deadline in ms (default 15000, clamped 1000..60000).
+    /// Search-backed arms reserve half for optional semantic retrieval and the
+    /// rest for disclosed lexical fallback and source checks. This deadline is
+    /// cooperative: synchronous work is not interrupted; startup/synthesis are separate.
     #[serde(default)]
     pub deadline_ms: Option<u64>,
     /// Dream switch: `true` adds the dreamer-insight retrieval arm (the

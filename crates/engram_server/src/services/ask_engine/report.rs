@@ -408,7 +408,10 @@ pub fn render_markdown(r: &AskReport) -> String {
     let provs: Vec<String> = r
         .providers
         .iter()
-        .map(|p| format!("{}({:?},{})", p.provider, p.status, p.count))
+        .map(|p| {
+            let note = p.note.as_deref().map(|note| format!(": {note}")).unwrap_or_default();
+            format!("{}({:?},{}){note}", p.provider, p.status, p.count)
+        })
         .collect();
     let _ = writeln!(s, "\n_providers: {}_", provs.join(", "));
     s

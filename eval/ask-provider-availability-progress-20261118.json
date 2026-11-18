@@ -1,0 +1,72 @@
+{
+  "original_requirement_id": "TODO-28",
+  "related_original_requirement": "TODO-2",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "One natural-language entry point that returns usable source evidence and honest capability outcomes.",
+  "observed_missing_behavior": "Installed a027ca4c owned public proof: healthy ask code arm returns1item; provider outage makes it time out with0 despite the same question finding source through lexical search.",
+  "finite_acceptance": [
+    "ask_codebase search-backed code/document/business/history/modality arms preserve the same filtered, pinned source/knowledge evidence using lexical fallback when optional semantic work fails or exhausts its allocated deadline share. Healthy hybrid behavior and source-authority checks remain.",
+    "Provider notes and evidence warnings disclose actual fallback in JSON and Markdown. Empty lexical fallback retains unavailable semantic coverage; lexical/source read failures and cancellation remain failures rather than empty success. Existing body/source verification still applies to fallback evidence.",
+    "Verify wanted behavior on owned TS/VB/SQL and local healthy/failing/delayed provider fixtures with no real model calls or actual LegacyValidation source access. One availability outcome across arms/consumers; no standalone Cargo or deployment; accumulate separate original outcomes before combined validation."
+  ],
+  "counting_rule": "One availability improvement for the natural-language evidence workflow. Multiple search arms and consumers are not separate deliverables.",
+  "priority_basis": "Current installed LegacyValidation configuration uses Full discovery and an Ollama embedding backend; normal configuration hash remains the retained3f966... identity. Owned baseline uses current installed binary and TS source only.",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118\\contract.json",
+  "source_phase_started_at_utc": "2026-11-18T01:58:46.578700+00:00",
+  "implementation_files": [
+    "crates/engram_server/src/services/ask_engine/providers.rs",
+    "crates/engram_server/src/services/ask_engine/providers/semantic_delivery.rs",
+    "crates/engram_server/src/services/ask_engine/retrieval.rs",
+    "crates/engram_server/src/services/ask_engine/report.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/tests/ask_provider_availability_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118\\baseline1\\receipt.json",
+  "baseline_checks_passed": 4,
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118",
+    "purpose": "Owned baseline and finite natural-entry provider availability acceptance",
+    "baseline_server_owner_closed": true,
+    "baseline_provider_closed": true,
+    "baseline_owned_fixture_removed": true,
+    "cleanup_condition": "Close server/database/provider threads before owned fixture cleanup; retain evidence until delivery; no preexisting deletion."
+  },
+  "next_action": "Retain this one source outcome and advance another substantive original requirement before combined validation. Do not compile/deploy this availability change alone.",
+  "source_phase_completed_at_utc": "2026-11-18T02:15:44.496016+00:00",
+  "implementation_items_active": 0,
+  "native_test_cases_written": 4,
+  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118\\verify-public.py",
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "source_checks": {
+    "rust_syntax": "PASS via rustfmt; existing files parsed without rewrite",
+    "python_syntax": "PASS via compile(); no bytecode artifact",
+    "diff_whitespace": "PASS",
+    "changed_private_interface_callers": "All knowledge/modality in-view callers located and updated; public provider interfaces preserved",
+    "protected_wip9": "UNCHANGED",
+    "engram_builds_started": 0,
+    "native_tests_executed": 0
+  },
+  "limitations": [
+    "Source changes and four written checks have not had native/post-change public acceptance; not deployed. Installed baseline proves lost source evidence only.",
+    "A single availability outcome across multiple arms/consumers; no additional independent deliverable counted for each provider or format.",
+    "Half of each search-backed arm deadline is optional semantic work; remaining time permits lexical fallback/source verification. Cooperative deadlines do not interrupt synchronous work or prove remote cancellation.",
+    "Configured snapshot semantic tier is not the actual per-arm retrieval outcome; provider notes and evidence warnings expose fallback. Empty fallback retains failed/timed-out semantic coverage.",
+    "No actual LegacyValidation source/Q/index/data mutation, no real model calls, no closed-tool work or language expansion, no preexisting deletion, no new build or task-benefit/real-provider latency claim."
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/services/ask_engine/providers.rs": "a80b3ded8d87e74981a55934dda1b3286042b61d06a966d7c4ba1e37f33e9c5f",
+    "crates/engram_server/src/services/ask_engine/providers/semantic_delivery.rs": "ec18bf16917ad23f6b99d65a935a652f27225afaa3d31d368742037cbfa9c450",
+    "crates/engram_server/src/services/ask_engine/retrieval.rs": "61de6a2d2002fde550391a58d1ad25d65954e01282787b15759c12a3de6b37de",
+    "crates/engram_server/src/services/ask_engine/report.rs": "9c83f48503e9d9168d2464671e2105c99f70b56b7f7cf0f5722e1d4892dcdcc7",
+    "crates/engram_server/src/models/requests.rs": "ff9da5ae1c5eb4713d73a1c54eb6abe3a0c6c7bfcd4d945f94e0035e2c9107ba",
+    "crates/engram_server/tests/ask_provider_availability_tests.rs": "5f589b8f31d3c36bea96956ccc404adaf6a9e30f70a39e823093446460241335",
+    "docs/TOOL_CONTRACT.md": "a18602733e836567c2e2689b66e0f57fcfa9d4c1eb5dd31f6355d5f9e1885133"
+  },
+  "public_verifier_sha256": "239a2a4ba9e863000151a02ccb31f48acfa04d1df021187120da44bfd74e22f8"
+}

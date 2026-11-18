@@ -2093,3 +2093,24 @@ fallback and rendering are not a whole-request latency SLA, and cancelling the
 local provider future does not prove remote computation stopped. Lexical errors
 remain errors. No real-provider or LegacyValidation speedup is established by owned tests.
 [Pending source record](../eval/hybrid-provider-fallback-progress-20261118.json).
+
+
+## Natural-language evidence during semantic retrieval failures
+
+Source change 2026-11-18 (combined validation and deployment pending): the
+search-backed `ask_codebase` arms allocate half their retrieval deadline to
+optional semantic work. When that work fails or times out, they reuse the same
+query, namespace, path/suffix filters and selected source capability for lexical
+fallback. Existing physical-body checks and business-rule source verification
+still apply. Healthy hybrid retrieval and non-semantic backends retain their
+existing paths; cancellation and lexical/source failures remain failures.
+
+Returned fallback evidence carries warnings, and provider notes identify the
+actual retrieval path in JSON and Markdown. `snapshot.semantic_tier` still
+identifies the configured backend; provider notes describe actual fallback.
+If lexical fallback finds no
+admissible evidence, the semantic channel remains failed/timed out rather than
+being reported as a clean empty provider. This does not establish semantic recall,
+source absence or a whole-request latency SLA: the deadline is cooperative,
+synchronous work is not interrupted, and startup and synthesis are separate.
+[Pending source record](../eval/ask-provider-availability-progress-20261118.json).
