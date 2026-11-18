@@ -1,4 +1,5 @@
 pub mod index_suggestions;
+pub mod corpus_refresh;
 pub mod feature_plan;
 pub mod ajax_region_service;
 pub mod ask_engine;

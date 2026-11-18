@@ -10,6 +10,7 @@ use serde_json::{Value, json};
 use std::path::Path;
 
 const TOOLS: &[&str] = &[
+    "refresh_corpora",
     "update_project",
     "index_project",
     "list_projects",
@@ -101,7 +102,7 @@ fn project_free(tool: &str) -> bool {
 }
 
 fn returned_operation(tool: &str) -> bool {
-    matches!(tool, "update_project" | "index_project")
+    matches!(tool, "update_project" | "index_project" | "refresh_corpora")
 }
 
 const INDEX_DELIVERY_INSTRUCTION: &str = "Do not repeat index_project to recover this response. The original acknowledgement is in the saved result. A queued job acknowledgement does not establish job completion; poll get_job_status for its job_id. If recovery expires, reconcile list_projects/project_info and any returned job_id before deciding on a new operation. Delivery does not imply rollback.";
@@ -201,7 +202,11 @@ pub fn advertise(mut tool: Tool) -> Tool {
     schema.insert("required".into(), if global { json!([]) } else { json!(["project_id"]) });
     let description = tool.description.as_deref().unwrap_or("");
     let recovery = if global { "returned delivery controls; no project_id is required" } else { "project_id and returned delivery controls" };
-    tool.description = Some(format!("{description} Complete-text budget: max_tokens (default40KiB). Original analysis fields are required for fresh calls. Follow response_delivery.next_call with {recovery} for the immutable original MCP result; reassemble before use. Recovery never reruns the tool. Errors/non-text unchanged.").into());
+    let error_scope = if tool.name == "refresh_corpora" { "Stage-error reports retain isError and also support bounded delivery; non-text results remain unchanged." } else { "Errors/non-text unchanged." };
+    tool.description = Some(format!("{description} Complete-text budget: max_tokens (default40KiB). Original analysis fields are required for fresh calls. Follow response_delivery.next_call with {recovery} for the immutable original MCP result; reassemble before use. Recovery never reruns the tool. {error_scope}").into());
+    if tool.name == "refresh_corpora" {
+        tool.description = Some(format!("{} Refresh stage-error reports also honor this budget and retain aggregate isError on the initial response. Recovery does not repeat any refresh stage. Retention failure preserves the original outcome and explicitly reports a budget overrun; it does not roll back earlier writes.", tool.description.as_deref().unwrap_or("" )).into());
+    }
     if tool.name == "update_project" {
         tool.description = Some(format!("{} Delivery recovery never repeats the update. A returned operation is not proof of background-job completion; recover the original acknowledgement and poll its job if queued. If retaining an oversized result fails after the operation, the original outcome is returned with an explicit warning that its delivery budget was exceeded.", tool.description.as_deref().unwrap_or("")).into());
     }
@@ -356,6 +361,10 @@ impl Report {
             value["report_scope"] = json!(self.report_scope());
             Self::discovery_action(&mut value["response_delivery"]["next_call"]);
         }
+        if self.tool == "refresh_corpora" {
+            value["operation"] = json!({"handler_returned":true,
+                "instruction":"Do not repeat refresh_corpora to recover this report. Original per-stage results/errors are saved; earlier successful writes are not rolled back. A returned result is not proof of complete or fresh corpora."});
+        }
         if self.tool == "update_project" {
             value["operation"] = json!({
                 "handler_returned":true,
@@ -422,6 +431,16 @@ impl Report {
             Ok(delivered) => Ok(delivered),
             Err(error) => {
                 tracing::warn!(%error, tool=self.tool, "result retention failed; preserving original operation outcome");
+                if self.tool == "refresh_corpora" {
+                    fallback.content.push(Content::text(json!({
+                        "tool":self.tool,"project_id":self.project,
+                        "response_delivery":{"status":"ORIGINAL_OUTCOME_PRESERVED_DELIVERY_FAILED",
+                            "budget_honored":false,"response_budget_bytes":self.budget,
+                            "recovery_available":false,"reason":error.message,
+                            "instruction":"Refresh stages already returned. Their complete original results/errors are retained above and exceed the requested delivery budget. Do not repeat refresh_corpora solely to recover this report; earlier successful writes are not rolled back."}
+                    }).to_string()));
+                    return Ok(fallback);
+                }
                 if self.tool == "index_project" {
                     fallback.content.push(Content::text(json!({
                         "tool":self.tool,"report_scope":"server_operation",
@@ -455,7 +474,7 @@ impl Report {
         data: &Path,
         original: CallToolResult,
     ) -> Result<CallToolResult, McpError> {
-        if original.is_error == Some(true)
+        if (original.is_error == Some(true) && self.tool != "refresh_corpora")
             || original
                 .content
                 .iter()
@@ -463,6 +482,7 @@ impl Report {
         {
             return Ok(original);
         }
+        let stage_error = self.tool == "refresh_corpora" && original.is_error == Some(true);
         let operation = (self.tool == "index_project").then(|| index_operation(&original));
         let original = if self.json_envelope {
             let result = serde_json::to_value(&original)
@@ -479,7 +499,9 @@ impl Report {
                 envelope["report_scope"] = json!(self.report_scope());
             }
             if let Some(operation) = &operation { envelope["operation"] = operation.clone(); }
-            CallToolResult::success(vec![Content::text(envelope.to_string())])
+            let mut delivered = CallToolResult::success(vec![Content::text(envelope.to_string())]);
+            if stage_error { delivered.is_error = Some(true); }
+            delivered
         } else {
             original
         };
@@ -510,6 +532,8 @@ impl Report {
             ));
         }
         snapshots::save_read_report(data, &self.project, &body, self.tool)?;
-        Ok(CallToolResult::success(vec![Content::text(manifest)]))
+        let mut delivered = CallToolResult::success(vec![Content::text(manifest)]);
+        if stage_error { delivered.is_error = Some(true); }
+        Ok(delivered)
     }
 }

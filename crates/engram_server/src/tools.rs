@@ -53,7 +53,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "One-call corpus freshness: incrementally refreshes the file index, git history (temporal coupling), and the merged-PR exemplar corpus in sequence. Watermark-incremental - a no-change repo returns in seconds. Run at session start or after pulling to keep Engram's knowledge current."
+        description = "Incrementally refresh files, Git history/temporal coupling, then merged-PR exemplars. Returns a JSON stage report with complete original results/errors and optional review-ingest skips. Independent stages continue after failures; any reported stage error sets isError. No rollback or whole-corpus freshness guarantee; inspect stage warnings and get_index_freshness. Optional pat_token plus ado_* enables review-history ingest."
     )]
     pub async fn refresh_corpora(
         &self,

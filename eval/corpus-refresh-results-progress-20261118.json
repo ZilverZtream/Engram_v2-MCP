@@ -1,0 +1,71 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-18T11:23:49.345035+00:00",
+  "original_requirement_id": "TODO-4",
+  "supporting_original_requirement": "EG-26",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\corpus-refresh-results-20261118",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\corpus-refresh-results-20261118\\contract.json",
+  "observed_missing_behavior": "refresh_corpora discards every file/history/review line after6 and every merged-PR line after4. It returns successful MCP output even when stage handlers fail or return isError. An agent cannot rely on the resulting refresh summary to know which corpora failed or recover omitted warnings.",
+  "behavior": "Return the complete original MCP result/error for each attempted refresh stage in a typed report; distinguish omitted optional review ingest; preserve stage sequencing and continue independent stages; set aggregate isError for any reported failure. Bound ordinary public replies using existing immutable read-report delivery, with exact recovery and aggregate error state preserved.",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/project_tools.rs",
+    "crates/engram_server/src/services/corpus_refresh.rs",
+    "crates/engram_server/src/services/mod.rs",
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/corpus_refresh_results.rs"
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/handlers/project_tools.rs": "df739d23c4cd49e4f897c491c9181e23d8641ecbd77eca47714639d0fddb09be",
+    "crates/engram_server/src/services/corpus_refresh.rs": "a0f822bda2588b4aa99d1606f21839b48254df0d9d81a7181b6aff6e6594b78b",
+    "crates/engram_server/src/services/mod.rs": "345b380e2fc0e1ebc4ec18f8491131bde31473022c43e8de96512b0c590f0875",
+    "crates/engram_server/src/read_report_delivery.rs": "d0b2e4695d32d8537da5e64577feac18de61b171c2850245278680bd379f0e4d",
+    "crates/engram_server/src/tools.rs": "599636ad37572f92c64640b645ec1b771808df431ef968f6c9136a2ec04c9c8b",
+    "crates/engram_server/tests/corpus_refresh_results.rs": "2c1bb84c15da30b9eb9df2f462246b5ab9f2744908b4abf1c5c2d4d4344b5b3f"
+  },
+  "source_parse": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\corpus-refresh-results-20261118\\source-parse1.json",
+  "installed_baseline": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\corpus-refresh-results-20261118\\baseline1\\receipt.json",
+    "observed": "Current installed17b46b3 returned MCP success despite three failed stage handlers. Owned process closed and fixture removed; no production source/index change."
+  },
+  "native_target": "corpus_refresh_results",
+  "native_cases_written": 2,
+  "native_cases_executed": 0,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\corpus-refresh-results-20261118\\verify-public.py",
+  "public_verifier_sha256": "350ec57cf363ef425ff71ec1c2b612644685f2b157753a75d6b204d0dab30f98",
+  "public_cases_executed": 0,
+  "source_stage_cargo_invocations": 0,
+  "runtime_deployed": false,
+  "finite_acceptance": [
+    "Retain one installed baseline showing an unknown valid UUID produces three FAILED stage messages while aggregate MCP success remains false-negative.",
+    "Native behavior covers late warnings, typed handler errors, result isError, successful stage retention and optional skip without network/model calls.",
+    "Owned real refresh of a tiny JS/SQL Git fixture retains original stage results and source indexing; unknown projects report errors.",
+    "Public schema exposes existing complete-reply budgets and recovery for refresh_corpora; recover captured original results exactly after fixture edits without repeating refresh."
+  ],
+  "compatibility": "refresh_corpora changes its lossy Markdown summary into a versioned JSON stage report, preserving original per-stage MCP envelopes. Request fields and stage order are unchanged; shared max_tokens/output_json/recovery controls are newly advertised. Callers parsing the old prose must consume the typed stage report.",
+  "limits": [
+    "Syntax parsed; type checking and native/public cases have not run. Do not claim this source-only change installed.",
+    "Stage reported-error status does not certify source freshness or a complete corpus; successful earlier writes are not rolled back.",
+    "Large results use existing quotas/retention. If retention fails after refresh, original results are preserved with an explicit delivery-budget overrun warning, avoiding an outcome-changing error that invites refresh replay.",
+    "Optional review ingest remains skipped without its existing credentials/coordinates; no credentials were supplied in baseline or tests.",
+    "Full original goal,31findings/19gates and negative task-usefulness outcomes remain; no protected Q source read, production source/index change, CodeMap/Blast work or preexisting deletion."
+  ],
+  "temporary_resources": {
+    "owned_baseline_closed_and_removed": true,
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\corpus-refresh-results-20261118",
+    "retention": "Keep contract, baseline/public logs and source evidence for combined acceptance. Native fixture fields drop server before TempDir on completion/unwind. No current fixture/process."
+  },
+  "counting_rule": "One complete refresh-result delivery outcome under original TODO4. Three refresh stages, formatting variants, error flags, bounded recovery and retention fallback are supporting checks, not separate outcomes.",
+  "source_validation": {
+    "rustfmt_parse": "PASS",
+    "git_diff_check": "PASS",
+    "typechecked": false,
+    "native_cases_executed": 0,
+    "public_cases_executed": 0,
+    "protected_wip9": "UNCHANGED"
+  },
+  "next_action": "Include this source outcome with pending health readiness and a third distinct original implementation outcome in one focused native/public/release batch. Do not start a standalone build.",
+  "native_environment": {
+    "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  }
+}

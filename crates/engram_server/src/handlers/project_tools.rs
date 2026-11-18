@@ -2116,7 +2116,7 @@ impl Engram {
     /// One-call corpus freshness: runs the full INCREMENTAL refresh chain
     /// (files -> git history/temporal -> merged-PR corpus) so an agent can
     /// keep its own knowledge current with a single tool. Each stage is
-    /// watermark-incremental; a no-change repo returns in seconds. This
+    /// watermark-incremental; results retain all stage warnings/errors. This
     /// exists because every corpus that rots silently degrades planning
     /// quality (2026-07-04: temporal edges silently missing for a day).
     pub async fn handle_refresh_corpora(
@@ -2124,18 +2124,10 @@ impl Engram {
         req: crate::models::RefreshCorporaRequest,
     ) -> Result<CallToolResult, McpError> {
         crate::handlers::validate_project_id(&req.project_id)?;
-        let mut out = String::from("# Corpus refresh\n");
-
-        let text_of = |r: &CallToolResult| -> String {
-            r.content
-                .iter()
-                .filter_map(|c| c.as_text().map(|t| t.text.clone()))
-                .collect::<Vec<_>>()
-                .join("\n")
-        };
+        let mut out = crate::services::corpus_refresh::Report::default();
 
         // Stage 1: file index (changed/added/removed source files).
-        match self
+        out.record("files", self
             .handle_update_project(crate::models::UpdateProjectRequest {
                 only_paths: None,
                 instruction_maintenance: None,
@@ -2145,20 +2137,10 @@ impl Engram {
                 max_commits: 500,
                 index_antipatterns: false,
             })
-            .await
-        {
-            Ok(r) => {
-                let t = text_of(&r);
-                out.push_str(&format!(
-                    "\n## files\n{}\n",
-                    t.lines().take(6).collect::<Vec<_>>().join("\n")
-                ));
-            }
-            Err(e) => out.push_str(&format!("\n## files\nFAILED: {}\n", e.message)),
-        }
+            .await);
 
         // Stage 2: git history (new commits -> temporal coupling edges).
-        match self
+        out.record("git history", self
             .handle_index_git_history(crate::models::IndexGitHistoryRequest {
                 project_id: req.project_id.clone(),
                 max_commits: 500,
@@ -2167,37 +2149,17 @@ impl Engram {
                 mode: Some(crate::models::GitHistoryMode::Forward),
                 wait: true,
             })
-            .await
-        {
-            Ok(r) => {
-                let t = text_of(&r);
-                out.push_str(&format!(
-                    "\n## git history\n{}\n",
-                    t.lines().take(6).collect::<Vec<_>>().join("\n")
-                ));
-            }
-            Err(e) => out.push_str(&format!("\n## git history\nFAILED: {}\n", e.message)),
-        }
+            .await);
 
         // Stage 3: merged-PR exemplar corpus.
-        match self
+        out.record("merged-PR corpus", self
             .handle_ingest_merged_prs(crate::models::IngestMergedPrsRequest {
                 project_id: req.project_id.clone(),
                 rebuild: false,
                 max_commits: 500,
                 merged_before: None,
             })
-            .await
-        {
-            Ok(r) => {
-                let t = text_of(&r);
-                out.push_str(&format!(
-                    "\n## merged-PR corpus\n{}\n",
-                    t.lines().take(4).collect::<Vec<_>>().join("\n")
-                ));
-            }
-            Err(e) => out.push_str(&format!("\n## merged-PR corpus\nFAILED: {}\n", e.message)),
-        }
+            .await);
 
         // Stage 4 (opt-in): code-review corpora — anti-pattern clusters +
         // review-disposition evidence. Imported dispositions do not establish
@@ -2228,7 +2190,7 @@ impl Engram {
                         .await
                         .ok();
                     }
-                    match self
+                    out.record("code-review corpora", self
                         .handle_ingest_code_review_history(
                             crate::models::IngestCodeReviewHistoryRequest {
                                 project_id: req.project_id.clone(),
@@ -2250,40 +2212,15 @@ impl Engram {
                                 promote_min_lift: 0.15,
                             },
                         )
-                        .await
-                    {
-                        Ok(r) => {
-                            let t = text_of(&r);
-                            out.push_str(&format!(
-                                "\n## code-review corpora\n{}\n",
-                                t.lines().take(6).collect::<Vec<_>>().join("\n")
-                            ));
-                        }
-                        Err(e) => out.push_str(&format!(
-                            "\n## code-review corpora\nFAILED: {}\n",
-                            e.message
-                        )),
-                    }
+                        .await);
                 }
-                _ => out.push_str(
-                    "\n## code-review corpora\nSKIPPED: pat_token provided without \
-                     ado_org/ado_project/ado_repo\n",
-                ),
+                _ => out.skip("code-review corpora", "pat_token supplied without all ado_org/ado_project/ado_repo coordinates; no review ingest attempted"),
             }
         } else {
-            out.push_str(
-                "\nnote: code-review corpora (anti-patterns + review-disposition evidence; no automatic finding suppression) \
-                 refresh only when pat_token+ado_* are provided — they otherwise \
-                 age until the next ingest_code_review_history call.\n",
-            );
+            out.skip("code-review corpora", "No pat_token supplied; existing review corpora were not refreshed");
         }
 
-        out.push_str(
-            "\nnote: quality gates (board/CodeRabbit) refresh via \
-             ingest_quality_gates on newly fetched sources; KB wikis regenerate \
-             via describe_setting/describe_table on demand.\n",
-        );
-        Ok(CallToolResult::success(vec![Content::text(out)]))
+        Ok(out.finish())
     }
 
     pub async fn handle_update_project(

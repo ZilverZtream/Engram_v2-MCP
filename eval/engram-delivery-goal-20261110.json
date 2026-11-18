@@ -2566,6 +2566,18 @@
         },
         "counting_rule": "One honest semantic-provider readiness reporting outcome. Configured/off variants, no-provider-request assertions and preserved integrity fields support the same outcome.",
         "progress": "eval/health-provider-readiness-progress-20261118.json"
+      },
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "TODO-4",
+        "supporting_original_requirement": "EG-26",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\corpus-refresh-results-20261118\\contract.json",
+        "progress": "eval/corpus-refresh-results-progress-20261118.json",
+        "native_target": "corpus_refresh_results",
+        "native_environment": {
+          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+        },
+        "counting_rule": "One complete refresh-result delivery outcome under original TODO4. Three refresh stages, formatting variants, error flags, bounded recovery and retention fallback are supporting checks, not separate outcomes."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2798,13 +2810,11 @@
   },
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "record": "eval/health-provider-readiness-progress-20261118.json",
-    "pending_source_outcomes": 1,
+    "record": "eval/corpus-refresh-results-progress-20261118.json",
+    "pending_source_outcomes": 2,
     "implementation_items_active": 0,
-    "last_original_requirement_completed": "EG-18",
-    "completion_record": "eval/eg18-original-requirement-closure-20261118.json",
     "full_original_goal_complete": false,
-    "next_action": "Select the next unfulfilled original behavior; preserve pending health source and batch at least three independent outcomes before Cargo. Do not reopen completed EG18 dependency closure."
+    "next_action": "Include this source outcome with pending health readiness and a third distinct original implementation outcome in one focused native/public/release batch. Do not start a standalone build."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3115,16 +3125,10 @@
   },
   "active_source_implementation": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement": "EG-26",
-    "record": "eval/health-provider-readiness-progress-20261118.json",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-provider-readiness-20261118",
+    "original_requirement_id": "TODO-4",
+    "progress": "eval/corpus-refresh-results-progress-20261118.json",
     "implementation_items_active": 0,
-    "pending_following_source_outcomes": 1,
-    "engram_builds_started": 0,
-    "runtime_deployed": false,
-    "full_original_goal_complete": false,
-    "parallel_release": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118",
-    "next_action": "Retain this source outcome for the following independent batch; advance the next original requirement while the existing release and prepared installation finish. Do not change the frozen checkout or repeat passed checks."
+    "runtime_deployed": false
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -4135,8 +4139,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T11:12:53.688943+00:00",
-    "reason": "Verified and closed original EG18 requirement from hashed installed receipts and unchanged preset implementation; zero additional tests, models or builds."
+    "at_utc": "2026-11-18T11:25:25.695613+00:00",
+    "reason": "Reproduced installed false-success refresh result, implemented complete typed/error stage delivery and mutation-safe bounded recovery, wrote two focused cases and a public verifier. Zero Cargo invocations; validation/deployment remain pending."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4252,5 +4256,18 @@
       "record": "eval/eg18-original-requirement-closure-20261118.json",
       "full_original_goal_complete": false
     }
+  },
+  "corpus_refresh_results_source_progress_20261118": {
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement_id": "TODO-4",
+    "supporting_original_requirement": "EG-26",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\corpus-refresh-results-20261118\\contract.json",
+    "progress": "eval/corpus-refresh-results-progress-20261118.json",
+    "native_target": "corpus_refresh_results",
+    "native_environment": {
+      "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+    },
+    "counting_rule": "One complete refresh-result delivery outcome under original TODO4. Three refresh stages, formatting variants, error flags, bounded recovery and retention fallback are supporting checks, not separate outcomes.",
+    "runtime_deployed": false
   }
 }
