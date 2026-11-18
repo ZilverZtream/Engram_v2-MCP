@@ -11,6 +11,7 @@ use std::path::Path;
 
 const TOOLS: &[&str] = &[
     "produce_claude_md",
+    "generate_agent_integration",
     "refresh_corpora",
     "update_project",
     "index_project",
@@ -108,7 +109,8 @@ fn project_free(tool: &str) -> bool {
 }
 
 fn returned_operation(tool: &str) -> bool {
-    matches!(tool, "update_project" | "index_project" | "refresh_corpora" | "produce_claude_md")
+    generation_instruction(tool).is_some()
+        || matches!(tool, "update_project" | "index_project" | "refresh_corpora")
         || maintenance_operation(tool)
 }
 
@@ -143,6 +145,14 @@ pub(crate) fn save_job_instruction_observation(
 }
 
 const GENERATION_DELIVERY_INSTRUCTION: &str = "Do not repeat produce_claude_md to recover this response. Recover the original root, companion files and complete rule ledger, including publication notes and conflicts. A returned proposal does not establish that files were written or policy was accepted. Recovery never generates or publishes files. If recovery expires, inspect existing files and ownership receipts before deciding on another operation.";
+
+fn generation_instruction(tool: &str) -> Option<&'static str> {
+    match tool {
+        "produce_claude_md" => Some(GENERATION_DELIVERY_INSTRUCTION),
+        "generate_agent_integration" => Some("Do not repeat generate_agent_integration to recover this response. Recover the original workflow, hooks, AGENTS.md and MCP proposals, including written/skipped ownership notes. A proposal is not publication or policy approval. Recovery never generates or writes files. If recovery expires, inspect existing files and ownership receipts before deciding on another operation."),
+        _ => None,
+    }
+}
 
 const INDEX_DELIVERY_INSTRUCTION: &str = "Do not repeat index_project to recover this response. The original acknowledgement is in the saved result. A queued job acknowledgement does not establish job completion; poll get_job_status for its job_id. If recovery expires, reconcile list_projects/project_info and any returned job_id before deciding on a new operation. Delivery does not imply rollback.";
 
@@ -245,7 +255,7 @@ pub fn advertise(mut tool: Tool) -> Tool {
         else if maintenance_operation(tool.name.as_ref()) { "Returned error reports retain isError and support bounded delivery; non-text results remain unchanged." }
         else { "Errors/non-text unchanged." };
     tool.description = Some(format!("{description} 40KiB default reply (max_tokens). Reassemble the immutable original MCP result via response_delivery.next_call; no rerun or fresh-call fields needed.{recovery} {error_scope}").into());
-    if tool.name == "produce_claude_md" {
+    if generation_instruction(tool.name.as_ref()).is_some() {
         tool.description = Some(format!("{} Recovery never generates or publishes. Inspect saved write/conflict notes; a returned proposal is not publication. Retention failure preserves the original outcome with an explicit budget-overrun warning.", tool.description.as_deref().unwrap_or("")).into());
     }
     if tool.name == "refresh_corpora" {
@@ -412,9 +422,9 @@ impl Report {
             value["report_scope"] = json!(self.report_scope());
             Self::discovery_action(&mut value["response_delivery"]["next_call"]);
         }
-        if self.tool == "produce_claude_md" {
+        if let Some(instruction) = generation_instruction(self.tool) {
             value["operation"] = json!({"handler_returned":true,
-                "instruction":GENERATION_DELIVERY_INSTRUCTION});
+                "instruction":instruction});
         }
         if self.tool == "refresh_corpora" {
             value["operation"] = json!({"handler_returned":true,
@@ -457,8 +467,8 @@ impl Report {
                 .map_err(|error| {
                     let unavailable = error.message.starts_with("Response snapshot unavailable;")
                         || error.message.starts_with("Response snapshot expired;");
-                    if self.tool == "produce_claude_md" && unavailable {
-                        McpError::invalid_params(format!("Response snapshot unavailable. {GENERATION_DELIVERY_INSTRUCTION}"), None)
+                    if let (true, Some(instruction)) = (unavailable, generation_instruction(self.tool)) {
+                        McpError::invalid_params(format!("Response snapshot unavailable. {instruction}"), None)
                     } else if returned_operation(self.tool) && unavailable {
                         McpError::invalid_params(format!("Response snapshot unavailable. Do not repeat {} solely to recover its response. Reconcile list_projects/project_info and any returned job_id with get_job_status before deciding on a new operation.", self.tool), None)
                     } else { error }
@@ -516,14 +526,14 @@ impl Report {
                     }).to_string()));
                     return Ok(fallback);
                 }
-                if self.tool == "produce_claude_md" {
+                if let Some(instruction) = generation_instruction(self.tool) {
                     fallback.content.push(Content::text(json!({
                         "tool":self.tool,"project_id":self.project,
                         "response_delivery":{
                             "status":"ORIGINAL_OUTCOME_PRESERVED_DELIVERY_FAILED",
                             "budget_honored":false,"response_budget_bytes":self.budget,
                             "recovery_available":false,"reason":error.message,
-                            "instruction":GENERATION_DELIVERY_INSTRUCTION
+                            "instruction":instruction
                         }
                     }).to_string()));
                     return Ok(fallback);
