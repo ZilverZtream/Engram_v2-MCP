@@ -1,0 +1,15 @@
+{
+  "status": "PREPARING_FOCUSED_COMBINED_ACCEPTANCE",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118",
+  "original_requirement_ids": [
+    "TODO-31",
+    "EG-27",
+    "TODO-28"
+  ],
+  "native_target": "request_guidance_function_delivery",
+  "expected_cases": 7,
+  "native_cargo_invocations": 0,
+  "runtime_deployed": false,
+  "full_original_goal_complete": false,
+  "next_action": "Freeze the existing clean shipping checkout at the aggregate target commit, then one gated focused native invocation. No separate debug build, full/lib suite, no-vector matrix or passed-test replay."
+}
