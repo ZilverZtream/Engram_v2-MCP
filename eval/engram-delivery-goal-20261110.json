@@ -2554,7 +2554,20 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "EG-27",
+        "source_commit": "18f87b47673e4e824fb0ef4ede387239e4af3375",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-bracketed-guidance-20261118\\contract.json",
+        "native_target": "sql_bracketed_instruction_maintenance",
+        "native_environment": {
+          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+        },
+        "counting_rule": "One SQL instruction-dependency identity outcome; normalization, before/current evidence, inverse selection and two fixture cases are not separate deliverables.",
+        "progress": "eval/sql-bracketed-guidance-progress-20261118.json"
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2784,15 +2797,17 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "DOCUMENTATION_RECONCILIATION_VERIFIED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
-    "original_requirement": "EG-26",
-    "record": "eval/legacy_validation-original-shortlist-readiness-20261118.json",
-    "pending_source_outcomes": 0,
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement": "EG-27",
+    "record": "eval/sql-bracketed-guidance-progress-20261118.json",
+    "source_commit": "18f87b47673e4e824fb0ef4ede387239e4af3375",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-bracketed-guidance-20261118",
     "implementation_items_active": 0,
-    "runtime_change": false,
-    "full_original_goal_active": true,
+    "pending_source_outcomes": 1,
+    "engram_builds_started": 0,
+    "runtime_deployed": false,
     "full_original_goal_complete": false,
-    "next_action": "Advance the next original requirement after the completed nine-category evidence account. Do not repeat this documentation pass, task comparisons, terminal builds or already-installed acceptance. Full catalog, remaining task usefulness and held requirements remain open."
+    "next_action": "Retain this finite source outcome for combined validation. Select the next distinct unfinished original requirement; do not extend SQL name normalization, repeat completed acceptance or start a build before the existing three-outcome gate."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4115,8 +4130,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T06:41:47.589846+00:00",
-    "reason": "Reconciled9originalshortlist categories to22dated receipts and5retained comparisons, with honest spend/time limits; updated current README evidence without a build."
+    "at_utc": "2026-11-18T09:42:58.918358+00:00",
+    "reason": "Implemented and committed a missing qualified SQL instruction-dependency behavior plus two behavioral cases. Syntax/protected-work checks pass; no native/runtime acceptance claim and no Cargo invocation."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4143,5 +4158,19 @@
     "status": "DOCUMENTATION_RECONCILIATION_VERIFIED",
     "runtime_change": false,
     "whole_EG26_complete": false
+  },
+  "sql_bracketed_guidance_source_progress_20261118": {
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement_id": "EG-27",
+    "source_commit": "18f87b47673e4e824fb0ef4ede387239e4af3375",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-bracketed-guidance-20261118\\contract.json",
+    "native_target": "sql_bracketed_instruction_maintenance",
+    "native_environment": {
+      "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+    },
+    "counting_rule": "One SQL instruction-dependency identity outcome; normalization, before/current evidence, inverse selection and two fixture cases are not separate deliverables.",
+    "progress": "eval/sql-bracketed-guidance-progress-20261118.json",
+    "runtime_deployed": false,
+    "related_original_requirement": "EG-31"
   }
 }
