@@ -200,7 +200,7 @@ fn changed_property_selects_referencing_guidance_without_expanding_its_scope() -
     ensure!(packet["instructions"][0]["path"] == GUIDE);
     ensure!(packet["instructions"][0]["current"]["content"] == fixture.guidance);
     let source = &packet["change_context"]["sources"][0];
-    ensure!(source["selection_basis"] == "literal_reference_to_changed_evidence");
+    ensure!(source["selection_basis"] == "changed_symbol_reference");
     ensure!(
         source["reference_matches"][0]["symbol_change"]["status"]
             == "changed_observed_candidate_bytes"
