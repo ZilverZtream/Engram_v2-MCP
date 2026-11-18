@@ -41,7 +41,7 @@
   "baseline_checks_passed": 4,
   "native_test_cases_written": 3,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\verify-public.py",
-  "public_verifier_sha256": "c46cebf9cc2e20b8349d684000515085486128459dda3e4165857ff248b2c2ea",
+  "public_verifier_sha256": "ee14f543c62292d11c96fd402e43428ddba61708289063e26e0b89bf17162c29",
   "source_sha256": {
     "crates/engram_server/src/services/change_card_service.rs": "9874d67451c62fbb0d84f665c42d9fb8f5de653a6e6e5ccb0a6b89f5e5815c0c",
     "crates/engram_server/src/services/change_card_service/metadata_cache.rs": "4c72dcf1a5ab37b613e0e8d58d4b7cf4862728b5f19a395095dfcc28580f1b2e",
@@ -63,7 +63,7 @@
     "engram_builds_started": 0,
     "native_tests_executed": 0
   },
-  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_PENDING",
   "priority_basis": "Normal LegacyValidation configuration retains Full tools/Ollama identity; search_history is available. Owned JS/SQL history tests the common acquisition workflow; no actual LegacyValidation history/source/index is accessed.",
   "limitations": [
     "Source and3native cases/public verifier are not executed or deployed. Shared combined validation remains required.",
@@ -71,6 +71,21 @@
     "This is a commit-work bound, not a hard OS-call or whole-request latency deadline. Existing card previews, cache limits and optional provider budgets remain; no LegacyValidation speedup, ranking quality or task benefit is claimed.",
     "No CodeMap/Blast Radius improvement, target-language expansion, model request, actual LegacyValidation source/Q access or preexisting deletion. All baseline owners closed and owned fixture removed."
   ],
-  "next_action": "Validate the3independent queued source outcomes in one focused integration executable, then public candidate/installed acceptance and one release. Do not start separate source-only compiles or replay delivered batches.",
-  "source_commit": "094d048f535d749b86230ace8b644f560c72a4a4"
+  "next_action": "Finite native and public debug acceptance passed. Current one shared release build21751 is running; candidate/installed acceptance remains. Do not rerun these accepted checks without relevant changes or an observed failure.",
+  "source_commit": "094d048f535d749b86230ace8b644f560c72a4a4",
+  "public_recovery_fixture_correction": {
+    "status": "HARNESS_CAPTURE_RECOVERY_CORRECTION",
+    "failed_aggregate": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\debug2\\receipt.json",
+    "failed_component": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\review-memory-history-20261118-debug2-history\\receipt.json",
+    "evidence": "Wire proves complete_git_commit with retain_response=true returned a valid existing DEFERRED_READ_REPORT capture and next_call for4065byte original MCP result. Harness searched the deferred envelope without following recovery. It now follows every returned page, checks byte offsets/budget/BLAKE3, reconstructs original MCP status/content and checks the preserved exception. No production behavior or assertion is weakened.",
+    "previous_verifier_sha256": "c46cebf9cc2e20b8349d684000515085486128459dda3e4165857ff248b2c2ea",
+    "corrected_verifier_sha256": "ee14f543c62292d11c96fd402e43428ddba61708289063e26e0b89bf17162c29",
+    "retained_other_public_checks": 19,
+    "engram_builds_started": 0,
+    "owners_closed": true,
+    "owned_fixture_removed": true
+  },
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native-acceptance.json",
+  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\review-memory-history-20261118-debug3-history\\receipt.json",
+  "public_debug_checks_passed": 11
 }

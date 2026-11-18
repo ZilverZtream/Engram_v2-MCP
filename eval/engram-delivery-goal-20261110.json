@@ -2833,14 +2833,14 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "NATIVE_PASS_PUBLIC_FIXTURE_CORRECTED",
+    "status": "RELEASE_BUILD_RUNNING",
     "progress": "eval/review-memory-history-progress-20261118.json",
     "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "runtime_deployed": false,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "All8distinct native cases covered. First public review fixture differed only by Windows newline translation; preserve its failed receipt, use corrected exact-byte fixture on the existing debug binary. No extra Cargo or full-suite run. Release follows complete public acceptance."
+    "next_action": "Observe the existing release command21751/state until terminal; do not restart it. After PASS package with release.py package, run existing deploy1.py candidate/install acceptance, finish-install1.py restoration/ZIP, and record-delivery.py only after successful completion. Current source/native/public gates already pass; no additional Cargo/test suite."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3036,9 +3036,12 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
-    "all_build_sessions_terminal": true,
+    "status": "RELEASE_BUILD_RUNNING",
+    "progress": "eval/review-memory-history-progress-20261118.json",
+    "release_session_id": 21751,
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118",
+    "shipping_source_commit": "ca579ceb967eb515ee602dfc33656de5629aad1e",
+    "runtime_deployed": false,
     "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],
@@ -3218,8 +3221,8 @@
   },
   "previous_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T05:25:51.958588+00:00",
-    "reason": "Previous turn committed bounded history acquisition, corrected memory-source selection and completed6native review/history cases. Current turn observed the same live validation handle through successful2-case memory acceptance; no native replay.",
+    "at_utc": "2026-11-18T05:30:51.473072+00:00",
+    "reason": "Completed2affected memory native cases, retained6unaffected passes, corrected2public fixture errors without a rebuild, obtained30public checks and started one guarded release for3original outcomes.",
     "full_original_goal_complete": false
   },
   "scoped_http_ask_progress_20261117": "eval/scoped-http-ask-progress-20261117.json",
@@ -4137,7 +4140,7 @@
     "progress": "eval/history-bounded-acquisition-progress-20261118.json"
   },
   "review_memory_history_source_batch_20261118": {
-    "status": "NATIVE_PASS_PUBLIC_FIXTURE_CORRECTED",
+    "status": "RELEASE_BUILD_RUNNING",
     "progress": "eval/review-memory-history-progress-20261118.json",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118",
     "original_requirement_ids": [
@@ -4147,8 +4150,10 @@
     ],
     "runtime_deployed": false,
     "validation_sequence_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\validation-sequence1-state.json",
-    "exec_session_id": null,
+    "exec_session_id": 21751,
     "native_cases_distinct_covered": 8,
-    "validation_sequence_terminal": "FAIL_AT_DEBUG1_FIXTURE_NEWLINES"
+    "validation_sequence_terminal": "FAIL_AT_DEBUG1_FIXTURE_NEWLINES",
+    "debug_public_checks_passed": 30,
+    "release_builds_started": 1
   }
 }

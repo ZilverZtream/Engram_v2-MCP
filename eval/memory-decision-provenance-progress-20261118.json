@@ -15,7 +15,7 @@
   "native_tests_executed": 0,
   "runtime_deployed": false,
   "current_release_excludes_this_work": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
-  "next_action": "Retain with following EG31 ordinary-review source and advance another substantive original requirement before combined validation. No standalone Cargo or release for memory recovery; do not replay the already-installed batch.",
+  "next_action": "Finite native and public debug acceptance passed. Current one shared release build21751 is running; candidate/installed acceptance remains. Do not rerun these accepted checks without relevant changes or an observed failure.",
   "related_original_authority_requirement": "EG-14",
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118\\baseline1\\receipt.json",
   "baseline_checks_passed": 4,
@@ -123,7 +123,7 @@
     "crates/engram_server/src/handlers/ask_tools.rs": "3dbe7682570e5d41e76df662d1bcc28a26f899a0716db4ae1088c7b2909d84d7"
   },
   "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
-  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_PENDING",
   "source_checks": {
     "rust_syntax": "PASS via rustfmt; all changed constructors and logic parsed without broad rewrites",
     "python_syntax": "PASS via compile(); no bytecode artifact",
@@ -159,5 +159,8 @@
     "source_commit": "0da6e25afc190393fb8999f39de3d32e9620c1c5",
     "affected_native_cases": 2,
     "unaffected_native_passes_retained": 6
-  }
+  },
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native-acceptance.json",
+  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118\\review-memory-history-20261118-debug2-memory\\receipt.json",
+  "public_debug_checks_passed": 9
 }

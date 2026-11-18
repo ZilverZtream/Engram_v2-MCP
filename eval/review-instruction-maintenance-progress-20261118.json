@@ -15,7 +15,7 @@
   "native_tests_executed": 0,
   "runtime_deployed": false,
   "current_release_excludes_this_work": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
-  "next_action": "Retain as one following source outcome while the already-validated three-outcome release continues. Accumulate substantive original source work before future combined validation; use the recorded short Git fixture environment. No standalone compile or release for this item.",
+  "next_action": "Finite native and public debug acceptance passed. Current one shared release build21751 is running; candidate/installed acceptance remains. Do not rerun these accepted checks without relevant changes or an observed failure.",
   "baseline1_failure": {
     "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118\\baseline1\\receipt.json",
     "reason": "Owned Git fixture path exceeded libgit2 Windows path limit before review ran. First receipt retained, all owners closed and fixture removed. No intended maintenance behavior was exercised.",
@@ -55,7 +55,7 @@
     "crates/engram_server/tests/review_instruction_maintenance.rs": "8c8a1c24491b9f8c1a3a4fa4e58d816148efe5b7dc2ebc053fe0e83008a2038a",
     "docs/TOOL_CONTRACT.md": "8cb62003c17b7850bd3d5cd00075a7a328f7c23c2b8c2391395a9943ae51ac9d"
   },
-  "validation_status": "PENDING_FOLLOWING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_PENDING",
   "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
   "priority_basis": "Normal LegacyValidation configuration remains Full/Ollama with the retained config identity; pre_commit_review is available. Owned TS/SQL/guidance fixtures test the instruction-maintenance workflow, not actual LegacyValidation semantic policy or task benefit.",
   "source_checks": {
@@ -95,5 +95,8 @@
     "engram_builds_started": 0,
     "owners_closed": true,
     "owned_fixture_removed": true
-  }
+  },
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native-acceptance.json",
+  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118\\review-memory-history-20261118-debug2-review\\receipt.json",
+  "public_debug_checks_passed": 10
 }
