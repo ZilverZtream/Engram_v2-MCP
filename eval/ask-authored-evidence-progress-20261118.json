@@ -58,5 +58,6 @@
     "crates/engram_server/src/services/ask_engine/providers.rs": "61e76077f9a3e2b367bea8fb1ce2518b0af7888c3eeaf8c910d99c8ce62daa89",
     "crates/engram_server/tests/ask_authored_evidence_tests.rs": "f587decc99a1f0ff2037e40923fd579c7988843715260e3e876f338f5022bf01",
     "docs/TOOL_CONTRACT.md": "472ca1e947092f8afb3a8b10476d9c86710aaac79126a8b00f339124dfcdcef6"
-  }
+  },
+  "source_commit": "502dc647dd74c2b60196d00180fcb4eddcc086da"
 }

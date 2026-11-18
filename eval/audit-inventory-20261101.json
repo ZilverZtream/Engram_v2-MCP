@@ -712,6 +712,14 @@
       "declared_review_scope_delivery_20261116": {
         "record": "eval/method-schema-area-batch-delivery-20261116.json",
         "full_original_requirement_complete": false
+      },
+      "documentary_authority_source_progress_20261118": {
+        "progress": "eval/ask-authored-evidence-progress-20261118.json",
+        "source_commit": "502dc647dd74c2b60196d00180fcb4eddcc086da",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "runtime_deployed": false,
+        "full_original_requirement_complete": false,
+        "limit": "Finite retrieval classification only; no repeat draft/pilot or publication/application/usefulness completion."
       }
     },
     {
@@ -10333,17 +10341,17 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T01:46:47.749000+00:00",
+  "last_updated_at": "2026-11-18T02:42:59.421732+00:00",
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "progress": "eval/ask-provider-availability-progress-20261118.json",
-    "original_requirement": "TODO-28",
-    "pending_source_outcomes": 1,
+    "progress": "eval/ask-authored-evidence-progress-20261118.json",
+    "original_requirement": "EG-14",
+    "pending_source_outcomes": 2,
     "implementation_items_active": 0,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
     "previous_batch_delivery": "eval/query-property-fallback-batch-delivery-20261118.json",
-    "next_action": "Retain this one source outcome and advance another substantive original requirement before combined validation. Do not compile/deploy this availability change alone."
+    "next_action": "Retain with the prior availability source outcome; continue substantive original source work before combined validation. No Cargo at two outcomes."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -17218,5 +17226,17 @@
     "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
     "runtime_deployed": false,
     "counting_rule": "One availability outcome across arms and formats; not separate deliveries per provider."
+  },
+  "ask_authored_evidence_source_progress_20261118": {
+    "original_requirement_id": "EG-14",
+    "related_original_requirement": "EG-26",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "502dc647dd74c2b60196d00180fcb4eddcc086da",
+    "progress": "eval/ask-authored-evidence-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118\\contract.json",
+    "behavior": "Retrieved Markdown guidance and docs retain authored text, qualifiers and recovery while clearly separated from executable implementation evidence.",
+    "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+    "runtime_deployed": false,
+    "counting_rule": "One documentary-authority outcome, not separate outcomes per provider, file, format or citation."
   }
 }
