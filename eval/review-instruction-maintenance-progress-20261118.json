@@ -75,5 +75,6 @@
     "Raw/patch bases remain unknown rather than inferred. Existing parsed file identities are used; semantic rename reconstruction and exhaustive dependency discovery are not introduced.",
     "Guidance exceptions/scope remain in complete captures. Semantic proposals need an agent and validation against the same checkout/packet; an implementation conflict is not permission to weaken policy.",
     "No actual LegacyValidation source/Q/index/data mutation, real model calls, CodeMap/Blast Radius improvement, language expansion, preexisting deletion or new build. General task benefit and full original requirements remain open."
-  ]
+  ],
+  "source_commit": "8868b9f63e666c5b904b01a01fc4ac4b8e3644c8"
 }

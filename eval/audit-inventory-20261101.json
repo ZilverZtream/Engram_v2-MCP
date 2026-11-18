@@ -1347,6 +1347,14 @@
         "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
+      },
+      "ordinary_review_maintenance_source_progress_20261118": {
+        "progress": "eval/review-instruction-maintenance-progress-20261118.json",
+        "source_commit": "8868b9f63e666c5b904b01a01fc4ac4b8e3644c8",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "runtime_deployed": false,
+        "full_original_requirement_complete": false,
+        "limit": "Evidence workflow composition only; semantic proposals, policy authority, compliance and broader task benefit remain unproven."
       }
     }
   ],
@@ -10349,18 +10357,18 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T02:56:07.116324+00:00",
+  "last_updated_at": "2026-11-18T03:44:22.677753+00:00",
   "current_execution_focus": {
-    "status": "AFFECTED_NATIVE_ACCEPTANCE_READY",
-    "progress": "eval/ask-authority-batch-recovery-progress-20261118.json",
-    "pending_source_outcomes": 3,
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "progress": "eval/review-instruction-maintenance-progress-20261118.json",
+    "original_requirement": "EG-31",
     "implementation_items_active": 0,
+    "pending_source_outcomes": 1,
+    "frozen_release_pending_source_outcomes": 3,
+    "frozen_release_in_progress": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "frozen_source_commit": "cfefe85adfab3af87bf0c07b53702c5d2ded2adb",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
-    "next_action": "Rerun the seven affected ask cases in one integration executable, retaining the three unaffected batch passes. Then public checks on the same debug artifact; no release until pass.",
-    "native_session_id": null
+    "next_action": "Retain as one following source outcome while the already-validated three-outcome release continues. Accumulate substantive original source work before future combined validation; use the recorded short Git fixture environment. No standalone compile or release for this item."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -16591,9 +16599,12 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "record": "eval/query-property-fallback-batch-delivery-20261118.json",
-    "all_build_sessions_terminal": true,
+    "status": "OPTIMIZED_RELEASE_RUNNING",
+    "progress": "eval/ask-authority-batch-recovery-progress-20261118.json",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
+    "release_session_id": 20942,
+    "frozen_source_commit": "cfefe85adfab3af87bf0c07b53702c5d2ded2adb",
+    "next_action": "Poll the same release1 session20942. Reuse that single artifact for package/candidate/installed acceptance; no native, debug or full-suite replay.",
     "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],
@@ -17261,5 +17272,21 @@
     "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
     "runtime_deployed": false,
     "counting_rule": "One complete-batch immutable recovery outcome; read kinds, formats, statuses and restart checks are not separate outcomes."
+  },
+  "ordinary_review_maintenance_source_progress_20261118": {
+    "original_requirement_id": "EG-31",
+    "related_original_requirement": "EG-27",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "8868b9f63e666c5b904b01a01fc4ac4b8e3644c8",
+    "progress": "eval/review-instruction-maintenance-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118\\contract.json",
+    "behavior": "Ordinary native-Git reviews supply existing before/current instruction-maintenance evidence and dependency manifests; raw bases remain unknown and full packets survive immutable review recovery.",
+    "validation_status": "PENDING_FOLLOWING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+    "runtime_deployed": false,
+    "native_target": "review_instruction_maintenance",
+    "native_environment": {
+      "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+    },
+    "counting_rule": "One ordinary-review maintenance workflow outcome; formats, diff modes, evidence kinds and saved recovery are not separate deliveries."
   }
 }

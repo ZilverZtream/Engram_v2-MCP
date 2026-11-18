@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_PUBLIC_DEBUG_PASS_RELEASE_READY",
+  "status": "OPTIMIZED_RELEASE_RUNNING",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
   "frozen_work_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "frozen_source_commit": "cfefe85adfab3af87bf0c07b53702c5d2ded2adb",
@@ -52,8 +52,8 @@
   "native_cases_expected": 10,
   "full_suite": false,
   "separate_debug_build": false,
-  "release_builds_started": 0,
-  "cargo_commands_started": 2,
+  "release_builds_started": 1,
+  "cargo_commands_started": 3,
   "runtime_deployed": false,
   "runner_sha256": "3f39bf8b50f18ea894d95d5bce239acf0bb4c6778fbd8fa0d9b52f224755a686",
   "runner_basis": {
@@ -86,7 +86,7 @@
   },
   "started_at_utc": "2026-11-18T02:58:27.835062+00:00",
   "no_other_ready_source_change": "No established separate source change is waiting for this batch; unproven scope-case hypothesis and held original work do not justify filler or block validation.",
-  "next_action": "Start the one guarded optimized build, then reuse its exact packaged artifact for candidate and installed acceptance. No new native/full-suite/debug build.",
+  "next_action": "Poll the same release1 session20942. Reuse that single artifact for package/candidate/installed acceptance; no native, debug or full-suite replay.",
   "native_session_id": null,
   "native_label": "native2",
   "native_live_owner": {
@@ -123,5 +123,6 @@
   "debug_sha256": "11831a4a2ca663903a6d156a1deb9ff8581b9d8ef314828aa82b6ef4bf945107",
   "public_session_id": null,
   "debug_public_checks_passed": 29,
-  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\debug1\\receipt.json"
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\debug1\\receipt.json",
+  "release_session_id": 20942
 }
