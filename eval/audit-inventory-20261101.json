@@ -17554,5 +17554,12 @@
     "record": "eval/eg22-original-requirement-closure-20261118.json",
     "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
     "full_original_goal_complete": false
+  },
+  "eg23_installed_identity_acceptance_preparation_20261118": {
+    "record": "eval/history-profile-installed-acceptance-progress-20261118.json",
+    "status": "PUBLIC_INSTALLED_ACCEPTANCE_PREPARED_NOT_EXECUTED",
+    "builds_started": 0,
+    "runtime_deployed": false,
+    "full_original_goal_complete": false
   }
 }

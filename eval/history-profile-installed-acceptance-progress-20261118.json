@@ -1,0 +1,41 @@
+{
+  "status": "PUBLIC_INSTALLED_ACCEPTANCE_PREPARED_NOT_EXECUTED",
+  "at_utc": "2026-11-18T16:05:32.330061+00:00",
+  "original_requirement_id": "EG-23",
+  "original_requirement": "Establish whether repository cards can be reused across embedding identities/configurations in one process; prevent incompatible reuse if reachable.",
+  "retained_evidence": {
+    "same_process": "history-document-profile-isolation-and-bounded-retention-native.json:8PASS including configured-engine A/B/A and concurrent profiles with independent LocalEmbedder vectors",
+    "no_vector_common": "history-rerank-and-cache-retention-no-vector.json:7PASS; real provider case correctly absent",
+    "same_config_public": "eval/legacy_validation-history-restart-acceptance-20261113.json"
+  },
+  "missing_acceptance": "Installed public restart acceptance with two configured provider/model identities and shared owned history data. Does not replace the same-process native proof.",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118",
+  "contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118\\contract.json",
+    "sha256": "01a45ba0365492be06dc1998ca8d1b3fc27523f7594a1997827cc6bbfeee7a5b"
+  },
+  "verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118\\verify-installed.py",
+    "sha256": "0d7d5da265dc52d9019b8df3bc1128f4287f5733e392171225016d68f6812dcb",
+    "syntax_check": "PASS",
+    "runtime_executed": false
+  },
+  "acceptance": [
+    "After the preceding release/install/record finishes, use one pinned installed artifact and one owned repository/store with two Nomic-style model identities served by a local mock.",
+    "A/B/A restart phases retain exact independent Git commit identities; each phase repeated warm query retains its results.",
+    "A first-use and B first-use each request their own history-document vectors with the correct model. Returning to A reuses its durable vectors without history-document provider traffic.",
+    "Close all MCP owners, provider thread/socket and fixture files; retain wire/traffic/receipt here. No real LegacyValidation source, provider, benchmark, Cargo invocation or normal-runtime configuration change."
+  ],
+  "run_after": "eval/request-guidance-function-batch-delivery-20261118.json exists with IMPLEMENTED_VALIDATED_DEPLOYED; preceding normal runtime restoration complete.",
+  "next_action": "Finish and record current request/guidance/function delivery, then execute the pinned verify-installed.py once. Inspect the exact result; do not compile, replay passes or automatically turn a new observation into source work.",
+  "resources": {
+    "new_runtime_processes": 0,
+    "new_fixtures": 0,
+    "builds_started": 0,
+    "real_provider_calls": 0,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118",
+    "cleanup": "Verifier owns temporary repository/config/store under its installed1 evidence directory; MCP processes close before directory removal, and local provider socket/thread close before teardown."
+  },
+  "full_original_goal_complete": false,
+  "acceptance_note": "Every phase uses a first query absent from that model cache, including a distinct return-to-A query, so observed model identity cannot pass vacuously when all embeddings are cached."
+}
