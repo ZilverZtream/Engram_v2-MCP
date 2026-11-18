@@ -59,7 +59,10 @@ These degrade or improve *every single interaction*. Nothing below matters until
   search response and in `get_capabilities`.
 
 - [x] **3. Tame the 114-tool surface** (M) — *done 2026-06-12: all descriptions rewritten (returns + when-to-use + related tool), 33 tools tagged [.NET legacy], trigger_rem_cycle marked deprecated alias, ServerInfo.instructions now a which-tool-when guide. Dynamic per-project gating deferred to P2 #24.*
-  Installed November 18: the owned Full catalog of 125 tools uses 74,041 description UTF-8 bytes versus 82,408 before (10.153% reduction), including declared generation and queued-observation additions. Provider tokens and task benefit are unmeasured. [Delivery](eval/agent-instruction-batch-delivery-20261118.json).
+  The November 18 agent-instruction delivery measured 74,041 description UTF-8
+  bytes for its 125-tool Full catalog versus 82,408 before (10.153% reduction).
+  Later catalog changes are outside that measurement; provider tokens and task
+  benefit remain unmeasured. [Dated delivery](eval/agent-instruction-batch-delivery-20261118.json).
   `engram_server/src/tools.rs`, `capabilities.rs`. 114 tools with terse descriptions is
   beyond what any model selects among reliably; the best tools get lost. Three moves:
   (a) rewrite every description to state *when to use it, what it returns, what to use

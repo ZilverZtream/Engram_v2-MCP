@@ -1,0 +1,30 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-18T22:37:54.135974+00:00",
+  "original_requirement_id": "EG-26",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-verification-scope-20261118",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-verification-scope-20261118\\contract.json",
+  "source_files": [
+    "crates/engram_server/src/handlers/planning_tools.rs",
+    "crates/engram_server/src/tools.rs"
+  ],
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-verification-scope-20261118\\verify-public.py",
+  "native_cases_expected": 0,
+  "public_assertions_expected": 5,
+  "implementation_items_active": 0,
+  "builds_started": 0,
+  "runtime_deployed": false,
+  "full_original_goal_complete": false,
+  "current_runtime_applicability": "Current Full advertises this checkpoint handoff before planning/implementation. The global validator receives only caller-supplied checkpoint/Markdown, so it cannot authenticate source or human approval.",
+  "next_action": "Consolidate these four original source outcomes and verify all20public assertions against the same optimized artifact before installation. Reuse existing mechanisms; no standalone small-feature build, full suite or task replay.",
+  "source_commit": "e1ec877d49d14caed6eb2bdc4cf0b1a25c863745",
+  "progress": "eval/contract-verification-scope-progress-20261118.json",
+  "native_target": null,
+  "counting_rule": "One original truthful contract/result scope outcome. Scope flags, wording and PASS/BLOCKED/FAIL variants are acceptance aspects, not independent deliverables.",
+  "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-verification-scope-20261118\\source-preparation1.json",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-verification-scope-20261118\\baseline1\\receipt.json",
+  "baseline_seconds": 0.29732679999870015,
+  "baseline_server_sha256": "8ab70ccf5f178b1bf87a624f6b8833855113c2a70a2e9ff757ccdcb300f3cb71",
+  "baseline_resources_closed_and_removed": true,
+  "validation_status": "SOURCE_SYNTAX_CHECKED_UNCOMPILED_PUBLIC_AFTER_PENDING"
+}

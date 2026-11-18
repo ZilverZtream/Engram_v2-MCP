@@ -28,5 +28,8 @@
   "baseline_server_sha256": "8ab70ccf5f178b1bf87a624f6b8833855113c2a70a2e9ff757ccdcb300f3cb71",
   "baseline_seconds": 3.1246780999936163,
   "baseline_owners_and_provider_closed": true,
-  "baseline_fixture_removed": true
+  "baseline_fixture_removed": true,
+  "public_verifier_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\verifier-correction1.json",
+  "public_verifier_sha256": "b7aba48ef3fe7ce0191084b6d47f60b779d8a8a3265dc3db66d33a076d680526",
+  "retained_baseline_verifier_sha256": "f7fb903ad2433f173f027940a3caafc6c897eba4bdfd08806909a8854a3412ef"
 }
