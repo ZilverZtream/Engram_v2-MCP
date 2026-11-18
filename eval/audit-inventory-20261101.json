@@ -10437,12 +10437,12 @@
   "last_updated_at": "2026-11-18T14:48:06.257950+00:00",
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_SUBSTANTIVE_COMBINED_BATCH",
-    "record": "eval/selective-instruction-update-progress-20261118.json",
-    "pending_source_outcomes": 2,
+    "record": "eval/ask-sql-functions-progress-20261118.json",
+    "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "runtime_deployed": false,
     "full_original_goal_complete": false,
-    "next_action": "Continue substantive source delivery from the original backlog. Two distinct outcomes are pending. Do not run Cargo now, add filler to reach the minimum, or treat the three-outcome floor as a release schedule."
+    "next_action": "Continue ready substantive original source work and consolidate validation. The three-outcome floor is met but is not a release schedule; do not start Cargo solely because the count reached3. Preserve current installed acceptance and all three source outcomes."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {

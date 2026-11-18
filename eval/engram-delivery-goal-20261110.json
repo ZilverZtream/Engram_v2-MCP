@@ -2580,6 +2580,23 @@
         },
         "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selective-instruction-update-20261118\\verify-public.py",
         "counting_rule": "One EG27 selective edit-to-guidance workflow. Implicit selectors, outside inheritance, draft refusal and optional observation failure are acceptance variants, not separate deliverables."
+      },
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "TODO-28",
+        "source_commit": "54b3ea292571f158cf5c47072b04e79b3167fcb7",
+        "progress": "eval/ask-sql-functions-progress-20261118.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118\\contract.json",
+        "native_target": "ask_sql_function_evidence",
+        "native_environment": {
+          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+        },
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118\\verify-public.py",
+        "public_modes": [
+          "Full",
+          "Core"
+        ],
+        "counting_rule": "One TODO28 named SQL-function evidence workflow. Scalar/TVF, ambiguity, Full/Core, source guard and recovery are acceptance variants, not independent deliverables."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2812,12 +2829,12 @@
   },
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_SUBSTANTIVE_COMBINED_BATCH",
-    "record": "eval/selective-instruction-update-progress-20261118.json",
-    "pending_source_outcomes": 2,
+    "record": "eval/ask-sql-functions-progress-20261118.json",
+    "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "runtime_deployed": false,
     "full_original_goal_complete": false,
-    "next_action": "Continue substantive source delivery from the original backlog. Two distinct outcomes are pending. Do not run Cargo now, add filler to reach the minimum, or treat the three-outcome floor as a release schedule."
+    "next_action": "Continue ready substantive original source work and consolidate validation. The three-outcome floor is met but is not a release schedule; do not start Cargo solely because the count reached3. Preserve current installed acceptance and all three source outcomes."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3128,16 +3145,20 @@
   },
   "active_source_implementation": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement_id": "EG-27",
-    "source_commit": "aac8cd34ad439a30b0a491ce238cb33bdd3a8095",
-    "progress": "eval/selective-instruction-update-progress-20261118.json",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selective-instruction-update-20261118\\contract.json",
-    "native_target": "selective_instruction_update",
+    "original_requirement_id": "TODO-28",
+    "source_commit": "54b3ea292571f158cf5c47072b04e79b3167fcb7",
+    "progress": "eval/ask-sql-functions-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118\\contract.json",
+    "native_target": "ask_sql_function_evidence",
     "native_environment": {
       "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
     },
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selective-instruction-update-20261118\\verify-public.py",
-    "counting_rule": "One EG27 selective edit-to-guidance workflow. Implicit selectors, outside inheritance, draft refusal and optional observation failure are acceptance variants, not separate deliverables.",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118\\verify-public.py",
+    "public_modes": [
+      "Full",
+      "Core"
+    ],
+    "counting_rule": "One TODO28 named SQL-function evidence workflow. Scalar/TVF, ambiguity, Full/Core, source guard and recovery are acceptance variants, not independent deliverables.",
     "implementation_items_active": 0,
     "runtime_deployed": false
   },
@@ -4150,8 +4171,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T15:01:38.601743+00:00",
-    "reason": "Reproduced normal selective-refresh/instruction-maintenance refusal through owned public MCP, implemented the combined workflow with source-scope disclosure and existing pre-mutation bounds, and prepared two focused cases without Cargo. Pending queue now2original outcomes; installed runtime unchanged."
+    "at_utc": "2026-11-18T15:14:43.289389+00:00",
+    "reason": "Reproduced missing named SQL-function evidence on installed public MCP, implemented catalog/query/natural-question composition with qualified Full/Core clarification, and prepared3focused cases without Cargo. Three distinct original outcomes now await consolidated validation; installed runtime unchanged."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
