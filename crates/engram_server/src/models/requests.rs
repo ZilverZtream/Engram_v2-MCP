@@ -4034,12 +4034,22 @@ pub struct GetPageContextRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct BatchReadRequest {
-    /// One to sixteen reads, returned in this order. IDs must be unique.
+    /// One to sixteen new reads, returned in this order. IDs must be unique.
+    /// Omit for immutable response recovery; recovery cannot execute new reads.
+    #[serde(default)]
     pub requests: Vec<BatchReadItem>,
     /// Complete JSON text budget, ceil(UTF-8 bytes/4). Default 8192, maximum 65536.
-    /// Omitted whole results retain exact single-tool recovery requests.
+    /// Omitted whole results retain refresh requests and immutable batch recovery.
     #[serde(default)]
     pub max_tokens: Option<usize>,
+    /// BLAKE3 identity from response_delivery.next_call. Recover the original
+    /// executed results without project, source or memory lookups. Captures are
+    /// retained for at most 24 hours or 32 newer batches in this data directory.
+    #[serde(default)]
+    pub response_id: Option<String>,
+    /// UTF-8 byte offset in the original JSON response; requires response_id.
+    #[serde(default)]
+    pub response_offset: usize,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]

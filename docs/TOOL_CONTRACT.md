@@ -2135,3 +2135,34 @@ Other evidence kinds, knowledge-memory authority and historical requests retain
 their existing behavior. This is an authority-classification change, not a new
 area-draft pilot or demonstrated task-benefit claim.
 [Pending source record](../eval/ask-authored-evidence-progress-20261118.json).
+
+
+## Immutable recovery of executed batch reads
+
+Source change 2026-11-18 (combined validation and deployment pending): when
+`batch_read` omits whole results to fit its shared budget, `response_delivery.next_call`
+recovers the complete original executed batch as bounded JSON byte pages. Follow
+`response_id`/`response_offset` with no new `requests`, concatenate page content in
+byte-offset order and verify the BLAKE3 `response_id`. Every original request ID,
+underlying result/error, status, source citation, qualification and per-read
+recovery control is retained. A fitting batch returns its ordinary results and
+does not create a saved response.
+
+Per-row `recovery` calls remain normal refresh operations against then-current
+state unless the underlying request already selects an immutable response. The
+batch continuation reads only the saved original bytes, including after a process
+restart or later source/memory edits. It never reruns the reads or establishes that
+the original sequential reads were an atomic multi-read snapshot, current source
+is unchanged, a candidate ran, or authored guidance was complied with. Any nested
+per-read omission/recovery remains part of that original result; saving the batch
+does not expand the underlying read's evidence coverage.
+
+The existing response store enforces the 8 MiB capture limit, at most 24 hours or
+32 newer batch captures in the server data directory. The batch family is shared
+across projects because one batch can contain several projects. Missing/expired
+captures require fresh reads and reconciliation. Every initial/recovery reply
+uses the same complete JSON UTF-8 byte budget (four bytes per estimated token,
+default 8192, maximum 65536). Identity and recovery metadata are reserved before
+new reads; insufficient metadata budgets fail before execution. Existing 1..16
+read limits and independent per-read errors remain.
+[Pending source record](../eval/batch-read-immutable-results-progress-20261118.json).

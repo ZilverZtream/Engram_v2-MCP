@@ -1,6 +1,7 @@
 //! Compose existing read contracts without truncating evidence inside a result.
 use crate::{
     models::{BatchReadOperation, BatchReadRequest},
+    handlers::planning_tools::change_set_delivery as snapshots,
     tools::Engram,
 };
 use rmcp::{
@@ -8,12 +9,13 @@ use rmcp::{
     model::{CallToolResult, Content},
 };
 use serde::Serialize;
-use serde_json::Value;
+use serde_json::{Value, json};
+use std::path::Path;
 use std::collections::BTreeSet;
 
 const OMITTED: &str = "omitted_shared_response_budget";
 
-#[derive(Serialize)]
+#[derive(Clone, Serialize)]
 struct Row {
     request_id: String,
     status: &'static str,
@@ -31,15 +33,38 @@ struct Reply<'a> {
     budget_accounting: &'static str,
     consistency: &'static str,
     results: &'a [Row],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    response_delivery: Option<&'a Value>,
 }
 
 struct BudgetedBatch {
     rows: Vec<Row>,
+    original_rows: Vec<Row>,
+    response_delivery: Option<Value>,
     max_tokens: usize,
 }
 
 fn serialization(error: serde_json::Error) -> McpError {
     McpError::internal_error(error.to_string(), None)
+}
+
+fn token_budget(request: &BatchReadRequest) -> Result<usize, McpError> {
+    let tokens = request.max_tokens.unwrap_or(8192);
+    if !(1..=65536).contains(&tokens) {
+        return Err(McpError::invalid_params("max_tokens must be in 1..=65536", None));
+    }
+    Ok(tokens)
+}
+
+fn delivery(id: &str, original_bytes: u64, tokens: usize) -> Value {
+    json!({
+        "status":"DEFERRED_BATCH_RESULTS", "complete":false,
+        "response_id":id, "original_bytes":original_bytes, "original_format":"json",
+        "response_budget_bytes":tokens * 4,
+        "retention":"At most 24 hours or 32 newer batch captures in this server data directory; unavailable captures require fresh reads and reconciliation.",
+        "instruction":"Recover all original executed results, errors and qualifications by concatenating content in byte-offset order and verifying BLAKE3 response_id. Recovery performs no underlying reads and cannot certify current freshness or an atomic multi-read source snapshot. Per-row recovery calls refresh that read against then-current state.",
+        "next_call":snapshots::batch_read_continuation(id,0,tokens * 4)
+    })
 }
 
 impl BudgetedBatch {
@@ -50,13 +75,7 @@ impl BudgetedBatch {
                 None,
             ));
         }
-        let max_tokens = request.max_tokens.unwrap_or(8192);
-        if !(1..=65536).contains(&max_tokens) {
-            return Err(McpError::invalid_params(
-                "max_tokens must be in 1..=65536",
-                None,
-            ));
-        }
+        let max_tokens = token_budget(request)?;
         let mut ids = BTreeSet::new();
         let mut rows = Vec::new();
         for item in &request.requests {
@@ -81,12 +100,17 @@ impl BudgetedBatch {
                 recovery,
             });
         }
-        let mut batch = Self { rows, max_tokens };
+        let mut batch = Self {
+            original_rows: rows.clone(), rows, max_tokens,
+            // Reserve immutable recovery controls before executing any reads.
+            response_delivery: Some(delivery(&"0".repeat(64), u64::MAX, max_tokens)),
+        };
         let size = batch.encode()?.len();
         if size > max_tokens * 4 {
             let mut minimum = size.div_ceil(4);
             loop {
                 batch.max_tokens = minimum;
+                batch.response_delivery = Some(delivery(&"0".repeat(64), u64::MAX, minimum));
                 let required = batch.encode()?.len().div_ceil(4);
                 if required <= minimum {
                     break;
@@ -100,15 +124,20 @@ impl BudgetedBatch {
                 None,
             ));
         }
+        batch.response_delivery = None;
         Ok(batch)
     }
 
     fn encode(&self) -> Result<String, McpError> {
-        let omitted_count = self.rows.iter().filter(|r| r.status == OMITTED).count();
+        self.encode_rows(&self.rows, self.response_delivery.as_ref())
+    }
+
+    fn encode_rows(&self, rows: &[Row], response_delivery: Option<&Value>) -> Result<String, McpError> {
+        let omitted_count = rows.iter().filter(|r| r.status == OMITTED).count();
         serde_json::to_string(&Reply { complete: omitted_count == 0, omitted_count,
             max_tokens: self.max_tokens, budget_accounting: "ceil(complete JSON UTF-8 bytes / 4)",
-            consistency: "Sequential ordinary reads; no atomic batch snapshot. Each result retains its existing freshness and citation contract. Recovery reruns that read against then-current state.",
-            results: &self.rows }).map_err(serialization)
+            consistency: "Sequential ordinary reads; no atomic batch snapshot. Each result retains its existing freshness and citation contract. Per-row recovery reruns that read against then-current state; response_delivery recovers original executed results without rerunning reads.",
+            results: rows, response_delivery }).map_err(serialization)
     }
 
     fn insert(
@@ -117,15 +146,37 @@ impl BudgetedBatch {
         status: &'static str,
         response: Value,
     ) -> Result<(), McpError> {
-        self.rows[index].response_bytes =
+        self.original_rows[index].response_bytes =
             serde_json::to_vec(&response).map_err(serialization)?.len() as u64;
-        self.rows[index].status = status;
-        self.rows[index].response = Some(response);
+        self.original_rows[index].status = status;
+        self.original_rows[index].response = Some(response);
+        self.rows[index] = self.original_rows[index].clone();
         if self.encode()?.len() > self.max_tokens * 4 {
             self.rows[index].response = None;
             self.rows[index].status = OMITTED;
         }
         Ok(())
+    }
+    fn finish(mut self, data: &Path) -> Result<String, McpError> {
+        if self.rows.iter().all(|row| row.status != OMITTED) {
+            return self.encode();
+        }
+        let original = self.encode_rows(&self.original_rows, None)?;
+        let id = blake3::hash(original.as_bytes()).to_hex().to_string();
+        self.response_delivery = Some(delivery(&id, original.len() as u64, self.max_tokens));
+        // Recovery metadata was reserved before reads. Keep whole fitting
+        // results; return every omitted result through the exact saved batch.
+        for index in (0..self.rows.len()).rev() {
+            if self.encode()?.len() <= self.max_tokens * 4 { break; }
+            self.rows[index].response = None;
+            self.rows[index].status = OMITTED;
+        }
+        let output = self.encode()?;
+        if output.len() > self.max_tokens * 4 {
+            return Err(McpError::internal_error("Reserved batch recovery controls exceeded response budget", None));
+        }
+        snapshots::save_batch_read(data, &original)?;
+        Ok(output)
     }
 }
 
@@ -134,6 +185,17 @@ impl Engram {
         &self,
         request: BatchReadRequest,
     ) -> Result<CallToolResult, McpError> {
+        let tokens = token_budget(&request)?;
+        if let Some(id) = request.response_id.as_deref() {
+            if !request.requests.is_empty() {
+                return Err(McpError::invalid_params("response_id recovery cannot include new reads", None));
+            }
+            let body = snapshots::recover_batch_read(&self.state.cfg.data_dir, id, request.response_offset, tokens * 4)?;
+            return Ok(CallToolResult::success(vec![Content::text(body)]));
+        }
+        if request.response_offset != 0 {
+            return Err(McpError::invalid_params("response_offset requires response_id", None));
+        }
         let mut batch = BudgetedBatch::new(&request)?;
         for (index, item) in request.requests.into_iter().enumerate() {
             let result = match item.request {
@@ -183,7 +245,7 @@ impl Engram {
             batch.insert(index, status, response.map_err(serialization)?)?;
         }
         Ok(CallToolResult::success(vec![Content::text(
-            batch.encode()?,
+            batch.finish(&self.state.cfg.data_dir)?,
         )]))
     }
 }
@@ -218,7 +280,7 @@ mod tests {
 
     #[test]
     fn shared_budget_omits_whole_evidence_and_preserves_exact_recovery_and_later_results() {
-        let req = request(500);
+        let req = request(1024);
         let mut batch = BudgetedBatch::new(&req).unwrap();
         batch
             .insert(
@@ -235,7 +297,7 @@ mod tests {
             )
             .unwrap();
         let output = batch.encode().unwrap();
-        assert!(output.len() <= 2000);
+        assert!(output.len() <= 4096);
         let reply: Value = serde_json::from_str(&output).unwrap();
         assert_eq!(reply["complete"], false);
         assert_eq!(reply["omitted_count"], 1);
