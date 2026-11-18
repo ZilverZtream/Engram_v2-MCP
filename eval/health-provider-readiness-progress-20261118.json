@@ -26,5 +26,8 @@
     "fixtures_created": 0,
     "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-provider-readiness-20261118",
     "cleanup": "New fixture owns its listener and stores; close all before deleting its TempDir, including unwinding. Evidence retained until combined acceptance is accounted for."
-  }
+  },
+  "first_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native1.json",
+  "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native1-source-correction.json",
+  "validation_status": "CORRECTED_AWAITING_THREE_FAILED_CASES"
 }

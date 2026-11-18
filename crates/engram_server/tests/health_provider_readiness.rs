@@ -1,6 +1,6 @@
 //! Configuration is not proof that an embedding service can answer requests.
 use anyhow::{Result, ensure};
-use engram_core::{Config, ProjectRecord};
+use engram_core::Config;
 use engram_server::{AppState, Engram};
 use std::{net::TcpListener, path::PathBuf};
 
@@ -8,10 +8,11 @@ struct Fixture {
     server: Engram,
     listener: TcpListener,
     owned: tempfile::TempDir,
+    project_id: String,
 }
 
 impl Fixture {
-    fn new(backend: &str) -> Result<Self> {
+    async fn new(backend: &str) -> Result<Self> {
         let parent = std::env::var_os("ENGRAM_TEST_FIXTURE_ROOT")
             .map(PathBuf::from)
             .unwrap_or_else(std::env::temp_dir);
@@ -32,27 +33,42 @@ impl Fixture {
             max_concurrent_jobs: 1,
             ..Default::default()
         })?;
-        state.registry.put_project(&ProjectRecord {
-            project_id: "owned-health-readiness".into(),
-            project_name: "Owned health interpretation".into(),
-            project_type: "general".into(),
-            directory: root.to_string_lossy().into(),
-            created_at_ms: 1,
-            updated_at_ms: 1,
-            reindex_required_since_ms: None,
-        })?;
-        Ok(Self {
+        let mut fixture = Self {
             server: Engram::new(state),
             listener,
             owned,
-        })
+            project_id: String::new(),
+        };
+        // Use the real registration/publication path even for an empty corpus.
+        // A bare registry row has no usable published source snapshot.
+        let indexed = fixture
+            .server
+            .handle_index_project(serde_json::from_value(serde_json::json!({
+                "directory":root,"project_name":"Owned health interpretation",
+                "project_type":"general","wait":true
+            }))?)
+            .await?;
+        ensure!(indexed.is_error != Some(true), "{indexed:?}");
+        fixture.project_id = indexed.content[0]
+            .as_text()
+            .unwrap()
+            .text
+            .split("project_id: ")
+            .nth(1)
+            .unwrap()
+            .lines()
+            .next()
+            .unwrap()
+            .trim()
+            .to_owned();
+        Ok(fixture)
     }
 
     async fn health(&self) -> Result<String> {
         let result = self
             .server
             .handle_project_health(engram_server::models::ProjectIdRequest {
-                project_id: "owned-health-readiness".into(),
+                project_id: self.project_id.clone(),
             })
             .await?;
         Ok(result.content[0].as_text().unwrap().text.clone())
@@ -73,7 +89,7 @@ impl Fixture {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn configured_semantic_service_is_not_reported_ready_without_operational_evidence()
 -> Result<()> {
-    let fixture = Fixture::new("ollama")?;
+    let fixture = Fixture::new("ollama").await?;
     let result = async {
         let health = fixture.health().await?;
         ensure!(health.contains("semantic_search: true"), "{health}");
@@ -96,7 +112,7 @@ async fn configured_semantic_service_is_not_reported_ready_without_operational_e
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn disabled_semantic_retrieval_retains_its_integrity_and_degraded_scope() -> Result<()> {
-    let fixture = Fixture::new("fts_only")?;
+    let fixture = Fixture::new("fts_only").await?;
     let result = async {
         let health = fixture.health().await?;
         ensure!(health.contains("semantic_search: off"), "{health}");

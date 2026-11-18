@@ -592,7 +592,8 @@ pub(in crate::services::instruction_maintenance) fn references(
                         "qualification_not_verified"
                     } else if matches!(candidates[0].span_kind,
                         "regex_declaration_line_only" | "regex_observed_method_line_range"
-                        | "regex_observed_property_line_range" | "regex_observed_auto_property_line_range") {
+                        | "regex_observed_property_line_range" | "regex_observed_auto_property_line_range"
+                        | "regex_observed_constant_line_range") {
                         "unverified_vb_declaration_candidate"
                     } else {
                         "single_observed_declaration_candidate"

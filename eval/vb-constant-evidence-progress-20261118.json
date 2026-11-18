@@ -46,5 +46,8 @@
     "baseline_fixture_removed": true
   },
   "next_action": "Join pending health readiness and complete refresh results in one6-case targeted native invocation, then public candidate/installed delivery. No full suite or separate debug build.",
-  "source_commit": "106b803ecb9b3653799a533e6dff6432922aea80"
+  "source_commit": "106b803ecb9b3653799a533e6dff6432922aea80",
+  "first_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native1.json",
+  "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native1-source-correction.json",
+  "validation_status": "CORRECTED_AWAITING_THREE_FAILED_CASES"
 }
