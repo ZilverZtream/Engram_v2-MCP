@@ -2566,6 +2566,20 @@
         "native_test_added": false,
         "public_acceptance_required": true,
         "counting_rule": "One original useful-OS-error response-persistence outcome; six propagation sites are not six deliverables."
+      },
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "EG-27",
+        "source_commit": "970ac0577e132e01c5e3d906cb8b5c5035b076a0",
+        "progress": "eval/sql-function-guidance-progress-20261118.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-function-guidance-20261118\\contract.json",
+        "native_target": "sql_function_instruction_evidence",
+        "native_cases_expected": 2,
+        "native_environment": {
+          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+        },
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-function-guidance-20261118\\verify-public.py",
+        "counting_rule": "One original SQL-function instruction-evidence workflow; scalar/TVF and implicit selection are acceptance variants, not distinct deliverables."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2798,11 +2812,11 @@
   },
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "record": "eval/response-cache-os-error-progress-20261118.json",
-    "pending_source_outcomes": 1,
+    "record": "eval/sql-function-guidance-progress-20261118.json",
+    "pending_source_outcomes": 2,
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Keep queued without Cargo. Advance another original source requirement, then run affected public verification on the next admitted combined candidate/installed artifact. Preserve accepted successful deep-path recovery."
+    "next_action": "Keep queued without Cargo; advance another original source requirement. Run the two focused behavior cases and affected public candidate/installed checks in the next admitted combined batch. No successful deep-path/history identity replay."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3113,15 +3127,17 @@
   },
   "active_source_implementation": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement_id": "EG-12",
-    "source_commit": "749ff12f4183c08980fcc3d6c4873e93d1c2d60e",
-    "progress": "eval/response-cache-os-error-progress-20261118.json",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118\\contract.json",
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118\\verify-public.py",
-    "native_target": null,
-    "native_test_added": false,
-    "public_acceptance_required": true,
-    "counting_rule": "One original useful-OS-error response-persistence outcome; six propagation sites are not six deliverables.",
+    "original_requirement_id": "EG-27",
+    "source_commit": "970ac0577e132e01c5e3d906cb8b5c5035b076a0",
+    "progress": "eval/sql-function-guidance-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-function-guidance-20261118\\contract.json",
+    "native_target": "sql_function_instruction_evidence",
+    "native_cases_expected": 2,
+    "native_environment": {
+      "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+    },
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-function-guidance-20261118\\verify-public.py",
+    "counting_rule": "One original SQL-function instruction-evidence workflow; scalar/TVF and implicit selection are acceptance variants, not distinct deliverables.",
     "implementation_items_active": 0,
     "runtime_deployed": false
   },
@@ -4134,8 +4150,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T16:46:31.981453+00:00",
-    "reason": "Original EG12 useful native OS-error cause gap reproduced through installed MCP and source-complete fix queued without compilation."
+    "at_utc": "2026-11-18T16:54:41.706787+00:00",
+    "reason": "Installed EG27 SQL-function dependency gap reproduced; source capture/selection change and two meaningful behavior cases completed and queued without compilation."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4423,6 +4439,12 @@
   },
   "response_cache_os_error_source_progress_20261118": {
     "progress": "eval/response-cache-os-error-progress-20261118.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "runtime_deployed": false,
+    "full_original_goal_complete": false
+  },
+  "sql_function_guidance_source_progress_20261118": {
+    "progress": "eval/sql-function-guidance-progress-20261118.json",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "runtime_deployed": false,
     "full_original_goal_complete": false

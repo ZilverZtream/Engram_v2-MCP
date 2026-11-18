@@ -1,0 +1,45 @@
+{
+  "original_requirement_id": "EG-27",
+  "original_requirement": "Manifest referenced symbols and dependency-specific evidence changes; relevant changes affect dependent instructions while unrelated bodies do not invalidate a directory.",
+  "observed_missing_behavior": "The existing SQL Catalog recognizes functions, but instruction maintenance filters them out of declaration candidates. Function references remain unresolved and changed function bodies cannot select affected instructions outside the SQL file scope.",
+  "implementation_files": [
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs",
+    "crates/engram_server/tests/sql_function_instruction_evidence.rs"
+  ],
+  "finite_acceptance": [
+    "Installed baseline captures complete before/after SQL but leaves scalar/TVF references unresolved while a table and procedure stay captured.",
+    "Scalar and table-valued functions retain qualified names, exact raw declaration spans/hashes and positive-only source status through the existing catalog.",
+    "A function-body edit selects its referencing consumer guide outside the changed file scope, while unchanged procedure guidance stays excluded. Existing authored exceptions remain unchanged and stale proposal refusal remains."
+  ],
+  "native_target": "sql_function_instruction_evidence",
+  "native_cases_expected": 2,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-function-guidance-20261118\\verify-public.py",
+  "verifier_sha256": "5139ddc130a8566f9aa62879633f4eb505787ee260cf1f23e3b63056081992c1",
+  "runtime_relevance": "Existing LegacyValidation VB/WebForms and SQL tool configuration is retained unchanged. Source-function declaration support applies to this SQL workflow; actual LegacyValidation function presence/use and incremental task benefit are not established.",
+  "stop_rule": "Add the already parsed object kind to existing maintenance capture only. No new SQL parser, live database, semantic binding, language expansion or comparison task.",
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-function-guidance-20261118",
+    "fixture_parent": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+    "cleanup": "Owned sfm-/i temporary Git/data fixtures removed after their Git/database/MCP handles close. Retain scripts, source pins, oracle and wire evidence here."
+  },
+  "build_rule": "Second distinct source outcome after queued EG12. No Cargo until independently useful original source outcomes satisfy the existing cadence; minimum3 is a floor, not a release schedule.",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "source_complete": true,
+  "runtime_deployed": false,
+  "builds_started": 0,
+  "source_commit": "970ac0577e132e01c5e3d906cb8b5c5035b076a0",
+  "syntax_check": "PASS_BOTH_RUST_FILES_NO_COMPILATION",
+  "native_cases_written": 2,
+  "native_cases_executed": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-function-guidance-20261118\\baseline1\\acceptance.json",
+    "sha256": "e7746b9f5eda8668e6a3494433a33ef05eef8ca53a9cdff89fc73d0aba82b3e4",
+    "observed_function_references": "unresolved",
+    "unchanged_table_and_procedure_captured": true,
+    "all_owners_closed": true,
+    "fixture_removed": true
+  },
+  "public_verifier_sha256": "5139ddc130a8566f9aa62879633f4eb505787ee260cf1f23e3b63056081992c1",
+  "validated": false,
+  "next_action": "Keep queued without Cargo; advance another original source requirement. Run the two focused behavior cases and affected public candidate/installed checks in the next admitted combined batch. No successful deep-path/history identity replay."
+}
