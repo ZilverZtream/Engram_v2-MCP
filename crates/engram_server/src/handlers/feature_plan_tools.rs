@@ -686,6 +686,25 @@ impl Engram {
             }
         }
         output["edit_safety"] = json!(safety);
+        // Discovery candidates need not share the scope of the files the model
+        // ultimately proposes, especially new files. Return their authored
+        // guidance independently of the generated plan's prose.
+        let policy_paths = proposal.new_files.iter().map(|file| file.file_path.clone())
+            .chain(proposal.modified_files.iter().map(|file| file.file_path.clone()))
+            .collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>();
+        let directory = record.directory.clone();
+        let project_id = req.project_id.clone();
+        let policy = tokio::task::spawn_blocking(move || {
+            let mut policy = crate::services::project_policy::resolve(
+                Path::new(&directory), &policy_paths, &[],
+            ).with_source_recovery(&project_id);
+            policy.notes.push(format!(
+                "Guidance scope is the validated proposed new/modified files: {}. These paths may be prospective; guidance does not establish file existence or that the generated plan complies. Recheck the final edit scope before implementation.",
+                policy_paths.join(", "),
+            ));
+            policy
+        }).await.map_err(|_| failure("Cannot collect guidance for proposed feature-plan paths"))?;
+        output["project_policy_sources"] = json!(policy);
         // Do not return a current proposal after files changed during provider calls.
         let stale = changed_source_evidence(&record.directory, &evidence);
         if !stale.is_empty() || self.get_active_generation(&req.project_id).await? != generation {
