@@ -2568,6 +2568,20 @@
         },
         "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118\\verify-public.py",
         "counting_rule": "One original task-scoped instruction retrieval workflow; VB and JS/SQL targets, rendering and live-hash variants count as acceptance, not distinct deliverables."
+      },
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "EG-27",
+        "source_commit": "40b01900a784b9ef718eaa41d4c8a9f9cd831d7c",
+        "progress": "eval/config-instruction-evidence-progress-20261118.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\contract.json",
+        "native_target": "config_instruction_evidence",
+        "native_cases_expected": 2,
+        "native_environment": {
+          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+        },
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\verify-public.py",
+        "counting_rule": "One original configuration-key instruction evidence workflow; XML element spans and selective maintenance are acceptance variants, not separate deliverables."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2800,11 +2814,11 @@
   },
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "record": "eval/ask-planned-guidance-progress-20261118.json",
-    "pending_source_outcomes": 1,
+    "record": "eval/config-instruction-evidence-progress-20261118.json",
+    "pending_source_outcomes": 2,
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Retain this one source outcome and select the next ready distinct original requirement. No Cargo until the existing three-ID admission rule is satisfied; no immediate build for this item alone."
+    "next_action": "Keep EG01 and EG27 queued source outcomes. Select the next ready distinct original requirement before any Cargo invocation; minimum three IDs is an admission floor, not automatic release cadence."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3115,17 +3129,17 @@
   },
   "active_source_implementation": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement_id": "EG-01",
-    "source_commit": "42af7147faa571666854aacdf07ea7835f12ca6f",
-    "progress": "eval/ask-planned-guidance-progress-20261118.json",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118\\contract.json",
-    "native_target": "ask_planned_guidance",
-    "native_cases_expected": 3,
+    "original_requirement_id": "EG-27",
+    "source_commit": "40b01900a784b9ef718eaa41d4c8a9f9cd831d7c",
+    "progress": "eval/config-instruction-evidence-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\contract.json",
+    "native_target": "config_instruction_evidence",
+    "native_cases_expected": 2,
     "native_environment": {
       "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
     },
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118\\verify-public.py",
-    "counting_rule": "One original task-scoped instruction retrieval workflow; VB and JS/SQL targets, rendering and live-hash variants count as acceptance, not distinct deliverables.",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\verify-public.py",
+    "counting_rule": "One original configuration-key instruction evidence workflow; XML element spans and selective maintenance are acceptance variants, not separate deliverables.",
     "implementation_items_active": 0
   },
   "maintenance_state_context_batch_delivery_20261117": {
@@ -4137,8 +4151,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T18:20:14.544542+00:00",
-    "reason": "Installed explicit prospective-file guidance gap reproduced; shared-resolver source improvement and three focused acceptance cases committed without compilation."
+    "at_utc": "2026-11-18T18:30:25.773683+00:00",
+    "reason": "Installed configuration-key maintenance gap reproduced; snapshot-only XML declaration evidence and selective guide selection committed without compilation. Existing ingestion body and protected work preserved."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4476,6 +4490,22 @@
     },
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118\\verify-public.py",
     "counting_rule": "One original task-scoped instruction retrieval workflow; VB and JS/SQL targets, rendering and live-hash variants count as acceptance, not distinct deliverables.",
+    "runtime_deployed": false,
+    "full_original_goal_complete": false
+  },
+  "config_instruction_evidence_source_progress_20261118": {
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement_id": "EG-27",
+    "source_commit": "40b01900a784b9ef718eaa41d4c8a9f9cd831d7c",
+    "progress": "eval/config-instruction-evidence-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\contract.json",
+    "native_target": "config_instruction_evidence",
+    "native_cases_expected": 2,
+    "native_environment": {
+      "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+    },
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\verify-public.py",
+    "counting_rule": "One original configuration-key instruction evidence workflow; XML element spans and selective maintenance are acceptance variants, not separate deliverables.",
     "runtime_deployed": false,
     "full_original_goal_complete": false
   }

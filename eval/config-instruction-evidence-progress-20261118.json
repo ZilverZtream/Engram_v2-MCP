@@ -1,0 +1,48 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-27",
+  "source_commit": "40b01900a784b9ef718eaa41d4c8a9f9cd831d7c",
+  "progress": "eval/config-instruction-evidence-progress-20261118.json",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\contract.json",
+  "native_target": "config_instruction_evidence",
+  "native_cases_expected": 2,
+  "native_environment": {
+    "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\verify-public.py",
+  "counting_rule": "One original configuration-key instruction evidence workflow; XML element spans and selective maintenance are acceptance variants, not separate deliverables.",
+  "at_utc": "2026-11-18T18:30:25.773683+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118",
+  "runtime_deployed": false,
+  "builds_started": 0,
+  "native_tests_executed": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\baseline1\\receipt.json",
+    "sha256": "bb6135ae5fd729f65be5f96562a14d034b3b0f450edfafaf13b63e0a0d7a587a",
+    "server_sha256": "8981757964cab9a132ea5088d33229fdf8e9b8dd4a5cd2d7be1b7564b619aca2",
+    "status": "BASELINE_GAP_CONFIRMED",
+    "checks": 4
+  },
+  "source_files": [
+    "crates/engram_index/src/config_extractor.rs",
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs",
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence/symbols.rs",
+    "crates/engram_server/tests/config_instruction_evidence.rs",
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs"
+  ],
+  "syntax": "Rust and Python syntax checked; no Cargo run",
+  "public_assertions_expected": 6,
+  "implementation_items_active": 0,
+  "review": {
+    "external": "Retained CodeRabbit auth false; no external review or login.",
+    "parent": "Existing ingestion extractor body verified byte-identical. Snapshot extraction reuses its XML context and app-setting element handling with exact raw spans. Literal key names have no terminal-name aliases; no effective-value, transform/inheritance or getter binding inference."
+  },
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118",
+    "baseline_owner_closed": true,
+    "baseline_fixture_removed": true,
+    "retention": "Retain contract/verifier/wire/receipt evidence until delivery accounting. New native fixtures own/close Git handles and TempDirs. No preexisting deletion."
+  },
+  "full_original_goal_complete": false,
+  "next_action": "Keep EG01 and EG27 queued source outcomes. Select the next ready distinct original requirement before any Cargo invocation; minimum three IDs is an admission floor, not automatic release cadence."
+}
