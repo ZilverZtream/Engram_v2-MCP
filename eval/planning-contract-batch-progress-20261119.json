@@ -61,10 +61,11 @@
   },
   "prepared_delivery_recorder": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118\\record-delivery.py",
-    "sha256": "beb1e695eaeed78954827be89f66fb51ab21cc9d313d98b2ef1fab6076521ad1",
+    "sha256": "ca30448eb91ea0a17b33aa6c4cd011e8abca78cabbea52d5426c41a7e6cddfa0",
     "status": "PREPARED_SYNTAX_CHECKED_NOT_EXECUTED",
     "acceptance_required": "Terminal release PASS; exactly20 candidate and20 installed public assertions; normal runtime/config and metadata restored;215 installed assets match; rollback and owned-resource accounting. Zero standalone unit/debug compilation or full suite.",
-    "record_target": "eval/planning-contract-batch-delivery-20261119.json"
+    "record_target": "eval/planning-contract-batch-delivery-20261119.json",
+    "receipt_selection": "Count numeric releaseN.json terminal receipts only; release1-owner/state/plan JSON are ownership metadata, not additional builds."
   },
   "recorder_prepared_at_utc": "2026-11-18T23:28:18.445157+00:00"
 }
