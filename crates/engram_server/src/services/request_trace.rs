@@ -8,6 +8,7 @@ mod inline_sql;
 pub(crate) mod identity_insert;
 pub(crate) mod sql_commands;
 mod web_methods;
+mod http_handlers;
 pub mod execution;
 pub mod control_events;
 pub mod control_routes;

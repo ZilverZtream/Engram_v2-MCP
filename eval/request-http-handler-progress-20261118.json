@@ -1,0 +1,49 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-31",
+  "progress": "eval/request-http-handler-progress-20261118.json",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118\\contract.json",
+  "implementation_items_active": 0,
+  "runtime_deployed": false,
+  "not_in_frozen_release": "agent-instruction-batch-20261118",
+  "next_action": "Retain for the next substantive combined source batch. Do not compile or move the current shipping checkout.",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118",
+  "at_utc": "2026-11-18T14:34:57.497944+00:00",
+  "source_stage_cargo_invocations": 0,
+  "native_cases_executed": 0,
+  "full_original_goal_complete": false,
+  "implementation_files": [
+    "crates/engram_server/src/services/request_trace.rs",
+    "crates/engram_server/src/services/request_trace/execution.rs",
+    "crates/engram_server/src/services/request_trace/http_handlers.rs",
+    "crates/engram_server/tests/request_trace_http_handlers.rs"
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/services/request_trace.rs": "f1930ea0f771a3cbcffb3018c60bec843a43a2c4df059d9b0bedffc0643b7e78",
+    "crates/engram_server/src/services/request_trace/execution.rs": "d52592a8f679939d62eb37dad51b895a7eac468e194451551b268ed20fb1cd8d",
+    "crates/engram_server/src/services/request_trace/http_handlers.rs": "4d6878bdc4ecf97b0d21c358e2ea8f42ca2b31995fb15e0b58a1e6afd0748607",
+    "crates/engram_server/tests/request_trace_http_handlers.rs": "a1e172d535c1d6e2bdd0c44409b6448b107d94ab7b3e0ee376898c3c6f1b08f2"
+  },
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118\\baseline2\\receipt.json",
+  "baseline_debug_sha256": "147e656d0d1f34a8efefe22d05edadea5253fe51d4ca0f71752de49972ff5b07",
+  "baseline_fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118\\baseline1-disposition.json",
+  "native_target": "request_trace_http_handlers",
+  "native_cases_written": 2,
+  "native_environment": {
+    "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118\\verify-public.py",
+  "public_verifier_sha256": "f12f942c59a3b45269f2bfe01771fcd56393720b3d5cf1132e4a464f1f12387f",
+  "syntax_validation": "Changed Rust source and test parsed with rustfmt stdin; no typecheck/test pass claimed.",
+  "limitations": [
+    "Source complete only; native and new-code public acceptance remain pending. Existing current release remains frozen at bf4abd6a and excludes this change.",
+    "Literal explicit code-behind and directive Class with an authored single-line VB instance Implements IHttpHandler.ProcessRequest binding only. Inline/App_Code-only/inherited handlers, aliases and multiline headers remain disclosed gaps.",
+    "No actual LegacyValidation handler presence or task benefit demonstrated. No source/Q/index mutation, CodeMap/Blast work, language expansion, provider calls or preexisting folder deletion."
+  ],
+  "temporary_resources": {
+    "baseline_owners_closed": true,
+    "baseline_fixture_directories_removed": true,
+    "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118",
+    "cleanup_condition": "Retain oracles, wire and receipts until separately accounted; new native/public fixtures own and close all resources."
+  }
+}

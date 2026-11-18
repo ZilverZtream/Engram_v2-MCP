@@ -261,6 +261,11 @@ pub fn trace_page(
     sources: &[Source<'_>],
     selected: &BTreeMap<String, u64>,
 ) -> anyhow::Result<PageTrace> {
+    if route.page.to_ascii_lowercase().ends_with(".ashx") {
+        return super::http_handlers::trace(
+            graph, project, route, action, include_db, include_triggers, sources, selected,
+        );
+    }
     let requested_event = super::control_events::requested(action)?;
     if route.web_method.is_some() {
         return super::web_methods::trace(graph, project, route, action, include_db, include_triggers, sources, selected);
