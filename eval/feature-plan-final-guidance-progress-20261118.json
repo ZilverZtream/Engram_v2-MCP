@@ -8,7 +8,6 @@
   "source_files": [
     "crates/engram_server/src/handlers/feature_plan_tools.rs"
   ],
-  "builds_started": 0,
   "runtime_deployed": false,
   "full_original_goal_complete": false,
   "current_runtime_applicability": "Current Full runtime exposes one_shot_feature_plan; supported stack is webforms_vbnet, and proposed source paths may be VB/JS/TS/SQL. No measured LegacyValidation task benefit is inferred.",
@@ -21,7 +20,7 @@
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\verify-public.py",
   "public_assertions_expected": 6,
   "counting_rule": "One original final-plan scoped-instruction handoff; VB/TS/SQL guides, exceptions, exclusion and freshness are acceptance variants, not separate outcomes.",
-  "validation_status": "RUST_SYNTAX_AND_RESOLVER_INTERFACE_CHECKED_UNCOMPILED_PUBLIC_PENDING",
+  "validation_status": "FROZEN_FOR_PUBLIC_NATIVE_MCP_ACCEPTANCE",
   "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\source-preparation1.json",
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\baseline1\\receipt.json",
   "baseline_status": "BASELINE_GAP_CONFIRMED",
@@ -31,5 +30,7 @@
   "baseline_fixture_removed": true,
   "public_verifier_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\verifier-correction1.json",
   "public_verifier_sha256": "b7aba48ef3fe7ce0191084b6d47f60b779d8a8a3265dc3db66d33a076d680526",
-  "retained_baseline_verifier_sha256": "f7fb903ad2433f173f027940a3caafc6c897eba4bdfd08806909a8854a3412ef"
+  "retained_baseline_verifier_sha256": "f7fb903ad2433f173f027940a3caafc6c897eba4bdfd08806909a8854a3412ef",
+  "source_stage_builds_started": 0,
+  "validation_batch": "eval/planning-contract-batch-progress-20261119.json"
 }

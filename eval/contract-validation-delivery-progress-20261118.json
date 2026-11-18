@@ -11,7 +11,6 @@
   "native_cases_expected": 0,
   "public_assertions_expected": 7,
   "implementation_items_active": 0,
-  "builds_started": 0,
   "runtime_deployed": false,
   "full_original_goal_complete": false,
   "current_runtime_applicability": "validate_feature_contract is advertised by current Full and consumes the release-critical get_change_set checkpoint before implementation. Actual schema capture lacks all delivery controls; no task-productivity or policy-approval claim.",
@@ -28,5 +27,7 @@
   "baseline_owners_closed": true,
   "baseline_fixture_removed": true,
   "schema_inventory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-control-inventory-20261118\\inspection1.json",
-  "validation_status": "SOURCE_SYNTAX_CHECKED_UNCOMPILED_PUBLIC_AFTER_PENDING"
+  "validation_status": "FROZEN_FOR_PUBLIC_NATIVE_MCP_ACCEPTANCE",
+  "source_stage_builds_started": 0,
+  "validation_batch": "eval/planning-contract-batch-progress-20261119.json"
 }
