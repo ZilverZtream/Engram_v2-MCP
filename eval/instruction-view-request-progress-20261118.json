@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_READY",
+  "status": "OPTIMIZED_RELEASE_RUNNING_NATIVE_AND_DEBUG_ACCEPTED",
   "at_utc": "2026-11-18T10:08:28.894432+00:00",
   "original_requirement_ids": [
     "EG-27",
@@ -74,7 +74,7 @@
   "public_check_assertions": 36,
   "public_seconds": 14.946699600000102,
   "public_count_qualification": "Assertions include overlapping Full/Core clarification checks; this is not a count of distinct features or proof of task usefulness.",
-  "release_builds_started": 0,
+  "release_builds_started": 1,
   "runtime_deployed": false,
   "full_original_goal_complete": false,
   "protected_wip9_unchanged": true,
@@ -84,5 +84,10 @@
     "public_servers_closed": true,
     "public_fixtures_removed": true,
     "retained_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118"
-  }
+  },
+  "release_session_id": 55409,
+  "release_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\release-owner-pin1.json",
+  "postrelease_session_id": 32765,
+  "prepared_deployment": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\deployment-preparation1.json",
+  "prepared_recorder": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\recording-preparation1.json"
 }

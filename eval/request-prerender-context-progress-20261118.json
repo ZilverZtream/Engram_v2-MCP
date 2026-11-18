@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_AWAITING_RELEASE",
   "at_utc": "2026-11-18T09:47:19.438711+00:00",
   "original_requirement_id": "TODO-31",
   "related_original_requirement_id": "TODO-28",
@@ -19,9 +19,6 @@
     "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
   },
   "native_cases_written": 2,
-  "native_cases_executed": 0,
-  "public_runtime_checks_executed": 0,
-  "cargo_invocations": 0,
   "runtime_deployed": false,
   "counting_rule": "One response-preparation context outcome, across existing page/control/master composition. Binding spellings, downstream SQL, formats and freshness checks are supporting acceptance, not distinct outcomes.",
   "normal_runtime_configuration": {
@@ -44,5 +41,14 @@
     "retained": "Contract, protected-work hashes and source-check receipt for combined validation. New graph fixtures close graph handles before removing owned resources."
   },
   "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED",
-  "combined_validation_record": "eval/instruction-view-request-progress-20261118.json"
+  "combined_validation_record": "eval/instruction-view-request-progress-20261118.json",
+  "source_stage_execution_accounting": {
+    "cargo_invocations": 0,
+    "native_cases_executed": 0,
+    "public_runtime_checks_executed": 0
+  },
+  "native_cases_executed": 2,
+  "shared_combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\native-acceptance.json",
+  "shared_debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\debug1\\receipt.json",
+  "execution_accounting_note": "Native cases counted per component; all components share one Cargo invocation and one public batch. Source-stage zero counters are historical, not a reason to repeat passed checks."
 }

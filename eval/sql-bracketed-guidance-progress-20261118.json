@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_AWAITING_RELEASE",
   "at_utc": "2026-11-18T09:42:58.918358+00:00",
   "original_requirement_id": "EG-27",
   "related_original_requirement": "EG-31",
@@ -8,7 +8,6 @@
   "behavior": "An observed bracketed schema-qualified SQL name is retained as one maintenance mention and matched to SQL declaration candidates, instead of being split into ambiguous unqualified names.",
   "native_target": "sql_bracketed_instruction_maintenance",
   "native_cases_written": 2,
-  "native_cases_executed": 0,
   "native_environment": {
     "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
   },
@@ -29,5 +28,12 @@
     "retention": "Keep contract/source-stage receipts through combined installed delivery; no preexisting folders deleted."
   },
   "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED",
-  "combined_validation_record": "eval/instruction-view-request-progress-20261118.json"
+  "combined_validation_record": "eval/instruction-view-request-progress-20261118.json",
+  "source_stage_execution_accounting": {
+    "native_cases_executed": 0
+  },
+  "native_cases_executed": 2,
+  "shared_combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\native-acceptance.json",
+  "shared_debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\debug1\\receipt.json",
+  "execution_accounting_note": "Native cases counted per component; all components share one Cargo invocation and one public batch. Source-stage zero counters are historical, not a reason to repeat passed checks."
 }
