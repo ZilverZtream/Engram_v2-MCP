@@ -1,0 +1,62 @@
+{
+  "original_requirement_id": "TODO-31",
+  "original_requirement": "URL/route to handler and existing downstream source/database evidence for LegacyValidation VB/WebForms/JavaScript/SQL workflows.",
+  "observed_missing_behavior": "Conventional MapHttpRoute is supported, but enabled literal VB RoutePrefix/Route declarations are ignored. Retained LegacyValidation RoqEstimatesController uses project-specific prefix, empty collection route and id:int item route, so those URLs cannot reach their declared methods.",
+  "implementation_files": [
+    "crates/engram_server/src/services/request_trace.rs",
+    "crates/engram_server/src/services/request_trace/api.rs",
+    "crates/engram_server/src/services/request_trace/api_attributes.rs",
+    "crates/engram_server/src/handlers/request_trace_tools.rs",
+    "crates/engram_server/tests/request_trace_attribute_routes.rs"
+  ],
+  "finite_acceptance": [
+    "Installed baseline on an owned copy of the retained RoqEstimatesController returns no route for GET /api/v2/projects/42/roq-estimates despite its explicit registration/prefix/collection route.",
+    "Source-verified literal RoutePrefix plus Route, literal full method routes, named parameters and simple int constraints identify their exact declared action and registration source evidence. Existing downstream trace/source hashes and bounded candidates remain.",
+    "Root and item GET URLs select GetAll/GetById separately; a POST cannot bind those GET actions, and missing attribute registration cannot authorize the attribute path. Preserve conventional source candidates; do not infer dispatch, DI, precedence or runtime execution."
+  ],
+  "native_target": "request_trace_attribute_routes",
+  "native_environment": {
+    "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\attribute-request-trace-20261118\\verify-public.py",
+  "retained_source_evidence": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\sources\\scoped_policy\\Site\\App_Code\\api-v2\\Controllers\\projektplanering\\RoqEstimatesController.vb",
+      "sha256": "882138f8f614c420a95c774125ce4904e085f520a7b53185c8ac6fa076100d74"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\actual1\\WebApiConfig.vb",
+      "sha256": "29775d7b46fefcf49a515b3d2e1949dd706b14c1bfac8e47abd0427cce86fa3e"
+    }
+  ],
+  "normal_configuration_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "limits": [
+    "Retained source shows LegacyValidation uses the route forms; current actual source/Q is not accessed or modified, and fixture acceptance is not actual HTTP hosting or incremental task benefit.",
+    "Bounded single-line literal VB attributes and explicit Http verbs/name convention only. Inherited/custom route providers, dynamic templates, precedence and unsupported constraints remain disclosed gaps."
+  ],
+  "stop_rule": "Finish the source-based attribute-route workflow and advance. No CodeMap/Blast work, new parser/backend, repeated old matched-task comparison or broader route-engine project.",
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\attribute-request-trace-20261118",
+    "fixture_parent": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+    "cleanup": "New owned fixture resources close before directory removal; retain only scripts/contracts/wire/oracles here."
+  },
+  "build_rule": "Third distinct original source outcome, after EG12 and EG27; not permission to compile before source and acceptance preparation finish. Minimum3 is an admission floor, not automatic release cadence.",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "source_complete": true,
+  "runtime_deployed": false,
+  "builds_started": 0,
+  "source_commit": "a8a5c04b84ee6c5e95fb8d342734ba5bb2d4d15e",
+  "syntax_check": "PASS_5_RUST_FILES_NO_COMPILATION",
+  "native_cases_written": 3,
+  "native_cases_executed": 0,
+  "public_baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\attribute-request-trace-20261118\\baseline1\\receipt.json",
+    "sha256": "7955ca6e0112da0a66ab164bc3fca822ca50396369fd2becce80af856c284e0c",
+    "owned_source_unchanged": true,
+    "all_owners_closed": true,
+    "fixture_removed": true
+  },
+  "public_verifier_sha256": "444bbdcbea1003488a5d098a6f0e9b435e563e43f668f448382cb6accef79c2e",
+  "validated": false,
+  "next_action": "Prepare one combined focused acceptance batch for the three queued original outcomes; review the source/fixture bindings before admitting Cargo. Retain earlier successful deep-path/history/trace checks; no separate debug or full suite. Minimum3 remains an admission floor, not a requirement to release every3."
+}
