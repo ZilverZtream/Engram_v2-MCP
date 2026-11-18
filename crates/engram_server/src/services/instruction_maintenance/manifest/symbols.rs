@@ -86,6 +86,25 @@ fn reference_identifier(value: &str) -> Option<&str> {
     identifier(name).then_some(name)
 }
 
+// Preserve a complete SQL schema/object mention instead of splitting bracket
+// separators into unqualified names. This observes source notation, not SQL
+// collation or a verified database binding. Retain the existing simple-name
+// vocabulary; delimited names containing punctuation are not normalized here.
+fn bracketed_sql_identifier(value: &str) -> Option<String> {
+    if !value.contains('[') || !value.contains('.') {
+        return None;
+    }
+    let parts = value.split('.').map(|part| {
+        let name = if part.starts_with('[') {
+            part.strip_prefix('[')?.strip_suffix(']')?
+        } else {
+            part
+        };
+        (identifier(name) && !name.contains(':')).then_some(name)
+    }).collect::<Option<Vec<_>>>()?;
+    Some(parts.join("."))
+}
+
 fn names(candidate: &Candidate) -> Vec<String> {
     let mut result = BTreeSet::new();
     for name in [&candidate.name, &candidate.qualified_name] {
@@ -429,6 +448,13 @@ pub(in crate::services::instruction_maintenance) fn references(
                 }
                 let mut mentions = Vec::new();
                 match event {
+                    Event::Code(value) if bracketed_sql_identifier(&value).is_some_and(|name|
+                        lookup.get(&name).into_iter().flatten().any(|index|
+                            records[*index].version == version
+                                && records[*index].candidate.path.to_ascii_lowercase().ends_with(".sql"))) => {
+                        mentions.push((span.start, span.end, value.into_string(),
+                            "inline_code_sql_qualified_identifier"));
+                    }
                     Event::Code(value)
                         if !markdown_links::path_candidate(&value)
                             && reference_identifier(&value).is_some() =>
@@ -505,7 +531,10 @@ pub(in crate::services::instruction_maintenance) fn references(
                         row.1 += 1;
                         continue;
                     }
-                    let canonical = reference_identifier(&literal).unwrap_or(&literal).replace("::", ".");
+                    let sql_identifier = (form == "inline_code_sql_qualified_identifier")
+                        .then(|| bracketed_sql_identifier(&literal)).flatten();
+                    let canonical = sql_identifier.clone().unwrap_or_else(||
+                        reference_identifier(&literal).unwrap_or(&literal).replace("::", "."));
                     let mut matching: BTreeSet<_> = lookup
                         .get(&canonical)
                         .into_iter()
@@ -519,7 +548,9 @@ pub(in crate::services::instruction_maintenance) fn references(
                                 .flatten()
                                 .copied(),
                         )
-                        .filter(|index| records[*index].version == version)
+                        .filter(|index| records[*index].version == version
+                            && (sql_identifier.is_none()
+                                || records[*index].candidate.path.to_ascii_lowercase().ends_with(".sql")))
                         .collect();
                     let mut qualified_suffix = false;
                     if matching.is_empty() && canonical.contains('.') {
@@ -537,7 +568,9 @@ pub(in crate::services::instruction_maintenance) fn references(
                                     .flatten()
                                     .copied(),
                             )
-                            .filter(|index| records[*index].version == version)
+                            .filter(|index| records[*index].version == version
+                                && (sql_identifier.is_none()
+                                    || records[*index].candidate.path.to_ascii_lowercase().ends_with(".sql")))
                             .collect();
                         qualified_suffix = !matching.is_empty();
                     }
