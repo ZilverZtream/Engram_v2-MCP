@@ -13,7 +13,7 @@
   "full_original_goal_complete": false,
   "current_runtime_applicability": "Current Full runtime exposes one_shot_feature_plan; supported stack is webforms_vbnet, and proposed source paths may be VB/JS/TS/SQL. No measured LegacyValidation task benefit is inferred.",
   "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
-  "next_action": "An exact-owner observer will run the prepared owned baseline once after current release deployment/restoration has finished. Accumulate further original source outcomes before any new compile; preserve current frozen release and protected WIP.",
+  "next_action": "Keep this source queued and accumulate distinct original source outcomes before combined validation. Baseline missing final-target guidance confirmed with a controlled owned provider; no real-task replay. Do not compile this one19line change.",
   "source_commit": "95a98795a448efc4caf54756f142605792749853",
   "progress": "eval/feature-plan-final-guidance-progress-20261118.json",
   "native_target": null,
@@ -22,5 +22,11 @@
   "public_assertions_expected": 6,
   "counting_rule": "One original final-plan scoped-instruction handoff; VB/TS/SQL guides, exceptions, exclusion and freshness are acceptance variants, not separate outcomes.",
   "validation_status": "RUST_SYNTAX_AND_RESOLVER_INTERFACE_CHECKED_UNCOMPILED_PUBLIC_PENDING",
-  "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\source-preparation1.json"
+  "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\source-preparation1.json",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\baseline1\\receipt.json",
+  "baseline_status": "BASELINE_GAP_CONFIRMED",
+  "baseline_server_sha256": "8ab70ccf5f178b1bf87a624f6b8833855113c2a70a2e9ff757ccdcb300f3cb71",
+  "baseline_seconds": 3.1246780999936163,
+  "baseline_owners_and_provider_closed": true,
+  "baseline_fixture_removed": true
 }

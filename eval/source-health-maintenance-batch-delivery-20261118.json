@@ -1,0 +1,170 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-18T21:53:16.122344+00:00",
+  "recording_script": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\record-delivery.py",
+    "sha256": "c9fafe9fc9f93cefb7d7dd8b89b6fc40092d8369f5bfbb6dbdf308348f917aba"
+  },
+  "original_requirement_ids": [
+    "EG-13",
+    "EG-03",
+    "TODO-4"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118",
+  "source_preparation": {
+    "status": "SOURCE_FROZEN_FOR_FOCUSED_ACCEPTANCE",
+    "source_commit": "a425ea3f38bbf2e99a4a88e03cb5a2f809527f04",
+    "source_baseline": "53a15f651de71b6d1597ab9c13aa5e60ffc7161f",
+    "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "checkout_clean": true,
+    "source_files": [
+      "crates/engram_index/src/hybrid/selected_source_membership.rs",
+      "crates/engram_server/src/handlers/git_refresh_scope.rs",
+      "crates/engram_server/src/handlers/git_tools.rs",
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/handlers/project_tools.rs",
+      "crates/engram_server/src/read_report_delivery.rs",
+      "crates/engram_server/tests/maintenance_result_delivery.rs",
+      "crates/engram_server/tests/selected_source_health.rs",
+      "crates/engram_server/tests/source_health_maintenance_delivery.rs",
+      "crates/engram_server/tests/source_refresh_git_scope.rs"
+    ],
+    "normalized_root_source_matches": true,
+    "original_requirement_ids": [
+      "EG-13",
+      "EG-03",
+      "TODO-4"
+    ],
+    "native_target": "source_health_maintenance_delivery",
+    "native_cases_expected": 5,
+    "public_checks_expected": 27,
+    "shared_target": "C:\\ai-projects\\Engram-MCP_v2\\target",
+    "new_worktrees_created": 0,
+    "protected_wip9_unchanged": true,
+    "build_driver_sha256": "8e421e20253370b35a64eba0c0d7bf2c2e3bcd854d0ce0b68c069cf1e2891c19",
+    "prebuild_fixture_correction_commit": "80c762aea8db16e8f0083d1cc253062b51ac7561",
+    "prebuild_source_lease_correction_commit": "369d5c6a5f3f6e0a30b8ad433f7520adf61171ef",
+    "release_started": false
+  },
+  "delivered_behaviors": {
+    "EG-13": "project_health reports current held published source-file/chunk counts separately from retained physical storage; the selected counts survive restart.",
+    "EG-03": "Automatic source refresh and co-change warmup skip unrelated parent history for unversioned child projects. Repository roots, tracked subprojects and explicit history requests retain their behavior.",
+    "TODO-4": "repair_project, index_git_history, ingest_zip_history and ingest_quality_gates expose bounded complete returned-result delivery and exact recovery without repeating operations; original success/error outcomes survive retention failure."
+  },
+  "runtime": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\package1",
+    "server_sha256": "8ab70ccf5f178b1bf87a624f6b8833855113c2a70a2e9ff757ccdcb300f3cb71",
+    "manifest_sha256": "3525c9e68e86db7500a2764b438f091b93f2ec4fb23bb865d183b814d7c59af1",
+    "old_server_sha256": "944f4cdbca03cf0f3cee651ff8f5180160fe0b6105677f5391457700e87202c4",
+    "old_manifest_sha256": "0b433cca45db52ef9099f38ca6b96bb4c302a8b7165ab213f26ab4e778b99ef9",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\release1.json",
+      "sha256": "a61e269263a500ec3ca8ef9119ed1abc2e77629e398c0b2f0aae02ac138bd9f6"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "0b433cca45db52ef9099f38ca6b96bb4c302a8b7165ab213f26ab4e778b99ef9"
+    },
+    "source_commit": "a425ea3f38bbf2e99a4a88e03cb5a2f809527f04"
+  },
+  "native_acceptance": {
+    "status": "PASS",
+    "native_cases_covered": 5,
+    "native_test_executions": 5,
+    "cargo_invocations": 1,
+    "successful_native_labels": [
+      "native1"
+    ],
+    "latest_successful_native_label": "native1",
+    "seconds": 536.9881183000034,
+    "cases": [
+      "health::health_counts_only_published_files_and_chunks_after_edit_and_delete",
+      "refresh::unversioned_children_skip_automatic_parent_history_but_preserve_explicit_requests",
+      "refresh::repository_roots_and_versioned_subprojects_keep_automatic_history",
+      "maintenance::complete_ownership_preview_survives_source_changes_without_adoption_or_reimport",
+      "maintenance::returned_operation_errors_and_successes_keep_their_outcomes_when_retention_fails"
+    ],
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\native1.json",
+    "full_suites": 0,
+    "separate_debug_builds": 0
+  },
+  "public_check_assertions_per_artifact": 27,
+  "public_receipts": {
+    "debug": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\debug1\\receipt.json",
+      "sha256": "0792746f6e57393e5fc99b3e9446552a4069c9bcf4fcba77a51aed270c7a562f"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\candidate1\\acceptance.json",
+      "sha256": "a6c35e0ee2f613858a56a122e977f5adb878405df9e8fa78f76e834e2d3ceb42"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\installed1\\acceptance.json",
+      "sha256": "5f3bdbb59a37ef66330bb482f63da13508faf24612880072aa63005bd98e5834"
+    }
+  },
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\restored-runtime\\receipt.json",
+    "sha256": "51ada9d007db447f95a252c6f35691efc253280f659faee24442bf56b41214c7"
+  },
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3157,
+  "source_format": 9,
+  "previous_delivery_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\planned-config-review-batch-delivery-20261118.json",
+    "sha256": "f676b2c648e0eecd524912cce7294f5ff74d8f31e702a4c8e96c9b5ebfd965be"
+  },
+  "full_original_goal_complete": false,
+  "protected_wip9": "UNCHANGED",
+  "build_accounting": {
+    "native_invocations": 1,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "native_unique_cases": 5,
+    "native_test_executions": 5,
+    "native_seconds": 536.9881183000034,
+    "release_seconds": 2236.8074084000036,
+    "public_debug_seconds": 38.58825320000324,
+    "pure_coding_percentage": null,
+    "rebuilds_during_deployment": 0
+  },
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\Engram-win-x64-source-health-maintenance.zip",
+    "sha256": "08e8b15270e2447a74af8aaf232aa7a55c9858948b9783efbd4a706ac476026e",
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\bundle1.json",
+      "sha256": "35c1fd7b3821f4e43d76f5a6efb98e36eeea8c8cefe87e8f394ce76092a210c7"
+    }
+  },
+  "temporary_resources": {
+    "owned_jobs_build_temps_and_public_owners_closed": true,
+    "owned_private_config_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118",
+    "intentionally_retained_runtime": {
+      "pid": 81364,
+      "purpose": "Normal installed daemon; ordinary application lifecycle."
+    },
+    "managed_rollback_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-ce4c556e6dda4a6e93cc11d70658c44d",
+      "purpose": "Retained previous installed runtime pair; not disposable scratch.",
+      "cleanup_condition": "Preserve pending separate exact-path approval and rollback accounting."
+    },
+    "retention": "Retain receipts/package/ZIP and managed installer rollback pending separate accounting. No preexisting deletion."
+  },
+  "limitations": [
+    "Selected health counts complete one S07 diagnostic component, not all readers, all counts, source atomicity or the complete19storage gates.",
+    "Automatic parent-history scope protection does not filter all explicit historical queries, erase/certify previous history, or establish an LegacyValidation runtime speedup.",
+    "Maintenance recovery preserves returned operations only; interrupted requests are not made retry-safe. No legacy rule adoption or repair/import semantic expansion.",
+    "CodeRabbit was unavailable without authentication; no external review is claimed. Focused source/native/public checks are separately recorded.",
+    "No actual LegacyValidation source/Q/index mutation, real model request, sidecar/schema/source-format change, target-language expansion or CodeMap/Blast improvement.",
+    "Original31findings/19gates, held work and failed task comparisons remain preserved. General readiness, productivity benefit, coding-time percentage and spend justification remain unproved."
+  ]
+}

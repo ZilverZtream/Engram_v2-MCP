@@ -369,7 +369,12 @@
         "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
       },
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
-      "latest_installed_delivery": "eval/eg03-installed-watcher-delivery-20261111.json"
+      "latest_installed_delivery": "eval/eg03-installed-watcher-delivery-20261111.json",
+      "source_health_maintenance_batch_delivery_20261118": {
+        "record": "eval/source-health-maintenance-batch-delivery-20261118.json",
+        "finite_component_installed": true,
+        "full_original_requirement_complete": false
+      }
     },
     {
       "id": "EG-04",
@@ -678,6 +683,11 @@
       },
       "guidance_master_source_batch_delivery_20261117": {
         "record": "eval/guidance-master-source-batch-delivery-20261117.json",
+        "finite_component_installed": true,
+        "full_original_requirement_complete": false
+      },
+      "source_health_maintenance_batch_delivery_20261118": {
+        "record": "eval/source-health-maintenance-batch-delivery-20261118.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
       }
@@ -1511,7 +1521,12 @@
     {
       "id": "S07",
       "required_behavior": "Exact logical selection precedes lexical/vector top-k; counts, paths, citations and diagnostics agree.",
-      "state": "Partial: exact native pre-topK selection and complete physicalPK sets validated across7layouts10metadatafilters withsame logicalIDs andu64boundaries; native inheritedvector/lexical source reader+collection5PASS. Publichandler counts/paths/citations/diagnostics andboth-feature fullscope stillrequirematchingproof."
+      "state": "Partial: exact native pre-topK selection and complete physicalPK sets validated across7layouts10metadatafilters withsame logicalIDs andu64boundaries; native inheritedvector/lexical source reader+collection5PASS. Publichandler counts/paths/citations/diagnostics andboth-feature fullscope stillrequirematchingproof.",
+      "selected_health_counts_delivery_20261118": {
+        "record": "eval/source-health-maintenance-batch-delivery-20261118.json",
+        "finite_component_installed": true,
+        "full_gate_complete": false
+      }
     },
     {
       "id": "S08",
@@ -10461,14 +10476,14 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T21:47:53.407995+00:00",
+  "last_updated_at": "2026-11-18T21:55:47.581292+00:00",
   "current_execution_focus": {
-    "status": "SOURCE_COMPLETE_AWAITING_BASELINE_AND_COMBINED_VALIDATION",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "record": "eval/feature-plan-final-guidance-progress-20261118.json",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 4,
+    "pending_source_outcomes": 1,
     "full_original_goal_complete": false,
-    "next_action": "An exact-owner observer will run the prepared owned baseline once after current release deployment/restoration has finished. Accumulate further original source outcomes before any new compile; preserve current frozen release and protected WIP."
+    "next_action": "Keep this source queued and accumulate distinct original source outcomes before combined validation. Baseline missing final-target guidance confirmed with a controlled owned provider; no real-task replay. Do not compile this one19line change."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -17633,9 +17648,9 @@
     "historical_source_status": true
   },
   "latest_runtime_delivery": {
-    "record": "eval/planned-config-review-batch-delivery-20261118.json",
-    "server_sha256": "944f4cdbca03cf0f3cee651ff8f5180160fe0b6105677f5391457700e87202c4",
-    "manifest_sha256": "0b433cca45db52ef9099f38ca6b96bb4c302a8b7165ab213f26ab4e778b99ef9",
+    "record": "eval/source-health-maintenance-batch-delivery-20261118.json",
+    "server_sha256": "8ab70ccf5f178b1bf87a624f6b8833855113c2a70a2e9ff757ccdcb300f3cb71",
+    "manifest_sha256": "3525c9e68e86db7500a2764b438f091b93f2ec4fb23bb865d183b814d7c59af1",
     "selected_generation": 3157
   },
   "cache_guidance_attribute_batch_delivery_20261118": {
@@ -17668,8 +17683,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T20:35:34.689615+00:00",
-    "reason": "Actual94entry ownership preview rejects normal budget and returns68281bytes without it. Source completes4maintenance operation result controls and adds two finite acceptance cases without compilation; runtime unchanged."
+    "at_utc": "2026-11-18T21:55:47.581292+00:00",
+    "reason": "Installed3outcomes with5native and27public assertions perartifact using one native invocation and one release. Normal config/metadata preserved,215assets and matching bundle verified. Separately committed EG01 final-proposed-path guidance handoff; installed baseline gap confirmed in3.125s with all owned resources cleaned. New source remains uncompiled/queued; no additional build or task replay."
   },
   "config_instruction_evidence_source_progress_20261118": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
@@ -17765,5 +17780,6 @@
   "eg12_original_requirement_closure_20261118": "eval/eg12-original-requirement-closure-20261118.json",
   "eg14_original_drafting_requirement_closure_20261118": "eval/eg14-original-drafting-requirement-closure-20261118.json",
   "eg31_original_maintenance_requirement_closure_20261118": "eval/eg31-original-maintenance-requirement-closure-20261118.json",
-  "feature_plan_final_guidance_source_progress_20261118": "eval/feature-plan-final-guidance-progress-20261118.json"
+  "feature_plan_final_guidance_source_progress_20261118": "eval/feature-plan-final-guidance-progress-20261118.json",
+  "source_health_maintenance_batch_delivery_20261118": "eval/source-health-maintenance-batch-delivery-20261118.json"
 }

@@ -73,6 +73,12 @@ These degrade or improve *every single interaction*. Nothing below matters until
   Installed November18: refresh_corpora preserves complete typed stage results,
   errors and optional skips, sets aggregate isError and uses immutable bounded
   recovery without repeating refresh operations. [Delivery](eval/health-refresh-constant-delivery-20261118.json).
+  Installed November18: repair_project, index_git_history, ingest_zip_history
+  and ingest_quality_gates support complete caller-budgeted returned results
+  and exact recovery without repeating the operation. Returned success/error
+  outcomes survive retention failure with an explicit budget warning. Queued
+  acknowledgements still require job polling; broader TODO4 remains partial.
+  [Delivery](eval/source-health-maintenance-batch-delivery-20261118.json).
   Installed November18: budget-omitted batch_read results now have immutable
   recovery of original executed evidence/errors after source or memory changes
   and restart. Refresh calls remain separate; no atomic multi-read snapshot.
@@ -208,12 +214,23 @@ These degrade or improve *every single interaction*. Nothing below matters until
   detect it — it just gets wrong answers confidently. Add `index_age`/`generation`/
   `dirty_files_pending` to a standard response footer and a cheap `get_index_freshness` tool.
 
+  Installed November18: project_health distinguishes current published source
+  file/chunk counts from retained physical storage totals. Selected counts agree
+  with the published source after edit/delete and survive restart.
+  [Delivery](eval/source-health-maintenance-batch-delivery-20261118.json).
+
 - [x] **6. True incremental reindex in the file watcher** (M) — *done 2026-06-12 (re-scoped): update path was already fingerprint-incremental; the real cost was re-hashing every stat-matching file. Now trusts mtime+size (opt-out via verify_unchanged_hashes), debounce configurable (watch_debounce_secs). Remaining per-generation copy-forward cost belongs to #36 (git/index perf).*
   `engram_server/src/actors/watcher.rs`. Any file change currently triggers a full
   `update_project`; channel saturation loses file specificity; 5s debounce is hardcoded.
   Reindex only the changed files (the generation model already supports this), keep the
   file list across overflow, make debounce configurable. This is the difference between a
   brain that's always current and one that's minutes behind during active editing.
+
+  Installed November18: automatic source refresh and co-change warmup skip
+  unrelated parent history for unversioned child projects. Repository roots,
+  tracked subprojects and explicit history requests retain their behavior;
+  existing history rows are preserved. No LegacyValidation speedup is claimed.
+  [Delivery](eval/source-health-maintenance-batch-delivery-20261118.json).
 
 - [x] **7. Actionable error messages with recovery hints** (M) — *done 2026-06-12: ProjectNotFound, no_hits, get_chunk not-found, find_symbol_references empty — all carry concrete next steps.*
   Installed November16: saved memory updates/imports disclose partial indexing
