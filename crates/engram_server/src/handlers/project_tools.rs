@@ -3402,16 +3402,19 @@ impl Engram {
             engram_index::SemanticQuality::Off => "off (fts_only)",
         };
         out.push_str(&format!("semantic_search: {semantic}\n"));
+        out.push_str("semantic_search_scope: configured backend tier and build capability; this label does not establish operational availability.\n");
         match ps.search.semantic_quality() {
             engram_index::SemanticQuality::Semantic => {
                 out.push_str(
-                    "retrieval_readiness: READY (lexical and semantic providers available)\n",
+                    "semantic_provider_availability: UNVERIFIED_NOT_PROBED\nretrieval_readiness: UNVERIFIED (semantic provider configured; project_health does not contact it. Actual retrieval replies report provider outcomes.)\n",
                 );
             }
             engram_index::SemanticQuality::DegradedTrigram => {
+                out.push_str("semantic_provider_availability: NOT_A_SEMANTIC_PROVIDER\n");
                 out.push_str("retrieval_readiness: DEGRADED (semantic provider is a trigram projection; meaning-based recall is not fully available)\n");
             }
             engram_index::SemanticQuality::Off => {
+                out.push_str("semantic_provider_availability: DISABLED\n");
                 out.push_str("retrieval_readiness: DEGRADED (semantic retrieval is disabled; Health: OK covers source-index integrity only)\n");
             }
         }
