@@ -1,0 +1,48 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-01",
+  "source_commit": "42af7147faa571666854aacdf07ea7835f12ca6f",
+  "progress": "eval/ask-planned-guidance-progress-20261118.json",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118\\contract.json",
+  "native_target": "ask_planned_guidance",
+  "native_cases_expected": 3,
+  "native_environment": {
+    "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118\\verify-public.py",
+  "counting_rule": "One original task-scoped instruction retrieval workflow; VB and JS/SQL targets, rendering and live-hash variants count as acceptance, not distinct deliverables.",
+  "at_utc": "2026-11-18T18:20:14.544542+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118",
+  "runtime_deployed": false,
+  "builds_started": 0,
+  "native_tests_executed": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118\\baseline1\\receipt.json",
+    "sha256": "813cbf8d5414398b5de9c2754d43a515d3463bbf61161b8545c5fda394f74c3f",
+    "server_sha256": "8981757964cab9a132ea5088d33229fdf8e9b8dd4a5cd2d7be1b7564b619aca2",
+    "status": "BASELINE_GAP_CONFIRMED",
+    "checks": 4
+  },
+  "source_files": [
+    "crates/engram_server/src/handlers/ask_tools.rs",
+    "crates/engram_server/src/handlers/ask_policy.rs",
+    "crates/engram_server/src/services/project_policy.rs",
+    "crates/engram_server/src/services/ask_engine/report.rs",
+    "crates/engram_server/tests/ask_planned_guidance.rs"
+  ],
+  "syntax": "Rust and Python syntax checked; no Cargo run",
+  "public_assertions_expected": 9,
+  "implementation_items_active": 0,
+  "review": {
+    "external": "Retained trusted host CodeRabbit auth false; no external review/login.",
+    "parent": "Shared lexical normalization and task resolver reused; no source-body read/creation, ranking/status change, historical branch change, model/provider work or target-language expansion."
+  },
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118",
+    "baseline_owner_closed": true,
+    "baseline_fixture_removed": true,
+    "retention": "Retain finite contract/verifier/wire/receipt evidence until delivery accounting; new fixtures clean normally. No preexisting deletion."
+  },
+  "full_original_goal_complete": false,
+  "next_action": "Retain this one source outcome and select the next ready distinct original requirement. No Cargo until the existing three-ID admission rule is satisfied; no immediate build for this item alone."
+}

@@ -10451,11 +10451,12 @@
   },
   "last_updated_at": "2026-11-18T18:09:09.784064+00:00",
   "current_execution_focus": {
-    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
-    "previous_delivery": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "record": "eval/ask-planned-guidance-progress-20261118.json",
+    "pending_source_outcomes": 1,
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Advance the next ready unfinished original requirement. Preserve passed acceptance and held work; all current batch build/deployment sessions are terminal. No replay or further parser/route expansion for this accepted batch."
+    "next_action": "Retain this one source outcome and select the next ready distinct original requirement. No Cargo until the existing three-ID admission rule is satisfied; no immediate build for this item alone."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -17633,5 +17634,26 @@
       "TODO-31"
     ],
     "full_original_goal_complete": false
+  },
+  "ask_planned_guidance_source_progress_20261118": {
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement_id": "EG-01",
+    "source_commit": "42af7147faa571666854aacdf07ea7835f12ca6f",
+    "progress": "eval/ask-planned-guidance-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118\\contract.json",
+    "native_target": "ask_planned_guidance",
+    "native_cases_expected": 3,
+    "native_environment": {
+      "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+    },
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118\\verify-public.py",
+    "counting_rule": "One original task-scoped instruction retrieval workflow; VB and JS/SQL targets, rendering and live-hash variants count as acceptance, not distinct deliverables.",
+    "runtime_deployed": false,
+    "full_original_goal_complete": false
+  },
+  "current_goal_turn_classification": {
+    "status": "PROGRESS",
+    "at_utc": "2026-11-18T18:20:14.544542+00:00",
+    "reason": "Installed explicit prospective-file guidance gap reproduced; shared-resolver source improvement and three focused acceptance cases committed without compilation."
   }
 }
