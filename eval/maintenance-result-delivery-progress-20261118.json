@@ -1,0 +1,42 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-4",
+  "at_utc": "2026-11-18T20:19:12.075244+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\contract.json",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\baseline2\\receipt.json",
+  "parameter_gap": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\baseline-parameter-gap1.json",
+  "source_files": [
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/tests/maintenance_result_delivery.rs"
+  ],
+  "builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "implementation_items_active": 0,
+  "full_original_goal_complete": false,
+  "source_commit": "3a12c4efdab6a72cd37bb9fcadba703d928a9631",
+  "progress": "eval/maintenance-result-delivery-progress-20261118.json",
+  "native_target": "maintenance_result_delivery",
+  "native_cases_expected": 2,
+  "native_environment": {
+    "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\verify-public.py",
+  "counting_rule": "One original complete maintenance-result delivery outcome across4operations. Tool variants, errors, expiry and retention checks are not independent deliverables.",
+  "validation_status": "SYNTAX_ONLY_COMPILED_AND_PUBLIC_AFTER_CHECKS_PENDING",
+  "syntax": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\source-syntax1.json",
+  "public_assertions_expected": 9,
+  "observed_unbudgeted_preview_bytes": 68281,
+  "observed_source_entries": 94,
+  "scope_limit": "Returned operation results only; interrupted operations are not made retry-safe, no repair/import semantics or legacy ownership decisions are changed. Expired existing operation reports also stop advising replay.",
+  "normal_runtime_change": false,
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118",
+    "baseline_owners_closed": true,
+    "baseline_fixtures_removed": true,
+    "retention": "Retain parameter refusal, unbudgeted preview and source contract here until delivery accounting; no preexisting deletion."
+  },
+  "next_action": "Continue original source priorities and consolidate pending validation. Three independent outcomes is the minimum admission floor, not an automatic release schedule. Preserve all baselines and completed deliveries; no passed-check replay."
+}
