@@ -2827,13 +2827,18 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "FOCUSED_NATIVE_RUNNING",
+    "status": "NATIVE_AND_PUBLIC_DEBUG_PASS_RELEASE_RUNNING",
     "record": "eval/planned-config-review-batch-progress-20261118.json",
     "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Observe the same native1 session95223 to terminal; no relaunch. Inspect the seven case outcomes, retain passes, then run the three public contracts against the emitted debug executable before one optimized release.",
-    "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\native1-owner.json"
+    "next_action": "Observe existing exact release owner and postrelease observer. Reuse the same release for candidate/installed checks, restore normal runtime, then record accepted delivery. No new compilation or replay of seven native and24 debug passes.",
+    "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\native1-owner.json",
+    "release_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\release-owner-pin1.json",
+    "postrelease_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\postrelease-owner-pin1.json",
+    "native_cases_passed": 7,
+    "public_debug_assertions_passed": 24,
+    "runtime_deployed": false
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

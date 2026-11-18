@@ -1,5 +1,5 @@
 {
-  "status": "FOCUSED_NATIVE_RUNNING",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_PASS_RELEASE_RUNNING",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118",
   "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\source-preparation1.json",
   "native_target": "planned_config_review_delivery",
@@ -10,14 +10,27 @@
     "TODO-28"
   ],
   "runtime_deployed": false,
-  "builds_started": 1,
+  "builds_started": 2,
   "implementation_items_active": 0,
   "full_original_goal_complete": false,
-  "next_action": "Observe the same native1 session95223 to terminal; no relaunch. Inspect the seven case outcomes, retain passes, then run the three public contracts against the emitted debug executable before one optimized release.",
+  "next_action": "Observe existing exact release owner and postrelease observer. Reuse the same release for candidate/installed checks, restore normal runtime, then record accepted delivery. No new compilation or replay of seven native and24 debug passes.",
   "native_session_id": 95223,
   "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\native1-owner.json",
   "driver_pid": 83420,
   "driver_created": 1795027328.7469018,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\verify-public.py",
-  "public_verifier_sha256": "8f2600cb86707f791b47b04b9f8b3a87661d0663e5205f2be78e5cee50b32fee"
+  "public_verifier_sha256": "8f2600cb86707f791b47b04b9f8b3a87661d0663e5205f2be78e5cee50b32fee",
+  "at_utc": "2026-11-18T18:58:49.782992+00:00",
+  "native_cases_passed": 7,
+  "public_debug_assertions_passed": 24,
+  "native_invocations": 1,
+  "release_invocations": 1,
+  "full_suites": 0,
+  "separate_debug_builds": 0,
+  "release_session_id": 86679,
+  "release_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\release-owner-pin1.json",
+  "postrelease_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\postrelease-owner-pin1.json",
+  "postrelease_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\postrelease1-state.json",
+  "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\native-acceptance.json",
+  "public_debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\debug1\\receipt.json"
 }
