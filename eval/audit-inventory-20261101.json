@@ -612,10 +612,15 @@
       "required_behavior": [
         "A Windows-owned deep-path fixture persists and recovers a large response byte-for-byte with atomic containment and useful OS errors."
       ],
-      "closure_state": "Current native correctly selected8 Windows response-delivery cases pass including deep owned data path exact recovery. Historical actual94961B/five-page MCP proof retained; Nov2 wrong-filter50 totals explicitly excluded from delivery proof. Included in later shipped lineage; current deployed-path/long-path revalidation and original residual gates are not established by package inclusion.",
+      "closure_state": "Current installed deep-path recovery verified November18: 67655 original UTF-8 bytes recovered exactly through restart from a 318-character owned Windows response path. Both owners/fixture cleaned;14public assertionsPASS. Retained8native recovery cases remain separate. Useful OS-error disclosure and independent original gate limits are not promoted to complete; see eval/eg12-installed-deep-response-acceptance-20261118.json.",
       "dependencies": [],
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
-      "current_installed_delivery": "execution_evidence_20261101.eg02_installed_recovery_delivery_20261111"
+      "current_installed_delivery": "execution_evidence_20261101.eg02_installed_recovery_delivery_20261111",
+      "installed_deep_path_acceptance_20261118": {
+        "record": "eval/eg12-installed-deep-response-acceptance-20261118.json",
+        "status": "INSTALLED_DEEP_PATH_RESPONSE_RECOVERY_VERIFIED",
+        "whole_finding_complete": false
+      }
     },
     {
       "id": "EG-13",
@@ -10444,13 +10449,13 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T16:29:44.076661+00:00",
+  "last_updated_at": "2026-11-18T16:39:53.330246+00:00",
   "current_execution_focus": {
     "status": "PREVIOUS_FINITE_ACCEPTANCE_COMPLETE_SELECT_NEXT_ORIGINAL_REQUIREMENT",
-    "record": "eval/eg23-installed-identity-acceptance-20261118.json",
+    "record": "eval/eg12-installed-deep-response-acceptance-20261118.json",
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Advance a ready unfinished original requirement with a concrete missing behavior. Preserve delivered request/guidance/function batch and completed EG18/EG22/EG23 contracts, all held findings and failed comparisons. Do not replay passed acceptance or start another build without distinct original source outcomes."
+    "next_action": "Advance the next ready original missing behavior. Preserve installed request/guidance/function delivery, completed EG18/EG22/EG23 and accepted EG12 deep-path recovery. Do not repeat passed acceptance or expand this into exhaustive filesystem fault testing."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -17583,6 +17588,11 @@
   "eg23_original_requirement_closure_20261118": {
     "record": "eval/eg23-installed-identity-acceptance-20261118.json",
     "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+    "full_original_goal_complete": false
+  },
+  "eg12_installed_deep_response_acceptance_20261118": {
+    "record": "eval/eg12-installed-deep-response-acceptance-20261118.json",
+    "status": "INSTALLED_DEEP_PATH_RESPONSE_RECOVERY_VERIFIED",
     "full_original_goal_complete": false
   }
 }

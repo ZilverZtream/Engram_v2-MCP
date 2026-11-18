@@ -1,0 +1,52 @@
+{
+  "status": "INSTALLED_DEEP_PATH_RESPONSE_RECOVERY_VERIFIED",
+  "at_utc": "2026-11-18T16:39:53.330246+00:00",
+  "original_requirement_id": "EG-12",
+  "required_behavior": [
+    "A Windows-owned deep-path fixture persists and recovers a large response byte-for-byte with atomic containment and useful OS errors."
+  ],
+  "completed_acceptance": "Current installed Windows deep-path persistence, containment in the owned data root, independent persisted-byte/hash comparison, immutable complete recovery through restart and later source/memory changes.",
+  "original_required_behavior_complete": false,
+  "implementation_changed": false,
+  "server_sha256": "bae71931020244e0dbc1394755c847fd707067417b18e0578c1e9762d0ff46ce",
+  "source_commit": "100679586dde457755b70be02ec20489e69f4814",
+  "runtime_delivery": "eval/request-guidance-function-batch-delivery-20261118.json",
+  "public_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\deep-response-installed-20261118\\installed1\\receipt.json",
+    "sha256": "0af211d38b0a85202f7349e63d06c4a111dba8d61bc089d732e3223a19dd7a34",
+    "checks": 14,
+    "original_response_bytes": 67655,
+    "snapshot_path_chars": 318,
+    "owners": 2
+  },
+  "exact_byte_oracles": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\deep-response-installed-20261118\\installed1\\persisted-original.json",
+      "sha256": "5128ca39ca75b2f19d71ea66ef321ec75eeecf9933a5d02456325f17e76a1360"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\deep-response-installed-20261118\\installed1\\recovered-original-batch.json",
+      "sha256": "b7f452df261ba1fb4a8218830dd65c32328317db905fc1e157c9eb27674e5d5f"
+    }
+  ],
+  "verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\deep-response-installed-20261118\\verify-public.py",
+    "sha256": "58ca16940e649885d67e4029cb0393e50464b7cabdd18ed7a78b99cf2ab2daee"
+  },
+  "retained_native_evidence": "eval/audit-inventory-20261101.json:execution_evidence_20261101.peer_refresh_publication_recovery_cutoff_and_delivery_20261103; eight correctly selected response-delivery cases, separate from the grouped precedent fixture failure.",
+  "remaining": "This acceptance did not exercise a user-facing native filesystem-error response. Useful OS-error disclosure remains separately unverified here; no full-finding closure is claimed.",
+  "limits": [
+    "Positive deep-path persistence and exact completed recovery do not prove crash/power-loss behavior or exhaustive fault handling.",
+    "No new Cargo/native/full-suite run, paid provider/model call, actual LegacyValidation source/Q/index access or mutation, normal configuration change, language expansion or CodeMap/Blast change.",
+    "This verifies already shipped behavior on the current installed artifact; it is not a new runtime fix or measured task productivity gain."
+  ],
+  "resources": {
+    "owned_fixture_path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\deep-response-installed-20261118\\owned-dsp1pc9w",
+    "fixture_removed": true,
+    "all_mcp_owners_closed": true,
+    "evidence_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\deep-response-installed-20261118",
+    "cleanup": "Only the newly owned fixture was removed after process/reader/handle shutdown. Retain contract/verifier/wire/receipt/oracle files here; no preexisting deletion."
+  },
+  "builds_started": 0,
+  "full_original_goal_complete": false
+}
