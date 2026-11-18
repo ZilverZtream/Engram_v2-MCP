@@ -1,0 +1,218 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-18T18:09:09.784064+00:00",
+  "original_requirement_ids": [
+    "EG-12",
+    "EG-27",
+    "TODO-31"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118",
+  "source_preparation": {
+    "status": "SOURCE_FROZEN_FOR_FOCUSED_ACCEPTANCE",
+    "source_commit": "7cf2949384d1edb45c1cbce6438922c5ae4df822",
+    "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "checkout_clean": true,
+    "source_commits": [
+      "749ff12f4183c08980fcc3d6c4873e93d1c2d60e",
+      "970ac0577e132e01c5e3d906cb8b5c5035b076a0",
+      "a8a5c04b84ee6c5e95fb8d342734ba5bb2d4d15e",
+      "62fc1dc99662acceef6fee80de8934cbb20224e8"
+    ],
+    "original_requirement_ids": [
+      "EG-12",
+      "EG-27",
+      "TODO-31"
+    ],
+    "shared_target": "C:\\ai-projects\\Engram-MCP_v2\\target",
+    "new_worktrees_created": 0,
+    "source_files": [
+      "crates/engram_server/src/handlers/change_set_delivery.rs",
+      "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs",
+      "crates/engram_server/tests/sql_function_instruction_evidence.rs",
+      "crates/engram_server/src/services/request_trace.rs",
+      "crates/engram_server/src/services/request_trace/api.rs",
+      "crates/engram_server/src/services/request_trace/api_attributes.rs",
+      "crates/engram_server/src/handlers/request_trace_tools.rs",
+      "crates/engram_server/tests/request_trace_attribute_routes.rs",
+      "crates/engram_server/tests/cache_guidance_attribute_delivery.rs"
+    ],
+    "normalized_root_source_matches": true,
+    "native_target": "cache_guidance_attribute_delivery",
+    "native_cases_expected": 5,
+    "build_driver_sha256": "8e421e20253370b35a64eba0c0d7bf2c2e3bcd854d0ce0b68c069cf1e2891c19",
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "previous_frozen_commit": "80573c44dd3b37b4176a2abf661461db1bb144fd",
+    "fixture_correction_commit": "77bcf5b4139c60a34261e31e02a5e5289eb3df51",
+    "correction": "Supply missing native file Contains controller edge. Production source unchanged; retain2SQL passes and rerun only3attribute cases."
+  },
+  "delivered_behaviors": {
+    "EG-12": "Response-cache persistence errors retain contextual messages and native filesystem causes; the original memory/blocker is preserved.",
+    "EG-27": "SQL scalar and table-valued function declarations participate in instruction evidence, selective dependency changes and source-bound stale-proposal refusal.",
+    "TODO-31": "Registered literal VB RoutePrefix/Route candidates retain exact collection/item actions, parameters and controller/registration citations through the existing Roslyn sidecar."
+  },
+  "runtime": {
+    "status": "PACKAGE_READY_NOT_INSTALLED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\package1",
+    "server_sha256": "8981757964cab9a132ea5088d33229fdf8e9b8dd4a5cd2d7be1b7564b619aca2",
+    "manifest_sha256": "f95f63b0e16c3587fc76d8018ab5921001fd718c192f7df790505a9643fdcc38",
+    "old_server_sha256": "bae71931020244e0dbc1394755c847fd707067417b18e0578c1e9762d0ff46ce",
+    "old_manifest_sha256": "17e822405423c9ddf5d0ff979f0949850a9b5a945b3c0aa0e8ff991410ef9252",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\release1-reconciled.json",
+      "sha256": "42335addaeab320c3d27dfeef553b500e1720fc0af31e416a08f065cd950d0ca"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "17e822405423c9ddf5d0ff979f0949850a9b5a945b3c0aa0e8ff991410ef9252"
+    },
+    "source_commit": "7cf2949384d1edb45c1cbce6438922c5ae4df822"
+  },
+  "native_acceptance": {
+    "status": "PASS",
+    "native_cases_covered": 5,
+    "successful_native_labels": [
+      "native2"
+    ],
+    "retained_partial_native_labels": [
+      "native1"
+    ],
+    "native_invocations": 2,
+    "unique_cases": 5,
+    "test_executions": 8,
+    "source_changes_between_runs": [
+      "crates/engram_server/tests/request_trace_attribute_routes.rs"
+    ],
+    "production_source_unchanged_between_runs": true,
+    "native_seconds": 392.92386219999025,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "initial_failure": "3route tests lacked fixture file Contains controller edge; two SQL passes retained.",
+    "owners_closed": true,
+    "owned_build_temps_removed": true,
+    "case_results": {
+      "sql_functions::scalar_and_table_valued_functions_preserve_complete_declared_evidence": "native1",
+      "sql_functions::changed_function_selects_its_consumer_without_selecting_unchanged_procedure_guidance": "native1",
+      "attributes::attribute_collection_and_item_routes_keep_their_exact_action_and_database_source": "native2",
+      "attributes::registration_verbs_and_current_source_gate_attributes_while_conventional_candidates_remain": "native2",
+      "attributes::literal_method_routes_work_without_a_class_prefix": "native2"
+    }
+  },
+  "public_check_assertions_per_artifact": 21,
+  "public_receipts": {
+    "debug": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\debug-acceptance1.json",
+    "candidate": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\candidate1\\acceptance.json",
+    "installed": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\installed1\\acceptance.json"
+  },
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\restored-runtime\\receipt.json",
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3157,
+  "source_head_revision": 49,
+  "source_format": 9,
+  "full_original_goal_complete": false,
+  "protected_wip9": "UNCHANGED",
+  "build_accounting": {
+    "native_invocations": 2,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "native_unique_cases": 5,
+    "native_test_executions": 8,
+    "native_seconds": 392.92386219999025,
+    "release_seconds": 1115.2161072999952,
+    "pure_coding_percentage": null,
+    "release_runner_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\release1.json",
+    "release_artifact_reconciliation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\release1-reconciled.json",
+    "rebuilds_during_deployment": 0
+  },
+  "deployment_accounting": {
+    "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\deployment1-state.json",
+    "first_attempt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\deployment-first-attempt1.json",
+    "baseline_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\baseline-generation-correction1.json",
+    "initial_refusal": "Actual quiescent generation3157/revision49 differed from prior3154 baseline; stopped before candidate fixtures or installation. Captured baseline preserved, never reset or reindexed."
+  },
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\Engram-win-x64-cache-guidance-attributes.zip",
+    "sha256": "95DFC3181BA5501ADBAE83881534E85E42532727BAA3F64CC1CE4901D87B8041",
+    "entries": 219,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "F95F63B0E16C3587FC76D8018AB5921001FD718C192F7DF790505A9643FDCC38"
+  },
+  "windows_zip_sha256": "95dfc3181ba5501adbae83881534e85e42532727baa3f64cc1ce4901d87b8041",
+  "temporary_resources": {
+    "owned_jobs_and_build_temps_closed": true,
+    "owned_public_processes_readers_and_fixtures_closed": true,
+    "owned_private_config_removed": true,
+    "native_prefixes_remaining": [],
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118",
+    "managed_rollback_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-1bdcf355e00444bda5519930e14e12e0",
+    "intentionally_retained_runtime": {
+      "pid": 64988,
+      "purpose": "Normal installed daemon; ordinary idle lifecycle."
+    },
+    "retention": "Retain receipts/package/ZIP and rollback pending separate accounting. No preexisting deletion."
+  },
+  "limitations": [
+    "These are source candidates: HTTP hosting, registration execution/control flow, route precedence, authorization and successful request/database execution remain unproven. Literal VB attributes, whole named parameters and int constraints only; existing native limits remain.",
+    "Attribute public acceptance requires the unchanged packaged Roslyn companion. Unpaired debug1/debug2 fallback failures remain retained; fallback support was not expanded. The fixture-only missing membership failure and two unaffected SQL passes are retained separately.",
+    "Instruction function candidates preserve raw declaration spans/hash evidence and authored exceptions; declaration drift does not establish semantic policy intent, binding, approval or permission to rewrite authored guidance.",
+    "One release completed with Cargo exit0. Runner post-build argument-order assertion failed; existing artifact/source/cleanup were reconciled without another compilation. The original failure receipt is preserved.",
+    "CodeRabbit was unauthenticated; no external review or login occurred. Parent source review and focused acceptance are recorded separately.",
+    "No actual LegacyValidation source/Q access or index mutation, target-language expansion, provider/model request, CodeMap/Blast improvement, source-format/schema/sidecar change, task comparison replay or preexisting deletion.",
+    "Original31findings/19gates, held work and failed usefulness comparisons remain preserved. No general AI readiness, incremental task benefit, coding-time percentage or spend justification is established."
+  ],
+  "source_outcomes_at_admission": [
+    {
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "original_requirement_id": "EG-12",
+      "source_commit": "749ff12f4183c08980fcc3d6c4873e93d1c2d60e",
+      "progress": "eval/response-cache-os-error-progress-20261118.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118\\contract.json",
+      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118\\verify-public.py",
+      "native_target": null,
+      "native_test_added": false,
+      "public_acceptance_required": true,
+      "counting_rule": "One original useful-OS-error response-persistence outcome; six propagation sites are not six deliverables."
+    },
+    {
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "original_requirement_id": "EG-27",
+      "source_commit": "970ac0577e132e01c5e3d906cb8b5c5035b076a0",
+      "progress": "eval/sql-function-guidance-progress-20261118.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-function-guidance-20261118\\contract.json",
+      "native_target": "sql_function_instruction_evidence",
+      "native_cases_expected": 2,
+      "native_environment": {
+        "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+      },
+      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-function-guidance-20261118\\verify-public.py",
+      "counting_rule": "One original SQL-function instruction-evidence workflow; scalar/TVF and implicit selection are acceptance variants, not distinct deliverables."
+    },
+    {
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "original_requirement_id": "TODO-31",
+      "source_commit": "62fc1dc99662acceef6fee80de8934cbb20224e8",
+      "progress": "eval/attribute-request-trace-progress-20261118.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\attribute-request-trace-20261118\\contract.json",
+      "native_target": "request_trace_attribute_routes",
+      "native_cases_expected": 3,
+      "native_environment": {
+        "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+      },
+      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\attribute-request-trace-20261118\\verify-public.py",
+      "counting_rule": "One literal VB attribute-route workflow. Collection/item/full-method, registration/verb/source admission and conventional compatibility are acceptance variants, not independent features.",
+      "original_source_commit": "a8a5c04b84ee6c5e95fb8d342734ba5bb2d4d15e"
+    }
+  ],
+  "component_progress": {
+    "EG-12": "eval/response-cache-os-error-progress-20261118.json",
+    "EG-27": "eval/sql-function-guidance-progress-20261118.json",
+    "TODO-31": "eval/attribute-request-trace-progress-20261118.json"
+  }
+}

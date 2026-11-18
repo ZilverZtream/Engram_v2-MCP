@@ -17,10 +17,10 @@
     "cleanup": "Reuse owned public fixture construction and close all MCP owners before removing its newly created temporary directory; retain only scripts/receipts/wire here."
   },
   "build_rule": "Queue one original source outcome. Do not compile before enough independent original source outcomes are ready; no filler or release-every-three rule.",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "builds_started": 0,
   "validated": false,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "source_commit": "749ff12f4183c08980fcc3d6c4873e93d1c2d60e",
   "source_complete": true,
   "syntax_check": "PASS_RUSTFMT_STDIN_NO_REFORMAT",
@@ -40,5 +40,10 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118\\verify-public.py",
     "sha256": "fbfffbdc504d00483bf59700c09c9fb6f2641ff1a9ccea0e09943f142f5391d3"
   },
-  "next_action": "Keep queued without Cargo. Advance another original source requirement, then run affected public verification on the next admitted combined candidate/installed artifact. Preserve accepted successful deep-path recovery."
+  "next_action": "Keep queued without Cargo. Advance another original source requirement, then run affected public verification on the next admitted combined candidate/installed artifact. Preserve accepted successful deep-path recovery.",
+  "validation_status": "PASS",
+  "delivery_record": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
+  "installed_runtime_sha256": "8981757964cab9a132ea5088d33229fdf8e9b8dd4a5cd2d7be1b7564b619aca2",
+  "native_cases_executed": 0,
+  "installed_public_assertions": 4
 }

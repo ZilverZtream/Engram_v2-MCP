@@ -10449,14 +10449,13 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T17:17:13.370457+00:00",
+  "last_updated_at": "2026-11-18T18:09:09.784064+00:00",
   "current_execution_focus": {
-    "status": "PREPARING_FOCUSED_ACCEPTANCE",
-    "record": "eval/cache-guidance-attribute-batch-progress-20261118.json",
-    "pending_source_outcomes": 3,
+    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
+    "previous_delivery": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Freeze the existing clean shipping checkout with only queued source commits and the5-case aggregate. Verify source bindings, then admit one native Cargo invocation through unchanged scripts/run_delivery_build.py."
+    "next_action": "Advance the next ready unfinished original requirement. Preserve passed acceptance and held work; all current batch build/deployment sessions are terminal. No replay or further parser/route expansion for this accepted batch."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -16688,7 +16687,7 @@
   },
   "active_release_validation": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "record": "eval/request-guidance-function-batch-delivery-20261118.json",
+    "record": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
     "all_build_sessions_terminal": true,
     "full_original_goal_complete": false
   },
@@ -17598,20 +17597,41 @@
   },
   "response_cache_os_error_source_progress_20261118": {
     "progress": "eval/response-cache-os-error-progress-20261118.json",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "runtime_deployed": false,
-    "full_original_goal_complete": false
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "runtime_deployed": true,
+    "full_original_goal_complete": false,
+    "delivery_record": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
+    "historical_source_status": true
   },
   "sql_function_guidance_source_progress_20261118": {
     "progress": "eval/sql-function-guidance-progress-20261118.json",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "runtime_deployed": false,
-    "full_original_goal_complete": false
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "runtime_deployed": true,
+    "full_original_goal_complete": false,
+    "delivery_record": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
+    "historical_source_status": true
   },
   "attribute_request_trace_source_progress_20261118": {
     "progress": "eval/attribute-request-trace-progress-20261118.json",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "runtime_deployed": false,
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "runtime_deployed": true,
+    "full_original_goal_complete": false,
+    "delivery_record": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
+    "historical_source_status": true
+  },
+  "latest_runtime_delivery": {
+    "record": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
+    "server_sha256": "8981757964cab9a132ea5088d33229fdf8e9b8dd4a5cd2d7be1b7564b619aca2",
+    "manifest_sha256": "f95f63b0e16c3587fc76d8018ab5921001fd718c192f7df790505a9643fdcc38",
+    "selected_generation": 3157
+  },
+  "cache_guidance_attribute_batch_delivery_20261118": {
+    "record": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
+    "original_requirement_ids": [
+      "EG-12",
+      "EG-27",
+      "TODO-31"
+    ],
     "full_original_goal_complete": false
   }
 }

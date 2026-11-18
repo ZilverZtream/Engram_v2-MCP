@@ -41,14 +41,14 @@
     "cleanup": "New owned fixture resources close before directory removal; retain only scripts/contracts/wire/oracles here."
   },
   "build_rule": "Third distinct original source outcome, after EG12 and EG27; not permission to compile before source and acceptance preparation finish. Minimum3 is an admission floor, not automatic release cadence.",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "source_complete": true,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "builds_started": 0,
   "source_commit": "62fc1dc99662acceef6fee80de8934cbb20224e8",
   "syntax_check": "PASS_5_RUST_FILES_NO_COMPILATION",
   "native_cases_written": 3,
-  "native_cases_executed": 0,
+  "native_cases_executed": 3,
   "public_baseline": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\attribute-request-trace-20261118\\baseline1\\receipt.json",
     "sha256": "7955ca6e0112da0a66ab164bc3fca822ca50396369fd2becce80af856c284e0c",
@@ -65,5 +65,9 @@
     "behavior": "New attribute registrations require selected file generation/hash before they can enable routes. Existing routing control includes edited registration source.",
     "review_type": "Parent bounded source inspection",
     "external_coderabbit": "No review ran: trusted host CLI auth status returned authenticated:false."
-  }
+  },
+  "validation_status": "PASS",
+  "delivery_record": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
+  "installed_runtime_sha256": "8981757964cab9a132ea5088d33229fdf8e9b8dd4a5cd2d7be1b7564b619aca2",
+  "installed_public_assertions": 9
 }
