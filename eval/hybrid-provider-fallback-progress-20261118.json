@@ -1,0 +1,36 @@
+{
+  "original_requirement_id": "TODO-2",
+  "original_requirement": "Ship real semantic embeddings or degrade honestly in the ordinary core agent query loop.",
+  "status": "IMPLEMENTING",
+  "source_phase_started_at_utc": "2026-11-18T00:20:44.866177+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118\\contract.json",
+  "observed_missing_behavior": "Installed public proof: a failed configured embedding provider causes ordinary search_memory to error and discard available lexical source results. Owned fixture produced positive explicit lexical results and failed ordinary hybrid query in3.04s despite vector_search_timeout_ms=100.",
+  "priority_basis": "LegacyValidation configured Ollama backend and Full tool profile; config hash verified unchanged. This server implementation uses owned TS evidence only, not actual LegacyValidation files.",
+  "finite_acceptance": [
+    "Ordinary hybrid search preserves lexical source/knowledge results if optional semantic retrieval fails or exhausts a single configured vector_search_timeout_ms budget shared across project and user namespaces. Provider failure must not cause repeated requests across namespace fanout. Pure vector_search keeps explicit capability/error semantics.",
+    "JSON and Markdown disclose actual lexical fallback and configured quality separately; empty results must retain fallback warnings. Preserve requested source/namespace/path/author/date filters, pinned source generation, source guidance, pagination and saved overflow delivery. Lexical retrieval failures remain errors.",
+    "Use owned fast, failing and delayed local providers to verify positive source/knowledge results, truthful no-hit/fallback output and existing successful hybrid behavior. No real model calls, no standalone Cargo or deployment for this source item."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/handlers/search_tools.rs",
+    "crates/engram_server/src/handlers/search_tools/hybrid_delivery.rs",
+    "crates/engram_core/src/config.rs",
+    "crates/engram_server/tests/hybrid_query_fallback_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118\\baseline1\\receipt.json",
+  "baseline_checks_passed": 3,
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118",
+    "purpose": "Owned source/provider availability proof and acceptance; retain evidence until delivery",
+    "baseline_provider_closed": true,
+    "baseline_owner_closed": true,
+    "owned_fixture_removed": true,
+    "cleanup_condition": "Stop owned provider threads and close server/database handles before owned fixture removal; no preexisting deletion."
+  },
+  "next_action": "Implement finite optional-semantic fallback with truthful actual outcomes; preserve two queued source outcomes."
+}

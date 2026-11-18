@@ -74,7 +74,7 @@
     "Vector baseline uses the existing owned four-value local HTTP provider fixture; no real model or external service. Positive future public vector recovery includes provider-off process restart.",
     "The compiling edit/review/history release uses its frozen shipping checkout and excludes this later change. No source copied there, no extra compile/full suite, no actual LegacyValidation source/reindex/mutation, no Site/Q, no closed-tool or language expansion, and no preexisting deletion."
   ],
-  "source_commit": "028d57dfdbcf83821b89bd6c8068b80375386363",
+  "source_commit": "c31765d954fea20369e07d4592dc2dab390deea7",
   "current_runtime_relationship": "Latest installed edit/review/history release excludes this later query-default source change; queued source remains undeployed.",
   "source_followups": [
     {
@@ -83,7 +83,9 @@
       "scope": "Align three actual request schemas with queued default-overflow behavior. Retain original query outcome; this is not a new independent deliverable.",
       "validation": "rustfmt syntax parse and diff-check passed; existing public verifier will check emitted tools/list descriptions in the shared acceptance run.",
       "native_test_cases_added": 0,
-      "engram_builds_started": 0
+      "engram_builds_started": 0,
+      "source_commit": "c31765d954fea20369e07d4592dc2dab390deea7"
     }
-  ]
+  ],
+  "original_source_commit": "028d57dfdbcf83821b89bd6c8068b80375386363"
 }
