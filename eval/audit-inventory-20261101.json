@@ -1039,7 +1039,7 @@
         "Establish whether repository cards can be reused across embedding identities/configurations in one process.",
         "Prevent incompatible reuse if reachable, or disprove reachability with configuration/process-boundary evidence."
       ],
-      "closure_state": "Local identity/retention behavior verified:8native servicecases includingactual sameRepo twoLocalconfigurations/provideroracle+10 concurrentprofiles;7no-vector common servicecases. Canonicalrepo/documentprovideridentity/dimension/prefix key, localrequest snapshots,8partitions/estimated32MiBretention. Implementation included in shipped lineage; full-change review, feature-specific deployed acceptance and original residual gates remain open.",
+      "closure_state": "Original embedding-identity reachability/isolation requirement verified complete: retained same-process actual-engine/provider oracles plus installed public A/B/A model identity and durable reuse acceptance. eval/eg23-installed-identity-acceptance-20261118.json. Independent full-audit resource and task-usefulness gates remain open.",
       "dependencies": [],
       "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
@@ -1049,7 +1049,12 @@
         "disposition": "Retain under embedding configuration correctness; do not displace current S01/Ollama blocking fix or automatically expand its acceptance."
       },
       "latest_installed_restart_acceptance": "eval/legacy_validation-history-restart-acceptance-20261113.json",
-      "installed_restart_scope": "Closes current installed same-configuration LegacyValidation result/restart acceptance. Native metadata timing/provider counters and cross-configuration identity tests remain separate evidence. Does not close full resource/review gates, all EG23 installed identity scenarios, or overall task usefulness."
+      "installed_restart_scope": "Closes current installed same-configuration LegacyValidation result/restart acceptance. Native metadata timing/provider counters and cross-configuration identity tests remain separate evidence. Does not close full resource/review gates, all EG23 installed identity scenarios, or overall task usefulness.",
+      "original_requirement_closure_20261118": {
+        "record": "eval/eg23-installed-identity-acceptance-20261118.json",
+        "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+        "full_original_goal_complete": false
+      }
     },
     {
       "id": "EG-24",
@@ -10439,14 +10444,13 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T16:26:28.323785+00:00",
+  "last_updated_at": "2026-11-18T16:29:44.076661+00:00",
   "current_execution_focus": {
-    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
-    "record": "eval/request-guidance-function-batch-delivery-20261118.json",
-    "pending_source_outcomes": 0,
+    "status": "PREVIOUS_FINITE_ACCEPTANCE_COMPLETE_SELECT_NEXT_ORIGINAL_REQUIREMENT",
+    "record": "eval/eg23-installed-identity-acceptance-20261118.json",
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Advance the next ready unfinished original requirement. Preserve held work and passed acceptance; do not restart terminal builds or replay accepted checks."
+    "next_action": "Advance a ready unfinished original requirement with a concrete missing behavior. Preserve delivered request/guidance/function batch and completed EG18/EG22/EG23 contracts, all held findings and failed comparisons. Do not replay passed acceptance or start another build without distinct original source outcomes."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -17574,6 +17578,11 @@
       "EG-27",
       "TODO-28"
     ],
+    "full_original_goal_complete": false
+  },
+  "eg23_original_requirement_closure_20261118": {
+    "record": "eval/eg23-installed-identity-acceptance-20261118.json",
+    "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
     "full_original_goal_complete": false
   }
 }

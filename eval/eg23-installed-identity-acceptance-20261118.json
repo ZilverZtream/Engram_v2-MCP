@@ -1,0 +1,84 @@
+{
+  "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+  "at_utc": "2026-11-18T16:29:44.076661+00:00",
+  "original_requirement_id": "EG-23",
+  "required_behavior": [
+    "Establish whether repository cards can be reused across embedding identities/configurations in one process.",
+    "Prevent incompatible reuse if reachable, or disprove reachability with configuration/process-boundary evidence."
+  ],
+  "implementation_changed_during_acceptance": false,
+  "current_installed_source_commit": "100679586dde457755b70be02ec20489e69f4814",
+  "server_sha256": "bae71931020244e0dbc1394755c847fd707067417b18e0578c1e9762d0ff46ce",
+  "current_runtime_delivery": "eval/request-guidance-function-batch-delivery-20261118.json",
+  "retained_same_process_native_evidence": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\history-document-profile-isolation-and-bounded-retention-native.json",
+      "sha256": "2e0103165c7c4f014ccc69bbf953ad22861f1d1afb5f62dd295ceb656f403dbc"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\history-rerank-and-cache-retention-no-vector.json",
+      "sha256": "9103fcb6c1a814e9938624eab6f3289d48f70cfd03e175c8972e05ac117d042c"
+    }
+  ],
+  "public_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118\\installed2\\receipt.json",
+    "sha256": "31a32a02b3068ffe96ba30aa1b5468e010e9fc488de028dee4d1a4ead01f7f8b",
+    "checks": 17,
+    "owners": 3,
+    "model_document_counts": [
+      3,
+      3,
+      0
+    ],
+    "normal_configuration_unchanged": true
+  },
+  "requirement_mapping": [
+    {
+      "requirement": "Establish whether repository cards can be reused across embedding identities/configurations in one process.",
+      "proof": "Retained native same-repository A/B/A engines use independently computed LocalEmbedder vectors; ten concurrent document profiles retain the requested vectors under cache pressure. Cross-configuration service reuse is reachable."
+    },
+    {
+      "requirement": "Prevent incompatible reuse if reachable, or disprove reachability with configuration/process-boundary evidence.",
+      "proof": "Current source keys vectors by canonical repository, provider document identity and document prefix and validates complete finite vectors against the provider dimension. Retained native provider oracles prove same-process isolation. Installed A/B/A process lifetimes with one shared owned store and local Ollama mock prove distinct model document traffic3/3 and durable A reuse0, stable warm results and exact Git commit identities."
+    }
+  ],
+  "retained_failed_fixture_attempt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118\\installed1\\receipt.json",
+    "sha256": "cef088efd150fdffdb20427cbc7cb5c5e4679cb1525e551b97bcd8f3a8f5c7c0",
+    "identity_assertions_executed": 0,
+    "reason": "libgit2 refused deeply nested owned .git path before history evaluation",
+    "correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118\\fixture-path-correction1.json",
+    "all_resources_closed": true
+  },
+  "verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118\\verify-installed.py",
+    "sha256": "eda618ed56e034f6171c4e6da596e4f2a3e41f7fb554d5e0bab90c3bf169ae55"
+  },
+  "limitations": [
+    "This acceptance completes the stated original identity-isolation requirement. It does not add a new cache implementation or demonstrate semantic-model quality, ranking improvements, production latency or LegacyValidation task benefit.",
+    "The public check uses three sequential processes and a local two-dimensional model oracle. It does not prove simultaneous distinct public configurations in one process; the retained actual-engine native check supplies that service-level evidence. Concurrent churn is not a barrier-controlled race proof.",
+    "No new Cargo invocation, native/full-suite replay, real provider/model call, actual LegacyValidation source/Q/index mutation or normal configuration change. Independent original resource, hosted verification and task-usefulness requirements remain open."
+  ],
+  "resources": {
+    "owned_fixtures": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118\\installed1\\owned-xlakdn2k",
+        "purpose": "Owned Git history/config/store/runtime fixture",
+        "removed": true,
+        "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118\\installed1\\receipt.json"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hp-z2dhtqlr",
+        "purpose": "Owned Git history/config/store/runtime fixture",
+        "removed": true,
+        "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118\\installed2\\receipt.json"
+      }
+    ],
+    "all_mcp_owners_closed": true,
+    "provider_thread_and_socket_closed": true,
+    "evidence_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118",
+    "preexisting_deletions": 0,
+    "protected_wip9": "UNCHANGED"
+  },
+  "full_original_goal_complete": false
+}

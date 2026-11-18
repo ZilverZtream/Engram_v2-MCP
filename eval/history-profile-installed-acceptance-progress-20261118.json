@@ -1,5 +1,5 @@
 {
-  "status": "PUBLIC_INSTALLED_ACCEPTANCE_PREPARED_NOT_EXECUTED",
+  "status": "INSTALLED_ACCEPTANCE_COMPLETE",
   "at_utc": "2026-11-18T16:05:32.330061+00:00",
   "original_requirement_id": "EG-23",
   "original_requirement": "Establish whether repository cards can be reused across embedding identities/configurations in one process; prevent incompatible reuse if reachable.",
@@ -16,9 +16,9 @@
   },
   "verifier": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118\\verify-installed.py",
-    "sha256": "0d7d5da265dc52d9019b8df3bc1128f4287f5733e392171225016d68f6812dcb",
+    "sha256": "eda618ed56e034f6171c4e6da596e4f2a3e41f7fb554d5e0bab90c3bf169ae55",
     "syntax_check": "PASS",
-    "runtime_executed": false
+    "runtime_executed": true
   },
   "acceptance": [
     "After the preceding release/install/record finishes, use one pinned installed artifact and one owned repository/store with two Nomic-style model identities served by a local mock.",
@@ -34,8 +34,19 @@
     "builds_started": 0,
     "real_provider_calls": 0,
     "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118",
-    "cleanup": "Verifier owns temporary repository/config/store under its installed1 evidence directory; MCP processes close before directory removal, and local provider socket/thread close before teardown."
+    "cleanup": "Attempt1 owned its deep temporary directory under installed1; attempt2 owned hp-z2dhtqlr under the recorded current-task-check parent. Both removed after MCP/process shutdown and provider thread/socket closure. Exact paths and receipts are in the acceptance record."
   },
   "full_original_goal_complete": false,
-  "acceptance_note": "Every phase uses a first query absent from that model cache, including a distinct return-to-A query, so observed model identity cannot pass vacuously when all embeddings are cached."
+  "acceptance_note": "Every phase uses a first query absent from that model cache, including a distinct return-to-A query, so observed model identity cannot pass vacuously when all embeddings are cached.",
+  "retained_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118\\installed1\\receipt.json",
+  "fixture_path_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118\\fixture-path-correction1.json",
+  "runtime_executed": true,
+  "acceptance_record": "eval/eg23-installed-identity-acceptance-20261118.json",
+  "acceptance_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-profile-installed-20261118\\installed2\\receipt.json",
+  "checks_passed": 17,
+  "checks_total": 17,
+  "original_required_behavior_complete": true,
+  "implementation_changed": false,
+  "builds_started": 0,
+  "failed_attempt_verifier_sha256": "0d7d5da265dc52d9019b8df3bc1128f4287f5733e392171225016d68f6812dcb"
 }
