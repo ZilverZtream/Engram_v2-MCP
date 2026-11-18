@@ -11,7 +11,7 @@
     "crates/engram_server/tests/maintenance_result_delivery.rs"
   ],
   "builds_started": 0,
-  "native_tests_executed": 0,
+  "native_tests_executed": 2,
   "runtime_deployed": false,
   "implementation_items_active": 0,
   "full_original_goal_complete": false,
@@ -24,7 +24,7 @@
   },
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\verify-public.py",
   "counting_rule": "One original complete maintenance-result delivery outcome across4operations. Tool variants, errors, expiry and retention checks are not independent deliverables.",
-  "validation_status": "FOCUSED_COMBINED_NATIVE_RUNNING",
+  "validation_status": "NATIVE_AND_PUBLIC_DEBUG_PASS_INSTALLED_PENDING",
   "syntax": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\source-syntax1.json",
   "public_assertions_expected": 9,
   "observed_unbudgeted_preview_bytes": 68281,
@@ -38,6 +38,10 @@
     "baseline_fixtures_removed": true,
     "retention": "Retain parameter refusal, unbudgeted preview and source contract here until delivery accounting; no preexisting deletion."
   },
-  "next_action": "Observe same pinned native owner; reuse its debug artifact for frozen public checks. No release is started by observer. Record acceptance then consider consolidation before release.",
-  "validation_batch": "eval/source-health-maintenance-batch-progress-20261118.json"
+  "next_action": "Start one owned optimized release for the accepted frozen source, then reuse it for candidate and installed checks. No native/debug replay or full suite.",
+  "validation_batch": "eval/source-health-maintenance-batch-progress-20261118.json",
+  "validation_batch_native_invocations": 1,
+  "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\native-acceptance.json",
+  "public_debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\debug1\\receipt.json",
+  "public_debug_checks_passed": 9
 }

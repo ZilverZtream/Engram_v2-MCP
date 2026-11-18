@@ -1,6 +1,6 @@
 {
-  "status": "FOCUSED_NATIVE_RUNNING",
-  "at_utc": "2026-11-18T21:02:39.809196+00:00",
+  "status": "NATIVE_AND_DEBUG_ACCEPTED_RELEASE_READY",
+  "at_utc": "2026-11-18T21:10:16.760767+00:00",
   "original_requirement_ids": [
     "EG-13",
     "EG-03",
@@ -43,11 +43,19 @@
   "runtime_deployed": false,
   "protected_wip9": "UNCHANGED",
   "full_original_goal_complete": false,
-  "next_action": "Observe same pinned native owner; reuse its debug artifact for frozen public checks. No release is started by observer. Record acceptance then consider consolidation before release.",
+  "next_action": "Start one owned optimized release for the accepted frozen source, then reuse it for candidate and installed checks. No native/debug replay or full suite.",
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118",
     "owned_job": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\native1-owner.json",
     "observer": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\observer-owner1.json",
     "cleanup": "Build driver closes owned Job/temp; public verifiers close owners and remove fixtures. Retain evidence here. No preexisting deletion."
-  }
+  },
+  "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\native-acceptance.json",
+  "native_seconds": 536.9881183000034,
+  "native_cases_passed": 5,
+  "public_debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\debug1\\receipt.json",
+  "public_debug_checks_passed": 27,
+  "public_debug_seconds": 38.58825320000324,
+  "debug_server_sha256": "3ee6cdc099f4751cf29f6f5e108fdb193273cff7c31c63991e8d437c3328c927",
+  "release_plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\release-plan.json"
 }
