@@ -2577,14 +2577,16 @@
         "original_requirement_id": "TODO-28",
         "related_original_requirement": "EG-19",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "0fcf9d775297dca094f9ecad9041756705c3ce24",
+        "source_commit": "0da6e25afc190393fb8999f39de3d32e9620c1c5",
         "progress": "eval/memory-decision-provenance-progress-20261118.json",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118\\contract.json",
         "behavior": "Natural-language memory evidence retains exact stored record provenance and full guarded read actions; metadata-only changes refuse old recovery and categories do not imply approved policy.",
         "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
         "runtime_deployed": false,
         "native_target": "memory_decision_provenance",
-        "counting_rule": "One source-bound full memory context/provenance recovery outcome for the natural-language entry point. Category-authority correction supports that outcome; it is not an additional deliverable or a reused Markdown-classification outcome."
+        "counting_rule": "One source-bound full memory context/provenance recovery outcome for the natural-language entry point. Category-authority correction supports that outcome; it is not an additional deliverable or a reused Markdown-classification outcome.",
+        "original_source_commit": "0fcf9d775297dca094f9ecad9041756705c3ce24",
+        "production_selection_correction": true
       },
       {
         "original_requirement_id": "EG-21",
@@ -2831,14 +2833,14 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "COMBINED_NATIVE_RUNNING",
+    "status": "COMBINED_NATIVE_CORRECTION_READY",
     "progress": "eval/review-memory-history-progress-20261118.json",
     "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "runtime_deployed": false,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "Native1 compiled production library but test API mismatch prevented execution. Fixture corrected; rerun the same8cases reusing existing build artifacts, then public acceptance. No production change or widened suite."
+    "next_action": "Retain6passed review/history cases from native2. Rerun only2affected memory cases after canonical memory-source correction; no full suite or acceptance weakening."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4104,14 +4106,16 @@
     "original_requirement_id": "TODO-28",
     "related_original_requirement": "EG-19",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "source_commit": "0fcf9d775297dca094f9ecad9041756705c3ce24",
+    "source_commit": "0da6e25afc190393fb8999f39de3d32e9620c1c5",
     "progress": "eval/memory-decision-provenance-progress-20261118.json",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118\\contract.json",
     "behavior": "Natural-language memory evidence retains exact stored record provenance and full guarded read actions; metadata-only changes refuse old recovery and categories do not imply approved policy.",
     "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
     "runtime_deployed": false,
     "native_target": "memory_decision_provenance",
-    "counting_rule": "One source-bound full memory context/provenance recovery outcome for the natural-language entry point. Category-authority correction supports that outcome; it is not an additional deliverable or a reused Markdown-classification outcome."
+    "counting_rule": "One source-bound full memory context/provenance recovery outcome for the natural-language entry point. Category-authority correction supports that outcome; it is not an additional deliverable or a reused Markdown-classification outcome.",
+    "original_source_commit": "0fcf9d775297dca094f9ecad9041756705c3ce24",
+    "production_selection_correction": true
   },
   "pre_push_complete_delivery_hypothesis_20261118": {
     "progress": "eval/pre-push-complete-delivery-progress-20261118.json",

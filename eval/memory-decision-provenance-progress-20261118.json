@@ -57,7 +57,8 @@
     "crates/engram_server/tests/ask_status_premise_tests.rs",
     "crates/engram_server/tests/indexing_report_test.rs",
     "crates/engram_server/tests/memory_p1_tests.rs",
-    "crates/engram_server/tests/memory_decision_provenance.rs"
+    "crates/engram_server/tests/memory_decision_provenance.rs",
+    "crates/engram_server/src/handlers/ask_tools.rs"
   ],
   "mechanical_constructor_default_files": [
     "crates/engram_server/src/handlers/ask_response_delivery.rs",
@@ -88,7 +89,7 @@
   "public_verifier_sha256": "25886eb83c994978bf0232e4e219ea90e3f9f43ed02c0e393e59b279432ef2b2",
   "source_sha256": {
     "crates/engram_server/src/services/ask_engine/evidence.rs": "4d83300d34551755b03e1df01a4b6e7c99e9deb538d15156b4a8d4148440319e",
-    "crates/engram_server/src/services/ask_engine/providers.rs": "403d51530b5aec1039d04a70fe837ad227d48fcc3b498d9a2b0984d63442ce98",
+    "crates/engram_server/src/services/ask_engine/providers.rs": "0ca127e9721a763d0e3c1ece6b5b23072c184f3946105ef3bd9c1429f38731bb",
     "crates/engram_server/src/services/ask_engine/report.rs": "6467fddd442f808e971c345f124e9b7190226f9bdfe81cb91ec9a50d80ae11be",
     "crates/engram_server/src/services/memory_portability.rs": "015bc46ad876c834a0a9932551c8a059ab7bed0c9a72e6f918d52056b7cac5c2",
     "crates/engram_server/src/models/requests.rs": "11e8569d25388bb58b8e78892809eb5e9d42e854a5ee962100cb495a0ec559e6",
@@ -118,7 +119,8 @@
     "crates/engram_server/tests/ask_status_premise_tests.rs": "6cfc32cafe147dde140f5c62d0138bef88aa339eb2ac55ebb72de18a40431941",
     "crates/engram_server/tests/indexing_report_test.rs": "9d7f5470fe75d648bfbaaf25f9cbeb86a530519bd86fe2bb0c402c969471bf94",
     "crates/engram_server/tests/memory_p1_tests.rs": "dd5ab4fdbdcf705605ceb8b36645ca998410c9b1956a5fec67c0f72f75145245",
-    "crates/engram_server/tests/memory_decision_provenance.rs": "1c53f144a6b0cb7a4f3328d673d5ad6810a91064bda5601126483b36569ece97"
+    "crates/engram_server/tests/memory_decision_provenance.rs": "1c53f144a6b0cb7a4f3328d673d5ad6810a91064bda5601126483b36569ece97",
+    "crates/engram_server/src/handlers/ask_tools.rs": "3dbe7682570e5d41e76df662d1bcc28a26f899a0716db4ae1088c7b2909d84d7"
   },
   "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
   "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
@@ -149,5 +151,13 @@
     "baseline_owned_fixture_removed": true,
     "cleanup_condition": "Close owned server/database resources before fixture cleanup; retain evidence until delivery. No preexisting deletion."
   },
-  "source_commit": "0fcf9d775297dca094f9ecad9041756705c3ce24"
+  "source_commit": "0da6e25afc190393fb8999f39de3d32e9620c1c5",
+  "original_source_commit": "0fcf9d775297dca094f9ecad9041756705c3ce24",
+  "production_selection_correction": {
+    "failed_native": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native2.json",
+    "cause": "Lookup cap admitted three implementation rows and two higher-authority indexed copies of the same notes, excluding both provenance-bearing registry records. Indexed bank hits now retain AgentMemory authority and canonical typed records replace matching indexed copies before ranking/reserve capture. No cap expansion or authority promotion.",
+    "source_commit": "0da6e25afc190393fb8999f39de3d32e9620c1c5",
+    "affected_native_cases": 2,
+    "unaffected_native_passes_retained": 6
+  }
 }
