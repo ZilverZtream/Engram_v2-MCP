@@ -139,7 +139,7 @@ fn save_for(data_dir: &Path, project_id: &str, body: &str, family: Family) -> Re
     }
     let directory = directory_for(data_dir, project_id, family)?;
     std::fs::create_dir_all(&directory)
-        .map_err(|_| failure("Cannot create the change-set response cache"))?;
+        .map_err(|error| failure(format!("Cannot create the change-set response cache: {error}")))?;
     // Validate again after creation so existing symlink components cannot redirect writes.
     let directory = self::directory_for(data_dir, project_id, family)?;
     // tempfile's Windows persistence calls native APIs with the supplied paths.
@@ -155,20 +155,20 @@ fn save_for(data_dir: &Path, project_id: &str, body: &str, family: Family) -> Re
     let id = blake3::hash(body.as_bytes()).to_hex().to_string();
     let target = checked_path(&directory, &id)?;
     let mut temporary = tempfile::NamedTempFile::new_in(&directory)
-        .map_err(|_| failure("Cannot create an atomic change-set response snapshot"))?;
+        .map_err(|error| failure(format!("Cannot create an atomic change-set response snapshot: {error}")))?;
     temporary
         .write_all(body.as_bytes())
         .and_then(|_| temporary.as_file().sync_all())
-        .map_err(|_| failure("Cannot persist the change-set response snapshot"))?;
+        .map_err(|error| failure(format!("Cannot persist the change-set response snapshot: {error}")))?;
     match temporary.persist_noclobber(&target) {
         Ok(_) => {}
         Err(error) if error.error.kind() == std::io::ErrorKind::AlreadyExists => {
             let mut existing = Vec::new();
             engram_core::safe_open_read(&directory, &format!("{id}.txt"))
-                .map_err(|_| failure("Cannot safely verify the existing response snapshot"))?
+                .map_err(|error| failure(format!("Cannot safely verify the existing response snapshot: {error:#}")))?
                 .take(SNAPSHOT_BYTES as u64 + 1)
                 .read_to_end(&mut existing)
-                .map_err(|_| failure("Cannot verify the existing response snapshot"))?;
+                .map_err(|error| failure(format!("Cannot verify the existing response snapshot: {error}")))?;
             if existing.len() > SNAPSHOT_BYTES || blake3::hash(&existing).to_hex().as_str() != id {
                 return Err(failure(
                     "Existing response snapshot failed its BLAKE3 identity check",
@@ -179,7 +179,7 @@ fn save_for(data_dir: &Path, project_id: &str, body: &str, family: Family) -> Re
             error
                 .file
                 .persist(&target)
-                .map_err(|_| failure("Cannot refresh the identical response snapshot"))?;
+                .map_err(|error| failure(format!("Cannot refresh the identical response snapshot: {}", error.error)))?;
         }
         Err(error) => {
             return Err(failure(format!(
