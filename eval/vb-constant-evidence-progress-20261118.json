@@ -1,0 +1,49 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-27",
+  "supporting_original_requirement": "EG-31",
+  "at_utc": "2026-11-18T11:34:01.714922+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-constant-evidence-20261118",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-constant-evidence-20261118\\contract.json",
+  "retained_source_witness": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-constant-evidence-20261118\\retained-source-witness.json",
+  "observed_missing_behavior": "Captured VB instruction evidence currently includes methods and properties but not ordinary explicitly visible type/module constants. Guidance referencing conversion-version constants cannot distinguish initializer changes from unrelated method edits or select the dependent guide for review.",
+  "behavior": "Capture exact qualified, explicitly visible single-line VB constant declaration/initializer bytes from supplied before/after snapshots; preserve source/evidence hashes, ranges and unverified-candidate qualifications. Changed constants select referencing guidance; unrelated method edits leave that dependency unchanged.",
+  "implementation_files": [
+    "crates/engram_index/src/vb_extractor.rs",
+    "crates/engram_index/src/vb_extractor/snapshot_declarations.rs",
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs",
+    "crates/engram_server/tests/vb_constant_evidence.rs"
+  ],
+  "source_sha256": {
+    "crates/engram_index/src/vb_extractor.rs": "55dff0bcb0916e30d2800bfade3a58e397208dd7ac9bd12de57ac47632cfae5b",
+    "crates/engram_index/src/vb_extractor/snapshot_declarations.rs": "26d8724d187237246aeffad97a8a2f7d19a3ca1bd23b95ca9cc1dba9146e3774",
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "2eb3aa3ccb204174cd69e3756129eff631ef2917b4d46e824870e7476ed68b30",
+    "crates/engram_server/tests/vb_constant_evidence.rs": "0f0de9467f12ffb04f1d2544abeecf5615a9a3a20ac090f5f0d953fd0e2ce172"
+  },
+  "installed_baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-constant-evidence-20261118\\baseline1\\receipt.json",
+  "native_target": "vb_constant_evidence",
+  "native_cases_written": 2,
+  "native_cases_executed": 0,
+  "native_environment": {
+    "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-constant-evidence-20261118\\verify-public.py",
+  "public_verifier_sha256": "879d18821644c314099d73d75688f2e27eadfa6a4118029446efa4831b6417ae",
+  "source_stage_cargo_invocations": 0,
+  "runtime_deployed": false,
+  "source_checks": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-constant-evidence-20261118\\source-check1.json",
+  "counting_rule": "One VB constant-dependency instruction-maintenance outcome. Explicit/inverse selection, namespace spelling, source hashes and two native cases support one original outcome.",
+  "limitations": [
+    "Captured source observations only; no semantic constant evaluation, compiler binding or policy authority. Existing source/candidate budgets remain.",
+    "Explicitly visible single-line declarations are selected; implicit-access, multiline, enum/local constants and arbitrary field declarations are not generalized by this change.",
+    "No claim that this fixes the retained task score or establishes task benefit.",
+    "Syntax parsed only; native/public acceptance and deployment remain pending."
+  ],
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-constant-evidence-20261118",
+    "retention": "Retain evidence and scripts; fixtures own/close handles before removing their directories. No preexisting deletion.",
+    "baseline_owner_closed": true,
+    "baseline_fixture_removed": true
+  },
+  "next_action": "Join pending health readiness and complete refresh results in one6-case targeted native invocation, then public candidate/installed delivery. No full suite or separate debug build."
+}

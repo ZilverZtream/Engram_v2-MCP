@@ -301,6 +301,10 @@ pub(in crate::services::instruction_maintenance) fn declarations(
                         Some("regex_observed_auto_property_line_range") => "regex_observed_auto_property_line_range",
                         _ => "regex_declaration_line_only",
                     }
+                } else if vb && symbol.kind == "constant" && symbol.metadata.as_ref()
+                    .and_then(|metadata| metadata.get("snapshot_span_kind"))
+                    .is_some_and(|span| span == "regex_observed_constant_line_range") {
+                    "regex_observed_constant_line_range"
                 } else if vb && symbol.kind == "function" && symbol.end_line > symbol.start_line {
                     "regex_observed_method_line_range"
                 } else if vb {

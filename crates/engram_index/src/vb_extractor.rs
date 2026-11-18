@@ -2748,6 +2748,7 @@ pub fn snapshot_declaration_candidates(source: &str) -> Result<Vec<ExtractedSymb
     }
     let mut symbols = fallback_extract_vb(Path::new("captured-snapshot.vb"), source).0;
     symbols.extend(snapshot_declarations::properties(source));
+    symbols.extend(snapshot_declarations::constants(source));
     Ok(symbols)
 }
 
