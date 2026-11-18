@@ -1,7 +1,7 @@
 //! Attribute routing must retain its declared action and source admission.
 use anyhow::{Result, ensure};
 use engram_core::RelPath;
-use engram_graph::{GraphStore, Node};
+use engram_graph::{Edge, EdgeKind, GraphStore, Node};
 use engram_server::services::request_trace::{
     api,
     routing::{self, Source},
@@ -87,6 +87,23 @@ impl Fixture {
             });
         }
         graph.upsert_nodes("owned", &nodes)?;
+        // Native navigation discovers a type through its file membership.
+        graph.upsert_edges(
+            "owned",
+            &[Edge {
+                source_id: format!("file:{PATH}"),
+                target_id: engram_core::NodeId::symbol(
+                    "class", None, PATH, "ApprovalsController", 1,
+                ).0,
+                namespace: "code".into(),
+                language: "vbnet".into(),
+                edge_kind: EdgeKind::Contains,
+                weight: 1,
+                generation: 1,
+                metadata: None,
+                updated_at_ms: 0,
+            }],
+        )?;
         Ok(Self {
             graph,
             owned,
