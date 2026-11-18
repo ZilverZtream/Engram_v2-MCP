@@ -58,5 +58,13 @@
     ],
     "purpose": "Observe only the pinned release; on PASS reuse its artifact for20candidate/20installed public assertions and normal-runtime restoration. Never starts Cargo.",
     "cleanup": "Observer and child handles close; public fixtures/private config removed. Evidence/package retained in this case; normal runtime and managed rollback accounted separately."
-  }
+  },
+  "prepared_delivery_recorder": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118\\record-delivery.py",
+    "sha256": "beb1e695eaeed78954827be89f66fb51ab21cc9d313d98b2ef1fab6076521ad1",
+    "status": "PREPARED_SYNTAX_CHECKED_NOT_EXECUTED",
+    "acceptance_required": "Terminal release PASS; exactly20 candidate and20 installed public assertions; normal runtime/config and metadata restored;215 installed assets match; rollback and owned-resource accounting. Zero standalone unit/debug compilation or full suite.",
+    "record_target": "eval/planning-contract-batch-delivery-20261119.json"
+  },
+  "recorder_prepared_at_utc": "2026-11-18T23:28:18.445157+00:00"
 }
