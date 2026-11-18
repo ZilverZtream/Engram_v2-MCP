@@ -10436,13 +10436,16 @@
   },
   "last_updated_at": "2026-11-18T13:36:41.418568+00:00",
   "current_execution_focus": {
-    "status": "SOURCE_BATCH_READY_FOR_FOCUSED_VALIDATION",
-    "record": "eval/async-instruction-observation-progress-20261118.json",
-    "pending_source_outcomes": 3,
+    "status": "FOCUSED_NATIVE_BATCH_RUNNING",
+    "record": "eval/agent-instruction-batch-progress-20261118.json",
+    "native_session_id": 82997,
+    "postnative_session_id": 79903,
+    "native_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\native-owner-pin1.json",
     "implementation_items_active": 0,
-    "full_original_goal_active": true,
+    "pending_source_outcomes": 3,
+    "runtime_deployed": false,
     "full_original_goal_complete": false,
-    "next_action": "Validate the complete pending source batch through one focused4-case integration target and independent public contracts; no full/lib/no-vector suite or separate debug build."
+    "next_action": "Observe exact native82997/postnative79903. Observer reuses a fresh Cargo-produced debug executable for the three pinned public contracts. Do not duplicate builds or runs; inspect exact failed case if terminal failure."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -16673,10 +16676,16 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "record": "eval/health-refresh-constant-delivery-20261118.json",
-    "all_build_sessions_terminal": true,
-    "full_original_goal_complete": false
+    "status": "FOCUSED_NATIVE_BATCH_RUNNING",
+    "record": "eval/agent-instruction-batch-progress-20261118.json",
+    "native_session_id": 82997,
+    "postnative_session_id": 79903,
+    "native_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\native-owner-pin1.json",
+    "implementation_items_active": 0,
+    "pending_source_outcomes": 3,
+    "runtime_deployed": false,
+    "full_original_goal_complete": false,
+    "next_action": "Observe exact native82997/postnative79903. Observer reuses a fresh Cargo-produced debug executable for the three pinned public contracts. Do not duplicate builds or runs; inspect exact failed case if terminal failure."
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {

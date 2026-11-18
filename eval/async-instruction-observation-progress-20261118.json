@@ -31,7 +31,7 @@
   "native_cases_prepared": 2,
   "native_cases_executed": 0,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118\\verify-public.py",
-  "public_verifier_sha256": "eeec8f258f84f607fc905b0a06c444cee990e97d4ae38d768845a8ca9689c5d6",
+  "public_verifier_sha256": "9980b61b8b29e2c1a7aded2ae402df145b12f1c77cd9f963df6a0afa802be319",
   "runtime_deployed": false,
   "source_stage_cargo_invocations": 0,
   "full_original_goal_complete": false,
@@ -48,5 +48,6 @@
     "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118",
     "cleanup_condition": "Keep evidence/scripts for review; future owned fixtures must cancel/join workers, close stores and remove their directories."
   },
-  "next_action": "Validate the complete pending source batch through one focused4-case integration target and independent public contracts; no full/lib/no-vector suite or separate debug build."
+  "next_action": "Validate the complete pending source batch through one focused4-case integration target and independent public contracts; no full/lib/no-vector suite or separate debug build.",
+  "public_fixture_byte_contract": "Write explicit UTF-8 LF bytes so independently expected Git/current-source BLAKE3 hashes match the authored fixtures on Windows. Corrected before first public execution."
 }
