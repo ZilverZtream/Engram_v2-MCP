@@ -2264,14 +2264,23 @@ impl Engram {
 
     pub async fn handle_update_project(
         &self,
-        req: UpdateProjectRequest,
+        mut req: UpdateProjectRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         if let Some(paths) = &req.only_paths {
             if !req.wait || paths.is_empty() || paths.len() > 4096
-                || !req.reindex_paths.is_empty() || req.instruction_maintenance.is_some()
+                || !req.reindex_paths.is_empty()
                 || req.index_antipatterns {
-                return Err(McpError::invalid_params("only_paths requires wait=true, 1..4096 paths, and no reindex_paths, instruction maintenance or anti-pattern refresh",None));
+                return Err(McpError::invalid_params("only_paths requires wait=true, 1..4096 paths, and no reindex_paths or anti-pattern refresh",None));
+            }
+            if let Some(maintenance) = req.instruction_maintenance.as_mut() {
+                // Reuse the edit scope for guidance discovery when the caller
+                // supplied no separate selector. Existing maintenance bounds
+                // are checked below before any source operation.
+                if maintenance.changed_paths.is_empty() && maintenance.instruction_paths.is_empty()
+                    && !maintenance.use_git_changes {
+                    maintenance.changed_paths = paths.clone();
+                }
             }
         }
         if let Some(maintenance) = &req.instruction_maintenance {
@@ -2298,8 +2307,16 @@ impl Engram {
 
             let mut result = CallToolResult::success(vec![Content::text(summary)]);
             if let Some(maintenance) = req.instruction_maintenance {
-                let observation = self.collect_instruction_observation(&req.project_id, maintenance,
+                let mut observation = self.collect_instruction_observation(&req.project_id, maintenance,
                     "separate_worktree_observation_collected_after_source_update").await;
+                if let Some(paths) = &req.only_paths {
+                    observation["instruction_reference_observation"]["source_update_scope"] = serde_json::json!({
+                        "requested_only_paths":paths,
+                        "outside_scope_disk_check":"not_run",
+                        "outside_source_revisions":"inherited",
+                        "observation_reads":"Guidance and its evidence may be read outside the source refresh scope; this does not refresh their indexed revisions."
+                    });
+                }
                 result.content.push(Content::text(observation.to_string()));
             }
             return Ok(result);
