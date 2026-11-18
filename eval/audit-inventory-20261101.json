@@ -968,6 +968,22 @@
         "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
+      },
+      "bounded_acquisition_source_progress_20261118": {
+        "original_requirement_id": "EG-21",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "094d048f535d749b86230ace8b644f560c72a4a4",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\contract.json",
+        "behavior": "Bound precedent acquisition to a recent first-parent commit window and supply an exact older-window continuation rather than reconstructing all history for each request.",
+        "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+        "runtime_deployed": false,
+        "native_target": "history_bounded_acquisition",
+        "native_environment": {
+          "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+        },
+        "counting_rule": "One bounded precedent-acquisition workflow outcome. Window traversal, filter preservation, JSON/Markdown and continuation are not separate outcomes.",
+        "progress": "eval/history-bounded-acquisition-progress-20261118.json",
+        "full_original_requirement_complete": false
       }
     },
     {
@@ -10376,14 +10392,13 @@
   "last_updated_at": "2026-11-18T04:34:31.577765+00:00",
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "progress": "eval/memory-decision-provenance-progress-20261118.json",
-    "original_requirement": "TODO-28",
-    "pending_source_outcomes": 2,
+    "progress": "eval/history-bounded-acquisition-progress-20261118.json",
+    "original_requirement": "EG-21",
+    "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "previous_batch_delivery": "eval/ask-authority-batch-recovery-delivery-20261118.json",
-    "next_action": "Retain with following EG31 ordinary-review source and advance another substantive original requirement before combined validation. No standalone Cargo or release for memory recovery; do not replay the already-installed batch."
+    "next_action": "Validate the3independent queued source outcomes in one focused integration executable, then public candidate/installed acceptance and one release. Do not start separate source-only compiles or replay delivered batches."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -17339,5 +17354,20 @@
     "runtime_deployed": false,
     "native_target": "memory_decision_provenance",
     "counting_rule": "One source-bound full memory context/provenance recovery outcome for the natural-language entry point. Category-authority correction supports that outcome; it is not an additional deliverable or a reused Markdown-classification outcome."
+  },
+  "history_bounded_acquisition_source_progress_20261118": {
+    "original_requirement_id": "EG-21",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "094d048f535d749b86230ace8b644f560c72a4a4",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\contract.json",
+    "behavior": "Bound precedent acquisition to a recent first-parent commit window and supply an exact older-window continuation rather than reconstructing all history for each request.",
+    "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+    "runtime_deployed": false,
+    "native_target": "history_bounded_acquisition",
+    "native_environment": {
+      "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+    },
+    "counting_rule": "One bounded precedent-acquisition workflow outcome. Window traversal, filter preservation, JSON/Markdown and continuation are not separate outcomes.",
+    "progress": "eval/history-bounded-acquisition-progress-20261118.json"
   }
 }
