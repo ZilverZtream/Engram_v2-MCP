@@ -3188,9 +3188,13 @@
     "completion_terminal_exit_code": 0
   },
   "previous_goal_turn_classification": {
-    "classification": "PROGRESS_INSTALLED_SOURCE_DELIVERY",
-    "evidence": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
-    "full_original_goal_active": true
+    "status": "PROGRESS",
+    "at_utc": "2026-11-18T00:11:30.086883+00:00",
+    "reason": "Installed owned source proof established missing ordinary VB property dependency evidence; implemented and committed captured property ranges, pending shared validation. Three baseline checks and syntax passed; no Cargo or deployment.",
+    "source_commit": "69da5ff8",
+    "pending_source_outcomes": 2,
+    "implementation_items_active": 0,
+    "full_original_goal_complete": false
   },
   "scoped_http_ask_progress_20261117": "eval/scoped-http-ask-progress-20261117.json",
   "retained_scoped_http_source_focus_20261117": {
