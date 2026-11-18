@@ -63,6 +63,35 @@ pub struct SelectedSourceNavigation {
 }
 
 impl HybridSearchEngine {
+    /// Exact selected-code denominators under an existing request lease. This
+    /// does not read bodies, enumerate languages/directories, or repin a head.
+    /// Legacy selections cannot establish an exact file denominator.
+    pub fn selected_source_counts(
+        &self,
+        project_id: &str,
+        generation: u64,
+        view: Arc<SourceSnapshotGuard>,
+    ) -> anyhow::Result<(Option<usize>, usize)> {
+        self.validate_source_snapshot_guard(project_id, generation, &view)?;
+        let source_files = match &view._snapshot.selection {
+            snapshots::Selection::Files(files) => Some(files.len()),
+            snapshots::Selection::Legacy(_) => None,
+        };
+        let query = BooleanQuery::new(vec![
+            (Occur::Must, Box::new(TermQuery::new(
+                Term::from_field_text(self.fields.project_id, project_id),
+                IndexRecordOption::Basic,
+            )) as Box<dyn tantivy::query::Query>),
+            (Occur::Must, Box::new(TermQuery::new(
+                Term::from_field_text(self.fields.namespace, engram_core::namespaces::NAMESPACE_MEMORY),
+                IndexRecordOption::Basic,
+            ))),
+            (Occur::Must, view._snapshot.query(&self.fields)),
+        ]);
+        let source_chunks = self.tantivy_index.reader()?.searcher().search(&query, &Count)?;
+        Ok((source_files, source_chunks))
+    }
+
     /// Count lexical metadata under an existing capability; never materialize
     /// stored bodies, open native vectors or rebuild the source selection.
     pub fn selected_source_summary(

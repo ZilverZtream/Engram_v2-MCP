@@ -3323,6 +3323,24 @@ impl Engram {
                 0
             }
         };
+        // Source denominators use the same held selection as this request,
+        // rather than counting retained physical revisions as current code.
+        let source_search = ps.search.clone();
+        let source_project = pid.clone();
+        let source_view = _source_view.clone();
+        let source_counts = match tokio::task::spawn_blocking(move || {
+            source_search.selected_source_counts(&source_project, generation, source_view)
+        }).await {
+            Ok(Ok(counts)) => Some(counts),
+            Ok(Err(error)) => {
+                failures.push(format!("selected source counts failed: {error}"));
+                None
+            }
+            Err(error) => {
+                failures.push(format!("selected source counts worker failed: {error}"));
+                None
+            }
+        };
         // External audit 2026-08-29 P0-2: "Health: OK" was the INITIAL value of
         // the answer, not a conclusion. The verdict is computed from the
         // evidence — generation completeness first, provider failures second.
@@ -3383,6 +3401,18 @@ impl Engram {
         out.push_str(&format!("tantivy_docs_total: {total_docs}\n"));
         out.push_str(&format!("lancedb_vectors: {lancedb_rows}\n"));
         out.push_str(&format!("lancedb_rows: {lancedb_rows}\n"));
+        out.push_str("storage_count_scope: physical retained rows across revisions/namespaces; these are not current source denominators.\n");
+        out.push_str("source_count_scope: held published source selection; excludes retired revisions and non-source namespaces.\n");
+        match source_counts {
+            Some((files, chunks)) => {
+                match files {
+                    Some(files) => out.push_str(&format!("source_files: {files}\n")),
+                    None => out.push_str("source_files: unknown (legacy selection has no complete file manifest)\n"),
+                }
+                out.push_str(&format!("source_chunks: {chunks}\n"));
+            }
+            None => out.push_str("source_files: unknown\nsource_chunks: unknown\n"),
+        }
         // P0-2: surface the semantic tier so agents/operators can see at a
         // glance whether vector search is real, the trigram stub, or off.
         let semantic = match ps.search.semantic_quality() {
