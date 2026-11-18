@@ -42,13 +42,14 @@
   "source_stage_cargo_invocations": 0,
   "runtime_deployed": false,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\verify-public.py",
-  "public_verifier_sha256": "1b58fc283994d8062cef4225611ff80dfa996af5208a2a24b639273a4c4bcb3e",
+  "public_verifier_sha256": "d85f8d89cb293c2230bee330d51b7243b69313369b0a909ad04e466c6ccbaadc",
   "counting_rule": "One reduction of repeated Full-catalog delivery descriptions. Read-report and retained-window strings, output modes and profiles are not separate outcomes.",
   "limits": [
     "Actual updated MCP advertisement comparison awaits a later combined build. The10.7percent figure is a source projection, not a delivered runtime measurement.",
     "Owned125-tool Full catalog is not an actual LegacyValidation tool count. Normal Full configuration is verified unchanged, but provider tokens, latency, tool-choice quality and task usefulness are unmeasured.",
     "Request schemas, dispatch, runtime result/recovery implementation, unique safeguards and profiles are unchanged by this description-only delta.",
-    "This source is not part of the currently frozen health/refresh/constant release; do not recompile that accepted batch for it."
+    "This source is not part of the currently frozen health/refresh/constant release; do not recompile that accepted batch for it.",
+    "Combined validation also checks declared produce_claude_md budget/recovery metadata from the separately queued TODO4 outcome. The original isolated10.7percent projection is retained; combined projected reduction is separately recorded. No runtime advertisement or provider-token gain is yet claimed."
   ],
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118",
@@ -57,5 +58,7 @@
     "retention": "Baseline/projection/contracts retained; no live new fixture or preexisting deletion."
   },
   "next_action": "Preserve this following source outcome; add two further distinct original ready implementation outcomes before another Cargo. First finish the existing optimized release via exec1047/postrelease99115.",
-  "source_commit": "0bc18a5fb2c4fbbb7612bc206886c22f42c0bdda"
+  "source_commit": "0bc18a5fb2c4fbbb7612bc206886c22f42c0bdda",
+  "combined_catalog_projection": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\combined-projected-tools.json",
+  "co_delivery_projection": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\co-delivery-projection1.json"
 }
