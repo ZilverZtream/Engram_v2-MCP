@@ -170,6 +170,7 @@ mod tests {
             status: AnswerStatus::Partial, mode: "retrieval_only".into(), synthesis: None,
             project_policy_sources: None,
             evidence: vec![EvidenceItem {
+                memory_record: None,
                 evidence_id: "vb_zoom".into(), document_id: None, document_namespace: None,
                 source_verification: None, kind: EvidenceKind::SourceCode, authority: Authority::CurrentCode,
                 path: Some("Site/Zoom.vb".into()), lines: Some((1, 3)), symbol_id: None, title: None,

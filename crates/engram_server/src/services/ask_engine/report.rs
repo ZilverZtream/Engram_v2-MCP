@@ -379,6 +379,9 @@ pub fn render_markdown(r: &AskReport) -> String {
                 let _ = writeln!(s, "  Warning: {warning}");
             }
         }
+        if let Some(record) = &e.memory_record {
+            let _ = writeln!(s, "  Recorded memory provenance and guarded read (not approved policy):\n```json\n{}\n```", serde_json::to_string(record).unwrap_or_default());
+        }
         if let (Some(id), Some(namespace)) = (&e.document_id, &e.document_namespace) {
             let _ = writeln!(
                 s,

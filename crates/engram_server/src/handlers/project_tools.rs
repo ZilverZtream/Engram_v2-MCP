@@ -4999,6 +4999,10 @@ impl Engram {
         req: crate::models::ReadMemoryBankRequest,
     ) -> Result<CallToolResult, McpError> {
         crate::services::document_response::byte_limit(req.max_tokens)?;
+        if req.expected_record_hash.as_deref().is_some_and(|guard|
+            !crate::services::memory_portability::valid_record_hash(guard)) {
+            return Err(McpError::invalid_params("expected_record_hash must be a blake3-memory-record-v1 digest from memory evidence recovery", None));
+        }
         self.validate_memory_read_project(&req.project_id).await?;
         let sec = self
             .state
@@ -5006,7 +5010,7 @@ impl Engram {
             .get_memory_section(&req.project_id, &req.section)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let Some(s) = sec else {
-            if req.citation.is_some() {
+            if req.citation.is_some() || req.expected_record_hash.is_some() {
                 return Err(McpError::invalid_params(
                     "citation_document_not_found: memory section does not exist",
                     None,
@@ -5018,6 +5022,13 @@ impl Engram {
             } else { "Not found.".into() };
             return Ok(CallToolResult::success(vec![Content::text(crate::services::document_response::complete(text, req.max_tokens)?)]));
         };
+        if let Some(expected) = req.expected_record_hash.as_deref() {
+            let actual = crate::services::memory_portability::record_hash(&req.project_id, &s)
+                .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+            if expected != actual {
+                return Err(McpError::invalid_params("memory_record_changed: stored content or provenance differs from the captured record. Refresh the evidence; do not combine the old decision excerpt with new authorship or declared scope.", None));
+            }
+        }
         // Prepend a compact provenance header so an agent sees the record's
         // metadata — kind, author, age, tags, subject, and the
         // updated_at_ms to pass back as expected_updated_at_ms for a safe
@@ -5074,7 +5085,10 @@ impl Engram {
         } else {
             header.push_str("subject freshness: UNKNOWN (no related files recorded)\n");
         }
-        let identity = serde_json::json!({"project_id":req.project_id,"section":s.section_id});
+        let mut identity = serde_json::json!({"project_id":req.project_id,"section":s.section_id});
+        if let Some(guard) = req.expected_record_hash.as_ref() {
+            identity["expected_record_hash"] = guard.clone().into();
+        }
         let metadata = serde_json::json!({"title":s.title,"updated_at_ms":s.updated_at_ms,"created_at_ms":s.created_at_ms,
             "kind":s.kind,"author":s.author,"tags":s.tags,"related_files":s.related_files,"provenance_and_freshness":header});
         if let Some(citation) = &req.citation {

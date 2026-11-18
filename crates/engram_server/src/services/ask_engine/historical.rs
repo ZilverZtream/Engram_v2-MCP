@@ -278,6 +278,7 @@ pub fn gather(root: &Path, req: &AskCodebaseRequest, plan: QueryPlan) -> Result<
         let hash = blake3::hash(content.as_bytes()).to_hex().to_string();
         let lines = content.lines().count().max(1) as u32;
         EvidenceItem {
+            memory_record: None,
             evidence_id:format!("ev_{}",i+1),document_id:None,document_namespace:None,
             source_verification:Some("immutable_git_blob_at_requested_revision".into()),
             kind:if path.ends_with(".md") || path.ends_with(".txt") { EvidenceKind::DocSection } else { EvidenceKind::SourceCode },

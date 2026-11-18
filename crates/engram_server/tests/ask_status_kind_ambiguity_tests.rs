@@ -15,6 +15,7 @@ use engram_server::services::ask_engine::status::{
 
 fn ev(content: &str) -> EvidenceItem {
     EvidenceItem {
+        memory_record: None,
         evidence_id: "ev_1".into(),
         document_id: None,
         document_namespace: None,

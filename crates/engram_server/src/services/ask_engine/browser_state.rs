@@ -117,6 +117,7 @@ pub fn append_clear(
             .as_str()
             .ok_or_else(|| anyhow::anyhow!("Clear candidate lacks source hash"))?;
         evidence.items.push(EvidenceItem {
+            memory_record: None,
             evidence_id: format!("browser_state_{}", evidence.items.len()+1),
             document_id: None, document_namespace: None,
             source_verification: Some(format!("CURRENT_FILE_HASH_MATCH:{hash}")),

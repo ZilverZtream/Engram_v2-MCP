@@ -261,6 +261,7 @@ async fn related_files_and_read_header() {
 
     let res = engram
         .read_memory_bank(Parameters(engram_server::ReadMemoryBankRequest {
+            expected_record_hash: None,
             max_tokens: None,
             output_json: false,
             citation: None,

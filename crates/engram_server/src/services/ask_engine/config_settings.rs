@@ -116,6 +116,7 @@ pub fn collect(
             continue;
         }
         out.items.push(EvidenceItem {
+            memory_record: None,
             evidence_id: format!("config_settings_{}", out.items.len() + 1),
             document_id: None,
             document_namespace: None,

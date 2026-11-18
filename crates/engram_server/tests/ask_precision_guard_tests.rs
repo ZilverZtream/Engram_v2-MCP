@@ -15,6 +15,7 @@ use engram_server::services::ask_engine::ranking;
 
 fn item(id: &str, kind: EvidenceKind, path: &str, content: &str, relevance: f32) -> EvidenceItem {
     EvidenceItem {
+        memory_record: None,
         evidence_id: id.into(),
         document_id: None,
         document_namespace: None,

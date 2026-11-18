@@ -27,12 +27,12 @@ pub enum Authority {
     RuntimeEvidence,      // observed runtime at the requested version
     CurrentCode,          // current executable code + tests
     HistoricalCode,       // immutable source at the explicitly requested Git revision
-    ApprovedRequirement,  // approved requirement / explicit decision (memory)
+    ApprovedRequirement,  // independent accepted-requirement evidence, not a memory kind label
     CurrentDocs,          // current product documentation
     MergedHistory,        // merged implementation history
     RecordedHistory,      // indexed historical record; merge/approval not established
     DerivedBusinessLogic, // validated derived business logic
-    AgentMemory,          // agent-authored memory note
+    AgentMemory,          // recorded memory; approval/source authority unverified
     DreamerInsight,       // dreamer insight
     SemanticSimilarity,   // weak: similarity only
 }
@@ -55,11 +55,32 @@ impl Authority {
     }
 }
 
+/// Stored record metadata is declared provenance, not approval or code binding.
+#[derive(Debug, Clone, Serialize)]
+pub struct MemoryRecordEvidence {
+    pub project_id: String,
+    pub section_id: String,
+    pub recorded_kind: Option<String>,
+    pub recorded_author: Option<String>,
+    pub created_at_ms: u64,
+    pub updated_at_ms: u64,
+    pub review_after_ms: Option<u64>,
+    pub declared_related_files: Vec<String>,
+    pub declared_tags: Vec<String>,
+    pub record_hash: String,
+    pub raw_content_hash: String,
+    pub content_bytes: usize,
+    pub captured_content_bytes: usize,
+    pub read: serde_json::Value,
+}
+
 /// One piece of evidence with full provenance. `score`/`directness` are filled
 /// by the ranker, not the provider.
 #[derive(Debug, Clone, Serialize)]
 pub struct EvidenceItem {
     pub evidence_id: String, // "ev_<n>"
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub memory_record: Option<MemoryRecordEvidence>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub document_id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]

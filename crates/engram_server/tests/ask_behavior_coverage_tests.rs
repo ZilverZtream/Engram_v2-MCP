@@ -7,6 +7,7 @@ use engram_server::services::ask_engine::{
 
 fn evidence() -> Vec<EvidenceItem> {
     let mut source = EvidenceItem {
+        memory_record: None,
         evidence_id: "source".into(),
         document_id: None,
         document_namespace: None,

@@ -86,6 +86,7 @@ async fn test_indexing_report_smoke() {
 
     let report_res = engram
         .read_memory_bank(Parameters(engram_server::ReadMemoryBankRequest {
+            expected_record_hash: None,
             max_tokens: None,
             output_json: false,
             citation: None,

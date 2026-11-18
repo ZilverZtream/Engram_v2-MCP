@@ -20,6 +20,7 @@ use engram_server::services::ask_engine::status::{
 
 fn ev(id: &str, kind: EvidenceKind, provider: &str, path: &str, content: &str) -> EvidenceItem {
     EvidenceItem {
+        memory_record: None,
         evidence_id: id.into(),
         document_id: None,
         document_namespace: None,

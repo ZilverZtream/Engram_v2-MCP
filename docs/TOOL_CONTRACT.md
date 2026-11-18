@@ -2197,3 +2197,34 @@ packet after later edits without running gates or reading current guidance again
 This does not expand source discovery, certify semantic maintenance/compliance or
 establish LegacyValidation task benefit.
 [Pending source record](../eval/review-instruction-maintenance-progress-20261118.json).
+
+
+## Source-bound memory context in natural-language evidence
+
+Source change 2026-11-18 (following batch; validation/deployment pending):
+`ask_codebase` memory-bank evidence retains a typed `memory_record`: project and
+section identity, recorded author/kind/timestamps, declared related files/tags,
+full stored-content size/hash, captured-excerpt size, logical record hash and a
+complete `read_memory_bank` action. JSON and Markdown expose these identities and
+limitations. The report's Markdown presentation snippet can be shorter than the
+captured evidence excerpt; recover the full stored record before interpreting
+conditions or exceptions. Source discovery and the 1200-character capture limit
+are not widened.
+
+Memory categories (`decision` or `reference` included), free-form authors and
+declared scope do not establish policy approval or current code/revision binding.
+These records keep memory authority; actual accepted-requirement evidence remains
+a separate authority class. No stored rule enforcement, policy adoption, source
+ownership or approval interface changes.
+
+The optional read `expected_record_hash` (`blake3-memory-record-v1:<digest>`)
+binds the project plus serialized logical stored section, including its content
+and provenance. Metadata-only changes refuse old guards. It is not a signature,
+proof of the writer's identity, current source freshness or raw database bytes.
+Guarded citation pages retain the expected record hash in `identity`; continue
+with that same root guard and the returned citation continuation. Existing body
+hash guards, byte/line budgets and ordinary unguarded reads remain compatible.
+Changed or removed records require fresh evidence; this is guarded current-record
+recovery, not an immutable historical archive. No actual LegacyValidation task benefit is
+claimed by source implementation or owned checks.
+[Pending source record](../eval/memory-decision-provenance-progress-20261118.json).

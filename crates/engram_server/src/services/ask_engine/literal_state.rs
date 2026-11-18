@@ -263,6 +263,7 @@ pub fn collect(
                 };
                 positions.insert(identity.clone(), out.items.len());
                 out.items.push(EvidenceItem {
+                    memory_record: None,
                     evidence_id: format!("legacy_state_{}", out.items.len() + 1),
                     document_id: None, document_namespace: None,
                     source_verification: Some(format!("CURRENT_FILE_HASH_MATCH:{hash}")),

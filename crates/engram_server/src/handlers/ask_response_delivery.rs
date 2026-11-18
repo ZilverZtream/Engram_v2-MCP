@@ -87,6 +87,7 @@ mod tests {
             }),
             project_policy_sources:Some(crate::services::project_policy::resolve(root,&["Site/Order.vb".into()],&[])),
             evidence:vec![EvidenceItem {
+                memory_record: None,
                 evidence_id:"save_order".into(), document_id:None, document_namespace:None, source_verification:None,
                 kind:EvidenceKind::SourceCode, authority:Authority::CurrentCode,
                 path:Some("Site/Order.vb".into()), lines:Some((1,2001)), symbol_id:None,title:None,

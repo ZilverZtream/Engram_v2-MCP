@@ -18,6 +18,7 @@ fn authority_orders_strongest_first_and_weight_is_monotonic() {
 #[test]
 fn evidence_item_serializes_with_snake_case_kind() {
     let ev = EvidenceItem {
+        memory_record: None,
         evidence_id: "ev_1".into(),
         document_id: None,
         document_namespace: None,
@@ -607,6 +608,7 @@ fn mk_ev(
     relevance: f32,
 ) -> EvidenceItem {
     EvidenceItem {
+        memory_record: None,
         evidence_id: id.into(),
         document_id: None,
         document_namespace: None,

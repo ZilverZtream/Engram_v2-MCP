@@ -234,6 +234,7 @@ pub(super) async fn gather(
                     .as_str()
                     .ok_or_else(|| "Schema source hash missing".to_string())?;
                 out.items.push(EvidenceItem {
+                    memory_record: None,
                     evidence_id: format!("schema_{}", out.items.len() + 1),
                     document_id: None, document_namespace: None,
                     source_verification: Some(format!("SELECTED_SOURCE_FILE_HASH:{hash}")),

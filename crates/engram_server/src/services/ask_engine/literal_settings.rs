@@ -197,6 +197,7 @@ pub fn collect(
             .max()
             .unwrap() as u32;
         out.items.push(EvidenceItem {
+            memory_record: None,
             evidence_id: format!("literal_settings_{}", out.items.len() + 1), document_id: None, document_namespace: None,
             source_verification: Some(format!("SELECTED_SOURCE_FILE_HASH:{hash}")),
             kind: EvidenceKind::Setting, authority: Authority::CurrentCode, path: Some(path.clone()), lines: Some((first,last)),

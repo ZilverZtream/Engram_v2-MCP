@@ -169,6 +169,7 @@ fn hit_to_evidence(
         warnings.push(DOCUMENTARY_SOURCE_WARNING.into());
     }
     EvidenceItem {
+        memory_record: None,
         evidence_id: format!("ev_{id}"),
         document_id: Some(h.doc_id.clone()),
         document_namespace: Some(namespace.into()),
@@ -543,11 +544,29 @@ pub fn memory_evidence(
     let mut items = Vec::new();
     for (_, s) in scored.into_iter().take(top_k) {
         *id += 1;
-        let authority = match s.kind.as_deref() {
-            Some("decision") | Some("reference") => Authority::ApprovedRequirement,
-            _ => Authority::AgentMemory,
+        // A category or free-form author is not evidence of accepted policy.
+        let authority = Authority::AgentMemory;
+        let record_hash = match crate::services::memory_portability::record_hash(project_id, s) {
+            Ok(hash) => hash,
+            Err(error) => return (vec![], ProviderOutcome::failed(format!("Memory record identity unavailable: {error}"))),
+        };
+        let raw_content_hash = crate::services::stored_citation::raw_hash(&s.content);
+        let content: String = s.content.chars().take(SNIPPET_CHARS).collect();
+        let memory_record = super::evidence::MemoryRecordEvidence {
+            project_id: project_id.into(), section_id: s.section_id.clone(),
+            recorded_kind: s.kind.clone(), recorded_author: s.author.clone(),
+            created_at_ms: s.created_at_ms, updated_at_ms: s.updated_at_ms,
+            review_after_ms: s.review_after_ms, declared_related_files: s.related_files.clone(),
+            declared_tags: s.tags.clone(), record_hash: record_hash.clone(),
+            raw_content_hash: raw_content_hash.clone(), content_bytes: s.content.len(),
+            captured_content_bytes: content.len(),
+            read: serde_json::json!({"tool":"read_memory_bank","arguments":{
+                "project_id":project_id,"section":s.section_id,"expected_record_hash":record_hash,
+                "output_json":true,"max_tokens":2048,"citation":{
+                    "unit":"utf8_bytes","start":0,"expected_raw_hash":raw_content_hash}}}),
         };
         items.push(EvidenceItem {
+            memory_record: Some(memory_record),
             evidence_id: format!("ev_{id}"),
             document_id: None,
             document_namespace: None,
@@ -558,20 +577,20 @@ pub fn memory_evidence(
             lines: None,
             symbol_id: None,
             title: Some(s.title.clone()),
-            content: s.content.chars().take(SNIPPET_CHARS).collect(),
+            content,
             generation: None,
             commit: None,
             timestamp: (s.updated_at_ms > 0).then_some(s.updated_at_ms),
             confidence: 0.8,
             relevance: 0.5,
             extraction_method: "memory".into(),
-            warnings: vec![],
+            warnings: vec!["Memory categories, free-form authors, tags and related files are recorded claims, not approval, instruction scope or current-code/revision binding. Recover the complete guarded record before interpreting conditions and exceptions. Follow citation continuation with the same expected_record_hash; changed or unavailable records require fresh evidence.".into()],
             provider: "memory".into(),
             score: None,
             directness: None,
         });
     }
-    (items, ProviderOutcome::hit())
+    (items, ProviderOutcome { note: Some("Recorded memory context; kind=decision/reference does not establish an approved requirement. Full source record recovery is content/provenance guarded, not immutable historical recovery.".into()), ..ProviderOutcome::hit() })
 }
 
 // ── graph-backed providers (Task 5) ──────────────────────────────────────────
@@ -611,6 +630,7 @@ fn graph_relation_item(
 ) -> EvidenceItem {
     *id += 1;
     EvidenceItem {
+        memory_record: None,
         evidence_id: format!("ev_{id}"),
         document_id: None,
         document_namespace: None,
@@ -1246,6 +1266,7 @@ pub fn exhaustive_callee_set_with_caps(
                 }
                 *id += 1;
                 items.push(EvidenceItem {
+                    memory_record: None,
                     evidence_id: format!("ev_x{id}"),
                     document_id: None,
                     document_namespace: None,

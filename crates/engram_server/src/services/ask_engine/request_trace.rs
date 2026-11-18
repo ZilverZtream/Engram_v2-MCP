@@ -161,6 +161,7 @@ impl RequestEvidence {
             recovery["path_prefixes"] = json!(scopes);
         }
         self.items.push(EvidenceItem {
+            memory_record: None,
             evidence_id: format!("request_trace_{}", self.items.len()+1),
             document_id: None, document_namespace: Some("memory".into()),
             source_verification: Some("HELD_SELECTED_SOURCE_REQUEST_TRACE: nested per-member raw hash and physical revision checks".into()),

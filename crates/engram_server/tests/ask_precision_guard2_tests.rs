@@ -22,6 +22,7 @@ fn item(
     relevance: f32,
 ) -> EvidenceItem {
     EvidenceItem {
+        memory_record: None,
         evidence_id: id.into(),
         document_id: None,
         document_namespace: None,

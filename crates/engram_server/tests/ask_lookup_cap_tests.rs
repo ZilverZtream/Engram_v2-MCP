@@ -44,6 +44,7 @@ fn the_item_with_every_asked_term_outranks_a_single_term_swarm() {
     // rewarded the swarm, not the intersection.
     use engram_server::services::ask_engine::evidence as ev;
     let mk = |id: &str, content: &str, relevance: f32, directness: f32| ev::EvidenceItem {
+        memory_record: None,
         evidence_id: id.to_string(),
         document_id: None,
         document_namespace: None,
@@ -91,6 +92,7 @@ fn anchored_retain_keeps_only_items_that_mention_the_entity() {
     // never mention the asked entity spent three of five slots.
     use engram_server::services::ask_engine::evidence as ev;
     let mk = |id: &str, path: &str, content: &str| ev::EvidenceItem {
+        memory_record: None,
         evidence_id: id.to_string(),
         document_id: None,
         document_namespace: None,
@@ -196,6 +198,7 @@ fn a_reserve_protected_item_survives_the_trims() {
     // now visible to both trims.
     use engram_server::services::ask_engine::evidence as ev;
     let mk = |id: &str, path: &str, content: &str| ev::EvidenceItem {
+        memory_record: None,
         evidence_id: id.to_string(),
         document_id: None,
         document_namespace: None,
@@ -295,6 +298,7 @@ fn a_directory_scope_becomes_a_path_qualifier() {
 fn path_scoped_retain_keeps_only_the_scope_and_never_empties() {
     use engram_server::services::ask_engine::evidence as ev;
     let mk = |id: &str, path: &str| ev::EvidenceItem {
+        memory_record: None,
         evidence_id: id.to_string(),
         document_id: None,
         document_namespace: None,
@@ -370,6 +374,7 @@ fn a_language_name_is_covered_by_evidence_in_that_language() {
     use engram_server::services::ask_engine::evidence as ev;
     use engram_server::services::ask_engine::status;
     let mk = |id: &str, path: &str, content: &str| ev::EvidenceItem {
+        memory_record: None,
         evidence_id: id.to_string(),
         document_id: None,
         document_namespace: None,
@@ -596,6 +601,7 @@ fn c2_item(
 ) -> engram_server::services::ask_engine::evidence::EvidenceItem {
     use engram_server::services::ask_engine::evidence as ev;
     ev::EvidenceItem {
+        memory_record: None,
         evidence_id: format!("c2_{provider}_{i}"),
         document_id: None,
         document_namespace: None,
@@ -719,6 +725,7 @@ fn an_api_question_walks_only_api_call_edges() {
 fn d_item(kind_def: bool) -> engram_server::services::ask_engine::evidence::EvidenceItem {
     use engram_server::services::ask_engine::evidence as ev;
     ev::EvidenceItem {
+        memory_record: None,
         evidence_id: "d1".to_string(),
         document_id: None,
         document_namespace: None,
@@ -1199,6 +1206,7 @@ fn one_item_per_path_after_the_lookup_trim() {
     // Live r59 exact_6: 2/5 relevant with a same-file pair filling two slots.
     use engram_server::services::ask_engine::evidence as ev;
     let mk = |id: &str, path: &str| ev::EvidenceItem {
+        memory_record: None,
         evidence_id: id.to_string(),
         document_id: None,
         document_namespace: None,

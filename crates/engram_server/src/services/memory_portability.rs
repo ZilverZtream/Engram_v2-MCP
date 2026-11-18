@@ -8,6 +8,21 @@
 
 use engram_core::MemorySection;
 
+const RECORD_HASH_PREFIX: &str = "blake3-memory-record-v1:";
+
+/// Bind project/section identity, stored content and all stored provenance.
+/// Dynamic display age and current source/approval are outside this contract.
+pub(crate) fn record_hash(project: &str, section: &MemorySection) -> Result<String, serde_json::Error> {
+    let bytes = serde_json::to_vec(&(project, section))?;
+    Ok(format!("{RECORD_HASH_PREFIX}{}", blake3::hash(&bytes).to_hex()))
+}
+
+pub(crate) fn valid_record_hash(value: &str) -> bool {
+    value.strip_prefix(RECORD_HASH_PREFIX).is_some_and(|hash| {
+        hash.len() == 64 && hash.bytes().all(|c| c.is_ascii_digit() || (b'a'..=b'f').contains(&c))
+    })
+}
+
 /// Serialize a section to portable markdown.
 pub fn to_markdown(sec: &MemorySection) -> String {
     let mut out = String::new();

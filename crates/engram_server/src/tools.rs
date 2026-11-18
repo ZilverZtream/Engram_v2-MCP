@@ -585,7 +585,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Read one memory bank section by name. Discover sections with search_memory(search_scope=knowledge): memory hits return full_section and citation_section recovery arguments. The full profile also offers list_memory_bank. Optional citation returns exact stored UTF-8 content and hash-bound line/byte pages as JSON; Optional max_tokens bounds complete Markdown or JSON replies including provenance and escaping; output_json returns a structured document envelope. Follow response_page.next for hash-bound recovery. Explicit citation ranges and quote proofs remain indivisible."
+        description = "Read one memory bank section by name. Discover sections with search_memory(search_scope=knowledge): memory hits return full_section and citation_section recovery arguments. The full profile also offers list_memory_bank. Optional citation returns exact stored UTF-8 content and hash-bound line/byte pages as JSON; Optional max_tokens bounds complete Markdown or JSON replies including provenance and escaping; output_json returns a structured document envelope. Follow response_page.next for hash-bound recovery. Explicit citation ranges and quote proofs remain indivisible. Optional expected_record_hash from ask memory_record.read binds the stored project/section, content and provenance; metadata-only changes refuse old guards. Carry the guard through citation continuation. This is record integrity, not approval or current-code authority."
     )]
     pub async fn read_memory_bank(
         &self,

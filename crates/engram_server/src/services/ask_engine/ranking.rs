@@ -887,6 +887,7 @@ mod ranking_reserve_tests {
         method: &str,
     ) -> EvidenceItem {
         EvidenceItem {
+            memory_record: None,
             evidence_id: id.to_string(),
             document_id: None,
             document_namespace: None,

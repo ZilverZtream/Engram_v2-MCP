@@ -1931,6 +1931,12 @@ pub struct MemorySectionRequest {
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ReadMemoryBankRequest {
+    /// Optional blake3-memory-record-v1 guard from ask memory_record.read.
+    /// Binds the exact stored project/section, body and provenance. A changed
+    /// author, kind, declared scope, timestamp or content refuses recovery.
+    /// Does not verify approval, current code or dynamic freshness annotations.
+    #[serde(default)]
+    pub expected_record_hash: Option<String>,
     /// Complete reply budget, estimated as ceil(UTF-8 text bytes / 4).
     /// Follow response_page.next for exact hash-bound citation recovery.
     #[serde(default)]

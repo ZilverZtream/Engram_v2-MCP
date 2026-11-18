@@ -1422,6 +1422,7 @@ mod predicate_preview_tests {
             serde_json::json!({"project_id":"p","namespace":"business_logic","doc_id":"doc"})
         ));
         let item = EvidenceItem {
+            memory_record: None,
             evidence_id: "ev_1".into(),
             document_id: Some("doc".into()),
             document_namespace: Some("business_logic".into()),
