@@ -1,0 +1,563 @@
+{
+  "schema_version": 1,
+  "status": "EVIDENCE_RECONCILED_NO_RUNTIME_CHANGE",
+  "at_utc": "2026-11-18T06:37:47.720764+00:00",
+  "original_requirement_id": "EG-26",
+  "scope": "Accepted original nine-category LegacyValidation shortlist: VB.NET/WebForms, JavaScript/TypeScript and SQL. Not a full tool/catalog audit or a fresh runtime/task comparison.",
+  "original_research": {
+    "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json",
+    "sha256": "5832177fe5afa5e2e4659bca775ee208f98061d20012b2f2418fdd36672df08d",
+    "reports": [
+      "legacy_workflows",
+      "instruction_capabilities",
+      "tool_roi"
+    ]
+  },
+  "shortlist": [
+    {
+      "id": 1,
+      "improvement": "Scoped instructions",
+      "tools": [
+        "plan_user_story",
+        "get_change_set",
+        "prepare_implementation_context",
+        "pre_commit_review",
+        "ask_codebase",
+        "begin_edit_session",
+        "complete_edit_session"
+      ],
+      "delivered_behavior": "Applicable guidance reaches planning, retrieval/review and edited-path contexts with hashes and complete-source recovery. Historical source uses guidance at its pinned revision; source Markdown is identified as documentary context.",
+      "evidence": [
+        "eval/eg01-installed-policy-delivery-20261111.json",
+        "eval/legacy_validation-edit-session-policy-delivery-20261113.json",
+        "eval/constructor-events-policy-batch-delivery-20261117.json",
+        "eval/ask-authority-batch-recovery-delivery-20261118.json"
+      ],
+      "remaining": "Scoped prose delivery does not prove semantic applicability, compliance or task benefit."
+    },
+    {
+      "id": 2,
+      "improvement": "Complete bounded change sets",
+      "tools": [
+        "get_change_set",
+        "batch_read"
+      ],
+      "delivered_behavior": "Whole-report budgets retain mandatory identities/omissions and provide exact original recovery. Oversized executed batches preserve their complete original result/error set through edits and restart.",
+      "evidence": [
+        "eval/eg02-installed-recovery-delivery-20261111.json",
+        "eval/ask-authority-batch-recovery-delivery-20261118.json"
+      ],
+      "remaining": "Byte completeness is not candidate relevance, an atomic source snapshot or a completed implementation."
+    },
+    {
+      "id": 3,
+      "improvement": "Decision-aware reviews",
+      "tools": [
+        "pre_commit_review",
+        "get_review_decisions",
+        "get_review_precedents"
+      ],
+      "delivered_behavior": "Prior rulings retain declared scope, conditions, provenance/revision assessments and individual finding links. Findings remain visible and the complete original review is recoverable.",
+      "evidence": [
+        "eval/legacy_validation-review-scope-delivery-20261113.json",
+        "eval/edit-review-history-batch-delivery-20261117.json"
+      ],
+      "remaining": "Decision authority and semantic applicability are not inferred. The recorded131-second LegacyValidation review does not establish a latency gain."
+    },
+    {
+      "id": 4,
+      "improvement": "Usable history",
+      "tools": [
+        "search_history"
+      ],
+      "delivered_behavior": "Capability-aware lexical fallback, optional ranking budgets and complete saved-result recovery are delivered. Precedent acquisition now defaults to1000recent first-parent commits and supplies exact older-window continuation preserving filters, budgets and cutoff.",
+      "evidence": [
+        "eval/eg20-history-capability-delivery-20261111.json",
+        "eval/edit-review-history-batch-delivery-20261117.json",
+        "eval/review-memory-history-delivery-20261118.json"
+      ],
+      "remaining": "Windows rank independently. A commit-work bound or reranking timeout is not a whole-request latency SLA or measured ranking-quality improvement."
+    },
+    {
+      "id": 5,
+      "improvement": "Dependency-complete presets",
+      "tools": [
+        "tools/list",
+        "list_advanced_tools"
+      ],
+      "delivered_behavior": "Core discovery and evidence recovery work; Full/Core/Dev/QA/Migration presets include required recovery dependencies.",
+      "evidence": [
+        "eval/eg18-installed-preset-delivery-20261111.json",
+        "eval/preset-browser-bootstrap-batch-delivery-20261117.json"
+      ],
+      "remaining": "Normal LegacyValidation advertises all tools. Preset reduction is not active in that configuration, and specialist workflow equivalence is unproven."
+    },
+    {
+      "id": 6,
+      "improvement": "Evidence-backed area drafts",
+      "tools": [
+        "pre_push_audit",
+        "produce_claude_md"
+      ],
+      "delivered_behavior": "The existing OX QA handoff supplies scoped claims, source quotations, shared references, retained exceptions and gaps. Declared review scopes can select retained exceptions without requiring filenames in their prose.",
+      "evidence": [
+        "eval/eg14-evidence-pack-reconciliation-20261112.json",
+        "eval/method-schema-area-batch-delivery-20261116.json"
+      ],
+      "remaining": "This is a draft/evidence contract. Policy publication, human approval, completed application validation and productivity are not established."
+    },
+    {
+      "id": 7,
+      "improvement": "Instruction ownership, scope and overflow",
+      "tools": [
+        "produce_claude_md",
+        "ingest_quality_gates"
+      ],
+      "delivered_behavior": "Generator ownership checks preserve authored files and qualified rules; overflow remains recoverable. Exact installed inventory and owned adoption acceptance are recorded.",
+      "evidence": [
+        "eval/eg15-eg17-generator-delivery-20261111.json",
+        "eval/eg28-installed-ownership-delivery-20261112.json"
+      ],
+      "remaining": "The dated production inventory found94legacy-unverified rules,0ownership receipts and56global scopes. Those human ownership/adoption decisions remain unresolved; this report does not repeat the inventory or infer adoption."
+    },
+    {
+      "id": 8,
+      "improvement": "Freshness and maintenance",
+      "tools": [
+        "pre_push_audit",
+        "project_health",
+        "update_project",
+        "complete_edit_session",
+        "pre_commit_review"
+      ],
+      "delivered_behavior": "Dependency-specific drift, scope warnings and source-bound proposals with stale refusal are delivered. Ordinary native-Git reviews now include before/current maintenance evidence and dependency manifests, with complete saved review recovery.",
+      "evidence": [
+        "eval/legacy_validation-instruction-scope-delivery-20261113.json",
+        "eval/eg31-installed-maintenance-delivery-20261111.json",
+        "eval/review-memory-history-delivery-20261118.json"
+      ],
+      "remaining": "Current-disk captures and review diffs are separate observations. Mechanical drift does not establish policy intent, semantic correctness or authorization to rewrite guidance."
+    },
+    {
+      "id": 9,
+      "improvement": "Demonstrated task usefulness",
+      "tools": [
+        "matched implementation/QA evaluations"
+      ],
+      "delivered_behavior": "The original task comparisons and their raw outcome records are retained.",
+      "evidence": [
+        "eval/legacy_validation-current-task-check-outcome-20261113.json",
+        "eval/legacy_validation-archive-task-check-outcome-20261114.json",
+        "eval/legacy_validation-invoice-task-outcome-20261115.json",
+        "eval/legacy_validation-sync-event-task-outcome-20261115.json",
+        "eval/legacy_validation-snapping-helper-qa-outcome-20261113.json"
+      ],
+      "remaining": "The current/archive aggregate quality gates failed; the matched invoice/sync/helper QA comparisons demonstrate no incremental QA benefit. One current scope case used two fewer additional reads, with higher observed wall time. These scoped observations do not establish general productivity or a version improvement."
+    }
+  ],
+  "evidence_records": {
+    "eval/eg01-installed-policy-delivery-20261111.json": {
+      "path": "eval/eg01-installed-policy-delivery-20261111.json",
+      "sha256": "b34fa421365d78c20b333754bfe49985d8e8480d5dfa821ec493a7f5e056fc06",
+      "status": "CURRENT_INSTALLED_SCOPED_DELIVERY_VERIFIED",
+      "recorded_at_utc": "2026-11-11T08:10:17.665895+00:00"
+    },
+    "eval/legacy_validation-edit-session-policy-delivery-20261113.json": {
+      "path": "eval/legacy_validation-edit-session-policy-delivery-20261113.json",
+      "sha256": "c694006c22963fe91b75f1ff32ba35f58e3ff939eafb0ec91655bc2a3082024f",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "recorded_at_utc": "2026-11-13T14:22:01.997663+00:00"
+    },
+    "eval/constructor-events-policy-batch-delivery-20261117.json": {
+      "path": "eval/constructor-events-policy-batch-delivery-20261117.json",
+      "sha256": "be4bb99e29f722774274374e4a1c95a582b72bfde38e4e829b94db3a4709974c",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "recorded_at_utc": "2026-11-16T23:11:08.414593+00:00"
+    },
+    "eval/ask-authority-batch-recovery-delivery-20261118.json": {
+      "path": "eval/ask-authority-batch-recovery-delivery-20261118.json",
+      "sha256": "c98dfe6b79695400edc4957857aec47b543214035d9fa56b131f7c2243ffaa41",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "recorded_at_utc": "2026-11-18T04:23:36.657846+00:00"
+    },
+    "eval/eg02-installed-recovery-delivery-20261111.json": {
+      "path": "eval/eg02-installed-recovery-delivery-20261111.json",
+      "sha256": "58bfcbb6fc4b07a5278cf1c086f3fe6b65e5d0838a3edcc470743c95eaf74a4f",
+      "status": "CURRENT_INSTALLED_BOUNDED_DELIVERY_VERIFIED",
+      "recorded_at_utc": "2026-11-11T08:13:20.927317+00:00"
+    },
+    "eval/legacy_validation-review-scope-delivery-20261113.json": {
+      "path": "eval/legacy_validation-review-scope-delivery-20261113.json",
+      "sha256": "c3fd084aa7e371df8c8dd65c5b908bb91d2a40ee5846674c22366fae5b44cad6",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "recorded_at_utc": "2026-11-13T08:24:37.233484+00:00"
+    },
+    "eval/edit-review-history-batch-delivery-20261117.json": {
+      "path": "eval/edit-review-history-batch-delivery-20261117.json",
+      "sha256": "1d8871b46e3fdedcc26134ed3c253989a669a515be161d40bf4a4d1c911dac43",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "recorded_at_utc": "2026-11-17T23:55:00.718569+00:00"
+    },
+    "eval/eg20-history-capability-delivery-20261111.json": {
+      "path": "eval/eg20-history-capability-delivery-20261111.json",
+      "sha256": "5583b7afa885fda299160aa88a3226b60def4f14c80ab408ed6132109e0d2948",
+      "status": "DEPLOYED_VERIFIED",
+      "recorded_at_utc": "2026-11-11T09:37:51.589264+00:00"
+    },
+    "eval/review-memory-history-delivery-20261118.json": {
+      "path": "eval/review-memory-history-delivery-20261118.json",
+      "sha256": "5a34e574482ada2b11e61eda516c03f9d0234183020c73248bafd4601d52c438",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "recorded_at_utc": "2026-11-18T06:20:24.948560+00:00"
+    },
+    "eval/eg18-installed-preset-delivery-20261111.json": {
+      "path": "eval/eg18-installed-preset-delivery-20261111.json",
+      "sha256": "eac609304990357d07ddf78f1dd4c39720712927275dcdfe7e8582b884c22e6a",
+      "status": "INSTALLED_VERIFIED",
+      "recorded_at_utc": "2026-11-11T09:44:42.005151+00:00"
+    },
+    "eval/preset-browser-bootstrap-batch-delivery-20261117.json": {
+      "path": "eval/preset-browser-bootstrap-batch-delivery-20261117.json",
+      "sha256": "df538d8b51d40a4c8669e42c3e78f8328d7e168ad3db75ac66c7dbae03c141a3",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "recorded_at_utc": "2026-11-17T17:44:33.079054+00:00"
+    },
+    "eval/eg14-evidence-pack-reconciliation-20261112.json": {
+      "path": "eval/eg14-evidence-pack-reconciliation-20261112.json",
+      "sha256": "ab8d2d5dcf6b09b57c04f13fe33340d4676c4e88d669531d17a96307594e23e4",
+      "status": "ORIGINAL_EVIDENCE_PACK_AND_QA_HANDOFF_VERIFIED",
+      "recorded_at_utc": "2026-11-12T16:17:20.830040+00:00"
+    },
+    "eval/method-schema-area-batch-delivery-20261116.json": {
+      "path": "eval/method-schema-area-batch-delivery-20261116.json",
+      "sha256": "706a65cf4dbaf74c7c7c2889b77537ad35943631e628452addd42b896b10cf34",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "recorded_at_utc": "2026-11-16T00:37:54.446677+00:00"
+    },
+    "eval/eg15-eg17-generator-delivery-20261111.json": {
+      "path": "eval/eg15-eg17-generator-delivery-20261111.json",
+      "sha256": "7bb77478689d7e781c7627035f1e3657567b343710f9ae524d4e3153fbdb8667",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "recorded_at_utc": "2026-11-11T22:53:05.366008+00:00"
+    },
+    "eval/eg28-installed-ownership-delivery-20261112.json": {
+      "path": "eval/eg28-installed-ownership-delivery-20261112.json",
+      "sha256": "ac1543c3ff2a0da59799d96d6d83d1d5ecaa30a79385f81d1d79d4d0a10609c8",
+      "status": "EXACT_INSTALLED_INVENTORY_AND_OWNED_ADOPTION_ACCEPTANCE_COMPLETE_LIVE_DECISIONS_OPEN",
+      "recorded_at_utc": "2026-11-12T16:17:20.831439+00:00"
+    },
+    "eval/legacy_validation-instruction-scope-delivery-20261113.json": {
+      "path": "eval/legacy_validation-instruction-scope-delivery-20261113.json",
+      "sha256": "b2d19dcae71fe3faf69a68212b5e98c6edb826d955d1f57fa9309376de886dbc",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "recorded_at_utc": "2026-11-13T07:13:36.319548+00:00"
+    },
+    "eval/eg31-installed-maintenance-delivery-20261111.json": {
+      "path": "eval/eg31-installed-maintenance-delivery-20261111.json",
+      "sha256": "621c12c5079c89595710ef2adb536d584e8420791a69a4096d84a5db28469971",
+      "status": "CURRENT_INSTALLED_CONFLICT_DELIVERY_VERIFIED",
+      "recorded_at_utc": "2026-11-11T08:02:23.645345+00:00"
+    },
+    "eval/legacy_validation-current-task-check-outcome-20261113.json": {
+      "path": "eval/legacy_validation-current-task-check-outcome-20261113.json",
+      "sha256": "8ffd78990ba5f8a153a324f9108e6c200828e0158056c69bf754bfea4c03f1fd",
+      "status": "COMMAND_IMPLEMENTED_VALIDATED_CURRENT_RUN_COMPLETED_QUALITY_FAILED",
+      "recorded_at_utc": "2026-11-13T10:11:35.872379+00:00"
+    },
+    "eval/legacy_validation-archive-task-check-outcome-20261114.json": {
+      "path": "eval/legacy_validation-archive-task-check-outcome-20261114.json",
+      "sha256": "f121f0acc12ec6b809424fddd5f5f8385a2b370fa47e4cc88ef13337289f40d0",
+      "status": "BOUNDED_SOURCE_ISOLATION_DELIVERED_ARCHIVE_COMPARISON_COMPLETED_QUALITY_FAILED",
+      "recorded_at_utc": "2026-11-14T23:01:26.400671+00:00"
+    },
+    "eval/legacy_validation-invoice-task-outcome-20261115.json": {
+      "path": "eval/legacy_validation-invoice-task-outcome-20261115.json",
+      "sha256": "eca7f6f4ed8e72be08c06fb538146203cf29da104ce704915162b9fc19a0c602",
+      "status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED",
+      "recorded_at_utc": "2026-11-15T10:07:21.226291+00:00"
+    },
+    "eval/legacy_validation-sync-event-task-outcome-20261115.json": {
+      "path": "eval/legacy_validation-sync-event-task-outcome-20261115.json",
+      "sha256": "c6c4166e7e460d48b5e700910e64aff6fe59c5d05c8d7e966bb0adfdd45a74ab",
+      "status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED",
+      "recorded_at_utc": "2026-11-15T15:47:33.324412+00:00"
+    },
+    "eval/legacy_validation-snapping-helper-qa-outcome-20261113.json": {
+      "path": "eval/legacy_validation-snapping-helper-qa-outcome-20261113.json",
+      "sha256": "48962ac30f0636cddcbd47c2ec9de2c275faddbcbfc083eb51990d2568ef8ccf",
+      "status": "MATCHED_HELPER_QA_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED",
+      "recorded_at_utc": "2026-11-13T21:55:12.132342+00:00"
+    }
+  },
+  "current_installed_identity": {
+    "record": "eval/review-memory-history-delivery-20261118.json",
+    "server_sha256": "1efb13336d019a70a001a3f8422a670c786865871e9b17ebfbabd4e4e24ebf2b",
+    "manifest_sha256": "6d431321bc8684ee3e6966960f018cfd8318a0bf7220757768b08056d6c8b8ae",
+    "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "normal_full_advertisement": true,
+    "selected_generation_verified_at_delivery": 3151,
+    "source_format": 9,
+    "runtime_change_during_this_reconciliation": false
+  },
+  "latest_delivery": {
+    "record": "eval/review-memory-history-delivery-20261118.json",
+    "outcomes": [
+      "Ordinary-review instruction maintenance evidence",
+      "Full memory record provenance/guarded recovery; categories do not confer approval",
+      "Bounded precedent acquisition and pinned older-window continuation"
+    ],
+    "native_cases_distinct": 8,
+    "public_checks_per_artifact": 30,
+    "artifacts": [
+      "debug",
+      "candidate",
+      "installed"
+    ],
+    "build_accounting": {
+      "native_invocations": 3,
+      "release_invocations": 1,
+      "full_suites": 0,
+      "separate_debug_builds": 0,
+      "native_unique_cases": 8,
+      "native_test_executions": 10,
+      "native_seconds": 1072.120516700088,
+      "release_seconds": 2670.0272098999703,
+      "pure_coding_percentage": null,
+      "note": "Native1 compiled the production library but the test fixture used an unavailable Git API; no test executed. Fixture-only correction reused the library for native2:6PASS2FAIL. Production canonical-memory correction;6unaffected review/history passes retained and only2memory cases rerun in native3. One release. No full/lib/no-vector suite or separate debug build. No measured compile speedup or coding percentage claimed."
+    },
+    "scope_note": "These are finite behavior checks; memory-bank provenance is not a prior-review verdict or accepted policy decision."
+  },
+  "retained_task_comparisons": [
+    {
+      "task": "November13 current-output task set",
+      "source_only": {
+        "satisfied": 20,
+        "total_criteria": 20,
+        "false_guidance": 0
+      },
+      "assisted": {
+        "satisfied": 19,
+        "total_criteria": 20,
+        "false_guidance": 0
+      },
+      "outcome": "quality_gate_failed",
+      "record": "eval/legacy_validation-current-task-check-outcome-20261113.json",
+      "case_metrics": [
+        {
+          "case_id": "scope",
+          "arm": "baseline",
+          "input_bytes": 56833,
+          "additional_reads": 3,
+          "observed_agent_wall_seconds": 28.514744,
+          "satisfied": 5,
+          "total_criteria": 5,
+          "false_guidance": 0
+        },
+        {
+          "case_id": "history",
+          "arm": "baseline",
+          "input_bytes": 30792,
+          "additional_reads": 3,
+          "observed_agent_wall_seconds": 33.605044,
+          "satisfied": 5,
+          "total_criteria": 5,
+          "false_guidance": 0
+        },
+        {
+          "case_id": "history",
+          "arm": "assisted",
+          "input_bytes": 33289,
+          "additional_reads": 3,
+          "observed_agent_wall_seconds": 32.233462,
+          "satisfied": 5,
+          "total_criteria": 5,
+          "false_guidance": 0
+        },
+        {
+          "case_id": "scope",
+          "arm": "assisted",
+          "input_bytes": 40488,
+          "additional_reads": 1,
+          "observed_agent_wall_seconds": 33.471827,
+          "satisfied": 5,
+          "total_criteria": 5,
+          "false_guidance": 0
+        },
+        {
+          "case_id": "diagnosis",
+          "arm": "baseline",
+          "input_bytes": 19734,
+          "additional_reads": 1,
+          "observed_agent_wall_seconds": 44.189523,
+          "satisfied": 5,
+          "total_criteria": 5,
+          "false_guidance": 0
+        },
+        {
+          "case_id": "companions",
+          "arm": "assisted",
+          "input_bytes": 69279,
+          "additional_reads": 3,
+          "observed_agent_wall_seconds": 64.017841,
+          "satisfied": 5,
+          "total_criteria": 5,
+          "false_guidance": 0
+        },
+        {
+          "case_id": "diagnosis",
+          "arm": "assisted",
+          "input_bytes": 24414,
+          "additional_reads": 1,
+          "observed_agent_wall_seconds": 38.689814,
+          "satisfied": 4,
+          "total_criteria": 5,
+          "false_guidance": 0
+        },
+        {
+          "case_id": "companions",
+          "arm": "baseline",
+          "input_bytes": 58724,
+          "additional_reads": 3,
+          "observed_agent_wall_seconds": 62.607379,
+          "satisfied": 5,
+          "total_criteria": 5,
+          "false_guidance": 0
+        }
+      ],
+      "qualified_scope_observation": {
+        "source_only_additional_reads": 3,
+        "assisted_additional_reads": 1,
+        "criteria_each": "5/5",
+        "source_only_input_bytes": 56833,
+        "assisted_input_bytes": 40488,
+        "source_only_observed_wall_seconds": 28.514744,
+        "assisted_observed_wall_seconds": 33.471827,
+        "interpretation": "One scope case needed two fewer additional reads and less input, while its observed assisted wall time was higher. This local observation does not clear the failed aggregate quality gate or establish a version-wide productivity gain."
+      }
+    },
+    {
+      "task": "November14 archive task set",
+      "source_only": {
+        "satisfied": 16,
+        "justified_withholding": 2,
+        "total_criteria": 20,
+        "false_guidance": 0,
+        "additional_reads": 12,
+        "input_bytes": 725086,
+        "observed_agent_wall_seconds": 325.675394
+      },
+      "assisted": {
+        "satisfied": 14,
+        "justified_withholding": 4,
+        "total_criteria": 20,
+        "false_guidance": 0,
+        "additional_reads": 12,
+        "input_bytes": 882169,
+        "observed_agent_wall_seconds": 345.908314
+      },
+      "outcome": "quality_gate_failed; retained read-instruction ambiguity",
+      "record": "eval/legacy_validation-archive-task-check-outcome-20261114.json"
+    },
+    {
+      "task": "November15 invoice QA",
+      "source_only": {
+        "satisfied": 7,
+        "total_criteria": 7,
+        "packet_bytes": 44575,
+        "cases": 10,
+        "correct_required_behavior": 10
+      },
+      "assisted": {
+        "satisfied": 6,
+        "total_criteria": 7,
+        "packet_bytes": 70442,
+        "cases": 10,
+        "correct_required_behavior": 10
+      },
+      "outcome": "no_incremental_benefit_demonstrated",
+      "record": "eval/legacy_validation-invoice-task-outcome-20261115.json"
+    },
+    {
+      "task": "November15 sync-event QA",
+      "source_only": {
+        "criteria_satisfied": 6,
+        "criteria_total": 6,
+        "input_bytes": 13720
+      },
+      "assisted": {
+        "criteria_satisfied": 6,
+        "criteria_total": 6,
+        "input_bytes": 122448
+      },
+      "outcome": "equal_criteria; no_incremental_benefit_demonstrated; proposed cases receive no execution credit",
+      "record": "eval/legacy_validation-sync-event-task-outcome-20261115.json"
+    },
+    {
+      "task": "November13 helper QA",
+      "source_only": {
+        "correct_current_cases": 48,
+        "predefined_regressions_detected": 6,
+        "predefined_regressions_total": 6
+      },
+      "assisted": {
+        "correct_current_cases": 42,
+        "predefined_regressions_detected": 6,
+        "predefined_regressions_total": 6
+      },
+      "outcome": "Both candidate artifacts pass on the unchanged helper and detect all six predetermined story regressions. No additional defect-detection benefit from Engram was observed; different case counts do not establish higher quality.",
+      "record": "eval/legacy_validation-snapping-helper-qa-outcome-20261113.json"
+    }
+  ],
+  "billing_and_time_assessment": {
+    "billing_data_verified": false,
+    "cost_or_work_duration_claims_in_conversation_audited": false,
+    "measured_pure_coding_percentage": null,
+    "reason": "Logs time selected compile/test commands, not all coding/planning activity; a coding-versus-compile percentage cannot be reconstructed honestly from these receipts.",
+    "positive_incremental_task_benefit_demonstrated": false,
+    "spend_justification": "The retained comparisons do not justify the claimed spend through demonstrated incremental task benefit. No billed amount or ROI calculation is established.",
+    "benefit_scope": "No aggregate correctness/productivity gain is established by these retained task sets. The case-specific scope read reduction is reported separately rather than hidden or generalized."
+  },
+  "remaining": {
+    "full_original_goal_complete": false,
+    "general_AI_product_readiness_established": false,
+    "original_findings_preserved": 31,
+    "storage_gates_preserved": 19,
+    "full_catalog_reconciliation_complete": false,
+    "note": "Each row retains its own limits; none is silently promoted to full requirement closure. Existing held work remains held. Java/Python/Rust/Go target-language expansion is not counted as LegacyValidation work; Rust implementation changes are distinct."
+  },
+  "work_accounting": {
+    "runtime_calls": 0,
+    "model_requests": 0,
+    "engram_builds_started": 0,
+    "tests_replayed": 0,
+    "new_fixtures": 0,
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shortlist-accountability-20261118",
+    "purpose": "Retain source receipt hashes and reconciliation acceptance; no source/Q traversal, benchmark replay or temporary runtime owners."
+  },
+  "verification": {
+    "status": "PASS",
+    "at_utc": "2026-11-18T06:41:47.589846+00:00",
+    "original_shortlist_rows": 9,
+    "dated_receipt_hashes_matched": 22,
+    "retained_task_comparisons": 5,
+    "original_readme_receipt_links_preserved": true,
+    "current_scope_aggregate_criteria": {
+      "source_only": "20/20",
+      "assisted": "19/20"
+    },
+    "qualified_scope_read_observation": {
+      "source_only": 3,
+      "assisted": 1,
+      "version_gain_claimed": false
+    },
+    "pure_coding_percentage": null,
+    "billing_verified": false,
+    "protected_wip9": "UNCHANGED",
+    "runtime_calls": 0,
+    "engram_builds_started": 0,
+    "tests_replayed": 0,
+    "new_fixtures": 0,
+    "broader_catalog_complete": false,
+    "full_original_goal_complete": false
+  }
+}
