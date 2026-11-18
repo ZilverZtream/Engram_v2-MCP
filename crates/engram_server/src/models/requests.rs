@@ -55,6 +55,9 @@ fn schema_response_offset_is_zero(offset: &usize) -> bool { *offset == 0 }
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
 pub enum SchemaQueryType {
     Table { name: String },
+    /// Complete source-declared view; qualified names and duplicate candidates
+    /// remain distinct. This does not infer deployed columns or execution.
+    View { name: String },
     Column { table: String, column: String },
     TablesThatReferenceForeignKey { table: String, column: String },
     /// Case-insensitive literal substring, not SQL LIKE or a regular expression.

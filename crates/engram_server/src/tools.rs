@@ -777,7 +777,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Query indexed SQL source declarations: tables, columns, foreign keys, indexes, triggers, views and stored procedures. query_type uses a kind discriminator (e.g. table with name=dbo.Orders) and is required for fresh queries. Preserves qualified identities and ambiguous definitions, verifies selected source hashes, and returns structured cited evidence with coverage gaps. No live database or migration execution. TablesWithColumn uses a literal substring; paginate with offset/limit. Complete replies honor max_tokens (default16384); oversized results provide exact saved MCP-result recovery through response_delivery.next_call. Recovery needs only project_id and returned response controls, not query_type, and never reruns schema analysis."
+        description = "Query indexed SQL source declarations: tables, columns, foreign keys, indexes, triggers, views and stored procedures. query_type uses a kind discriminator (e.g. table with name=dbo.Orders, or view with name=sales.OrderSummary for the complete source view declaration) and is required for fresh queries. Preserves qualified identities and ambiguous definitions, verifies selected source hashes, and returns structured cited evidence with coverage gaps. No live database or migration execution. TablesWithColumn uses a literal substring; paginate with offset/limit. Complete replies honor max_tokens (default16384); oversized results provide exact saved MCP-result recovery through response_delivery.next_call. Recovery needs only project_id and returned response controls, not query_type, and never reruns schema analysis."
     )]
     pub async fn query_schema(
         &self,

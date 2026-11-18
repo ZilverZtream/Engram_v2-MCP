@@ -608,7 +608,7 @@ impl Catalog {
                 let object=if matches!(q, Table{..}) && kind!="index" {
                     let query_type=match kind {
                         "stored_proc"=>json!({"kind":"stored_proc","sp_name":o.name}),
-                        "view"=>json!({"kind":"views_sourced_from","table":table.name}),
+                        "view"=>json!({"kind":"view","name":o.name}),
                         _=>json!({"kind":"triggers_on_table","table":table.name}),
                     };
                     json!({"kind":o.kind,"name":o.name,"target_table":o.target_table,"references":o.references,"citation":o.citation,
@@ -629,6 +629,7 @@ impl Catalog {
                 (!cols.is_empty()).then(||json!({"table":t.name,"columns":cols,"citation":t.citation,"gaps":t.gaps}))
             }).collect() },
             StoredProc{sp_name} => {let key=input_name(sp_name)?;self.objects.iter().filter(|o|o.kind=="stored_proc" && o.key.lookup(&key)).map(|o|json!(o)).collect()},
+            View{name} => {let key=input_name(name)?;self.objects.iter().filter(|o|o.kind=="view" && o.key.lookup(&key)).map(|o|json!(o)).collect()},
             _ => {
                 let t=selected.expect("table queries resolved above");
                 match q {
@@ -657,7 +658,7 @@ impl Catalog {
         let limit = request.limit.unwrap_or(25);
         let results: Vec<_> = rows.into_iter().skip(offset).take(limit).collect();
         let next = (offset.saturating_add(results.len()) < total).then_some(offset + results.len());
-        let status = if matches!(q, StoredProc { .. }) && total > 1 {
+        let status = if matches!(q, StoredProc { .. } | View { .. }) && total > 1 {
             "ambiguous"
         } else if total == 0 {
             "not_found"
@@ -689,7 +690,7 @@ pub fn validate(request: &QuerySchemaRequest) -> anyhow::Result<()> {
     let query = request.query_type.as_ref().ok_or_else(||
         anyhow::anyhow!("query_type is required for a fresh schema query"))?;
     let names: Vec<&str> = match query {
-        Table { name } => vec![name],
+        Table { name } | View { name } => vec![name],
         Column { table, column } | TablesThatReferenceForeignKey { table, column } => {
             anyhow::ensure!(
                 input_name(column)?.0.len() == 1,

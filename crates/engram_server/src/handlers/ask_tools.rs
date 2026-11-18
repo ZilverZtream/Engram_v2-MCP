@@ -152,7 +152,7 @@ impl Engram {
         };
         let ((mut raw, mut providers), mut schema_evidence, mut settings_evidence, mut state_evidence, mut request_evidence) = tokio::join!(
             retrieval::gather_evidence_selected_source(&ctx, &plan, &req.question, depth, deadline, cancel, source_selection),
-            schema::gather(self, &req.project_id, &plan, gen_, source_view.clone(), deadline),
+            schema::gather(self, &req.project_id, &req.question, &plan, gen_, source_view.clone(), deadline),
             settings::gather(self, &req.project_id, &plan, gen_, source_view.clone(), deadline),
             state::gather(self, &req.project_id, &req.question, &plan, gen_, source_view.clone(), deadline),
             request_trace::gather(self, &req.project_id, &req.question, &plan, gen_, source_view.clone(), deadline),

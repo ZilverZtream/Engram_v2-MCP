@@ -92,6 +92,7 @@ fn table_facts(row: &Value, report: &Value, project: &str, schema_available: boo
 pub(super) async fn gather(
     engram: &Engram,
     project_id: &str,
+    question: &str,
     plan: &QueryPlan,
     generation: u64,
     view: Option<Arc<SourceSnapshotGuard>>,
@@ -104,20 +105,31 @@ pub(super) async fn gather(
     if !selected_sql && !plan.modalities.iter().any(|m| matches!(m, Modality::Sql)) {
         return None;
     }
+    // Explicit SQL-view wording selects an existing source-object reader.
+    // "view" alone can describe UI, so it does not reroute ordinary questions.
+    let words = question.split(|c: char| !c.is_alphanumeric())
+        .map(str::to_ascii_lowercase).collect::<Vec<_>>();
+    let view_question = words.iter().any(|word| word == "sql")
+        && words.iter().any(|word| word == "view" || word == "views");
     let mut requests = Vec::new();
     for entity in &plan.entities {
         // Classification selects an existing reader, never proves binding.
         // That reader independently admits selected/current SQL source hashes.
-        let discover_procedure = entity.guessed_kind == EntityKind::Symbol && entity.resolved.is_empty();
-        let is_procedure = discover_procedure || entity.resolved.iter().filter_map(|resolved| resolved.node_id.as_deref())
+        let is_view = view_question && entity.guessed_kind != EntityKind::File;
+        if is_view && matches!(entity.text.to_ascii_lowercase().as_str(), "sql" | "view" | "views") {
+            continue;
+        }
+        let discover_procedure = !is_view && entity.guessed_kind == EntityKind::Symbol && entity.resolved.is_empty();
+        let is_procedure = !is_view && (discover_procedure || entity.resolved.iter().filter_map(|resolved| resolved.node_id.as_deref())
             .any(|id| engram.state.graph.get_node(project_id, id).is_ok_and(|node| node.is_some_and(|node|
-                matches!(node.node_type.as_str(), "stored_proc" | "stored_procedure") && node.file_path.as_str().to_ascii_lowercase().ends_with(".sql"))));
+                matches!(node.node_type.as_str(), "stored_proc" | "stored_procedure") && node.file_path.as_str().to_ascii_lowercase().ends_with(".sql")))));
         let is_table = entity.resolved.iter().any(|r| r.kind == EntityKind::Table)
             || entity.guessed_kind == EntityKind::Table
             || (plan.contract.entity_type == ContractEntityType::Table
                 && entity.guessed_kind != EntityKind::File);
-        if (!is_table && !is_procedure) || requests.iter().any(|(r, _): &(QuerySchemaRequest, bool)| {
-            matches!(&r.query_type, Some(SchemaQueryType::Table { name }) if !is_procedure && name == &entity.text)
+        if (!is_table && !is_procedure && !is_view) || requests.iter().any(|(r, _): &(QuerySchemaRequest, bool)| {
+            matches!(&r.query_type, Some(SchemaQueryType::View { name }) if is_view && name == &entity.text)
+                || matches!(&r.query_type, Some(SchemaQueryType::Table { name }) if !is_procedure && !is_view && name == &entity.text)
                 || matches!(&r.query_type, Some(SchemaQueryType::StoredProc { sp_name }) if is_procedure && sp_name == &entity.text)
         }) {
             continue;
@@ -125,7 +137,8 @@ pub(super) async fn gather(
         let request = QuerySchemaRequest {
             project_id: project_id.into(),
             // Preserve qualification from the question, never a basename graph identity.
-            query_type: Some(if is_procedure { SchemaQueryType::StoredProc { sp_name: entity.text.clone() } }
+            query_type: Some(if is_view { SchemaQueryType::View { name: entity.text.clone() } }
+                else if is_procedure { SchemaQueryType::StoredProc { sp_name: entity.text.clone() } }
                 else { SchemaQueryType::Table { name: entity.text.clone() } }),
             offset: Some(0),
             limit: Some(100),
@@ -134,7 +147,7 @@ pub(super) async fn gather(
             response_offset: 0,
         };
         if schema_query::validate(&request).is_ok() {
-            requests.push((request, discover_procedure));
+            requests.push((request, discover_procedure || is_view));
         }
     }
     if requests.is_empty() {
@@ -155,13 +168,14 @@ pub(super) async fn gather(
             proof: None,
         },
     };
-    let mut notes = vec!["Source declarations only; no live database, default-schema or collation binding. At most3 named-table/procedure lookups; examined counts source-file examinations across lookups.".to_string()];
+    let mut notes = vec!["Source declarations only; no live database, default-schema or collation binding. At most3 named-table/procedure/view lookups; examined counts source-file examinations across lookups.".to_string()];
     let mut failed = false;
     let work = async {
         let view =
             view.ok_or_else(|| "Selected source unavailable for SQL schema evidence".to_string())?;
         for (request, discover_procedure) in requests.into_iter().take(3) {
             let is_procedure = matches!(&request.query_type, Some(SchemaQueryType::StoredProc { .. }));
+            let is_view = matches!(&request.query_type, Some(SchemaQueryType::View { .. }));
             let result = engram
                 .query_schema_selected(
                     request.clone(),
@@ -214,12 +228,13 @@ pub(super) async fn gather(
                 match &request.query_type {
                     Some(SchemaQueryType::StoredProc { sp_name }) => out.matched_names.push(sp_name.clone()),
                     Some(SchemaQueryType::Table { name }) => out.matched_names.push(name.clone()),
+                    Some(SchemaQueryType::View { name }) => out.matched_names.push(name.clone()),
                     _ => {},
                 }
             }
             for row in report["results"].as_array().into_iter().flatten() {
                 let ambiguous = report["status"] == "ambiguous";
-                let table = if ambiguous || is_procedure { row } else { &row["table"] };
+                let table = if ambiguous || is_procedure || is_view { row } else { &row["table"] };
                 let citation = &table["citation"];
                 let path = citation["path"]
                     .as_str()
@@ -243,16 +258,19 @@ pub(super) async fn gather(
                     symbol_id: Some(format!("schema:{path}:{start}:{hash}")),
                     title: Some(match &request.query_type {
                         Some(SchemaQueryType::StoredProc { sp_name }) => format!("Source procedure {sp_name}: {}", table["name"]),
+                        Some(SchemaQueryType::View { name }) => format!("Source view {name}: {}", table["name"]),
                         _ => format!("Source table {}", table["name"]),
                     }),
                     content: if ambiguous {
                         let recovery = if crate::tool_surface::includes(engram.state.cfg.effective_tool_preset(), "query_schema") {
                             json!({"tool":"query_schema","arguments":{"project_id":project_id,
-                                "query_type":if is_procedure {json!({"kind":"stored_proc","sp_name":row["name"]})}
+                                "query_type":if is_view {json!({"kind":"view","name":row["name"]})}
+                                    else if is_procedure {json!({"kind":"stored_proc","sp_name":row["name"]})}
                                     else {json!({"kind":"table","name":row["name"]})}}})
                         } else {
                             json!({"tool":"ask_codebase","arguments":{"project_id":project_id,
-                                "question":if is_procedure {format!("Describe the stored procedure \"{}\"",row["name"].as_str().unwrap_or_default())}
+                                "question":if is_view {format!("Describe SQL view \"{}\"",row["name"].as_str().unwrap_or_default())}
+                                    else if is_procedure {format!("Describe the stored procedure \"{}\"",row["name"].as_str().unwrap_or_default())}
                                     else {format!("What are the columns of the \"{}\" table?",row["name"].as_str().unwrap_or_default())},
                                 "output_format":"json"}})
                         };
@@ -260,6 +278,8 @@ pub(super) async fn gather(
                         "source_coverage":report["coverage"],
                         "clarification":"Choose a qualified source name; duplicate declarations may still require source inspection. No default schema or deployment binding is inferred.",
                         "recovery":recovery}).to_string()
+                    } else if is_view { json!({"view":table,"source_coverage":report["coverage"],
+                        "next_page":report["next_page"]}).to_string()
                     } else if is_procedure { json!({"stored_procedure":table,"source_coverage":report["coverage"],
                         "next_page":report["next_page"]}).to_string()
                     } else {
@@ -271,7 +291,9 @@ pub(super) async fn gather(
                     },
                     generation: Some(generation), commit: None, timestamp: None,
                     confidence: 0.95, relevance: 1.0, extraction_method: "source_sql_schema".into(),
-                    warnings: vec![if is_procedure && ambiguous {
+                    warnings: vec![if is_view {
+                        "Source view declarations and lexical references only. Duplicate names remain candidates; projected column types, default-schema/collation binding, deployment, effective ALTER/DROP order and runtime execution are not established."
+                    } else if is_procedure && ambiguous {
                         "Multiple source procedure declarations; choose a qualified name or inspect duplicates. No unique deployed procedure is established."
                     } else if is_procedure {
                         "Complete admitted token-normalized procedure declaration and lexical references. Deployment order, execution, dynamic SQL and runtime argument values are not established."
