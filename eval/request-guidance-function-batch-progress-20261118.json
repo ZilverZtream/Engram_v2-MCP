@@ -31,5 +31,8 @@
   "postrelease_session_id": 7496,
   "release_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\release-owner-pin1.json",
   "postrelease_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\postrelease1-state.json",
-  "no_shipping_source_mutation_until_terminal": true
+  "no_shipping_source_mutation_until_terminal": true,
+  "delivery_recorder": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\record-delivery.py",
+  "delivery_recorder_sha256": "c3c7d1bb142e5973737e29d1743339bc9e9df34b2b6d1969598f89c272bc515a",
+  "delivery_recorder_executed": false
 }
