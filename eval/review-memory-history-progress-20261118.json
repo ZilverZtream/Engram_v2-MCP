@@ -11,7 +11,7 @@
   "runtime_deployed": false,
   "exec_session_id": 21751,
   "shipping_source_commit": "ca579ceb967eb515ee602dfc33656de5629aad1e",
-  "next_action": "Observe the existing release command21751/state until terminal; do not restart it. After PASS package with release.py package, run existing deploy1.py candidate/install acceptance, finish-install1.py restoration/ZIP, and record-delivery.py only after successful completion. Current source/native/public gates already pass; no additional Cargo/test suite.",
+  "next_action": "Observe existing release21751 and postrelease57420; do not start another build/package/deploy. Postrelease waits for the exact91888build owner, then runs existing package, candidate/install acceptance and normal restoration/ZIP. Once postrelease is INSTALLED_READY_TO_RECORD, run record-delivery.py exactly once and commit/push its intended metadata/docs; preserve any following source work. Stop on an actual failed stage and inspect its retained log.",
   "full_original_goal_complete": false,
   "initial_native_command": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native1.json",
   "initial_native_tests_executed": 0,
@@ -35,5 +35,17 @@
   "release_session_id": 21751,
   "native_sessions_terminal": true,
   "native_and_debug_fixtures_closed": true,
-  "release_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\release1-state.json"
+  "release_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\release1-state.json",
+  "postrelease_session_id": 57420,
+  "postrelease_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\postrelease1-state.json",
+  "postrelease_driver": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\finish-existing-release.py",
+  "postrelease_driver_sha256": "54dc251a810268b2c224711f760165c5859679fad38ed859cfbf0dca2707a762",
+  "last_observation": {
+    "classification": "VERIFIED_WAIT",
+    "at_utc": "2026-11-18T05:42:43.129537+00:00",
+    "release_session_id": 21751,
+    "verified_release_driver_pid": 91888,
+    "postrelease_session_id": 57420,
+    "new_builds_started_this_turn": 0
+  }
 }
