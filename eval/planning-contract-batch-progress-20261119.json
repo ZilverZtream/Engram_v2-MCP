@@ -1,6 +1,6 @@
 {
-  "status": "FOUR_SOURCE_OUTCOMES_FROZEN_ONE_OPTIMIZED_BUILD_READY",
-  "at_utc": "2026-11-18T23:08:18.738739+00:00",
+  "status": "SINGLE_OPTIMIZED_BUILD_RUNNING",
+  "at_utc": "2026-11-18T23:19:20.560587+00:00",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118",
   "original_requirement_ids": [
     "EG-01",
@@ -14,16 +14,49 @@
   "native_unit_cases_expected": 0,
   "native_unit_cargo_invocations": 0,
   "public_assertions_per_artifact": 20,
-  "optimized_builds_started": 0,
+  "optimized_builds_started": 1,
   "optimized_builds_planned": 1,
   "separate_debug_builds": 0,
   "full_suites": 0,
   "runtime_deployed": false,
   "protected_wip9": "UNCHANGED",
   "full_original_goal_complete": false,
-  "next_action": "Start exactly one admitted optimized build of the frozen source. Reuse it for the20public native MCP assertions on candidate and installed artifacts, preserving metadata/config. No separate Rust-unit/debug compilation, pass replay or task comparison.",
+  "next_action": "Observe the same pinned release66404 and observer46348. On terminal PASS, reuse this one artifact for20candidate and20installed public assertions and normal-runtime restoration. Do not restart due to an observation timeout, compile a separate unit/debug profile, or rerun passed checks.",
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118",
     "cleanup": "Owned build Job/temp and public owners close; fixture directories/private config removed on completion. Retain receipts/package and normal runtime/managed rollback with explicit accounting; no preexisting deletion."
+  },
+  "release_owner": {
+    "pid": 66404,
+    "created": 1795043383.0066378,
+    "command": [
+      "C:\\Python314\\python.exe",
+      "-B",
+      "-u",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118\\build.py",
+      "--label",
+      "release1",
+      "--",
+      "build",
+      "--locked",
+      "--offline",
+      "-j1",
+      "-p",
+      "engram_server",
+      "--bin",
+      "engram_server",
+      "--release"
+    ]
+  },
+  "release_observer": {
+    "pid": 46348,
+    "created": 1795043628.676388,
+    "command": [
+      "C:\\Python314\\python.exe",
+      "-B",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118\\after-release1.py"
+    ],
+    "purpose": "Observe only the pinned release; on PASS reuse its artifact for20candidate/20installed public assertions and normal-runtime restoration. Never starts Cargo.",
+    "cleanup": "Observer and child handles close; public fixtures/private config removed. Evidence/package retained in this case; normal runtime and managed rollback accounted separately."
   }
 }

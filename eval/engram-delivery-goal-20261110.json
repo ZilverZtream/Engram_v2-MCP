@@ -2836,12 +2836,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "FOUR_SOURCE_OUTCOMES_FROZEN_ONE_OPTIMIZED_BUILD_READY",
+    "status": "SINGLE_OPTIMIZED_BUILD_RUNNING",
     "record": "eval/planning-contract-batch-progress-20261119.json",
     "implementation_items_active": 0,
     "pending_source_outcomes": 4,
     "full_original_goal_complete": false,
-    "next_action": "Start exactly one admitted optimized build of the frozen source. Reuse it for the20public native MCP assertions on candidate and installed artifacts, preserving metadata/config. No separate Rust-unit/debug compilation, pass replay or task comparison."
+    "next_action": "Observe the same pinned release66404 and observer46348. On terminal PASS, reuse this one artifact for20candidate and20installed public assertions and normal-runtime restoration. Do not restart due to an observation timeout, compile a separate unit/debug profile, or rerun passed checks."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3566,7 +3566,7 @@
     "pending_source_outcomes": 1
   },
   "history_header_filter_progress_20261117": "eval/history-header-filter-progress-20261117.json",
-  "last_updated_at": "2026-11-18T23:08:18.738739+00:00",
+  "last_updated_at": "2026-11-18T23:19:20.560587+00:00",
   "maintenance_history_interaction_batch_delivery_20261117": {
     "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
     "original_requirement_ids": [
@@ -4171,8 +4171,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T23:08:18.738739+00:00",
-    "reason": "Four independent original source outcomes frozen in existing checkout5cf93efd;20public assertions prepared and all prior baselines retained. Corrected only the guide fixture raw-byte oracle before first after-check, without changing inputs or replaying baseline. One optimized build planned; no extra test/debug profile."
+    "at_utc": "2026-11-18T23:19:20.560587+00:00",
+    "reason": "Four original outcomes consolidated in frozen5cf93efd with20public native assertions. Exactly one admitted optimized build66404 and exact observer46348 are live. No separate unit/debug build, source indexing, real model or task replay."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
