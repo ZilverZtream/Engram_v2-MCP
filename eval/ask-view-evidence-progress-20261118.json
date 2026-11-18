@@ -25,5 +25,7 @@
     "fixtures_created": 0,
     "receipts": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-view-evidence-20261118",
     "cleanup": "New fixtures close server/graph/database handles before owned TempDir removal; no preexisting paths removed."
-  }
+  },
+  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED",
+  "combined_validation_record": "eval/instruction-view-request-progress-20261118.json"
 }

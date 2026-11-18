@@ -27,5 +27,7 @@
     "fixture_execution_started": false,
     "protected_wip9_unchanged": true,
     "retention": "Keep contract/source-stage receipts through combined installed delivery; no preexisting folders deleted."
-  }
+  },
+  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED",
+  "combined_validation_record": "eval/instruction-view-request-progress-20261118.json"
 }

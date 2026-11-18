@@ -2821,8 +2821,9 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SOURCE_COMPLETE_READY_FOR_COMBINED_VALIDATION",
+    "status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_READY",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118",
+    "record": "eval/instruction-view-request-progress-20261118.json",
     "original_requirements": [
       "EG-27",
       "TODO-31",
@@ -2830,9 +2831,14 @@
     ],
     "implementation_items_active": 0,
     "pending_source_outcomes": 3,
-    "engram_builds_started": 0,
+    "active_native_session_id": null,
+    "native_session_terminal": true,
+    "native_cargo_invocations": 1,
+    "native_cases_passed": 6,
+    "release_builds_started": 0,
+    "runtime_deployed": false,
     "full_original_goal_complete": false,
-    "next_action": "Freeze source at the existing shipping checkout; run only the instruction_view_request_delivery integration target under the unchanged guard; then verify actual public behavior and deploy one release after acceptance."
+    "next_action": "Start the one optimized build under the unchanged batch guard, preserve its exact live handle, then package and verify candidate/installed behavior using the existing paired deployment pipeline. Do not repeat passed native/debug acceptance."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4155,8 +4161,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T09:47:19.438711+00:00",
-    "reason": "Implemented and committed authored PreRender source context through existing request tracing with two focused regression cases. Syntax checks pass; combined native/public acceptance and deployment remain pending. No Cargo invocation."
+    "at_utc": "2026-11-18T10:08:28.894432+00:00",
+    "reason": "Third original workflow implemented and committed; one six-case native invocation and owned public Full/Core acceptance passed. Source remains frozen clean for one optimized delivery build."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",

@@ -42,5 +42,7 @@
     "created_fixture_directories": 0,
     "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-prerender-context-20261118",
     "retained": "Contract, protected-work hashes and source-check receipt for combined validation. New graph fixtures close graph handles before removing owned resources."
-  }
+  },
+  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED",
+  "combined_validation_record": "eval/instruction-view-request-progress-20261118.json"
 }

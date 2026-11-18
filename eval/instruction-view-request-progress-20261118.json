@@ -1,0 +1,88 @@
+{
+  "status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_READY",
+  "at_utc": "2026-11-18T10:08:28.894432+00:00",
+  "original_requirement_ids": [
+    "EG-27",
+    "TODO-31",
+    "TODO-28"
+  ],
+  "source_outcomes": [
+    {
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "original_requirement_id": "EG-27",
+      "source_commit": "18f87b47673e4e824fb0ef4ede387239e4af3375",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-bracketed-guidance-20261118\\contract.json",
+      "native_target": "sql_bracketed_instruction_maintenance",
+      "native_environment": {
+        "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+      },
+      "counting_rule": "One SQL instruction-dependency identity outcome; normalization, before/current evidence, inverse selection and two fixture cases are not separate deliverables.",
+      "progress": "eval/sql-bracketed-guidance-progress-20261118.json"
+    },
+    {
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "original_requirement_id": "TODO-31",
+      "source_commit": "f640658d750ad88cb4fd7c3ee6823becc283c524",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-prerender-context-20261118\\contract.json",
+      "native_target": "request_trace_prerender_context",
+      "native_environment": {
+        "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+      },
+      "counting_rule": "One response-preparation context outcome, across existing page/control/master composition. Binding spellings, downstream SQL, formats and freshness checks are supporting acceptance, not distinct outcomes.",
+      "progress": "eval/request-prerender-context-progress-20261118.json"
+    },
+    {
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "original_requirement_id": "TODO-28",
+      "source_commit": "9417f1ee732686c355783b2484ff66fcf552a3b0",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-view-evidence-20261118\\contract.json",
+      "native_target": "ask_view_evidence_tests",
+      "native_environment": {
+        "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+      },
+      "counting_rule": "One complete named-view evidence workflow outcome. The direct reader, natural-language entry, Full/Core recovery, two cases and table-related view handoff are one outcome.",
+      "progress": "eval/ask-view-evidence-progress-20261118.json"
+    }
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118",
+  "shipping_source": {
+    "status": "FROZEN_EXISTING_SHIPPING_CHECKOUT_READY",
+    "at_utc": "2026-11-18T09:56:09.534246+00:00",
+    "source_commit": "67387ed7f30f30ab528b5e86515c06306ddbb367",
+    "previous_checkout_commit": "ca579ceb967eb515ee602dfc33656de5629aad1e",
+    "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "checkout_clean": true,
+    "protected_wip9_unchanged": true,
+    "shared_target": "C:\\ai-projects\\Engram-MCP_v2\\target",
+    "new_worktrees_created": 0
+  },
+  "native_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\native-acceptance.json",
+    "sha256": "7eebaa38c0d37a7c61488e533b1c7ea879277d521e1d83bc05be28c68ece1576"
+  },
+  "public_debug": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\debug1\\receipt.json",
+    "sha256": "df8ee0c792d26caf4c151fd6c0f0da5c44fdac87c1e0ffab48d5468e2ec87396"
+  },
+  "debug_artifact": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\debug-artifact1.json",
+    "sha256": "5447a181bede4061b1fab28fca233ebc9a0a46808dfb9a36eb2368dbd70f1acf"
+  },
+  "native_cases_passed": 6,
+  "native_cargo_invocations": 1,
+  "native_total_seconds": 585.1453234999999,
+  "public_check_assertions": 36,
+  "public_seconds": 14.946699600000102,
+  "public_count_qualification": "Assertions include overlapping Full/Core clarification checks; this is not a count of distinct features or proof of task usefulness.",
+  "release_builds_started": 0,
+  "runtime_deployed": false,
+  "full_original_goal_complete": false,
+  "protected_wip9_unchanged": true,
+  "temporary_resources": {
+    "native_build_job_closed": true,
+    "native_temp_removed": true,
+    "public_servers_closed": true,
+    "public_fixtures_removed": true,
+    "retained_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118"
+  }
+}
