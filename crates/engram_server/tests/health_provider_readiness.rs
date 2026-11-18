@@ -23,7 +23,7 @@ impl Fixture {
         // cannot establish remote availability, and health must not invoke it.
         let listener = TcpListener::bind(("127.0.0.1", 0))?;
         listener.set_nonblocking(true)?;
-        let (state, _) = AppState::new(Config {
+        let config = Config {
             data_dir: owned.path().join("data"),
             allowed_roots: vec![root.clone()],
             embedding_backend: backend.into(),
@@ -32,6 +32,12 @@ impl Fixture {
             llm_backend: "none".into(),
             max_concurrent_jobs: 1,
             ..Default::default()
+        };
+        // Registration also writes an index-report memory entry. Bootstrap
+        // with lexical-only storage so that setup cannot probe this endpoint.
+        let (state, _) = AppState::new(Config {
+            embedding_backend: "fts_only".into(),
+            ..config.clone()
         })?;
         let mut fixture = Self {
             server: Engram::new(state),
@@ -61,6 +67,11 @@ impl Fixture {
             .unwrap()
             .trim()
             .to_owned();
+        if backend != "fts_only" {
+            drop(fixture.server);
+            let (state, _) = AppState::new(config)?;
+            fixture.server = Engram::new(state);
+        }
         Ok(fixture)
     }
 
