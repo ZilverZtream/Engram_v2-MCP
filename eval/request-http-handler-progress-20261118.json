@@ -1,12 +1,12 @@
 {
-  "status": "NATIVE_AND_DEBUG_ACCEPTANCE_PASS_RELEASE_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "TODO-31",
   "progress": "eval/request-http-handler-progress-20261118.json",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118\\contract.json",
   "implementation_items_active": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "not_in_frozen_release": "agent-instruction-batch-20261118",
-  "next_action": "Finite native/debug contracts passed first invocation; preserve passes and reuse one optimized release for candidate/installed acceptance. Do not expand scope.",
+  "next_action": "Finite component installed; advance remaining original requirements without expanding acceptance.",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118",
   "at_utc": "2026-11-18T14:34:57.497944+00:00",
   "source_stage_cargo_invocations": 0,
@@ -36,9 +36,12 @@
   "public_verifier_sha256": "f12f942c59a3b45269f2bfe01771fcd56393720b3d5cf1132e4a464f1f12387f",
   "syntax_validation": "Changed Rust source and test parsed with rustfmt stdin; no typecheck/test pass claimed.",
   "limitations": [
-    "Native and public debug contracts passed on owned fixtures; optimized release and candidate/installed acceptance remain pending. Actual LegacyValidation use and incremental task usefulness are not established.",
-    "Literal explicit code-behind and directive Class with an authored single-line VB instance Implements IHttpHandler.ProcessRequest binding only. Inline/App_Code-only/inherited handlers, aliases and multiline headers remain disclosed gaps.",
-    "No actual LegacyValidation handler presence or task benefit demonstrated. No source/Q/index mutation, CodeMap/Blast work, language expansion, provider calls or preexisting folder deletion."
+    "HTTP-handler entries require an explicit WebHandler Class/code-behind and a single-line VB instance Implements IHttpHandler.ProcessRequest binding. Inline, App_Code-only, inherited and multiline bindings remain disclosed gaps. Static source paths do not prove hosting, registration, request dispatch or execution.",
+    "Selective refresh preserves existing source-identity/admission bounds. Omitted guidance selectors use only_paths under the existing16-path maintenance bound; invalid requests refuse before source work. Guidance/Git/source evidence can be read outside the refreshed paths, while outside indexed revisions remain inherited. Observation failure preserves published source with an explicit unavailable observation; no atomic index/policy snapshot or authored rewrite.",
+    "SQL functions retain complete token-normalized declared signatures/bodies, lexical references and exact raw-source hashes/spans. No runtime return-type checking, live database binding, dependency execution, dynamic SQL or effective ALTER/DROP order is established. Named Full/Core choices and existing source refusal remain bounded.",
+    "Owned fixture acceptance establishes these contracts, not actual LegacyValidation handler/function use, general semantic correctness or incremental task productivity. No actual LegacyValidation source/Q/index mutation, provider/model call, target-language expansion, CodeMap/Blast improvement, source-format/database-schema/sidecar change or preexisting deletion.",
+    "Retained pre-install Registry active_generation3154/source_head_revision46 matches restored public3154. Earlier fixed3151 snapshot selection checks are separate and did not establish the active pointer. The failed3151 restoration expectation is retained with reconciliation; no reset or reindex was performed.",
+    "Original31findings/19gates, independently completed EG18 and all unfinished/held work remain preserved. The full original goal and demonstrated task usefulness remain unfinished."
   ],
   "temporary_resources": {
     "baseline_owners_closed": true,
@@ -54,6 +57,10 @@
   ],
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\native-acceptance.json",
   "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\debug1\\receipt.json",
-  "validation_status": "NATIVE_AND_DEBUG_PASS",
-  "release_progress": "eval/request-guidance-function-batch-progress-20261118.json"
+  "validation_status": "PASS",
+  "release_progress": "eval/request-guidance-function-batch-progress-20261118.json",
+  "delivery_record": "eval/request-guidance-function-batch-delivery-20261118.json",
+  "installed_runtime_sha256": "bae71931020244e0dbc1394755c847fd707067417b18e0578c1e9762d0ff46ce",
+  "installed_public_assertions": 6,
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\installed1\\acceptance.json"
 }

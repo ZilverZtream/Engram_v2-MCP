@@ -447,6 +447,7 @@ proposals that duplicate the existing surface:
 `find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
+  Installed November 18: named SQL-function questions retain complete declared signatures/bodies, lexical references and exact source hashes/spans, with qualified ambiguity and callable Full/Core clarification. These are source declarations; actual LegacyValidation use and database execution are unproven. [Delivery](eval/request-guidance-function-batch-delivery-20261118.json).
   Installed November18: named SQL-view lookup and explicit SQL-view questions retain
   complete source declarations, qualified ambiguity, Full/Core clarification, scoped
   guidance and original recovery. SQL deployment/execution remain unproven. [Delivery](eval/instruction-view-request-delivery-20261118.json).
@@ -590,6 +591,7 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  Installed November 18: explicit VB WebHandler directives select their instance IHttpHandler.ProcessRequest implementation and existing downstream source/SQL evidence. Other classes and page lifecycle methods are excluded; hosting and execution remain unproven. [Delivery](eval/request-guidance-function-batch-delivery-20261118.json).
   Installed November18: admitted authored PreRender handlers join page/control/master
   source context with existing source guards and downstream paths. Runtime lifecycle
   order and execution remain unproven. [Delivery](eval/instruction-view-request-delivery-20261118.json).

@@ -2554,55 +2554,11 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "TODO-31",
-        "source_commit": "65942c3542daa9bcfc8a6fc1074127ceaa6d4a39",
-        "progress": "eval/request-http-handler-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118\\contract.json",
-        "native_target": "request_trace_http_handlers",
-        "native_environment": {
-          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
-        },
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118\\verify-public.py",
-        "counting_rule": "One originalTODO31 VB HTTP-handler entry outcome; declaration/range, source/refusal and SQL variants are acceptance cases, not independent deliverables."
-      },
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "EG-27",
-        "source_commit": "aac8cd34ad439a30b0a491ce238cb33bdd3a8095",
-        "progress": "eval/selective-instruction-update-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selective-instruction-update-20261118\\contract.json",
-        "native_target": "selective_instruction_update",
-        "native_environment": {
-          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
-        },
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selective-instruction-update-20261118\\verify-public.py",
-        "counting_rule": "One EG27 selective edit-to-guidance workflow. Implicit selectors, outside inheritance, draft refusal and optional observation failure are acceptance variants, not separate deliverables."
-      },
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "TODO-28",
-        "source_commit": "54b3ea292571f158cf5c47072b04e79b3167fcb7",
-        "progress": "eval/ask-sql-functions-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118\\contract.json",
-        "native_target": "ask_sql_function_evidence",
-        "native_environment": {
-          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
-        },
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118\\verify-public.py",
-        "public_modes": [
-          "Full",
-          "Core"
-        ],
-        "counting_rule": "One TODO28 named SQL-function evidence workflow. Scalar/TVF, ambiguity, Full/Core, source guard and recovery are acceptance variants, not independent deliverables."
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
-    "last_completed_batch": "eval/agent-instruction-batch-delivery-20261118.json",
+    "last_completed_batch": "eval/request-guidance-function-batch-delivery-20261118.json",
     "incremental_codegen": {
       "enabled_for_future_runs": true,
       "source_commit": "48ec7f6cd9e93a43f90674ce4f7504ae98bd2e35",
@@ -2828,18 +2784,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "OPTIMIZED_RELEASE_RUNNING",
-    "record": "eval/request-guidance-function-batch-progress-20261118.json",
-    "release_session_id": 5870,
-    "postrelease_session_id": 7496,
-    "release_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\release-owner-pin1.json",
-    "pending_source_outcomes": 3,
+    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
+    "record": "eval/request-guidance-function-batch-delivery-20261118.json",
+    "pending_source_outcomes": 0,
     "implementation_items_active": 0,
-    "native_acceptance": "PASS_7_FIRST_INVOCATION",
-    "public_debug_acceptance": "PASS_31",
-    "runtime_deployed": false,
     "full_original_goal_complete": false,
-    "next_action": "Observe existing release5870/postrelease7496. Reuse one optimized artifact for candidate/installed31-assertion checks, restore the normal runtime and record delivery. No passed native/debug replay, duplicate build or separate debug build."
+    "next_action": "Advance the next ready unfinished original requirement. Preserve held work and passed acceptance; do not restart terminal builds or replay accepted checks."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2947,11 +2897,11 @@
     "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
   },
   "latest_delivered_runtime": {
-    "record": "eval/agent-instruction-batch-delivery-20261118.json",
-    "server_sha256": "103dc1d77b44ead3ffafc056a0dccf45ce9ee367a0ac9b70094dc02292613208",
-    "manifest_sha256": "b0407e88d907dd6095a3c6a31afedad400c4ef102fbc7a662bee4e982e8c7a2c",
-    "shipping_source_commit": "bf4abd6ae44fd65db5688706f6adea71d08894ad",
-    "selected_generation": 3151,
+    "record": "eval/request-guidance-function-batch-delivery-20261118.json",
+    "server_sha256": "bae71931020244e0dbc1394755c847fd707067417b18e0578c1e9762d0ff46ce",
+    "manifest_sha256": "17e822405423c9ddf5d0ff979f0949850a9b5a945b3c0aa0e8ff991410ef9252",
+    "shipping_source_commit": "100679586dde457755b70be02ec20489e69f4814",
+    "selected_generation": 3154,
     "source_format": 9,
     "assets_verified": 215,
     "normal_runtime_restored": true,
@@ -3035,9 +2985,9 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "OPTIMIZED_RELEASE_RUNNING",
-    "record": "eval/request-guidance-function-batch-progress-20261118.json",
-    "runtime_deployed": false,
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": "eval/request-guidance-function-batch-delivery-20261118.json",
+    "all_build_sessions_terminal": true,
     "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],
@@ -3149,7 +3099,7 @@
     "does_not_pause_or_replace_goal": true
   },
   "active_source_implementation": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "original_requirement_id": "TODO-28",
     "source_commit": "54b3ea292571f158cf5c47072b04e79b3167fcb7",
     "progress": "eval/ask-sql-functions-progress-20261118.json",
@@ -3165,7 +3115,9 @@
     ],
     "counting_rule": "One TODO28 named SQL-function evidence workflow. Scalar/TVF, ambiguity, Full/Core, source guard and recovery are acceptance variants, not independent deliverables.",
     "implementation_items_active": 0,
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "delivery_record": "eval/request-guidance-function-batch-delivery-20261118.json",
+    "historical_source_status": true
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -4175,9 +4127,9 @@
     "all_build_sessions_terminal": true
   },
   "current_goal_turn_classification": {
-    "status": "VERIFIED_WAIT",
-    "at_utc": "2026-11-18T15:38:39.591040+00:00",
-    "reason": "Exact release owner37316 confirmed live. Installed-delivery recorder and documentation handoff prepared with guarded acceptance, original scope and temporary-resource accounting; no new Cargo/test run. Current release/install pipeline remains active."
+    "status": "PROGRESS",
+    "at_utc": "2026-11-18T16:26:28.323785+00:00",
+    "reason": "Three finite original workflows installed; full original goal remains unfinished."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4431,6 +4383,26 @@
     "status": "PUBLIC_INSTALLED_ACCEPTANCE_PREPARED_NOT_EXECUTED",
     "builds_started": 0,
     "runtime_deployed": false,
+    "full_original_goal_complete": false
+  },
+  "previous_runtime_before_request_guidance_function_batch_20261118": {
+    "record": "eval/agent-instruction-batch-delivery-20261118.json",
+    "server_sha256": "103dc1d77b44ead3ffafc056a0dccf45ce9ee367a0ac9b70094dc02292613208",
+    "manifest_sha256": "b0407e88d907dd6095a3c6a31afedad400c4ef102fbc7a662bee4e982e8c7a2c",
+    "shipping_source_commit": "bf4abd6ae44fd65db5688706f6adea71d08894ad",
+    "selected_generation": 3151,
+    "source_format": 9,
+    "assets_verified": 215,
+    "normal_runtime_restored": true,
+    "full_original_goal_complete": false
+  },
+  "request_guidance_function_batch_delivery_20261118": {
+    "record": "eval/request-guidance-function-batch-delivery-20261118.json",
+    "original_requirement_ids": [
+      "TODO-31",
+      "EG-27",
+      "TODO-28"
+    ],
     "full_original_goal_complete": false
   }
 }

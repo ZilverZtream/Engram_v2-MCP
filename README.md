@@ -98,6 +98,8 @@ The [health, refresh and instruction delivery](eval/health-refresh-constant-deli
 
 The [agent instruction delivery](eval/agent-instruction-batch-delivery-20261118.json) reduces repeated tool-description bytes, retains complete bounded generation results, and makes instruction evidence available for queued updates. Owned acceptance passed; incremental LegacyValidation task benefit remains unproven.
 
+The [request and instruction delivery](eval/request-guidance-function-batch-delivery-20261118.json) traces explicit VB HTTP-handler entries, combines selective source refresh with separate instruction evidence, and supplies named SQL-function source declarations. Owned acceptance passed; incremental LegacyValidation task benefit remains unproven.
+
 Later installed deliveries include [direct method/source guidance and bounded
 recovery](eval/legacy_validation-method-read-batch-delivery-20261114.json), and [ordinary SQL
 keys, schema-bound views and source-cited route registrations](eval/legacy_validation-request-schema-batch-delivery-20261114.json).
