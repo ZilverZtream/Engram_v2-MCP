@@ -58,6 +58,9 @@ pub enum SchemaQueryType {
     /// Complete source-declared view; qualified names and duplicate candidates
     /// remain distinct. This does not infer deployed columns or execution.
     View { name: String },
+    /// Complete source-declared SQL function, including its declared signature
+    /// and body. This does not establish return types or database execution.
+    Function { name: String },
     Column { table: String, column: String },
     TablesThatReferenceForeignKey { table: String, column: String },
     /// Case-insensitive literal substring, not SQL LIKE or a regular expression.

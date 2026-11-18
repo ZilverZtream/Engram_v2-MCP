@@ -1,0 +1,56 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-28",
+  "progress": "eval/ask-sql-functions-progress-20261118.json",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118\\contract.json",
+  "implementation_items_active": 0,
+  "runtime_deployed": false,
+  "next_action": "Retain with pending HTTP-handler and selective-instruction changes. The three-outcome minimum is not a command to compile; continue substantive source work and consolidate the next validation batch.",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118",
+  "at_utc": "2026-11-18T15:07:43.524657+00:00",
+  "source_stage_cargo_invocations": 0,
+  "native_cases_executed": 0,
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118\\baseline1\\receipt.json",
+  "baseline_runtime_sha256": "103dc1d77b44ead3ffafc056a0dccf45ce9ee367a0ac9b70094dc02292613208",
+  "full_original_goal_complete": false,
+  "implementation_files": [
+    "crates/engram_server/src/handlers/ask_schema.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/services/schema_query.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/ask_sql_function_evidence.rs"
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/handlers/ask_schema.rs": "b6d403ff92bff28c6d983912255e1b30988218927ec2f27c905a0db13d6cb19b",
+    "crates/engram_server/src/models/requests.rs": "547544d223f26af50a6296b31c44d8a3d2c6448fdf3ed37c4312c1a7ee71889e",
+    "crates/engram_server/src/services/schema_query.rs": "3c4fcee4c4d2965e8e5672f8550d7e84043720ec579ccd101f3a6b82b89521ee",
+    "crates/engram_server/src/tools.rs": "cdd6fb207be41a292f95750102708e83304799650d46924deac2ccf1f982c4c5",
+    "crates/engram_server/tests/ask_sql_function_evidence.rs": "1960ac97f87bb8b2d8df39688adcd56a9093a49056a565500d832f4317ace626"
+  },
+  "native_target": "ask_sql_function_evidence",
+  "native_cases_written": 3,
+  "native_environment": {
+    "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118\\verify-public.py",
+  "public_verifier_sha256": "7bd2c9aa08eab7e9dffd482b2259c9d3bdeb78df4c3dc08ca09695f365af7680",
+  "public_modes": [
+    "Full",
+    "Core"
+  ],
+  "source_syntax_validation": "Changed production source and focused integration test parsed with rustfmt stdin; only the new test was formatted. No typecheck/test pass claimed.",
+  "observed_missing_behavior": "Installed103dc1d owned public MCP indexes SQL, returns the independently authored FeeRates table, but supplies no named source-function schema evidence for billing.CalculateFee.",
+  "implementation": "Admit SQL FUNCTION declaration objects to the shared bounded source catalog and named schema query; compose explicit SQL-function questions with complete token-normalized signature/body, lexical references, exact source hash/span, qualified ambiguity and callable Full/Core clarification. Reuse selected-source admission and authored guidance.",
+  "actual_legacy_validation_function_presence_verified": false,
+  "limitations": [
+    "Source complete only; native/new-code public acceptance remains pending. No claim that LegacyValidation currently uses these functions or gains task productivity.",
+    "Declared SQL source only; runtime return-type checking, live/deployed definitions, dependency execution, function-call binding, dynamic SQL and effective ALTER/DROP ordering remain unknown.",
+    "Existing SQL source/batch/object bounds apply. Other language functions are not rerouted without an explicit SQL-function cue. No new tool, language target, database schema/source-format change, CodeMap/Blast work or actual LegacyValidation source/Q/index mutation."
+  ],
+  "temporary_resources": {
+    "baseline_owners_closed": true,
+    "baseline_fixture_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118",
+    "cleanup_condition": "Retain contract/source oracle/wire/receipt; native/public fixtures close stores and handles before teardown; no preexisting directory deletion."
+  }
+}
