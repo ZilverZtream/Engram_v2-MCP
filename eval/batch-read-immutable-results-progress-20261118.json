@@ -68,5 +68,6 @@
     "Complete metadata/recovery controls are reserved before reads and may require a larger minimum budget than prior refresh-only batching. No evidence is silently clipped to hide controls.",
     "One complete-batch immutable-recovery outcome; multiple reads, source/memory kinds, statuses and restart checks are not independent deliveries. Full TODO4 and original backlog remain unfinished.",
     "No actual LegacyValidation source/Q/index/data mutation, real model calls, CodeMap/Blast Radius work, target-language expansion, preexisting deletion or new build."
-  ]
+  ],
+  "source_commit": "14ab9936cb4c5f0e45096bad1b2582c94e522ec5"
 }

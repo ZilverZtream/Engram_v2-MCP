@@ -327,7 +327,15 @@
       "current_evidence": "execution_evidence_20261101.eg02_deferred_omission_delivery_20261102",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
       "current_installed_delivery": "execution_evidence_20261101.eg02_installed_recovery_delivery_20261111",
-      "status_reconciliation_20261113": "eval/legacy_validation-shortlist-status-reconciliation-20261113.json"
+      "status_reconciliation_20261113": "eval/legacy_validation-shortlist-status-reconciliation-20261113.json",
+      "batch_read_immutable_results_source_progress_20261118": {
+        "record": "eval/batch-read-immutable-results-progress-20261118.json",
+        "source_commit": "14ab9936cb4c5f0e45096bad1b2582c94e522ec5",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "runtime_deployed": false,
+        "full_original_requirement_complete": false,
+        "limit": "Complete original executed batch recovery only; no atomic multi-read source consistency, current-freshness or underlying read-coverage claim."
+      }
     },
     {
       "id": "EG-03",
@@ -10341,17 +10349,17 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T02:42:59.421732+00:00",
+  "last_updated_at": "2026-11-18T02:56:07.116324+00:00",
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "progress": "eval/ask-authored-evidence-progress-20261118.json",
-    "original_requirement": "EG-14",
-    "pending_source_outcomes": 2,
+    "progress": "eval/batch-read-immutable-results-progress-20261118.json",
+    "original_requirement": "TODO-4",
+    "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
     "previous_batch_delivery": "eval/query-property-fallback-batch-delivery-20261118.json",
-    "next_action": "Retain with the prior availability source outcome; continue substantive original source work before combined validation. No Cargo at two outcomes."
+    "next_action": "Retain three separate original source outcomes for combined acceptance; the minimum is not a release schedule. Advance any substantive ready original source work before one focused combined native batch and a shared release. No full suite or standalone build for this item."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -17238,5 +17246,17 @@
     "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
     "runtime_deployed": false,
     "counting_rule": "One documentary-authority outcome, not separate outcomes per provider, file, format or citation."
+  },
+  "batch_read_immutable_results_source_progress_20261118": {
+    "original_requirement_id": "TODO-4",
+    "related_original_requirement": "EG-02",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "14ab9936cb4c5f0e45096bad1b2582c94e522ec5",
+    "progress": "eval/batch-read-immutable-results-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-read-immutable-results-20261118\\contract.json",
+    "behavior": "Budget-omitted batch reads retain all original executed evidence, errors and qualifications through bounded immutable recovery without rereading source or memory.",
+    "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+    "runtime_deployed": false,
+    "counting_rule": "One complete-batch immutable recovery outcome; read kinds, formats, statuses and restart checks are not separate outcomes."
   }
 }
