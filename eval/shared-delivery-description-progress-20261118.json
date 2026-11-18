@@ -56,5 +56,6 @@
     "baseline_fixture_removed": true,
     "retention": "Baseline/projection/contracts retained; no live new fixture or preexisting deletion."
   },
-  "next_action": "Preserve this following source outcome; add two further distinct original ready implementation outcomes before another Cargo. First finish the existing optimized release via exec1047/postrelease99115."
+  "next_action": "Preserve this following source outcome; add two further distinct original ready implementation outcomes before another Cargo. First finish the existing optimized release via exec1047/postrelease99115.",
+  "source_commit": "0bc18a5fb2c4fbbb7612bc206886c22f42c0bdda"
 }
