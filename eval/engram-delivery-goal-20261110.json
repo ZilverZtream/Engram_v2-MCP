@@ -3550,7 +3550,7 @@
     "pending_source_outcomes": 1
   },
   "history_header_filter_progress_20261117": "eval/history-header-filter-progress-20261117.json",
-  "last_updated_at": "2026-11-18T21:12:52.783377+00:00",
+  "last_updated_at": "2026-11-18T21:16:32.707667+00:00",
   "maintenance_history_interaction_batch_delivery_20261117": {
     "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
     "original_requirement_ids": [
@@ -4155,8 +4155,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T21:12:52.783377+00:00",
-    "reason": "Five native cases and27public checks accepted on first attempt; source/evidence pushed. One admitted optimized release52272 and exact observer53744 are live. No full suite or separate debug build. Runtime remains unchanged until accepted pair upgrade."
+    "at_utc": "2026-11-18T21:16:32.707667+00:00",
+    "reason": "Closed original EG12 using already-passed installed deep-path and native-error receipts; verified unchanged recovery source through current installed package. No new compilation or fixture. Existing release continues."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4274,6 +4274,10 @@
       "status": "VERIFIED_COMPLETE",
       "record": "eval/eg18-original-requirement-closure-20261118.json",
       "full_original_goal_complete": false
+    },
+    "EG-12": {
+      "record": "eval/eg12-original-requirement-closure-20261118.json",
+      "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
     }
   },
   "corpus_refresh_results_source_progress_20261118": {
@@ -4590,5 +4594,6 @@
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\verify-public.py",
     "counting_rule": "One original complete maintenance-result delivery outcome across4operations. Tool variants, errors, expiry and retention checks are not independent deliverables."
   },
-  "source_health_maintenance_batch_progress_20261118": "eval/source-health-maintenance-batch-progress-20261118.json"
+  "source_health_maintenance_batch_progress_20261118": "eval/source-health-maintenance-batch-progress-20261118.json",
+  "eg12_original_requirement_closure_20261118": "eval/eg12-original-requirement-closure-20261118.json"
 }

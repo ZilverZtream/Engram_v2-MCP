@@ -612,7 +612,7 @@
       "required_behavior": [
         "A Windows-owned deep-path fixture persists and recovers a large response byte-for-byte with atomic containment and useful OS errors."
       ],
-      "closure_state": "Current installed deep-path recovery verified November18: 67655 original UTF-8 bytes recovered exactly through restart from a 318-character owned Windows response path. Both owners/fixture cleaned;14public assertionsPASS. Retained8native recovery cases remain separate. Useful OS-error disclosure and independent original gate limits are not promoted to complete; see eval/eg12-installed-deep-response-acceptance-20261118.json.",
+      "closure_state": "Original EG12 required behavior verified complete from retained installed318-character deep-path/67655-byte exact restart recovery and later candidate/installed native-OS-error acceptance. Shared recovery source unchanged through the current installed delivery. No rerun, broader fault/storage-gate or task-benefit claim. See eval/eg12-original-requirement-closure-20261118.json",
       "dependencies": [],
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
       "current_installed_delivery": "execution_evidence_20261101.eg02_installed_recovery_delivery_20261111",
@@ -620,7 +620,9 @@
         "record": "eval/eg12-installed-deep-response-acceptance-20261118.json",
         "status": "INSTALLED_DEEP_PATH_RESPONSE_RECOVERY_VERIFIED",
         "whole_finding_complete": false
-      }
+      },
+      "original_requirement_closure_20261118": "eval/eg12-original-requirement-closure-20261118.json",
+      "original_required_behavior_complete": true
     },
     {
       "id": "EG-13",
@@ -10449,7 +10451,7 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T21:12:52.783377+00:00",
+  "last_updated_at": "2026-11-18T21:16:32.707667+00:00",
   "current_execution_focus": {
     "status": "OPTIMIZED_RELEASE_RUNNING_NATIVE_DEBUG_ACCEPTED",
     "record": "eval/source-health-maintenance-batch-progress-20261118.json",
@@ -17749,5 +17751,6 @@
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\verify-public.py",
     "counting_rule": "One original complete maintenance-result delivery outcome across4operations. Tool variants, errors, expiry and retention checks are not independent deliverables."
   },
-  "source_health_maintenance_batch_progress_20261118": "eval/source-health-maintenance-batch-progress-20261118.json"
+  "source_health_maintenance_batch_progress_20261118": "eval/source-health-maintenance-batch-progress-20261118.json",
+  "eg12_original_requirement_closure_20261118": "eval/eg12-original-requirement-closure-20261118.json"
 }

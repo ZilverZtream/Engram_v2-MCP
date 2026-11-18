@@ -1,0 +1,88 @@
+{
+  "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+  "at_utc": "2026-11-18T21:16:32.707667+00:00",
+  "original_requirement_id": "EG-12",
+  "required_behavior": [
+    "A Windows-owned deep-path fixture persists and recovers a large response byte-for-byte with atomic containment and useful OS errors."
+  ],
+  "original_required_behavior_complete": true,
+  "evidence_by_requirement": {
+    "deep_path_and_exact_immutable_recovery": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\deep-response-installed-20261118\\installed1\\receipt.json",
+        "sha256": "0af211d38b0a85202f7349e63d06c4a111dba8d61bc089d732e3223a19dd7a34",
+        "checks": 14,
+        "original_response_bytes": 67655,
+        "snapshot_path_chars": 318,
+        "owners": 2
+      },
+      "bytes": 67655,
+      "path_chars": 318,
+      "assertions": 14,
+      "independent_oracles": [
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\deep-response-installed-20261118\\installed1\\persisted-original.json",
+          "sha256": "5128ca39ca75b2f19d71ea66ef321ec75eeecf9933a5d02456325f17e76a1360"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\deep-response-installed-20261118\\installed1\\recovered-original-batch.json",
+          "sha256": "b7f452df261ba1fb4a8218830dd65c32328317db905fc1e157c9eb27674e5d5f"
+        }
+      ]
+    },
+    "useful_filesystem_errors": [
+      {
+        "label": "candidate1",
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118\\candidate1\\receipt.json",
+          "sha256": "988b2206976b37a689cb05650fe39817bad5a1c9b16ead7bce1873498512adf2"
+        },
+        "checks": {
+          "persistence_failure_is_explicit": true,
+          "owned_blocker_preserved": true,
+          "original_memory_still_readable": true,
+          "expected_native_cause_disclosure": true
+        },
+        "native_error": {
+          "code": -32603,
+          "message": "Cannot create the change-set response cache: Cannot create a file when that file already exists. (os error 183)"
+        }
+      },
+      {
+        "label": "installed1",
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118\\installed1\\receipt.json",
+          "sha256": "099e438990e58d1d80aaef3661265379e76e7f7d21f847a22f76d5f77df37963"
+        },
+        "checks": {
+          "persistence_failure_is_explicit": true,
+          "owned_blocker_preserved": true,
+          "original_memory_still_readable": true,
+          "expected_native_cause_disclosure": true
+        },
+        "native_error": {
+          "code": -32603,
+          "message": "Cannot create the change-set response cache: Cannot create a file when that file already exists. (os error 183)"
+        }
+      }
+    ],
+    "atomic_containment_native_evidence": "eval/audit-inventory-20261101.json:execution_evidence_20261101.peer_refresh_publication_recovery_cutoff_and_delivery_20261103; eight correctly selected response-delivery cases, separate from the grouped precedent fixture failure."
+  },
+  "installed_lineage": {
+    "latest_delivery": "eval/planned-config-review-batch-delivery-20261118.json",
+    "current_server_sha256": "944f4cdbca03cf0f3cee651ff8f5180160fe0b6105677f5391457700e87202c4",
+    "source_file": "crates/engram_server/src/handlers/change_set_delivery.rs",
+    "source_unchanged_between_error_delivery_and_latest_installed": true,
+    "cache_error_source_commit": "7cf2949384d1edb45c1cbce6438922c5ae4df822",
+    "latest_installed_source_commit": "53a15f651de71b6d1597ab9c13aa5e60ffc7161f"
+  },
+  "stale_note_resolved": "Positive deep-path acceptance had not incorporated the later installed native-OS-error acceptance. Reconciled retained receipts; no pass replay.",
+  "builds_started": 0,
+  "new_fixture_runs": 0,
+  "full_original_goal_complete": false,
+  "limitations": [
+    "Dated positive and failure cases are distinct executions; no claim that they were rerun on every subsequent binary. Shared recovery source is unchanged from the error-tested delivery to the current installed source.",
+    "This closes the stated EG12 Windows persistence/recovery/error contract. It does not close exhaustive fault/crash/power-loss, all19storage gates, overall readiness or productivity.",
+    "Existing fixture ownership/cleanup receipts remain retained in their original locations. No new resource or preexisting deletion."
+  ]
+}
