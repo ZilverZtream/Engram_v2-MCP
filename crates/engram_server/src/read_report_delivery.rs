@@ -55,6 +55,7 @@ const TOOLS: &[&str] = &[
     "pre_push_audit",
     "project_health",
     "one_shot_feature_plan",
+    "validate_feature_contract",
     "map_guards_and_settings",
     "immune_check",
     "get_review_decisions",
@@ -103,7 +104,7 @@ fn server_discovery(tool: &str) -> bool {
 }
 
 fn project_free(tool: &str) -> bool {
-    server_discovery(tool) || tool == "index_project"
+    server_discovery(tool) || matches!(tool, "index_project" | "validate_feature_contract")
 }
 
 fn returned_operation(tool: &str) -> bool {
@@ -387,7 +388,11 @@ impl Report {
     }
 
     fn report_scope(&self) -> &'static str {
-        if self.tool == "index_project" { "server_operation" } else { "server_discovery" }
+        match self.tool {
+            "index_project" => "server_operation",
+            "validate_feature_contract" => "contract_validation",
+            _ => "server_discovery",
+        }
     }
 
     fn manifest_for(&self, id: &str, bytes: usize, operation: Option<&Value>) -> String {
