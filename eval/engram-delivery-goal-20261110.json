@@ -4420,5 +4420,10 @@
       "EG-27"
     ],
     "full_original_goal_complete": false
+  },
+  "eg22_original_requirement_closure_20261118": {
+    "record": "eval/eg22-original-requirement-closure-20261118.json",
+    "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+    "full_original_goal_complete": false
   }
 }

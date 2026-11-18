@@ -1012,7 +1012,7 @@
         "Measure cold/restart card reconstruction and existing durable embedding-cache behavior first.",
         "Implement a material measured metadata-cache improvement or obtain an explicit evidence-based disposition; do not assume repeated embedding charges."
       ],
-      "closure_state": "Original measured-improvement requirement locally verified with bounded Registry metadata cache; retained native28+8public+1realprobe and no-vector26+8public PASS. Current installed85398e9 LegacyValidation same-config results, author/path/date/ancestor filters and restart stability now verified against Git; ten public calls across two natural process lifetimes. Metadata stage timings/provider counts remain from the retained native probes. Required broader resource/full-audit gates remain open.",
+      "closure_state": "Original measured metadata-cache requirement verified complete; see eval/eg22-original-requirement-closure-20261118.json. Historical metadata-stage timing, independent process restart/provider counters, installed same-config LegacyValidation result/restart acceptance and current source lineage are separate evidence. Whole-audit resource and task-usefulness gates remain open.",
       "dependencies": [],
       "current_evidence": "execution_evidence_20261101.eg22_persistent_metadata_final_20261103",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
@@ -1023,7 +1023,12 @@
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
         "deployed": false
       },
-      "metadata_compatibility_delivery_20261116": "eval/history-webmethod-business-batch-delivery-20261116.json"
+      "metadata_compatibility_delivery_20261116": "eval/history-webmethod-business-batch-delivery-20261116.json",
+      "original_requirement_closure_20261118": {
+        "record": "eval/eg22-original-requirement-closure-20261118.json",
+        "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+        "full_original_goal_complete": false
+      }
     },
     {
       "id": "EG-23",
@@ -17543,6 +17548,11 @@
       "TODO-4",
       "EG-27"
     ],
+    "full_original_goal_complete": false
+  },
+  "eg22_original_requirement_closure_20261118": {
+    "record": "eval/eg22-original-requirement-closure-20261118.json",
+    "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
     "full_original_goal_complete": false
   }
 }

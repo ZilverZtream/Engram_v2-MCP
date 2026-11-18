@@ -1,0 +1,111 @@
+{
+  "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+  "at_utc": "2026-11-18T15:56:56.220768+00:00",
+  "original_requirement_id": "EG-22",
+  "required_behavior": [
+    "Measure cold/restart card reconstruction and existing durable embedding-cache behavior first.",
+    "Implement a material measured metadata-cache improvement or obtain an explicit evidence-based disposition; do not assume repeated embedding charges."
+  ],
+  "original_scope": "Measure cold/restart reconstruction and existing embedding reuse, then deliver a material measured metadata improvement. Completion is specific to this original requirement; independent resource and task-usefulness gates remain open.",
+  "evidence": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg22-metadata-budget-and-parent-failure-final.json",
+      "sha256": "028ed46c80a96009498cab7afe646e0c46a129edb499888d8ae9c7f0c8cd32d4"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg22-public-history-consumers-final.json",
+      "sha256": "2117a3a4c225a2b2aee26d1563ce77fd2516172de2602ea405c2403464151d68"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg22-normalized-restart-card-and-durable-embedding.json",
+      "sha256": "d02fd9de89d6d2c6add7d348458e75563f45e8eb7138f49fd395bb2b3fbc14be"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg22-metadata-budget-and-parent-failure-final.json",
+      "sha256": "d99c816367c3959e84a6ae9d3ab2ce492ce2b6658353bfd225ad73d8249d080a"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg22-public-history-consumers-final.json",
+      "sha256": "1d6a4a635686fc6dab00d48c1db05783038504b80b2e8d161a09d3f8fae24520"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg22-before-metadata-persistence-observations.json",
+      "sha256": "7cda0801ab8b0754139a5ebe284f4cd6a779276b4807e4ba87d626d87b375340"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg22-final-metadata-performance-observations.json",
+      "sha256": "53886187ead1fd0acc2e459209ba474c34b1e16cc371b050764f484223fe8443"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-history-restart-acceptance-20261113.json",
+      "sha256": "bd6a337094ed89b99218829a1dcc2fdff590b1439fdc53f0ae09aecb12b59986"
+    }
+  ],
+  "requirement_mapping": [
+    {
+      "requirement": "Measure cold/restart card reconstruction and existing durable embedding-cache behavior first.",
+      "result": "VERIFIED",
+      "proof": "Retained before measurement reconstructs64cards across independent processes while durable embeddings hit64times with0provider delegations. The metadata reconstruction cost and existing embedding reuse were separately measured before implementation."
+    },
+    {
+      "requirement": "Implement a material measured metadata-cache improvement or obtain an explicit evidence-based disposition; do not assume repeated embedding charges.",
+      "result": "VERIFIED",
+      "proof": "At the same1756-commit LegacyValidation tip, metadata digests agree before/after. Warm/reopened Registry reads describe0commits and hit1756metadata records. Retained installed same-config LegacyValidation history/filter results agree across two natural process lifetimes."
+    }
+  ],
+  "historical_stage_measurement": {
+    "measured_at": "2026-11-03T01:05:52.035707+01:00",
+    "commits": 1756,
+    "before_wall_seconds": [
+      10.2068368,
+      8.7924487
+    ],
+    "after_wall_seconds": {
+      "cold_metadata": 9.402017,
+      "warm_metadata": 0.266388,
+      "reopened_registry": 0.2602286
+    },
+    "metadata_digests_equal": true,
+    "scope": "Retained November3 metadata stage; not current-binary whole-request timings. First population still performs Git extraction."
+  },
+  "current_lineage": {
+    "installed_delivery_record": "eval/agent-instruction-batch-delivery-20261118.json",
+    "source_commit": "bf4abd6ae44fd65db5688706f6adea71d08894ad",
+    "files": [
+      {
+        "path": "crates/engram_core/src/registry/change_card_cache.rs",
+        "installed_source_blob_sha256": "e3f3baff626804acb7f198530bfcb27df7c56cad5ba2fbd1596e3143d222e723",
+        "root_matches_installed_source": true
+      },
+      {
+        "path": "crates/engram_server/src/services/change_card_service.rs",
+        "installed_source_blob_sha256": "23d209f782d6af5763cbeac7bfba705750138d4aa2ac04f8d35b3381ecbe9bca",
+        "root_matches_installed_source": true
+      },
+      {
+        "path": "crates/engram_server/src/services/change_card_service/metadata_cache.rs",
+        "installed_source_blob_sha256": "4c72dcf1a5ab37b613e0e8d58d4b7cf4862728b5f19a395095dfcc28580f1b2e",
+        "root_matches_installed_source": true
+      },
+      {
+        "path": "crates/engram_server/src/services/change_card_service/extraction.rs",
+        "installed_source_blob_sha256": "163342d8b9452cef1e23520dbd7c71e8cad2c5cba2440159fa29cc5e978f2ec3",
+        "root_matches_installed_source": true
+      }
+    ],
+    "feature_followup": "eval/history-webmethod-business-batch-delivery-20261116.json"
+  },
+  "limitations": [
+    "No new benchmark, runtime probe, test or compilation was run for this reconciliation. Historical performance remains dated; no new speedup, latency SLA, provider billing or coding-percentage claim.",
+    "Independent EG13/S15/S19 resource gates, EG23 identity acceptance and EG24/25 task usefulness retain their existing unfinished scope. A metadata cache improvement does not prove LegacyValidation productivity.",
+    "This closes the stated measured metadata-cache requirement; it does not resolve whole-process memory/disk plateau, full-audit gates or kernel/SSD attribution."
+  ],
+  "resources": {
+    "new_fixtures": 0,
+    "new_processes": 0,
+    "preexisting_deletions": 0,
+    "protected_wip9": "UNCHANGED",
+    "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101"
+  },
+  "full_original_goal_complete": false
+}
