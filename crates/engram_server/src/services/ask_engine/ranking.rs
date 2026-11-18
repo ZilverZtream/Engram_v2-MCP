@@ -703,6 +703,26 @@ pub fn rank_and_select_with_terms_exempt(
     chosen
 }
 
+/// Required-kind reserves can append an unscored implementation after ranked
+/// documentation. Restore their authority order without selecting, deduplicating
+/// or evicting anything, or disturbing the relative order of implementation items.
+pub fn order_implementation_before_documentation(items: &mut [EvidenceItem]) {
+    for index in 0..items.len() {
+        if items[index].kind != EvidenceKind::DocSection
+            || items[index].authority != Authority::CurrentDocs
+        {
+            continue;
+        }
+        let Some(relative) = items[index + 1..].iter().position(|item| {
+            item.authority == Authority::CurrentCode
+                && matches!(item.kind, EvidenceKind::SourceCode | EvidenceKind::GraphRelation)
+        }) else {
+            break;
+        };
+        items[index..=index + 1 + relative].rotate_right(1);
+    }
+}
+
 fn near_lines(a: Option<(u32, u32)>, b: Option<(u32, u32)>) -> bool {
     match (a, b) {
         (Some((a0, _)), Some((b0, _))) => a0.abs_diff(b0) <= 5,

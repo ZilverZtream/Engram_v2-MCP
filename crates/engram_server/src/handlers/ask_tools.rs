@@ -467,6 +467,9 @@ impl Engram {
             ranking::retain_entity_anchored(&mut evidence, &needles, &protected);
             ranking::retain_one_per_path(&mut evidence, &protected);
         }
+        // Keep reserved implementation source ahead of authored documentary
+        // context. Selection and explicit state/configuration groups are intact.
+        ranking::order_implementation_before_documentation(&mut evidence);
         for state in &mut state_evidence {
             if state.provider.provider == "browser_state" {
                 evidence.append(&mut state.items);

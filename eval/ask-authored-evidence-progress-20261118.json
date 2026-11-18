@@ -15,7 +15,10 @@
   "implementation_files": [
     "crates/engram_server/src/services/ask_engine/providers.rs",
     "crates/engram_server/tests/ask_authored_evidence_tests.rs",
-    "docs/TOOL_CONTRACT.md"
+    "docs/TOOL_CONTRACT.md",
+    "crates/engram_server/src/services/ask_engine/ranking.rs",
+    "crates/engram_server/src/handlers/ask_tools.rs",
+    "crates/engram_server/tests/ask_delivery_contracts.rs"
   ],
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118\\baseline1\\receipt.json",
   "baseline_checks_passed": 3,
@@ -30,11 +33,11 @@
     "cleanup_condition": "Close owned server/database resources before own fixture cleanup; retain evidence until delivery; no preexisting deletion."
   },
   "pre_runtime_correction": "A mismatched parenthesis in driver generation was caught by compile() before baseline.py or a server/fixture was created; corrected before baseline1 execution.",
-  "next_action": "Retain with the prior availability source outcome; continue substantive original source work before combined validation. No Cargo at two outcomes.",
+  "next_action": "Rerun the seven affected ask cases in one integration executable, retaining the three unaffected batch passes. Then public checks on the same debug artifact; no release until pass.",
   "source_phase_completed_at_utc": "2026-11-18T02:42:15.379164+00:00",
   "implementation_items_active": 0,
   "native_test_cases_written": 3,
-  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "validation_status": "PRODUCTION_ORDERING_CORRECTION_AWAITING_AFFECTED_ACCEPTANCE",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118\\verify-public.py",
   "public_verifier_sha256": "b7108f54e77628aadb512f0beb8bbe4b3b86003f618763720ac926f7fb3008ea",
   "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
@@ -59,5 +62,23 @@
     "crates/engram_server/tests/ask_authored_evidence_tests.rs": "f587decc99a1f0ff2037e40923fd579c7988843715260e3e876f338f5022bf01",
     "docs/TOOL_CONTRACT.md": "472ca1e947092f8afb3a8b10476d9c86710aaac79126a8b00f339124dfcdcef6"
   },
-  "source_commit": "502dc647dd74c2b60196d00180fcb4eddcc086da"
+  "source_commit": "502dc647dd74c2b60196d00180fcb4eddcc086da",
+  "source_before_ordering_correction": "502dc647dd74c2b60196d00180fcb4eddcc086da",
+  "native1_acceptance": {
+    "status": "FAIL",
+    "passed": 2,
+    "failed": 1,
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\native1.json",
+    "failure": "Original authority ordering requirement failed: required-kind reserves append implementation after ranked documentary items. This is a production correction, not a fixture-only adjustment."
+  },
+  "ordering_correction": {
+    "observed_report": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\mixed-authority-inspection1\\report.json",
+    "behavior": "After selection/reserves/trims, retain implementation ordering ahead of documentary context without changing selected items, identities, caps, kind/authority or explicit state/configuration groups.",
+    "acceptance_requirement_unchanged": true,
+    "new_original_outcome_count": 0,
+    "focused_native_target": "ask_delivery_contracts",
+    "affected_cases": 7,
+    "unaffected_batch_cases_retained": 3,
+    "extra_linking_avoidance": "Related ask contracts share one integration executable for this production correction; no separate debug build or full suite."
+  }
 }
