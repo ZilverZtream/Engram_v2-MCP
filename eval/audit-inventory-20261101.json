@@ -688,7 +688,7 @@
         "Keep observed implementation, authored intent and proposed policy distinct; workflow status alone is not an accepted ruling.",
         "Weak evidence exposes gaps and unchanged inputs yield stable output; pilot through existing OX QA draft/improve workflow."
       ],
-      "closure_state": "Original proposal contract verified against retained installed evidence and current selected-source hashes; see November 12 reconciliation. No authored policy publication, end-to-end application validation or matched productivity claimed.",
+      "closure_state": "Original one-area drafting contract complete from retained12supported claims/52quotes, separate provenance/shared references, explicit8gaps, stable unchanged generation, stale refusal and existing QA89line reviewed handoff. Necessary generator ownership/scope/overflow protections are separately delivered. No publication, policy approval, current-master or comparative-productivity claim. See eval/eg14-original-drafting-requirement-closure-20261118.json",
       "dependencies": [],
       "next_concrete_slice": "Do not repeat delivered draft/pilot/deployment. Preserve explicit consumer/client and any future publication gaps; broader usefulness remains EG24/25.",
       "current_area_draft_evidence": "execution_evidence_20261101.area_draft_progress_20261102",
@@ -751,7 +751,9 @@
         "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
-      }
+      },
+      "original_required_behavior_complete": true,
+      "original_drafting_requirement_closure_20261118": "eval/eg14-original-drafting-requirement-closure-20261118.json"
     },
     {
       "id": "EG-15",
@@ -10451,7 +10453,7 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T21:16:32.707667+00:00",
+  "last_updated_at": "2026-11-18T21:25:21.193653+00:00",
   "current_execution_focus": {
     "status": "OPTIMIZED_RELEASE_RUNNING_NATIVE_DEBUG_ACCEPTED",
     "record": "eval/source-health-maintenance-batch-progress-20261118.json",
@@ -17752,5 +17754,6 @@
     "counting_rule": "One original complete maintenance-result delivery outcome across4operations. Tool variants, errors, expiry and retention checks are not independent deliverables."
   },
   "source_health_maintenance_batch_progress_20261118": "eval/source-health-maintenance-batch-progress-20261118.json",
-  "eg12_original_requirement_closure_20261118": "eval/eg12-original-requirement-closure-20261118.json"
+  "eg12_original_requirement_closure_20261118": "eval/eg12-original-requirement-closure-20261118.json",
+  "eg14_original_drafting_requirement_closure_20261118": "eval/eg14-original-drafting-requirement-closure-20261118.json"
 }

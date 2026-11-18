@@ -1,0 +1,199 @@
+{
+  "status": "ORIGINAL_DRAFTING_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+  "at_utc": "2026-11-18T21:25:21.193653+00:00",
+  "original_requirement_id": "EG-14",
+  "required_behavior": [
+    "Draft selected-area purpose, invariants, house examples, companion files and accepted exceptions.",
+    "Every factual claim resolves through a separate rich provenance artifact; compact guidance references shared rules instead of duplicating them.",
+    "Keep observed implementation, authored intent and proposed policy distinct; workflow status alone is not an accepted ruling.",
+    "Weak evidence exposes gaps and unchanged inputs yield stable output; pilot through existing OX QA draft/improve workflow."
+  ],
+  "original_required_behavior_complete": true,
+  "original_scope_basis": {
+    "research": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\original-agent-findings-20261101.json",
+      "sha256": "5832177fe5afa5e2e4659bca775ee208f98061d20012b2f2418fdd36672df08d"
+    },
+    "report": "legacy_workflows",
+    "verbatim_original_requirement_excerpt": "Initial output can be a structured evidence pack consumed by OX QA\u2019s current draft/improve prompts",
+    "interpretation": "The original one-area initial delivery accepts a structured source-evidence pack plus the existing QA draft/improve handoff. Automatic policy publication is not an original drafting acceptance prerequisite."
+  },
+  "requirement_evidence": [
+    {
+      "requirement": "Draft selected-area purpose, invariants, house examples, companion files and accepted exceptions.",
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\eg14-draft-delivery-20261111.json",
+        "sha256": "eae8e5298699981cd84b04f4e3886906586fdf23be1b68ea442782302fe5f12e"
+      },
+      "observed": {
+        "claims": 12,
+        "sections": [
+          "purpose",
+          "invariant",
+          "house_example",
+          "companion_file",
+          "accepted_exception",
+          "entry_point",
+          "consumer",
+          "validation_path"
+        ],
+        "reviewed_draft_lines": 89
+      }
+    },
+    {
+      "requirement": "Every factual claim resolves through a separate rich provenance artifact; compact guidance references shared rules instead of duplicating them.",
+      "evidence": [
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\mechanical-acceptance.json",
+          "sha256": "d02b2d31f65bd99f91c99e2d2ddd13db54cb9f895ccec801098b3c69e1ac618f"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\independent-draft-review.json",
+          "sha256": "b9ddf706c913f59216d7be044d45b2958609f265ac5f55bd73f615d4a71fba9e"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\consumer-draft-review.json",
+          "sha256": "b3f0bc95bb83072d98a4cb5fe60c313f3e0de104001c20a9c3bf95d1fd0507b2"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\engram-file-layer-implementation-preview.provenance.json",
+          "sha256": "313772f465806445e9eaa3af281ae83a69f1a22d059a22fafd34bd2f9654b9aa"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\engram-file-layer-implementation-preview.instructions.md",
+          "sha256": "44f9ab3f9ec659312ca1761d975a71e3c2ab3a273a5fad74d6737b1168e8b89f"
+        }
+      ],
+      "observed": {
+        "resolved_quotations": 52,
+        "complete_deduplicated_sources": 6,
+        "shared_rule_references": 4,
+        "delivery_artifact_hashes_verified": 13
+      }
+    },
+    {
+      "requirement": "Keep observed implementation, authored intent and proposed policy distinct; workflow status alone is not an accepted ruling.",
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\independent-draft-review.json",
+        "sha256": "b9ddf706c913f59216d7be044d45b2958609f265ac5f55bd73f615d4a71fba9e"
+      },
+      "observed": "Observed implementation, authored intent and proposed policy remain distinct. Authored UI-only and conversion no-bump exceptions survive; corrected QA text is separate from original Engram output."
+    },
+    {
+      "requirement": "Weak evidence exposes gaps and unchanged inputs yield stable output; pilot through existing OX QA draft/improve workflow.",
+      "evidence": [
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\mechanical-acceptance.json",
+          "sha256": "d02b2d31f65bd99f91c99e2d2ddd13db54cb9f895ccec801098b3c69e1ac618f"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\consumer-draft-review.json",
+          "sha256": "b3f0bc95bb83072d98a4cb5fe60c313f3e0de104001c20a9c3bf95d1fd0507b2"
+        }
+      ],
+      "observed": {
+        "explicit_gaps": 8,
+        "unchanged_request_identical_pair": true,
+        "stale_proposal_refused": true,
+        "existing_qa_stage_exit": 0
+      }
+    }
+  ],
+  "necessary_ownership_scope_and_overflow_protections": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\eg15-eg17-generator-delivery-20261111.json",
+    "sha256": "7bb77478689d7e781c7627035f1e3657567b343710f9ae524d4e3153fbdb8667"
+  },
+  "preserved_deliverables": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\eg14-draft-delivery-20261111.json",
+      "sha256": "eae8e5298699981cd84b04f4e3886906586fdf23be1b68ea442782302fe5f12e"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\eg14-evidence-pack-reconciliation-20261112.json",
+      "sha256": "ab8d2d5dcf6b09b57c04f13fe33340d4676c4e88d669531d17a96307594e23e4"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\collect\\report.json",
+      "sha256": "289cdebe438521a7cdf6b16d3a6f3ca8f28015972e2331e5ba5ebc4e1daeafc6"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\submit\\report.json",
+      "sha256": "2456b19c0baef240933411e04634d22c77bebc33e560264321f08b382aa46abb"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\repeat\\report.json",
+      "sha256": "2456b19c0baef240933411e04634d22c77bebc33e560264321f08b382aa46abb"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\mechanical-acceptance.json",
+      "sha256": "d02b2d31f65bd99f91c99e2d2ddd13db54cb9f895ccec801098b3c69e1ac618f"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\independent-draft-review.json",
+      "sha256": "b9ddf706c913f59216d7be044d45b2958609f265ac5f55bd73f615d4a71fba9e"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\consumer-draft-review.json",
+      "sha256": "b3f0bc95bb83072d98a4cb5fe60c313f3e0de104001c20a9c3bf95d1fd0507b2"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\ox-qa-draft\\draft.md",
+      "sha256": "f9eba3aba2e1b3bdfcc2edc5ecd7f584a17a02bd05fda3459c2266203e8a4b58"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\ox-qa-draft\\draft-before-review.md",
+      "sha256": "e60949a745f93776ee4fe7fe528330a567454179d022dd836dd184e84f9f9ee0"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\ox-qa-draft\\summary.json",
+      "sha256": "c4d5b4530c050a1d0bf41976ecdfa12e86e66e228929bbbe9ff05ff0c7b202ae"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\ox-qa-draft\\context.json",
+      "sha256": "f413b7cbbb4bcdd378f6737846d0208fd39895fdf5d594fe655389e2da3aeb75"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\ox-qa-draft\\execution.json",
+      "sha256": "e3abf736d35c28197710393b3c9efa668cff25a5bb05f6d226a193f14ba9d492"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\engram-file-layer-implementation-preview.instructions.md",
+      "sha256": "44f9ab3f9ec659312ca1761d975a71e3c2ab3a273a5fad74d6737b1168e8b89f"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\engram-file-layer-implementation-preview.provenance.json",
+      "sha256": "313772f465806445e9eaa3af281ae83a69f1a22d059a22fafd34bd2f9654b9aa"
+    }
+  ],
+  "source_basis": {
+    "checkout_head": "b629df4fbec82fff317cff34ac57065c082796ab",
+    "observed_origin_master": "95e0c535c57aefec1087c8b86c37ef8fec183150",
+    "current_master_applicability": false
+  },
+  "current_master_applicability_established": false,
+  "authored_files_written": 0,
+  "new_builds": 0,
+  "new_model_or_fixture_runs": 0,
+  "full_original_goal_complete": false,
+  "historical_status_resolution": "Original November11 delivery withheld full closure pending surrounding ownership/scope/overflow and final reconciliation. Those protections were subsequently delivered and November12 reconciliation verified the original drafting contract. Historical raw statuses and failures are retained unchanged.",
+  "remaining_separate_work": {
+    "publication_and_policy_approval": "Unperformed. Before any requested publication, bind the intended revision, exact reviewed content, current source and governing guidance through existing ownership/review workflow.",
+    "missing_consumer_and_client_http_coverage": [
+      "Consumer traversal is partial: depth_limit",
+      "Known consumer Site/App_Code/visualisering/code/visualisering-kml-filer.vb requires separate complete-source recovery (consumer/body budget); not silent absence",
+      "Known consumer Site/App_Code/visualisering/code/visualisering-map.vb requires separate complete-source recovery (consumer/body budget); not silent absence",
+      "Policy decision: The persistence file visualisering-kml-filer.vb and map integration visualisering-map.vb are recovery leads, not complete captured consumers in this packet. Verify their complete relevant implementation before claiming zoom-only persistence/activity-audit or map-integration behavior.",
+      "Policy decision: TypeScript UI and Site/kmlquery.aspx.vb bodies from the independent source oracle are not complete current snapshots in this packet. The UI-only exception is authored guide intent; UI/HTTP execution, queue/FIFO/GeoJSON implementation and all dynamic consumers are not reverified here.",
+      "Policy decision: The direct consumer walk is bounded at depth one. Two named consumers require separate complete-source recovery under the body budget. The observed consumers do not establish exhaustive bindings, freshness of the whole working tree, runtime reachability or proposed-change breakage.",
+      "Policy decision: All validation paths above are proposed and unexecuted. This request supplies no passing test, authorization simulation, sustained-resource or conversion-rebuild result.",
+      "Policy decision: No closed/imported review status or unreceipted legacy guidance establishes accepted exceptions or scope. Keep the current AGENTS/shared/topic routing and obtain review of any new mandate or changed exception before applying generated files."
+    ],
+    "EG28": "Actual legacy ownership/adoption decisions remain unresolved; no adoption inferred.",
+    "EG24_EG25": "Regular held-out verification and comparative task benefit retain their failed/unfinished outcomes; reviewed drafting usefulness is not productivity proof."
+  },
+  "limitations": [
+    "This closes the stated original one-area evidence-backed drafting requirement, not unrestricted area inference, current-master applicability, published policy, application validation or the full Engram goal.",
+    "The raw QA draft contained unsupported mandates and was corrected in review. Corrected consumer output is not represented as Engram original pair content or automatic policy acceptance.",
+    "All original artifacts, hashes, eight evidence gaps and task failures remain retained. No actual LegacyValidation source/Q traversal or writes occurred in this reconciliation."
+  ]
+}
