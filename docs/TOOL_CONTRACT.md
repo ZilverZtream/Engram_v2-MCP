@@ -2049,3 +2049,22 @@ Promotion storage errors are returned; prior index/rule writes are separate and
 are not represented as an atomic rollback. Imported text is evidence, not proof
 of authority, semantic applicability, future defect detection or accepted policy.
 No existing legacy ownership decisions are resolved by retaining complete text.
+
+
+## Captured VB property evidence for instruction maintenance
+
+Source change 2026-11-18 (validation and deployment pending): instruction
+maintenance can observe ordinary VB property declarations in captured source,
+including getter/setter bodies through `End Property` and single-line automatic
+property initializers. Exact namespace/type-qualified candidates carry source
+and evidence hashes and byte/line ranges. Changing a referenced property selects
+its guidance for review; editing a different method preserves the property bytes.
+The same evidence supports changed-file maintenance selection, including guidance
+that references a property outside its own authority scope.
+
+These are unverified declaration candidates, not Roslyn bindings, proof of symbol
+absence or semantic effects. Missing block ends or unavailable body coverage stay
+explicitly incomplete. Existing captured-source and candidate limits apply;
+authored guidance is unchanged. This snapshot-only behavior does not alter the
+live index or start the sidecar. Pending source record:
+[vb property evidence](../eval/vb-property-evidence-progress-20261118.json).

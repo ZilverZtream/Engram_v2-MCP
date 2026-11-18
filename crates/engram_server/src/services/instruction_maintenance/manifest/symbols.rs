@@ -276,7 +276,13 @@ pub(in crate::services::instruction_maintenance) fn declarations(
                     omitted += 1;
                     continue;
                 };
-                let span_kind = if vb && symbol.kind == "function" && symbol.end_line > symbol.start_line {
+                let span_kind = if vb && symbol.kind == "property" {
+                    match symbol.metadata.as_ref().and_then(|m| m.get("snapshot_span_kind")).map(String::as_str) {
+                        Some("regex_observed_property_line_range") => "regex_observed_property_line_range",
+                        Some("regex_observed_auto_property_line_range") => "regex_observed_auto_property_line_range",
+                        _ => "regex_declaration_line_only",
+                    }
+                } else if vb && symbol.kind == "function" && symbol.end_line > symbol.start_line {
                     "regex_observed_method_line_range"
                 } else if vb {
                     "regex_declaration_line_only"
@@ -548,7 +554,8 @@ pub(in crate::services::instruction_maintenance) fn references(
                     } else if qualified_suffix {
                         "qualification_not_verified"
                     } else if matches!(candidates[0].span_kind,
-                        "regex_declaration_line_only" | "regex_observed_method_line_range") {
+                        "regex_declaration_line_only" | "regex_observed_method_line_range"
+                        | "regex_observed_property_line_range" | "regex_observed_auto_property_line_range") {
                         "unverified_vb_declaration_candidate"
                     } else {
                         "single_observed_declaration_candidate"

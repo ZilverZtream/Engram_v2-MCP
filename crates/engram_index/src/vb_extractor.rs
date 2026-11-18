@@ -8,6 +8,7 @@ use std::time::Duration;
 mod transport;
 mod inventory;
 mod compilation;
+mod snapshot_declarations;
 pub mod literal_settings;
 pub use compilation::CompilationPolicy;
 
@@ -2737,14 +2738,17 @@ fn fallback_method_metadata(source: &str, start_line: usize) -> HashMap<String, 
 pub const SNAPSHOT_DECLARATION_MAX_BYTES: usize = 256 * 1024;
 
 /// Positive declaration candidates from these exact bytes only. Never starts
-/// Roslyn or consults project state. Regex candidates have declaration-line
-/// ranges only; an empty result cannot establish symbol absence or deletion.
+/// Roslyn or consults project state. Observed method/property ranges include
+/// their bodies where available; other candidates retain declaration-line
+/// ranges only. An empty result cannot establish symbol absence or deletion.
 /// A refused source is an explicit error, never a successful empty inventory.
 pub fn snapshot_declaration_candidates(source: &str) -> Result<Vec<ExtractedSymbol>, &'static str> {
     if source.len() > SNAPSHOT_DECLARATION_MAX_BYTES {
         return Err("VB snapshot declaration source exceeds 256 KiB");
     }
-    Ok(fallback_extract_vb(Path::new("captured-snapshot.vb"), source).0)
+    let mut symbols = fallback_extract_vb(Path::new("captured-snapshot.vb"), source).0;
+    symbols.extend(snapshot_declarations::properties(source));
+    Ok(symbols)
 }
 
 /// Eval/test entry to the degraded-mode extractor: deterministic (no
