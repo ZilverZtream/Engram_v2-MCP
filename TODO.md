@@ -78,6 +78,11 @@ These degrade or improve *every single interaction*. Nothing below matters until
   recovery contract. The installed baseline returned12,839bytes and rejected a
   caller budget; no installed fix is claimed yet.
   [Progress](eval/agent-integration-result-delivery-progress-20261119.json).
+  Installed November19: project-free `validate_feature_contract` replies support
+  complete caller budgets and exact original verdict/receipt/failure recovery
+  after restart without revalidation. PASS explicitly means mechanical submitted
+  checkpoint intake; source evidence and approval authority remain unverified.
+  [Delivery](eval/planning-contract-batch-delivery-20261119.json).
   Installed November18: refresh_corpora preserves complete typed stage results,
   errors and optional skips, sets aggregate isError and uses immutable bounded
   recovery without repeating refresh operations. [Delivery](eval/health-refresh-constant-delivery-20261118.json).
@@ -241,6 +246,9 @@ These degrade or improve *every single interaction*. Nothing below matters until
   [Delivery](eval/source-health-maintenance-batch-delivery-20261118.json).
 
 - [x] **7. Actionable error messages with recovery hints** (M) — *done 2026-06-12: ProjectNotFound, no_hits, get_chunk not-found, find_symbol_references empty — all carry concrete next steps.*
+  Installed November19: `project_info` unknown-project errors now include the
+  requested ID and `list_projects`/`index_project` recovery without registering
+  a missing project. [Delivery](eval/planning-contract-batch-delivery-20261119.json).
   Installed November16: saved memory updates/imports disclose partial indexing
   failure, exact readback and nonduplicating recovery instead of hiding a
   committed write behind an error.
@@ -755,6 +763,11 @@ proposals that duplicate the existing surface:
   The installed result misses the fixed 60-second acceptance, which remains
   unfinished. Retain the functional improvement and advance the backlog without
   further timing replays. [Partial result](eval/legacy_validation-planning-node-batch-partial-20261114.json).
+  Installed November19: the final validated new/modified plan paths receive
+  complete applicable current guidance, separately from discovery context.
+  Prospective VB/TypeScript/SQL paths and changed guidance without reindexing
+  passed public acceptance. This does not resolve the semantic failures or
+  establish model compliance. [Delivery](eval/planning-contract-batch-delivery-20261119.json).
 
 - [x] **33. Batch/multi-get endpoints** (M) — *delivered 2026-11-12.*
   Installed November16: typed memory-section batches retain project/user content, provenance,

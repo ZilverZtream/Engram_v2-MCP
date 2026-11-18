@@ -1,0 +1,154 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-18T23:48:35.656635+00:00",
+  "recording_script": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118\\record-delivery.py",
+    "sha256": "ca30448eb91ea0a17b33aa6c4cd011e8abca78cabbea52d5426c41a7e6cddfa0"
+  },
+  "original_requirement_ids": [
+    "EG-01",
+    "TODO-7",
+    "TODO-4",
+    "EG-26"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118",
+  "source_preparation": {
+    "status": "FOUR_ORIGINAL_SOURCE_OUTCOMES_FROZEN",
+    "source_commit": "5cf93efd38812c007d5c7868e0bf7cbef3fab112",
+    "source_baseline": "a425ea3f38bbf2e99a4a88e03cb5a2f809527f04",
+    "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "shared_target": "C:/ai-projects/Engram-MCP_v2/target",
+    "source_files": [
+      "crates/engram_server/src/handlers/feature_plan_tools.rs",
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/handlers/project_tools.rs",
+      "crates/engram_server/src/handlers/project_tools/source_publication_tests/diagnostic_selection.rs",
+      "crates/engram_server/src/read_report_delivery.rs",
+      "crates/engram_server/src/tools.rs"
+    ],
+    "root_sources_match_normalized": true,
+    "checkout_clean": true,
+    "source_commits": [
+      "95a98795a448efc4caf54756f142605792749853",
+      "327316708b6946a72d6453eb59263399ca2b76db",
+      "0b837a8676cd893382d7b5be1d49aedabd27d01d",
+      "e1ec877d49d14caed6eb2bdc4cf0b1a25c863745"
+    ],
+    "original_requirement_ids": [
+      "EG-01",
+      "TODO-7",
+      "TODO-4",
+      "EG-26"
+    ],
+    "new_worktrees_created": 0,
+    "protected_wip9": "UNCHANGED",
+    "public_assertions_expected": 20,
+    "native_unit_cases_expected": 0,
+    "separate_debug_builds": 0,
+    "build_driver_sha256": "8e421e20253370b35a64eba0c0d7bf2c2e3bcd854d0ce0b68c069cf1e2891c19",
+    "temporary_resources": "Owned BelowNormal build Job/temp in this case; public fixture owners close and remove resources in their recorded component cases. Retain receipts/artifact here; no preexisting deletion."
+  },
+  "delivered_behaviors": {
+    "EG-01": "Feature plans return complete current authored guidance for final validated prospective new/modified VB.NET, TypeScript and SQL paths, separately from discovery scope.",
+    "TODO-7": "project_info unknown-project errors identify the requested ID and list_projects/index_project recovery without silently registering a project.",
+    "TODO-4": "Project-free validate_feature_contract supports caller budgets and exact original verdict, receipt, disposition and failure recovery after restart without revalidation.",
+    "EG-26": "Contract PASS/implementation_may_begin is explicitly scoped to mechanical checkpoint intake, with source-evidence and approval-authority verification withheld."
+  },
+  "runtime": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118\\package1",
+    "server_sha256": "595e75f7f42e38f516ba3f9c2e6444bd8a77bc69a2928f1b4ad245f5f2202c0a",
+    "manifest_sha256": "2387249cba9af4337073f79ef23e39d6f40f119b31c822f1b9f2fc95b09cad3d",
+    "old_server_sha256": "8ab70ccf5f178b1bf87a624f6b8833855113c2a70a2e9ff757ccdcb300f3cb71",
+    "old_manifest_sha256": "3525c9e68e86db7500a2764b438f091b93f2ec4fb23bb865d183b814d7c59af1",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118\\release1.json",
+      "sha256": "89be88bdeb75f2bf2a924907625b7571d614e6ad52a3d3051e86428d890bef78"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "3525c9e68e86db7500a2764b438f091b93f2ec4fb23bb865d183b814d7c59af1"
+    },
+    "source_commit": "5cf93efd38812c007d5c7868e0bf7cbef3fab112"
+  },
+  "native_acceptance": {
+    "status": "NOT_RUN",
+    "native_unit_cases_expected": 0,
+    "native_unit_cases_executed": 0,
+    "reason": "No standalone unit/debug compile planned; the optimized native executable is verified through public MCP API."
+  },
+  "public_check_assertions_per_artifact": 20,
+  "public_receipts": {
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118\\candidate1\\acceptance.json",
+      "sha256": "65407bac2a9d6fcfa0d11c64f0e8cdf7c19f6b0ee9b9e9497af622e98c764a7a"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118\\installed1\\acceptance.json",
+      "sha256": "7bc3a95845b2ea195fdfe0d4ba1f0552df064ab7531ceb6299fffebbb213f93d"
+    }
+  },
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118\\restored-runtime\\receipt.json",
+    "sha256": "67adc5dc964a2d87168696ea98761b604a0e73f63686911bdc7f89d1959bf4a7"
+  },
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3157,
+  "source_format": 9,
+  "protected_wip9": "UNCHANGED",
+  "previous_delivery_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\source-health-maintenance-batch-delivery-20261118.json",
+    "sha256": "8d849d5054bca7dfb90ec94def1373256ad8faf3f164e83b4e3cb49b5f5f2171"
+  },
+  "full_original_goal_complete": false,
+  "build_accounting": {
+    "native_unit_invocations": 0,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "native_unique_cases": 0,
+    "native_test_executions": 0,
+    "release_seconds": 2134.7332288000034,
+    "public_candidate_seconds": 8.389623900002334,
+    "public_installed_seconds": 8.236810399997921,
+    "pure_coding_percentage": null,
+    "rebuilds_during_deployment": 0
+  },
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118\\Engram-win-x64-planning-contract.zip",
+    "sha256": "a0e684d7cbc5ee58c47eccd437f110a8338ee4df8a3da35af8e3676ec929bde0",
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118\\bundle1.json",
+      "sha256": "034b3b4234d091b91a4afdc68b759e655517f82329dfdbd4c8d36e7f3882f375"
+    }
+  },
+  "temporary_resources": {
+    "owned_jobs_build_temps_and_public_owners_closed": true,
+    "owned_private_config_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-contract-20261118",
+    "intentionally_retained_runtime": {
+      "pid": 68652,
+      "purpose": "Normal installed daemon; ordinary application lifecycle."
+    },
+    "managed_rollback_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-dffc2f9195314384be916876cbe717fe",
+      "purpose": "Retained previous installed runtime pair; not disposable scratch.",
+      "cleanup_condition": "Preserve pending separate exact-path approval and rollback accounting."
+    },
+    "retention": "Retain receipts/package/ZIP and managed installer rollback. No preexisting deletion."
+  },
+  "limitations": [
+    "Final-plan guidance delivery does not establish file existence, model compliance, semantic applicability, plan quality or resolution of TODO32 planner cases.",
+    "Unknown-project recovery preserves invalid_params and does not register projects or load missing runtimes.",
+    "Contract-result recovery preserves the original mechanical supplied-input result; structural PASS is not source verification or approval.",
+    "No standalone Rust unit tests or debug compile ran. The updated existing diagnostic unit assertion remains unexecuted. Public native MCP assertions are recorded separately.",
+    "No external CodeRabbit review is claimed. No actual LegacyValidation source/Q/index mutation, real provider request, persisted storage-schema/source-format/sidecar change, target-language expansion or CodeMap/Blast improvement. MCP tool schemas intentionally change.",
+    "Original31findings/19gates, held work and failed task comparisons remain preserved. General readiness, productivity, coding-time percentage and spend justification remain unproved."
+  ]
+}

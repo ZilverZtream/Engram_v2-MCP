@@ -1,11 +1,11 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-18T22:07:52.710823+00:00",
   "original_requirement_id": "TODO-7",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\project-discovery-recovery-20261118",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\project-discovery-recovery-20261118\\contract.json",
   "implementation_items_active": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "full_original_goal_complete": false,
   "source_files": [
     "crates/engram_server/src/handlers/project_tools.rs",
@@ -14,7 +14,7 @@
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\project-discovery-recovery-20261118\\verify-public.py",
   "native_cases_expected": 0,
   "public_assertions_expected": 2,
-  "next_action": "Keep this source queued with final-plan guidance; continue distinct ready original source priorities before a combined build. Do not compile this one error-message change.",
+  "next_action": "Finite component delivered; advance original backlog. Broader limits remain.",
   "source_commit": "327316708b6946a72d6453eb59263399ca2b76db",
   "progress": "eval/project-discovery-recovery-progress-20261118.json",
   "native_target": null,
@@ -25,8 +25,13 @@
   "baseline_server_sha256": "8ab70ccf5f178b1bf87a624f6b8833855113c2a70a2e9ff757ccdcb300f3cb71",
   "baseline_owners_closed": true,
   "baseline_fixture_removed": true,
-  "validation_status": "FROZEN_FOR_PUBLIC_NATIVE_MCP_ACCEPTANCE",
+  "validation_status": "CANDIDATE_INSTALLED_PUBLIC_MCP_PASS_NATIVE_UNIT_NOT_RUN",
   "current_runtime_applicability": "project_info is part of the actual Full discovery workflow named by server instructions. Current installed8ab70ccf reproduces the unhelpful error. This is RPC recovery guidance, not a measured productivity or new project-language claim.",
   "source_stage_builds_started": 0,
-  "validation_batch": "eval/planning-contract-batch-progress-20261119.json"
+  "validation_batch": "eval/planning-contract-batch-progress-20261119.json",
+  "delivery_record": "eval/planning-contract-batch-delivery-20261119.json",
+  "native_tests_executed": 0,
+  "candidate_public_checks_passed": 2,
+  "installed_public_checks_passed": 2,
+  "installed_server_sha256": "595e75f7f42e38f516ba3f9c2e6444bd8a77bc69a2928f1b4ad245f5f2202c0a"
 }

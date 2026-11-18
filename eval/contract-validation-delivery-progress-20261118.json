@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-18T22:26:45.204553+00:00",
   "original_requirement_id": "TODO-4",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-validation-delivery-20261118",
@@ -11,10 +11,10 @@
   "native_cases_expected": 0,
   "public_assertions_expected": 7,
   "implementation_items_active": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "full_original_goal_complete": false,
   "current_runtime_applicability": "validate_feature_contract is advertised by current Full and consumes the release-critical get_change_set checkpoint before implementation. Actual schema capture lacks all delivery controls; no task-productivity or policy-approval claim.",
-  "next_action": "Consolidate the three queued original source outcomes and review finite acceptance before any admitted build. Three is the minimum floor, not an automatic release schedule; no filler, full suite, standalone debug or repeated passing checks.",
+  "next_action": "Finite component delivered; advance original backlog. Broader limits remain.",
   "source_commit": "0b837a8676cd893382d7b5be1d49aedabd27d01d",
   "progress": "eval/contract-validation-delivery-progress-20261118.json",
   "native_target": null,
@@ -27,7 +27,12 @@
   "baseline_owners_closed": true,
   "baseline_fixture_removed": true,
   "schema_inventory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-control-inventory-20261118\\inspection1.json",
-  "validation_status": "FROZEN_FOR_PUBLIC_NATIVE_MCP_ACCEPTANCE",
+  "validation_status": "CANDIDATE_INSTALLED_PUBLIC_MCP_PASS_NATIVE_UNIT_NOT_RUN",
   "source_stage_builds_started": 0,
-  "validation_batch": "eval/planning-contract-batch-progress-20261119.json"
+  "validation_batch": "eval/planning-contract-batch-progress-20261119.json",
+  "delivery_record": "eval/planning-contract-batch-delivery-20261119.json",
+  "native_tests_executed": 0,
+  "candidate_public_checks_passed": 7,
+  "installed_public_checks_passed": 7,
+  "installed_server_sha256": "595e75f7f42e38f516ba3f9c2e6444bd8a77bc69a2928f1b4ad245f5f2202c0a"
 }

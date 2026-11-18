@@ -2559,55 +2559,6 @@
     "next_batch_pending": [
       {
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "EG-01",
-        "source_commit": "95a98795a448efc4caf54756f142605792749853",
-        "progress": "eval/feature-plan-final-guidance-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\contract.json",
-        "native_target": null,
-        "native_cases_expected": 0,
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\verify-public.py",
-        "public_assertions_expected": 6,
-        "counting_rule": "One original final-plan scoped-instruction handoff; VB/TS/SQL guides, exceptions, exclusion and freshness are acceptance variants, not separate outcomes.",
-        "public_verifier_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\verifier-correction1.json"
-      },
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "TODO-7",
-        "source_commit": "327316708b6946a72d6453eb59263399ca2b76db",
-        "progress": "eval/project-discovery-recovery-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\project-discovery-recovery-20261118\\contract.json",
-        "native_target": null,
-        "native_cases_expected": 0,
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\project-discovery-recovery-20261118\\verify-public.py",
-        "public_assertions_expected": 2,
-        "counting_rule": "One original actionable project-discovery recovery outcome; ID, invalid_params, callable guidance and non-registration are acceptance aspects, not independent deliverables."
-      },
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "TODO-4",
-        "source_commit": "0b837a8676cd893382d7b5be1d49aedabd27d01d",
-        "progress": "eval/contract-validation-delivery-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-validation-delivery-20261118\\contract.json",
-        "native_target": null,
-        "native_cases_expected": 0,
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-validation-delivery-20261118\\verify-public.py",
-        "public_assertions_expected": 7,
-        "counting_rule": "One original complete contract-validation report outcome. Controls, verdict/receipt preservation, restart and global recovery are acceptance aspects, not independent deliverables."
-      },
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "EG-26",
-        "source_commit": "e1ec877d49d14caed6eb2bdc4cf0b1a25c863745",
-        "progress": "eval/contract-verification-scope-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-verification-scope-20261118\\contract.json",
-        "native_target": null,
-        "native_cases_expected": 0,
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-verification-scope-20261118\\verify-public.py",
-        "public_assertions_expected": 5,
-        "counting_rule": "One original truthful contract/result scope outcome. Scope flags, wording and PASS/BLOCKED/FAIL variants are acceptance aspects, not independent deliverables."
-      },
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
         "original_requirement_id": "TODO-4",
         "source_commit": "70b25f952fdbf55c336c902e0647f78db5c70cbb",
         "progress": "eval/agent-integration-result-delivery-progress-20261119.json",
@@ -2622,7 +2573,7 @@
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
-    "last_completed_batch": "eval/source-health-maintenance-batch-delivery-20261118.json",
+    "last_completed_batch": "eval/planning-contract-batch-delivery-20261119.json",
     "incremental_codegen": {
       "enabled_for_future_runs": true,
       "source_commit": "48ec7f6cd9e93a43f90674ce4f7504ae98bd2e35",
@@ -2851,10 +2802,10 @@
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "record": "eval/agent-integration-result-delivery-progress-20261119.json",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 5,
+    "pending_source_outcomes": 1,
     "full_original_goal_complete": false,
-    "next_action": "Keep this source outcome queued for a later combined batch. Do not change the current frozen shipping checkout or start a separate build. Select another ready original LegacyValidation-priority outcome.",
-    "concurrent_frozen_batch": "eval/planning-contract-batch-progress-20261119.json"
+    "next_action": "Select the next ready original LegacyValidation-priority improvement. Keep the one unvalidated integration-pack outcome queued for a later finite combined batch; do not build it individually or repeat the delivered20candidate/20installed checks.",
+    "last_completed_runtime_batch": "eval/planning-contract-batch-delivery-20261119.json"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3579,7 +3530,7 @@
     "pending_source_outcomes": 1
   },
   "history_header_filter_progress_20261117": "eval/history-header-filter-progress-20261117.json",
-  "last_updated_at": "2026-11-18T23:41:21.943468+00:00",
+  "last_updated_at": "2026-11-18T23:48:35.656635+00:00",
   "maintenance_history_interaction_batch_delivery_20261117": {
     "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
     "original_requirement_ids": [
@@ -4184,8 +4135,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T23:41:21.943468+00:00",
-    "reason": "Verified original EG27 four-requirement closure from retained17/45native behavior logs and installed linked/dependent/historical/selective/queued acceptance, bound unchanged current sources to installed runtime. No build/test/model replay or whole-goal completion."
+    "at_utc": "2026-11-18T23:48:35.656635+00:00",
+    "reason": "Four original source outcomes delivered with20candidate and20installed public native MCP assertions, one optimized build, zero standalone unit/debug builds and no full suite. Normal runtime/config/metadata preserved; full goal active."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4512,9 +4463,9 @@
     "historical_source_status": true
   },
   "latest_runtime_delivery": {
-    "record": "eval/source-health-maintenance-batch-delivery-20261118.json",
-    "server_sha256": "8ab70ccf5f178b1bf87a624f6b8833855113c2a70a2e9ff757ccdcb300f3cb71",
-    "manifest_sha256": "3525c9e68e86db7500a2764b438f091b93f2ec4fb23bb865d183b814d7c59af1",
+    "record": "eval/planning-contract-batch-delivery-20261119.json",
+    "server_sha256": "595e75f7f42e38f516ba3f9c2e6444bd8a77bc69a2928f1b4ad245f5f2202c0a",
+    "manifest_sha256": "2387249cba9af4337073f79ef23e39d6f40f119b31c822f1b9f2fc95b09cad3d",
     "selected_generation": 3157
   },
   "cache_guidance_attribute_batch_delivery_20261118": {
@@ -4655,5 +4606,6 @@
   "contract_validation_delivery_source_progress_20261118": "eval/contract-validation-delivery-progress-20261118.json",
   "contract_verification_scope_source_progress_20261118": "eval/contract-verification-scope-progress-20261118.json",
   "planning_contract_batch_progress_20261119": "eval/planning-contract-batch-progress-20261119.json",
-  "eg27_original_requirement_closure_20261119": "eval/eg27-original-requirement-closure-20261119.json"
+  "eg27_original_requirement_closure_20261119": "eval/eg27-original-requirement-closure-20261119.json",
+  "planning_contract_batch_delivery_20261119": "eval/planning-contract-batch-delivery-20261119.json"
 }
