@@ -357,7 +357,7 @@ pub fn render_markdown(r: &AskReport) -> String {
         // Business excerpts already carry a bounded claim/qualification view.
         // A second 200-character crop can show only its disclaimer and hide
         // every retrieved rule. Retain that view, including its recovery marker.
-        let snippet_limit = if matches!(e.provider.as_str(), "definition" | "request_trace" | "schema") {
+        let snippet_limit = if matches!(e.provider.as_str(), "definition" | "request_trace" | "schema" | "review_decisions") {
             // The provider already bounds this source. A second preview crop
             // would remove the method body/member context or the request
             // trace's source, policy and recovery. The complete-reply budget

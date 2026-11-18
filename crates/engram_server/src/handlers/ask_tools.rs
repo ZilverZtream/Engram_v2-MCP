@@ -21,6 +21,9 @@ mod response_delivery;
 #[path = "ask_policy.rs"]
 mod policy;
 
+#[path = "ask_review_decisions.rs"]
+mod review_decisions;
+
 #[path = "ask_schema.rs"]
 mod schema;
 
@@ -153,12 +156,13 @@ impl Engram {
             generation: gen_,
             source_view: source_view.clone(),
         };
-        let ((mut raw, mut providers), mut schema_evidence, mut settings_evidence, mut state_evidence, mut request_evidence) = tokio::join!(
+        let ((mut raw, mut providers), mut schema_evidence, mut settings_evidence, mut state_evidence, mut request_evidence, mut review_evidence) = tokio::join!(
             retrieval::gather_evidence_selected_source(&ctx, &plan, &req.question, depth, deadline, cancel, source_selection),
             schema::gather(self, &req.project_id, &req.question, &plan, gen_, source_view.clone(), deadline),
             settings::gather(self, &req.project_id, &plan, gen_, source_view.clone(), deadline),
             state::gather(self, &req.project_id, &req.question, &plan, gen_, source_view.clone(), deadline),
             request_trace::gather(self, &req.project_id, &req.question, &plan, gen_, source_view.clone(), deadline),
+            review_decisions::gather(self, &req.project_id, &req.question, deadline),
         );
         if let Some(schema) = &mut schema_evidence {
             raw.append(&mut schema.items);
@@ -181,6 +185,9 @@ impl Engram {
         }
         if let Some(request) = &mut request_evidence {
             providers.push(request.provider.clone());
+        }
+        if let Some(review) = &review_evidence {
+            providers.push(review.provider.clone());
         }
         // Round-2 audit P0-4c (owner 2026-08-30): one bounded call-graph hop
         // from the files the first pass cited — the answer to "how does X get
@@ -488,6 +495,13 @@ impl Engram {
                 evidence.append(&mut settings.items);
             }
         }
+        // Explicit review questions retain the existing reader's complete bounded
+        // event set, rather than losing conditions to generic snippet ranking.
+        if let Some(review) = &mut review_evidence {
+            if let Some(item) = review.item.take() {
+                evidence.push(item);
+            }
+        }
         let conflicts = ranking::detect_conflicts(&evidence, gen_);
         let snapshot = status::build_snapshot(
             &ctx,
@@ -521,6 +535,9 @@ impl Engram {
         let st = settings_evidence.iter().fold(st, |status, settings| settings.qualify_status(status));
         let st = state_evidence.iter().fold(st, |status, state| state.qualify_status(status));
         let st = request_evidence.as_ref().map_or(st, |request| request.qualify_status(st));
+        let st = if review_evidence.is_some() && st == status::AnswerStatus::Answered {
+            status::AnswerStatus::Partial
+        } else { st };
         let mut unknowns = report::coverage_gaps(&plan, &evidence, &providers);
         // Name the premise terms nothing supports, first — the reader must not
         // fill them in from the answer's other evidence.
