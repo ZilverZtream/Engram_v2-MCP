@@ -161,7 +161,10 @@ pub struct Config {
     pub dream_default_min_cluster_size: usize,
 
     // --- Vector search configuration ---
-    /// Timeout in milliseconds for a single vector search query.
+    /// Timeout in milliseconds for a single vector_search query. Also the shared
+    /// optional-semantic budget for search_memory across project/user namespaces;
+    /// failed or timed-out hybrid attempts return disclosed lexical fallback.
+    /// Does not bound runtime startup, lexical/source work or total request time.
     #[serde(default = "default_vector_search_timeout_ms")]
     pub vector_search_timeout_ms: u64,
 

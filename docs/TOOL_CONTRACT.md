@@ -2068,3 +2068,28 @@ explicitly incomplete. Existing captured-source and candidate limits apply;
 authored guidance is unchanged. This snapshot-only behavior does not alter the
 live index or start the sidecar. Pending source record:
 [vb property evidence](../eval/vb-property-evidence-progress-20261118.json).
+
+
+## Optional semantic retrieval in ordinary search
+
+Source change 2026-11-18 (validation and deployment pending): `search_memory`
+uses the configured `vector_search_timeout_ms` as a shared budget for optional
+hybrid attempts across the requested project and user namespaces. A failed
+attempt or exhausted budget falls back to the existing lexical query with the
+same source generation, namespaces and filters. Remaining namespaces do not
+start another provider attempt after failure or exhaustion. An explicit
+`semantic=false` retains the existing lexical path; `vector_search` keeps its
+capability/error contract.
+
+JSON `retrieval` reports each namespace's actual outcome, configured semantic
+quality and the budget. `semantic_quality` is `not_used` when a configured
+semantic backend supplied no completed hybrid result. Mixed outcomes remain
+visible per namespace. JSON and Markdown preserve fallback warnings, including
+empty results; no semantic match coverage is claimed for lexical fallback.
+Source guidance, live paging and saved-result delivery still apply.
+
+The deadline is cooperative. Runtime startup, synchronous lexical/source work,
+fallback and rendering are not a whole-request latency SLA, and cancelling the
+local provider future does not prove remote computation stopped. Lexical errors
+remain errors. No real-provider or LegacyValidation speedup is established by owned tests.
+[Pending source record](../eval/hybrid-provider-fallback-progress-20261118.json).

@@ -23,6 +23,8 @@ mod response_budget_tests;
 pub(crate) mod response_budget;
 #[path = "search_tools/structured_response.rs"]
 pub(crate) mod structured_response;
+#[path = "search_tools/hybrid_delivery.rs"]
+mod hybrid_delivery;
 
 /// P0-8: inclusive line-range overlap. Zero-valued ranges mean "unknown"
 /// and never overlap anything.
@@ -273,6 +275,8 @@ impl Engram {
         // `search_scope: "code"` is byte-for-byte the previous behaviour.
         let mut lists: Vec<(String, Vec<engram_index::HybridHit>)> =
             Vec::with_capacity(namespaces.len());
+        let mut semantic_delivery =
+            hybrid_delivery::Delivery::new(self.state.cfg.vector_search_timeout_ms);
         for ns in &namespaces {
             let q = HybridQuery {
                 project_id: req.project_id.clone(),
@@ -290,22 +294,32 @@ impl Engram {
                 date_before: req.date_before,
                 use_mmr: req.use_mmr,
             };
-            let ns_hits = if req.semantic {
-                ps.search
-                    .search_ranked_prefix(
-                        &q,
-                        pagerank,
-                        &tokio_util::sync::CancellationToken::new(),
-                        if req.search_scope.eq_ignore_ascii_case("code") && ns == "memory" {
-                            offset.saturating_add(req.sanitized_max_results()).min(per_ns_top_k)
-                        } else {
-                            per_ns_top_k
-                        },
-                    )
+            let hybrid_hits = if req.semantic {
+                semantic_delivery
+                    .query(ns.clone(), ps.search.semantic_quality(), async {
+                        ps.search
+                            .search_ranked_prefix(
+                                &q,
+                                pagerank,
+                                &tokio_util::sync::CancellationToken::new(),
+                                if req.search_scope.eq_ignore_ascii_case("code") && ns == "memory" {
+                                    offset.saturating_add(req.sanitized_max_results()).min(per_ns_top_k)
+                                } else {
+                                    per_ns_top_k
+                                },
+                            )
+                            .await
+                    })
                     .await
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?
             } else {
-                // Fast path: pure FTS. No vector embedding, no RRF, no MMR.
+                None
+            };
+            let ns_hits = if let Some(hits) = hybrid_hits {
+                hits
+            } else {
+                // Explicit lexical search or disclosed semantic fallback.
+                // No vector embedding, RRF or MMR in this path.
                 let engine = ps.search.clone();
                 let q_clone = q.clone();
                 // A cancelled RPC does not stop a queued blocking read. It
@@ -370,11 +384,20 @@ impl Engram {
                         date_before: req.date_before,
                         use_mmr: req.use_mmr,
                     };
-                    let ns_hits = if req.semantic {
-                        ups.search
-                            .search(&q, None, &tokio_util::sync::CancellationToken::new())
+                    let hybrid_hits = if req.semantic {
+                        semantic_delivery
+                            .query(format!("user:{ns}"), ups.search.semantic_quality(), async {
+                                ups.search
+                                    .search(&q, None, &tokio_util::sync::CancellationToken::new())
+                                    .await
+                            })
                             .await
                             .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                    } else {
+                        None
+                    };
+                    let ns_hits = if let Some(hits) = hybrid_hits {
+                        hits
                     } else {
                         let engine = ups.search.clone();
                         let q_clone = q.clone();
@@ -423,6 +446,9 @@ impl Engram {
                 engram_index::SemanticQuality::Semantic => {}
             }
         }
+        if let Some(warning) = semantic_delivery.warning() {
+            out.push_str(&warning);
+        }
         let structured_warnings=if req.output_json && !out.is_empty() {vec![out.trim().to_owned()]} else {Vec::new()};
 
         if hits.is_empty() {
@@ -445,11 +471,12 @@ impl Engram {
                 value["message"]=serde_json::json!(msg);
                 value["warnings"]=serde_json::json!(structured_warnings);
                 value["freshness"]=serde_json::json!(self.freshness_footer(&req.project_id,gen_).await);
-                value["semantic_quality"]=serde_json::json!(if req.semantic {structured_response::quality(ps.search.semantic_quality())} else {"not_used"});
+                value["semantic_quality"]=serde_json::json!(semantic_delivery.quality(req.semantic, ps.search.semantic_quality()));
+                value["retrieval"]=semantic_delivery.metadata(req.semantic, ps.search.semantic_quality());
                 let page=structured_response::Page{offset:req.offset,window_limit:crate::models::requests::MAX_SEARCH_RESULTS,total:None};
                 return Ok(CallToolResult::success(vec![Content::text(structured_response::finish(value,&[],page,req.max_tokens)?.0)]));
             }
-            return Ok(CallToolResult::success(vec![Content::text(response_budget::message(msg, &req)?)]));
+            return Ok(CallToolResult::success(vec![Content::text(response_budget::message(format!("{out}{msg}"), &req)?)]));
         }
 
         out.push_str(&format!("active_generation: {gen_}\n"));
@@ -621,7 +648,8 @@ impl Engram {
             let mut value=structured_response::envelope("search_memory",&req.project_id,&req.query,Some(gen_));
             value["warnings"]=serde_json::json!(structured_warnings);
             value["freshness"]=serde_json::json!(freshness);
-            value["semantic_quality"]=serde_json::json!(if req.semantic {structured_response::quality(ps.search.semantic_quality())} else {"not_used"});
+            value["semantic_quality"]=serde_json::json!(semantic_delivery.quality(req.semantic, ps.search.semantic_quality()));
+            value["retrieval"]=semantic_delivery.metadata(req.semantic, ps.search.semantic_quality());
             value["guidance"]=serde_json::json!(source_policy);
             if !hit_refs.is_empty() {
                 value["guidance_scope"]=serde_json::json!({"basis":"requested_page_including_budget_omitted_hits",

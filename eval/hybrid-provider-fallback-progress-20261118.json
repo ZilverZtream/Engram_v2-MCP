@@ -1,7 +1,7 @@
 {
   "original_requirement_id": "TODO-2",
   "original_requirement": "Ship real semantic embeddings or degrade honestly in the ordinary core agent query loop.",
-  "status": "IMPLEMENTING",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
   "source_phase_started_at_utc": "2026-11-18T00:20:44.866177+00:00",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118\\contract.json",
@@ -17,7 +17,8 @@
     "crates/engram_server/src/handlers/search_tools/hybrid_delivery.rs",
     "crates/engram_core/src/config.rs",
     "crates/engram_server/tests/hybrid_query_fallback_tests.rs",
-    "docs/TOOL_CONTRACT.md"
+    "docs/TOOL_CONTRACT.md",
+    "crates/engram_server/src/models/requests.rs"
   ],
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118\\baseline1\\receipt.json",
   "baseline_checks_passed": 3,
@@ -32,5 +33,33 @@
     "owned_fixture_removed": true,
     "cleanup_condition": "Stop owned provider threads and close server/database handles before owned fixture removal; no preexisting deletion."
   },
-  "next_action": "Implement finite optional-semantic fallback with truthful actual outcomes; preserve two queued source outcomes."
+  "next_action": "Accumulate with the two queued original source outcomes. Prepare one focused combined native and public acceptance batch only after no ready substantive source change remains; do not release merely at the minimum.",
+  "source_phase_completed_at_utc": "2026-11-18T00:29:37.352687+00:00",
+  "implementation_items_active": 0,
+  "native_test_cases_written": 3,
+  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118\\verify-public.py",
+  "source_checks": {
+    "rust_syntax": "PASS via rustfmt; existing files parsed without rewriting",
+    "public_verifier_syntax": "PASS via compile(); no bytecode artifact",
+    "diff_whitespace": "PASS",
+    "protected_wip9": "UNCHANGED",
+    "engram_builds_started": 0,
+    "native_tests_executed": 0
+  },
+  "limitations": [
+    "No native or candidate/public acceptance has run for the new behavior; not deployed. Installed baseline proves unavailable-provider loss only.",
+    "No LegacyValidation source/index/data mutation, no actual Site/Q access, no real model calls or broader latency/semantic/task-benefit claim.",
+    "Cooperative optional attempt deadline is not a wall-clock cap on startup, synchronous lexical/source work, fallback, rendering or remote computation. Mixed outcomes remain disclosed.",
+    "No change to explicit vector_search error/capability semantics or non-semantic backend ranking. Existing source pins, filters, guidance and saved-result budgets remain."
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/handlers/search_tools.rs": "58cdecd3f6673551f0b42d68c78f2d8af6ea8659271a41d02f5e356664bc70ed",
+    "crates/engram_server/src/handlers/search_tools/hybrid_delivery.rs": "ba7c7cff7a8112a9c2298c0535d198dc49b88554e72594cb3f0bcacbe82e1c12",
+    "crates/engram_core/src/config.rs": "b54a664178145dc71358c416ac7704252a46d00015925d9c445fd62f9eff7d52",
+    "crates/engram_server/tests/hybrid_query_fallback_tests.rs": "ca5fa2f11c0374f480444470bc82ce1ca6125ea32bdcff29d8f42c0b57758ee5",
+    "docs/TOOL_CONTRACT.md": "9a58affd2dbe5fb627957f798da260049a90cfad54c3e6bb39b82edffafdfbcf",
+    "crates/engram_server/src/models/requests.rs": "79666fa560c53176dabb640b87d5dcc87bafaa83d700aaadac14748f6bd747f2"
+  },
+  "public_verifier_sha256": "82878cb8a65c91f871896f8875c854fe21079136bf97aa86001ee6a03a47fc62"
 }

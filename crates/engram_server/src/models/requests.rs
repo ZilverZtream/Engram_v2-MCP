@@ -1666,6 +1666,9 @@ pub struct SearchMemoryRequest {
     /// a literal identifier appears and don't need semantic matching.
     /// Default: `true` (hybrid search with a semantic embedding backend;
     /// non-semantic projection backends fall back to lexical ranking).
+    /// Optional hybrid attempts share the configured vector_search_timeout_ms
+    /// across project/user namespaces. Failure or timeout returns disclosed
+    /// lexical fallback; this is not a whole-request latency limit.
     #[serde(default = "default_true")]
     pub semantic: bool,
     /// Also fold in USER-LEVEL memory (the reserved `__user__` project) when
