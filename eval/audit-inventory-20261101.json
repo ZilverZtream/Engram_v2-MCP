@@ -10476,14 +10476,14 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T21:55:47.581292+00:00",
+  "last_updated_at": "2026-11-18T22:11:53.872560+00:00",
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "record": "eval/feature-plan-final-guidance-progress-20261118.json",
+    "record": "eval/project-discovery-recovery-progress-20261118.json",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 1,
+    "pending_source_outcomes": 2,
     "full_original_goal_complete": false,
-    "next_action": "Keep this source queued and accumulate distinct original source outcomes before combined validation. Baseline missing final-target guidance confirmed with a controlled owned provider; no real-task replay. Do not compile this one19line change."
+    "next_action": "Keep this source queued with final-plan guidance; continue distinct ready original source priorities before a combined build. Do not compile this one error-message change."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -17683,8 +17683,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T21:55:47.581292+00:00",
-    "reason": "Installed3outcomes with5native and27public assertions perartifact using one native invocation and one release. Normal config/metadata preserved,215assets and matching bundle verified. Separately committed EG01 final-proposed-path guidance handoff; installed baseline gap confirmed in3.125s with all owned resources cleaned. New source remains uncompiled/queued; no additional build or task replay."
+    "at_utc": "2026-11-18T22:11:53.872560+00:00",
+    "reason": "Installed project_info confirmed missing recovery in0.296s on an owned empty registry. Reused canonical error at its direct diagnostic branch and updated existing desired assertion without changing registration/runtime behavior. Source committed and queued as second distinct original outcome; no Cargo invocation."
   },
   "config_instruction_evidence_source_progress_20261118": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
@@ -17781,5 +17781,6 @@
   "eg14_original_drafting_requirement_closure_20261118": "eval/eg14-original-drafting-requirement-closure-20261118.json",
   "eg31_original_maintenance_requirement_closure_20261118": "eval/eg31-original-maintenance-requirement-closure-20261118.json",
   "feature_plan_final_guidance_source_progress_20261118": "eval/feature-plan-final-guidance-progress-20261118.json",
-  "source_health_maintenance_batch_delivery_20261118": "eval/source-health-maintenance-batch-delivery-20261118.json"
+  "source_health_maintenance_batch_delivery_20261118": "eval/source-health-maintenance-batch-delivery-20261118.json",
+  "project_discovery_recovery_source_progress_20261118": "eval/project-discovery-recovery-progress-20261118.json"
 }
