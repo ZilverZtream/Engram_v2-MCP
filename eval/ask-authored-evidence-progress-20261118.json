@@ -1,0 +1,62 @@
+{
+  "original_requirement_id": "EG-14",
+  "related_original_requirement": "EG-26",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "Keep observed implementation, authored intent and proposed policy distinct in evidence supplied to AI workflows.",
+  "observed_missing_behavior": "Installed a027ca4c owned public proof labels AGENTS.md, scoped instructions and README.md as source_code/current_code despite no matching executable implementation. Overall answer remains unsupported; the defect is the evidence kind/authority metadata, not a false answered status.",
+  "finite_acceptance": [
+    "Retain retrieved Markdown guidance/documentation text, qualifiers, source version and executable recovery identities while labeling it doc_section/current_docs rather than executable source/current_code. No approval or policy applicability is inferred from a search hit.",
+    "Real implementation evidence keeps source_code/current_code and ranks ahead of documentary context. JSON and Markdown expose the distinction and recover complete original text; authored files and declared scopes remain unchanged.",
+    "Verify owned authored-only and mixed TS/documentation questions, citation identity and Markdown recovery. One authority-distinction outcome; no area-draft/pilot replay or CodeMap/Blast Radius work. No standalone Cargo or deployment; preserve prior queued availability source."
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118\\contract.json",
+  "source_phase_started_at_utc": "2026-11-18T02:28:04.546809+00:00",
+  "implementation_files": [
+    "crates/engram_server/src/services/ask_engine/providers.rs",
+    "crates/engram_server/tests/ask_authored_evidence_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118\\baseline1\\receipt.json",
+  "baseline_checks_passed": 3,
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118",
+    "purpose": "Owned authored/code authority baseline and acceptance",
+    "baseline_server_owner_closed": true,
+    "baseline_owned_fixture_removed": true,
+    "cleanup_condition": "Close owned server/database resources before own fixture cleanup; retain evidence until delivery; no preexisting deletion."
+  },
+  "pre_runtime_correction": "A mismatched parenthesis in driver generation was caught by compile() before baseline.py or a server/fixture was created; corrected before baseline1 execution.",
+  "next_action": "Retain with the prior availability source outcome; continue substantive original source work before combined validation. No Cargo at two outcomes.",
+  "source_phase_completed_at_utc": "2026-11-18T02:42:15.379164+00:00",
+  "implementation_items_active": 0,
+  "native_test_cases_written": 3,
+  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118\\verify-public.py",
+  "public_verifier_sha256": "b7108f54e77628aadb512f0beb8bbe4b3b86003f618763720ac926f7fb3008ea",
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "source_checks": {
+    "rust_syntax": "PASS via rustfmt; existing provider file parsed without rewrite",
+    "python_syntax": "PASS via compile(); no bytecode artifact",
+    "diff_whitespace": "PASS",
+    "recovery_interface": "Existing get_chunk retains complete stored short fixture chunk and source fingerprint validation; no index/recovery changes",
+    "protected_wip9": "UNCHANGED",
+    "engram_builds_started": 0,
+    "native_tests_executed": 0
+  },
+  "limitations": [
+    "Source changes and three written checks have not had native/post-change public acceptance; not deployed. Installed baseline demonstrates misleading documentary metadata, not a false answered status.",
+    "Only current-code .md/.markdown search hits change kind/authority. Existing knowledge authority and historical requests are unchanged; no inferred policy approval or applicability.",
+    "Selected evidence can be a bounded excerpt, and generation identifies the pinned index snapshot. Recovery IDs retrieve selected stored chunks; no claim that every policy clause or full multi-chunk document was captured.",
+    "This is one original authority-distinction outcome, not additional outcomes per file, format, provider or recovery check. EG14 publication, application and task usefulness remain open.",
+    "No actual LegacyValidation source/Q/index/data mutation, real model calls, CodeMap/Blast Radius work, target-language expansion, preexisting deletion or new build."
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/services/ask_engine/providers.rs": "61e76077f9a3e2b367bea8fb1ce2518b0af7888c3eeaf8c910d99c8ce62daa89",
+    "crates/engram_server/tests/ask_authored_evidence_tests.rs": "f587decc99a1f0ff2037e40923fd579c7988843715260e3e876f338f5022bf01",
+    "docs/TOOL_CONTRACT.md": "472ca1e947092f8afb3a8b10476d9c86710aaac79126a8b00f339124dfcdcef6"
+  }
+}

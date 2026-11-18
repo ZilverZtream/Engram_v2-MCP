@@ -2114,3 +2114,24 @@ being reported as a clean empty provider. This does not establish semantic recal
 source absence or a whole-request latency SLA: the deadline is cooperative,
 synchronous work is not interrupted, and startup and synthesis are separate.
 [Pending source record](../eval/ask-provider-availability-progress-20261118.json).
+
+
+## Documentary evidence from the source index
+
+Source change 2026-11-18 (combined validation and deployment pending): retrieved
+Markdown (`.md`/`.markdown`) documents presented through current-code search arms
+are retained as `doc_section` with `current_docs` authority. This includes root
+and scoped guidance and repository README files. Actual implementation files
+retain their code kind/authority. Selected text, qualifiers, generation and
+stored-document recovery identities remain; this does not widen snippet windows
+or certify that an excerpt contains every instruction or exception.
+
+Evidence warnings and provider notes in JSON/Markdown distinguish authored intent
+or claims from executable implementation and runtime validation. A search hit does
+not establish policy approval, applicability outside declared scope or permission
+to rewrite guidance. Applicable policy delivery remains separate from code ranking;
+recover complete authored files and scoped guidance before relying on a mandate.
+Other evidence kinds, knowledge-memory authority and historical requests retain
+their existing behavior. This is an authority-classification change, not a new
+area-draft pilot or demonstrated task-benefit claim.
+[Pending source record](../eval/ask-authored-evidence-progress-20261118.json).

@@ -80,6 +80,15 @@ impl ProviderOutcome {
 }
 
 const SNIPPET_CHARS: usize = 1200;
+const DOCUMENTARY_SOURCE_WARNING: &str = "Markdown documentation or guidance records authored intent or claims, not executable implementation or runtime validation. This may be a bounded excerpt: recover the complete original and applicable scoped guidance before relying on a mandate. A search hit does not establish approval or authority beyond the declared scope.";
+
+fn documentary_source(path: &str, kind: EvidenceKind, authority: Authority) -> bool {
+    if kind != EvidenceKind::SourceCode || authority != Authority::CurrentCode {
+        return false;
+    }
+    let path = path.to_ascii_lowercase();
+    path.ends_with(".md") || path.ends_with(".markdown")
+}
 
 fn indexed_commit_id<'a>(namespace: &str, path: &'a str) -> Option<&'a str> {
     let id = path.strip_prefix("commit:")?;
@@ -145,6 +154,20 @@ fn hit_to_evidence(
     *id += 1;
     let commit = indexed_commit_id(namespace, h.path.as_str()).map(str::to_owned);
     let complete_message = commit.is_some();
+    let documentary = documentary_source(h.path.as_str(), kind, authority);
+    let (kind, authority) = if documentary {
+        (EvidenceKind::DocSection, Authority::CurrentDocs)
+    } else {
+        (kind, authority)
+    };
+    let mut warnings: Vec<String> = if complete_message {
+        vec!["Complete indexed commit message. Historical intent is not approval or current policy; merge status, current Git reachability and runtime behavior are not established by this indexed record.".into()]
+    } else {
+        vec![]
+    };
+    if documentary {
+        warnings.push(DOCUMENTARY_SOURCE_WARNING.into());
+    }
     EvidenceItem {
         evidence_id: format!("ev_{id}"),
         document_id: Some(h.doc_id.clone()),
@@ -163,7 +186,7 @@ fn hit_to_evidence(
         confidence: 0.85,
         relevance: h.score.clamp(0.0, 1.0),
         extraction_method: "fts".into(),
-        warnings: if complete_message { vec!["Complete indexed commit message. Historical intent is not approval or current policy; merge status, current Git reachability and runtime behavior are not established by this indexed record.".into()] } else { vec![] },
+        warnings,
         provider: provider.into(),
         score: None,
         directness: None,
@@ -370,14 +393,16 @@ async fn search_with(
                         id,
                     ));
                 }
-                (
-                    items,
-                    ProviderOutcome::hit_with_coverage(
-                        examined_before_filters,
-                        None,
-                        examined_before_filters >= q.top_k,
-                    ),
-                )
+                let documentary = if kind == EvidenceKind::SourceCode {
+                    items.iter().filter(|item| item.kind == EvidenceKind::DocSection).count()
+                } else { 0 };
+                let mut outcome = ProviderOutcome::hit_with_coverage(
+                    examined_before_filters, None, examined_before_filters >= q.top_k,
+                );
+                if documentary > 0 {
+                    outcome.note = Some(format!("{documentary} Markdown documentation/guidance items from the source index are documentary context, not implementation evidence. Accepted policy and applicability are not established by a search hit."));
+                }
+                (items, outcome)
             }
         }
     }.await;
