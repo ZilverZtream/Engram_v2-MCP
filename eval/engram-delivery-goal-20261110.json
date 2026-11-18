@@ -2833,14 +2833,14 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "COMBINED_NATIVE_CORRECTION_READY",
+    "status": "AFFECTED_NATIVE3_RUNNING",
     "progress": "eval/review-memory-history-progress-20261118.json",
     "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "runtime_deployed": false,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "Retain6passed review/history cases from native2. Rerun only2affected memory cases after canonical memory-source correction; no full suite or acceptance weakening."
+    "next_action": "Observe the existing validation sequence17953/state. It runs native3(2memory cases), then debug1(30public checks), then one release only after acceptance passes. Do not restart it or replay completed commands. On failure inspect only the retained failing stage. Candidate/installed acceptance remains after release."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4138,7 +4138,7 @@
     "progress": "eval/history-bounded-acquisition-progress-20261118.json"
   },
   "review_memory_history_source_batch_20261118": {
-    "status": "COMBINED_NATIVE_RUNNING",
+    "status": "AFFECTED_NATIVE3_RUNNING",
     "progress": "eval/review-memory-history-progress-20261118.json",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118",
     "original_requirement_ids": [
@@ -4146,6 +4146,8 @@
       "TODO-28",
       "EG-21"
     ],
-    "runtime_deployed": false
+    "runtime_deployed": false,
+    "validation_sequence_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\validation-sequence1-state.json",
+    "exec_session_id": 17953
   }
 }

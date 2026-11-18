@@ -1,17 +1,17 @@
 {
-  "status": "NATIVE_PRODUCTION_CORRECTION_READY",
+  "status": "AFFECTED_NATIVE3_RUNNING",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118",
   "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\source-preparation.json",
   "native_target": "review_memory_history_delivery",
   "native_cases_expected": 8,
-  "cargo_commands_started": 2,
+  "cargo_commands_started": 3,
   "release_builds_started": 0,
   "full_suites_started": 0,
   "separate_debug_builds_started": 0,
   "runtime_deployed": false,
-  "exec_session_id": 44596,
+  "exec_session_id": 17953,
   "shipping_source_commit": "ca579ceb967eb515ee602dfc33656de5629aad1e",
-  "next_action": "Retain6passed review/history cases from native2. Rerun only2affected memory cases after canonical memory-source correction; no full suite or acceptance weakening.",
+  "next_action": "Observe the existing validation sequence17953/state. It runs native3(2memory cases), then debug1(30public checks), then one release only after acceptance passes. Do not restart it or replay completed commands. On failure inspect only the retained failing stage. Candidate/installed acceptance remains after release.",
   "full_original_goal_complete": false,
   "initial_native_command": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native1.json",
   "initial_native_tests_executed": 0,
@@ -21,5 +21,8 @@
   "native2_passes": 6,
   "native2_failures": 2,
   "production_correction": "0da6e25afc190393fb8999f39de3d32e9620c1c5",
-  "next_native_filter": "memory_provenance::"
+  "next_native_filter": "memory_provenance::",
+  "validation_sequence_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\validation-sequence1-state.json",
+  "native_test_executions_completed": 8,
+  "native3_filter": "memory_provenance::"
 }
