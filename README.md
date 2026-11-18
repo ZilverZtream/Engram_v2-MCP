@@ -88,6 +88,8 @@ and acceptance scope; it is not a new test of every feature on the latest binary
 
 The [November 18 installed batch](eval/query-property-fallback-batch-delivery-20261118.json) adds default source/grep/vector reply budgets with exact saved-result recovery, captured VB property evidence for instruction maintenance, and disclosed lexical fallback when optional semantic retrieval fails or exhausts its budget. These finite checks do not establish real-provider latency or incremental LegacyValidation task benefit.
 
+The [following November 18 delivery](eval/ask-authority-batch-recovery-delivery-20261118.json) preserves natural-language evidence during optional semantic outages, separates documentary guidance from implementation evidence, and adds exact saved recovery of budget-omitted batch reads. Owned checks establish these behaviors; incremental LegacyValidation task benefit remains unproven.
+
 Later installed deliveries include [direct method/source guidance and bounded
 recovery](eval/legacy_validation-method-read-batch-delivery-20261114.json), and [ordinary SQL
 keys, schema-bound views and source-cited route registrations](eval/legacy_validation-request-schema-batch-delivery-20261114.json).

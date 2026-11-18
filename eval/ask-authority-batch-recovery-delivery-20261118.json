@@ -1,0 +1,216 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-18T04:23:36.657846+00:00",
+  "original_requirement_ids": [
+    "TODO-28",
+    "EG-14",
+    "TODO-4"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
+  "source_preparation": {
+    "status": "SOURCE_VALIDATED_NATIVE_AND_PUBLIC_DEBUG",
+    "shipping_head": "cfefe85adfab3af87bf0c07b53702c5d2ded2adb",
+    "source_baseline": "a5c5d9b1295a5fe71fad24c40e0f1bddcc33d5ea",
+    "source_files": [
+      "crates/engram_server/src/handlers/ask_tools.rs",
+      "crates/engram_server/src/handlers/batch_read_tools.rs",
+      "crates/engram_server/src/handlers/change_set_delivery.rs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/services/ask_engine/providers.rs",
+      "crates/engram_server/src/services/ask_engine/providers/semantic_delivery.rs",
+      "crates/engram_server/src/services/ask_engine/ranking.rs",
+      "crates/engram_server/src/services/ask_engine/report.rs",
+      "crates/engram_server/src/services/ask_engine/retrieval.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/ask_authored_evidence_tests.rs",
+      "crates/engram_server/tests/ask_delivery_contracts.rs",
+      "crates/engram_server/tests/ask_provider_availability_tests.rs",
+      "crates/engram_server/tests/batch_read_immutable_results.rs",
+      "docs/TOOL_CONTRACT.md",
+      "eval/ask-authored-evidence-progress-20261118.json",
+      "eval/ask-provider-availability-progress-20261118.json",
+      "eval/batch-read-immutable-results-progress-20261118.json"
+    ],
+    "original_source_commits": [
+      "e10df98c9e51b83bb871023b7aff97b6fa1674e7",
+      "502dc647dd74c2b60196d00180fcb4eddcc086da",
+      "14ab9936cb4c5f0e45096bad1b2582c94e522ec5"
+    ],
+    "ordering_correction_source_commit": "895f81753941d51e3a0da7dd01e5e7fe737853ae",
+    "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\debug1\\receipt.json",
+    "debug_artifact": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\debug-artifact2.json",
+    "original_native_failure_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\native1.json",
+    "no_separate_debug_build": true,
+    "full_original_goal_complete": false,
+    "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\native-acceptance.json",
+    "debug_public_checks": 29,
+    "public_debug_receipt_sha256": "4c8b36ebb93c8f27e4a2836ad7a05a52d5ba6ed812d6e9ef0abd8889d808e207"
+  },
+  "runtime": {
+    "status": "INSTALLED_ACCEPTANCE_PASS",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\package1",
+    "server_sha256": "308e5347837f8148eee937c13a141b54b2a0b3282934c181532ba78ca67d7ebe",
+    "manifest_sha256": "891461c4e4c71f193a47caac782d26a2e0d40f9d6f0102b91493ad86462cf0cd",
+    "old_server_sha256": "a027ca4cab6ef71c7311daf3c33b8ae93c03cfe718a03a3725a975398ebf32ba",
+    "old_manifest_sha256": "58c12fd284d3e4e0eac2f98c77192d307181910c60da47ffd86356ad0b52425d",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\release1.json",
+      "sha256": "9aebbe3581afd20b3101f05b6965c71da945a8576e21ae06304e61de89fd1fef"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "58c12fd284d3e4e0eac2f98c77192d307181910c60da47ffd86356ad0b52425d",
+      "capture_phase": "Before pair swap; immutable input companion manifest, not current installed identity."
+    },
+    "source_commit": "cfefe85adfab3af87bf0c07b53702c5d2ded2adb",
+    "package_pair_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\pair1.json"
+  },
+  "native_acceptance": {
+    "status": "PASS",
+    "native_cases_covered": 10,
+    "native_test_executions": 17,
+    "latest_successful_native_label": "native2",
+    "native_runs": {
+      "native1": {
+        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\native1.json",
+        "cases": {
+          "actual_typescript_implementation_keeps_code_authority_and_precedes_documentary_context": "FAILED",
+          "guidance_and_readme_without_implementation_keep_documentary_authority_and_qualifications": "ok",
+          "markdown_discloses_documentary_limits_and_original_instruction_text_remains_recoverable": "ok",
+          "empty_lexical_fallback_does_not_hide_unavailable_semantic_coverage": "ok",
+          "offline_source_answers_keep_their_existing_evidence_without_provider_work": "ok",
+          "slow_semantics_preserve_the_sql_modality_and_question_path_scope": "ok",
+          "unavailable_embeddings_preserve_scoped_vb_body_and_authored_guidance": "ok",
+          "fitting_batch_keeps_ordinary_results_without_allocating_a_saved_response": "ok",
+          "mixed_oversized_batch_retains_exact_original_memory_source_qualifications_and_errors": "ok",
+          "mixed_batch_matches_individual_reads_and_keeps_independent_errors": "ok"
+        },
+        "status": "FAIL"
+      },
+      "native2": {
+        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\native2.json",
+        "cases": {
+          "actual_typescript_implementation_keeps_code_authority_and_precedes_documentary_context": "ok",
+          "guidance_and_readme_without_implementation_keep_documentary_authority_and_qualifications": "ok",
+          "markdown_discloses_documentary_limits_and_original_instruction_text_remains_recoverable": "ok",
+          "empty_lexical_fallback_does_not_hide_unavailable_semantic_coverage": "ok",
+          "offline_source_answers_keep_their_existing_evidence_without_provider_work": "ok",
+          "slow_semantics_preserve_the_sql_modality_and_question_path_scope": "ok",
+          "unavailable_embeddings_preserve_scoped_vb_body_and_authored_guidance": "ok"
+        },
+        "status": "PASS"
+      }
+    },
+    "retained_unaffected_batch_passes": {
+      "fitting_batch_keeps_ordinary_results_without_allocating_a_saved_response": "ok",
+      "mixed_oversized_batch_retains_exact_original_memory_source_qualifications_and_errors": "ok",
+      "mixed_batch_matches_individual_reads_and_keeps_independent_errors": "ok"
+    },
+    "production_correction": "Required-kind reserves appended implementation after documentary context. Corrected ordering without changing acceptance or selected evidence/caps. Seven affected ask cases accepted; three batch-read passes retained because no batch/source-read/storage implementation changed.",
+    "all_jobs_closed": true,
+    "all_owned_build_temps_removed": true,
+    "remaining_native_fixture_paths": []
+  },
+  "public_checks_per_artifact": 29,
+  "public_receipts": {
+    "debug1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\debug1\\receipt.json",
+    "candidate2": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\candidate2\\acceptance.json",
+    "installed1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\installed1\\acceptance.json"
+  },
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\restored-runtime\\receipt.json",
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3151,
+  "source_format": 9,
+  "protected_wip9": "UNCHANGED",
+  "full_original_goal_complete": false,
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\Engram-win-x64-ask-authority-batch-recovery.zip",
+    "sha256": "63F38D3467313AD489617E9F605B8ECD0A7A0DFD6D0C0A73364F164F5793261E",
+    "entries": 219,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "891461C4E4C71F193A47CAAC782D26A2E0D40F9D6F0102B91493AD86462CF0CD"
+  },
+  "windows_zip_sha256": "63f38d3467313ad489617e9f605b8ecd0a7a0dfd6d0c0a73364f164f5793261e",
+  "build_accounting": {
+    "native_invocations": 2,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "native_unique_cases": 10,
+    "native_test_executions": 17,
+    "native_seconds": 1027.9884358000709,
+    "release_seconds": 2206.5135901999893,
+    "pure_coding_percentage": null,
+    "note": "Original10cases:9PASS1FAIL. Production ordering correction; seven affected ask cases rerun in one executable and three unaffected batch passes retained. No measured compile speedup claimed."
+  },
+  "temporary_resources": {
+    "native_and_release_jobs_closed": true,
+    "owned_build_temps_removed": true,
+    "completed_public_owners_closed_and_owned_fixtures_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
+    "retained_component_locations": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-read-immutable-results-20261118"
+    ],
+    "managed_rollback_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-601f8200c3a9491bb5f0cadb48bf77c9",
+    "retention": "Retain evidence, ZIP and rollback under recorded cleanup conditions; no preexisting deletion.",
+    "intentionally_retained_runtime": {
+      "pid": 96228,
+      "executable": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+      "purpose": "Normal installed daemon",
+      "cleanup_condition": "Regular application lifecycle, not temporary fixture."
+    },
+    "interrupted_owned_paths_retained": {
+      "fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118\\owned-nciwqp_d",
+      "config_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\runtime-owned7",
+      "purpose": "Interrupted owned provider/index fixture and copied configuration; ownership is bound by wire request3 and private config data_dir. No active candidate/hold/server process remains.",
+      "cleanup_condition": "Retain these exact interrupted-run owned paths until permitted exact-path cleanup. Do not bypass automatic approval or delete preexisting inventories.",
+      "automatic_approval_rejection": "Automatic approval review rejected both the guarded computed deletion and the fixed-literal PowerShell Remove-Item recursive deletion: blocked by policy. No deletion was executed."
+    }
+  },
+  "limitations": [
+    "Optional semantic budgets are cooperative, not a whole-request SLA or proof of remote cancellation. Owned providers do not establish real-provider performance, semantic recall or task productivity.",
+    "Documentary labels distinguish authored intent/claims from implementation. Scope, approval, policy enforcement and complete multi-chunk guidance are not inferred. Recovery identities preserve selected stored chunks and their snapshot provenance.",
+    "Batch capture preserves original executed results, including nested per-read limits, rather than expanding evidence coverage. Reads are sequential, not an atomic source/memory snapshot, and saved recovery does not certify current freshness. Existing 8MiB/24hour/32capture bounds apply; batch retention is shared across projects in the server data directory.",
+    "Native1 found a real required-kind reserve ordering failure; source was corrected without weakening the original acceptance. Seven affected ask cases were rerun in one executable; three unaffected batch cases were retained. Original failing receipt is preserved.",
+    "All31 original findings/19 gates and semantic/usefulness gaps remain unfinished. No actual LegacyValidation source/index mutation, policy adoption, CodeMap/Blast Radius work, target-language expansion or preexisting deletion."
+  ],
+  "interrupted_candidate_execution": {
+    "status": "INTERRUPTED_BEFORE_CANDIDATE_ACCEPTANCE",
+    "at_utc": "2026-11-18T04:13:30.318432+00:00",
+    "original_state_sha256": "c8335d76efc7c44e29a7cc2b291d0eaa99b0cc8dd0abc092c54a75005dc91c7f",
+    "recorded_candidate_pid": 101324,
+    "recorded_hold_pid": 107228,
+    "observed_processes_absent": true,
+    "parent_deploy_or_candidate_command_absent": true,
+    "original_exec_session": "73901 unavailable after tool handoff",
+    "completed_steps_retained": [
+      "package-identity",
+      "quiesce-owner"
+    ],
+    "candidate_original_label": "candidate1",
+    "candidate_completed_contracts": 0,
+    "unfinished_rpc": "Owned private index_project request3; no response/contract receipt",
+    "owned_interrupted_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118\\owned-nciwqp_d",
+    "owned_config_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\runtime-owned7",
+    "resume_label": "candidate2",
+    "new_config_hold": "ask-authority-batch-recovery-20261118-config-hold8.json",
+    "original_state_retained": true,
+    "additional_builds_required": 0,
+    "owned_interrupted_fixture_removed": false,
+    "owned_config_removed": false,
+    "cleanup_accounted": true,
+    "cleanup_status": "RETAINED_AUTOMATIC_APPROVAL_REJECTION",
+    "cleanup_rejection": "Automatic approval review rejected both the guarded computed deletion and the fixed-literal PowerShell Remove-Item recursive deletion: blocked by policy. No deletion was executed.",
+    "cleanup_condition": "Retain these exact interrupted-run owned paths until permitted exact-path cleanup. Do not bypass automatic approval or delete preexisting inventories.",
+    "retained_purpose": "Interrupted owned provider/index fixture and copied configuration; ownership is bound by wire request3 and private config data_dir. No active candidate/hold/server process remains.",
+    "ownership_preflight": "PASS: exact resolved parent/name, no reparse root, recorded process IDs absent, no Engram/sidecar process, private data_dir/request root agree, normal config hash unchanged."
+  }
+}

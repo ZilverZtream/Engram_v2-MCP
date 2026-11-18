@@ -1,7 +1,7 @@
 {
   "original_requirement_id": "TODO-28",
   "related_original_requirement": "TODO-2",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement": "One natural-language entry point that returns usable source evidence and honest capability outcomes.",
   "observed_missing_behavior": "Installed a027ca4c owned public proof: healthy ask code arm returns1item; provider outage makes it time out with0 despite the same question finding source through lexical search.",
   "finite_acceptance": [
@@ -26,8 +26,8 @@
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118\\baseline1\\receipt.json",
   "baseline_checks_passed": 4,
   "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
+  "native_tests_executed": 8,
+  "runtime_deployed": true,
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118",
     "purpose": "Owned baseline and finite natural-entry provider availability acceptance",
@@ -36,11 +36,11 @@
     "baseline_owned_fixture_removed": true,
     "cleanup_condition": "Close server/database/provider threads before owned fixture cleanup; retain evidence until delivery; no preexisting deletion."
   },
-  "next_action": "Retain this one source outcome and advance another substantive original requirement before combined validation. Do not compile/deploy this availability change alone.",
+  "next_action": "Finite component accepted and installed; advance the original unfinished backlog without replaying this batch.",
   "source_phase_completed_at_utc": "2026-11-18T02:15:44.496016+00:00",
   "implementation_items_active": 0,
   "native_test_cases_written": 4,
-  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "validation_status": "PASS",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118\\verify-public.py",
   "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
   "source_checks": {
@@ -53,11 +53,11 @@
     "native_tests_executed": 0
   },
   "limitations": [
-    "Source changes and four written checks have not had native/post-change public acceptance; not deployed. Installed baseline proves lost source evidence only.",
-    "A single availability outcome across multiple arms/consumers; no additional independent deliverable counted for each provider or format.",
-    "Half of each search-backed arm deadline is optional semantic work; remaining time permits lexical fallback/source verification. Cooperative deadlines do not interrupt synchronous work or prove remote cancellation.",
-    "Configured snapshot semantic tier is not the actual per-arm retrieval outcome; provider notes and evidence warnings expose fallback. Empty fallback retains failed/timed-out semantic coverage.",
-    "No actual LegacyValidation source/Q/index/data mutation, no real model calls, no closed-tool work or language expansion, no preexisting deletion, no new build or task-benefit/real-provider latency claim."
+    "Optional semantic budgets are cooperative, not a whole-request SLA or proof of remote cancellation. Owned providers do not establish real-provider performance, semantic recall or task productivity.",
+    "Documentary labels distinguish authored intent/claims from implementation. Scope, approval, policy enforcement and complete multi-chunk guidance are not inferred. Recovery identities preserve selected stored chunks and their snapshot provenance.",
+    "Batch capture preserves original executed results, including nested per-read limits, rather than expanding evidence coverage. Reads are sequential, not an atomic source/memory snapshot, and saved recovery does not certify current freshness. Existing 8MiB/24hour/32capture bounds apply; batch retention is shared across projects in the server data directory.",
+    "Native1 found a real required-kind reserve ordering failure; source was corrected without weakening the original acceptance. Seven affected ask cases were rerun in one executable; three unaffected batch cases were retained. Original failing receipt is preserved.",
+    "All31 original findings/19 gates and semantic/usefulness gaps remain unfinished. No actual LegacyValidation source/index mutation, policy adoption, CodeMap/Blast Radius work, target-language expansion or preexisting deletion."
   ],
   "source_sha256": {
     "crates/engram_server/src/services/ask_engine/providers.rs": "a80b3ded8d87e74981a55934dda1b3286042b61d06a966d7c4ba1e37f33e9c5f",
@@ -69,5 +69,23 @@
     "docs/TOOL_CONTRACT.md": "a18602733e836567c2e2689b66e0f57fcfa9d4c1eb5dd31f6355d5f9e1885133"
   },
   "public_verifier_sha256": "239a2a4ba9e863000151a02ccb31f48acfa04d1df021187120da44bfd74e22f8",
-  "source_commit": "e10df98c9e51b83bb871023b7aff97b6fa1674e7"
+  "source_commit": "e10df98c9e51b83bb871023b7aff97b6fa1674e7",
+  "source_stage_limits_retained": [
+    "Source changes and four written checks have not had native/post-change public acceptance; not deployed. Installed baseline proves lost source evidence only.",
+    "A single availability outcome across multiple arms/consumers; no additional independent deliverable counted for each provider or format.",
+    "Half of each search-backed arm deadline is optional semantic work; remaining time permits lexical fallback/source verification. Cooperative deadlines do not interrupt synchronous work or prove remote cancellation.",
+    "Configured snapshot semantic tier is not the actual per-arm retrieval outcome; provider notes and evidence warnings expose fallback. Empty fallback retains failed/timed-out semantic coverage.",
+    "No actual LegacyValidation source/Q/index/data mutation, no real model calls, no closed-tool work or language expansion, no preexisting deletion, no new build or task-benefit/real-provider latency claim."
+  ],
+  "delivery_record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
+  "installed_runtime_sha256": "308e5347837f8148eee937c13a141b54b2a0b3282934c181532ba78ca67d7ebe",
+  "installed_public_receipts": [
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118\\ask-authority-batch-recovery-20261118-installed1-availability\\receipt.json"
+  ],
+  "installed_public_checks": 9,
+  "native_cases_distinct_covered": 4,
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\native-acceptance.json",
+  "build_accounting_scope": "engram_builds_started=0 is the original source phase. This component shares the delivery record batch:2native Cargo commands and1release, not additive per component.",
+  "shared_delivery_cargo_invocations": 3,
+  "shared_delivery_release_invocations": 1
 }

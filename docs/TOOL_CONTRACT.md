@@ -2097,7 +2097,7 @@ remain errors. No real-provider or LegacyValidation speedup is established by ow
 
 ## Natural-language evidence during semantic retrieval failures
 
-Source change 2026-11-18 (combined validation and deployment pending): the
+Installed 2026-11-18 ([delivery](../eval/ask-authority-batch-recovery-delivery-20261118.json)): the
 search-backed `ask_codebase` arms allocate half their retrieval deadline to
 optional semantic work. When that work fails or times out, they reuse the same
 query, namespace, path/suffix filters and selected source capability for lexical
@@ -2113,12 +2113,12 @@ admissible evidence, the semantic channel remains failed/timed out rather than
 being reported as a clean empty provider. This does not establish semantic recall,
 source absence or a whole-request latency SLA: the deadline is cooperative,
 synchronous work is not interrupted, and startup and synthesis are separate.
-[Pending source record](../eval/ask-provider-availability-progress-20261118.json).
+[Source and acceptance record](../eval/ask-provider-availability-progress-20261118.json).
 
 
 ## Documentary evidence from the source index
 
-Source change 2026-11-18 (combined validation and deployment pending): retrieved
+Installed 2026-11-18 ([delivery](../eval/ask-authority-batch-recovery-delivery-20261118.json)): retrieved
 Markdown (`.md`/`.markdown`) documents presented through current-code search arms
 are retained as `doc_section` with `current_docs` authority. This includes root
 and scoped guidance and repository README files. Actual implementation files
@@ -2134,12 +2134,12 @@ recover complete authored files and scoped guidance before relying on a mandate.
 Other evidence kinds, knowledge-memory authority and historical requests retain
 their existing behavior. This is an authority-classification change, not a new
 area-draft pilot or demonstrated task-benefit claim.
-[Pending source record](../eval/ask-authored-evidence-progress-20261118.json).
+[Source and acceptance record](../eval/ask-authored-evidence-progress-20261118.json).
 
 
 ## Immutable recovery of executed batch reads
 
-Source change 2026-11-18 (combined validation and deployment pending): when
+Installed 2026-11-18 ([delivery](../eval/ask-authority-batch-recovery-delivery-20261118.json)): when
 `batch_read` omits whole results to fit its shared budget, `response_delivery.next_call`
 recovers the complete original executed batch as bounded JSON byte pages. Follow
 `response_id`/`response_offset` with no new `requests`, concatenate page content in
@@ -2165,7 +2165,7 @@ uses the same complete JSON UTF-8 byte budget (four bytes per estimated token,
 default 8192, maximum 65536). Identity and recovery metadata are reserved before
 new reads; insufficient metadata budgets fail before execution. Existing 1..16
 read limits and independent per-read errors remain.
-[Pending source record](../eval/batch-read-immutable-results-progress-20261118.json).
+[Source and acceptance record](../eval/batch-read-immutable-results-progress-20261118.json).
 
 
 ## Instruction-maintenance evidence in ordinary reviews

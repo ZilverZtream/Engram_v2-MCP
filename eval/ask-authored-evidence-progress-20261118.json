@@ -1,7 +1,7 @@
 {
   "original_requirement_id": "EG-14",
   "related_original_requirement": "EG-26",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement": "Keep observed implementation, authored intent and proposed policy distinct in evidence supplied to AI workflows.",
   "observed_missing_behavior": "Installed a027ca4c owned public proof labels AGENTS.md, scoped instructions and README.md as source_code/current_code despite no matching executable implementation. Overall answer remains unsupported; the defect is the evidence kind/authority metadata, not a false answered status.",
   "finite_acceptance": [
@@ -23,8 +23,8 @@
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118\\baseline1\\receipt.json",
   "baseline_checks_passed": 3,
   "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
+  "native_tests_executed": 6,
+  "runtime_deployed": true,
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118",
     "purpose": "Owned authored/code authority baseline and acceptance",
@@ -33,11 +33,11 @@
     "cleanup_condition": "Close owned server/database resources before own fixture cleanup; retain evidence until delivery; no preexisting deletion."
   },
   "pre_runtime_correction": "A mismatched parenthesis in driver generation was caught by compile() before baseline.py or a server/fixture was created; corrected before baseline1 execution.",
-  "next_action": "Rerun the seven affected ask cases in one integration executable, retaining the three unaffected batch passes. Then public checks on the same debug artifact; no release until pass.",
+  "next_action": "Finite component accepted and installed; advance the original unfinished backlog without replaying this batch.",
   "source_phase_completed_at_utc": "2026-11-18T02:42:15.379164+00:00",
   "implementation_items_active": 0,
   "native_test_cases_written": 3,
-  "validation_status": "PRODUCTION_ORDERING_CORRECTION_AWAITING_AFFECTED_ACCEPTANCE",
+  "validation_status": "PASS",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118\\verify-public.py",
   "public_verifier_sha256": "b7108f54e77628aadb512f0beb8bbe4b3b86003f618763720ac926f7fb3008ea",
   "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
@@ -51,11 +51,11 @@
     "native_tests_executed": 0
   },
   "limitations": [
-    "Source changes and three written checks have not had native/post-change public acceptance; not deployed. Installed baseline demonstrates misleading documentary metadata, not a false answered status.",
-    "Only current-code .md/.markdown search hits change kind/authority. Existing knowledge authority and historical requests are unchanged; no inferred policy approval or applicability.",
-    "Selected evidence can be a bounded excerpt, and generation identifies the pinned index snapshot. Recovery IDs retrieve selected stored chunks; no claim that every policy clause or full multi-chunk document was captured.",
-    "This is one original authority-distinction outcome, not additional outcomes per file, format, provider or recovery check. EG14 publication, application and task usefulness remain open.",
-    "No actual LegacyValidation source/Q/index/data mutation, real model calls, CodeMap/Blast Radius work, target-language expansion, preexisting deletion or new build."
+    "Optional semantic budgets are cooperative, not a whole-request SLA or proof of remote cancellation. Owned providers do not establish real-provider performance, semantic recall or task productivity.",
+    "Documentary labels distinguish authored intent/claims from implementation. Scope, approval, policy enforcement and complete multi-chunk guidance are not inferred. Recovery identities preserve selected stored chunks and their snapshot provenance.",
+    "Batch capture preserves original executed results, including nested per-read limits, rather than expanding evidence coverage. Reads are sequential, not an atomic source/memory snapshot, and saved recovery does not certify current freshness. Existing 8MiB/24hour/32capture bounds apply; batch retention is shared across projects in the server data directory.",
+    "Native1 found a real required-kind reserve ordering failure; source was corrected without weakening the original acceptance. Seven affected ask cases were rerun in one executable; three unaffected batch cases were retained. Original failing receipt is preserved.",
+    "All31 original findings/19 gates and semantic/usefulness gaps remain unfinished. No actual LegacyValidation source/index mutation, policy adoption, CodeMap/Blast Radius work, target-language expansion or preexisting deletion."
   ],
   "source_sha256": {
     "crates/engram_server/src/services/ask_engine/providers.rs": "61e76077f9a3e2b367bea8fb1ce2518b0af7888c3eeaf8c910d99c8ce62daa89",
@@ -85,5 +85,23 @@
       "crates/engram_server/src/handlers/ask_tools.rs": "f066c6f66ed20e0e079b147510adb8b8777f3d75e73993fdb151ed1d8631a135",
       "crates/engram_server/tests/ask_delivery_contracts.rs": "31e92c9d0f43ed6e6ce61fd15dae081d21dab825889c04be6d8fbcd7f4cdbe0e"
     }
-  }
+  },
+  "source_stage_limits_retained": [
+    "Source changes and three written checks have not had native/post-change public acceptance; not deployed. Installed baseline demonstrates misleading documentary metadata, not a false answered status.",
+    "Only current-code .md/.markdown search hits change kind/authority. Existing knowledge authority and historical requests are unchanged; no inferred policy approval or applicability.",
+    "Selected evidence can be a bounded excerpt, and generation identifies the pinned index snapshot. Recovery IDs retrieve selected stored chunks; no claim that every policy clause or full multi-chunk document was captured.",
+    "This is one original authority-distinction outcome, not additional outcomes per file, format, provider or recovery check. EG14 publication, application and task usefulness remain open.",
+    "No actual LegacyValidation source/Q/index/data mutation, real model calls, CodeMap/Blast Radius work, target-language expansion, preexisting deletion or new build."
+  ],
+  "delivery_record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
+  "installed_runtime_sha256": "308e5347837f8148eee937c13a141b54b2a0b3282934c181532ba78ca67d7ebe",
+  "installed_public_receipts": [
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118\\ask-authority-batch-recovery-20261118-installed1-authority\\receipt.json"
+  ],
+  "installed_public_checks": 8,
+  "native_cases_distinct_covered": 3,
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\native-acceptance.json",
+  "build_accounting_scope": "engram_builds_started=0 is the original source phase. This component shares the delivery record batch:2native Cargo commands and1release, not additive per component.",
+  "shared_delivery_cargo_invocations": 3,
+  "shared_delivery_release_invocations": 1
 }

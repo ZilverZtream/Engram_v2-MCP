@@ -1,7 +1,7 @@
 {
   "original_requirement_id": "TODO-4",
   "related_original_requirement": "EG-02",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement": "Complete response budgets with recoverable evidence and durable cursors; do not lose original results when a shared budget omits them.",
   "finite_acceptance": [
     "Oversized batch_read replies retain every request ID and existing single-read refresh call, while exposing a bounded immutable continuation to all original executed results, statuses, errors and qualifications. Fitting individual results and independent-error handling remain intact.",
@@ -12,9 +12,9 @@
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-read-immutable-results-20261118\\contract.json",
   "source_phase_started_at_utc": "2026-11-18T02:47:39.526113+00:00",
   "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
-  "next_action": "Finish source checks and retain as one pending batch-recovery outcome. No standalone Cargo or release; continue substantive source delivery before combined validation.",
+  "native_tests_executed": 2,
+  "runtime_deployed": true,
+  "next_action": "Finite component accepted and installed; advance the original unfinished backlog without replaying this batch.",
   "observed_missing_behavior": "Installed a027ca4c correctly budgets a large batch but omits its executed memory result and provides only an ordinary refresh request. After a memory edit that request returns different evidence; no immutable original batch continuation exists.",
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-read-immutable-results-20261118\\baseline1\\receipt.json",
   "baseline_offline_evaluation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-read-immutable-results-20261118\\baseline1\\offline-evaluation.json",
@@ -40,7 +40,7 @@
   },
   "source_phase_completed_at_utc": "2026-11-18T02:54:52.759050+00:00",
   "implementation_items_active": 0,
-  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "validation_status": "PASS",
   "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
   "public_verifier_sha256": "58334306e8aa601267dbdfd47bfed691415dc70d817f3ab28be9a342fa7edb8b",
   "source_sha256": {
@@ -61,6 +61,14 @@
     "native_tests_executed": 0
   },
   "limitations": [
+    "Optional semantic budgets are cooperative, not a whole-request SLA or proof of remote cancellation. Owned providers do not establish real-provider performance, semantic recall or task productivity.",
+    "Documentary labels distinguish authored intent/claims from implementation. Scope, approval, policy enforcement and complete multi-chunk guidance are not inferred. Recovery identities preserve selected stored chunks and their snapshot provenance.",
+    "Batch capture preserves original executed results, including nested per-read limits, rather than expanding evidence coverage. Reads are sequential, not an atomic source/memory snapshot, and saved recovery does not certify current freshness. Existing 8MiB/24hour/32capture bounds apply; batch retention is shared across projects in the server data directory.",
+    "Native1 found a real required-kind reserve ordering failure; source was corrected without weakening the original acceptance. Seven affected ask cases were rerun in one executable; three unaffected batch cases were retained. Original failing receipt is preserved.",
+    "All31 original findings/19 gates and semantic/usefulness gaps remain unfinished. No actual LegacyValidation source/index mutation, policy adoption, CodeMap/Blast Radius work, target-language expansion or preexisting deletion."
+  ],
+  "source_commit": "14ab9936cb4c5f0e45096bad1b2582c94e522ec5",
+  "source_stage_limits_retained": [
     "Source implementation, two new integration cases and public restart acceptance are written but unrun. No native/post-change public validation or deployment claimed.",
     "Baseline1 retains its FAIL because one assertion compared canonical default-expanded arguments to a supplied request. Four behavior checks were established from retained artifacts in offline-evaluation.json without rerunning the baseline or concealing the failure.",
     "The original captured payload is the executed sequential batch, including any underlying handler budget/omission; it does not expand per-read coverage, certify current freshness or create an atomic source/memory snapshot.",
@@ -69,5 +77,15 @@
     "One complete-batch immutable-recovery outcome; multiple reads, source/memory kinds, statuses and restart checks are not independent deliveries. Full TODO4 and original backlog remain unfinished.",
     "No actual LegacyValidation source/Q/index/data mutation, real model calls, CodeMap/Blast Radius work, target-language expansion, preexisting deletion or new build."
   ],
-  "source_commit": "14ab9936cb4c5f0e45096bad1b2582c94e522ec5"
+  "delivery_record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
+  "installed_runtime_sha256": "308e5347837f8148eee937c13a141b54b2a0b3282934c181532ba78ca67d7ebe",
+  "installed_public_receipts": [
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-read-immutable-results-20261118\\ask-authority-batch-recovery-20261118-installed1-batch-recovery\\receipt.json"
+  ],
+  "installed_public_checks": 12,
+  "native_cases_distinct_covered": 2,
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\native-acceptance.json",
+  "build_accounting_scope": "engram_builds_started=0 is the original source phase. This component shares the delivery record batch:2native Cargo commands and1release, not additive per component.",
+  "shared_delivery_cargo_invocations": 3,
+  "shared_delivery_release_invocations": 1
 }
