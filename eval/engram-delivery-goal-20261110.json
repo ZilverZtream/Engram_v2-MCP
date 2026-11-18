@@ -2554,54 +2554,11 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "EG-01",
-        "source_commit": "42af7147faa571666854aacdf07ea7835f12ca6f",
-        "progress": "eval/ask-planned-guidance-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118\\contract.json",
-        "native_target": "ask_planned_guidance",
-        "native_cases_expected": 3,
-        "native_environment": {
-          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
-        },
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118\\verify-public.py",
-        "counting_rule": "One original task-scoped instruction retrieval workflow; VB and JS/SQL targets, rendering and live-hash variants count as acceptance, not distinct deliverables."
-      },
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "EG-27",
-        "source_commit": "40b01900a784b9ef718eaa41d4c8a9f9cd831d7c",
-        "progress": "eval/config-instruction-evidence-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\contract.json",
-        "native_target": "config_instruction_evidence",
-        "native_cases_expected": 2,
-        "native_environment": {
-          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
-        },
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\verify-public.py",
-        "counting_rule": "One original configuration-key instruction evidence workflow; XML element spans and selective maintenance are acceptance variants, not separate deliverables."
-      },
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "TODO-28",
-        "source_commit": "633a65a188c38cc6dc1cb07b49c6b00326d2b2d4",
-        "progress": "eval/ask-review-decisions-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-decisions-20261118\\contract.json",
-        "native_target": "ask_review_decisions",
-        "native_cases_expected": 2,
-        "native_environment": {
-          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
-        },
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-decisions-20261118\\verify-public.py",
-        "counting_rule": "One original explicit review/rationale question workflow; scope, latest events and rendering are acceptance variants, not distinct deliverables."
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
-    "last_completed_batch": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
+    "last_completed_batch": "eval/planned-config-review-batch-delivery-20261118.json",
     "incremental_codegen": {
       "enabled_for_future_runs": true,
       "source_commit": "48ec7f6cd9e93a43f90674ce4f7504ae98bd2e35",
@@ -2827,18 +2784,11 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "NATIVE_AND_PUBLIC_DEBUG_PASS_RELEASE_RUNNING",
-    "record": "eval/planned-config-review-batch-progress-20261118.json",
-    "pending_source_outcomes": 3,
+    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
+    "previous_delivery": "eval/planned-config-review-batch-delivery-20261118.json",
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Observe existing exact release owner and postrelease observer. Reuse the same release for candidate/installed checks, restore normal runtime, then record accepted delivery. No new compilation or replay of seven native and24 debug passes.",
-    "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\native1-owner.json",
-    "release_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\release-owner-pin1.json",
-    "postrelease_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\postrelease-owner-pin1.json",
-    "native_cases_passed": 7,
-    "public_debug_assertions_passed": 24,
-    "runtime_deployed": false
+    "next_action": "Advance the next ready unfinished original requirement. Current batch acceptance is passed and all its build/deployment sessions are terminal. Preserve held work; do not replay passed checks or expand these features."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3034,10 +2984,10 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "FOCUSED_NATIVE_RUNNING",
-    "record": "eval/planned-config-review-batch-progress-20261118.json",
-    "full_original_goal_complete": false,
-    "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\native1-owner.json"
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": "eval/planned-config-review-batch-delivery-20261118.json",
+    "all_build_sessions_terminal": true,
+    "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
@@ -4171,8 +4121,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T18:40:27.957976+00:00",
-    "reason": "Explicit prior-review question gap reproduced against installed runtime; existing bounded reader composed in source with two focused acceptance cases, without compilation or broader routing/model work."
+    "at_utc": "2026-11-18T19:31:30.206408+00:00",
+    "reason": "Three original source outcomes installed and normal runtime restored; full original goal remains active."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4483,9 +4433,9 @@
     "historical_source_status": true
   },
   "latest_runtime_delivery": {
-    "record": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
-    "server_sha256": "8981757964cab9a132ea5088d33229fdf8e9b8dd4a5cd2d7be1b7564b619aca2",
-    "manifest_sha256": "f95f63b0e16c3587fc76d8018ab5921001fd718c192f7df790505a9643fdcc38",
+    "record": "eval/planned-config-review-batch-delivery-20261118.json",
+    "server_sha256": "944f4cdbca03cf0f3cee651ff8f5180160fe0b6105677f5391457700e87202c4",
+    "manifest_sha256": "0b433cca45db52ef9099f38ca6b96bb4c302a8b7165ab213f26ab4e778b99ef9",
     "selected_generation": 3157
   },
   "cache_guidance_attribute_batch_delivery_20261118": {
@@ -4510,8 +4460,11 @@
     },
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-planned-guidance-20261118\\verify-public.py",
     "counting_rule": "One original task-scoped instruction retrieval workflow; VB and JS/SQL targets, rendering and live-hash variants count as acceptance, not distinct deliverables.",
-    "runtime_deployed": false,
-    "full_original_goal_complete": false
+    "runtime_deployed": true,
+    "full_original_goal_complete": false,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "delivery_record": "eval/planned-config-review-batch-delivery-20261118.json",
+    "historical_source_status": true
   },
   "config_instruction_evidence_source_progress_20261118": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
@@ -4526,8 +4479,11 @@
     },
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\verify-public.py",
     "counting_rule": "One original configuration-key instruction evidence workflow; XML element spans and selective maintenance are acceptance variants, not separate deliverables.",
-    "runtime_deployed": false,
-    "full_original_goal_complete": false
+    "runtime_deployed": true,
+    "full_original_goal_complete": false,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "delivery_record": "eval/planned-config-review-batch-delivery-20261118.json",
+    "historical_source_status": true
   },
   "ask_review_decisions_source_progress_20261118": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
@@ -4542,7 +4498,19 @@
     },
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-decisions-20261118\\verify-public.py",
     "counting_rule": "One original explicit review/rationale question workflow; scope, latest events and rendering are acceptance variants, not distinct deliverables.",
-    "runtime_deployed": false,
+    "runtime_deployed": true,
+    "full_original_goal_complete": false,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "delivery_record": "eval/planned-config-review-batch-delivery-20261118.json",
+    "historical_source_status": true
+  },
+  "planned_config_review_batch_delivery_20261118": {
+    "record": "eval/planned-config-review-batch-delivery-20261118.json",
+    "original_requirement_ids": [
+      "EG-01",
+      "EG-27",
+      "TODO-28"
+    ],
     "full_original_goal_complete": false
   }
 }

@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "EG-27",
   "source_commit": "40b01900a784b9ef718eaa41d4c8a9f9cd831d7c",
   "progress": "eval/config-instruction-evidence-progress-20261118.json",
@@ -13,9 +13,9 @@
   "counting_rule": "One original configuration-key instruction evidence workflow; XML element spans and selective maintenance are acceptance variants, not separate deliverables.",
   "at_utc": "2026-11-18T18:30:25.773683+00:00",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118",
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "builds_started": 0,
-  "native_tests_executed": 0,
+  "native_tests_executed": 2,
   "baseline": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\baseline1\\receipt.json",
     "sha256": "bb6135ae5fd729f65be5f96562a14d034b3b0f450edfafaf13b63e0a0d7a587a",
@@ -44,5 +44,9 @@
     "retention": "Retain contract/verifier/wire/receipt evidence until delivery accounting. New native fixtures own/close Git handles and TempDirs. No preexisting deletion."
   },
   "full_original_goal_complete": false,
-  "next_action": "Keep EG01 and EG27 queued source outcomes. Select the next ready distinct original requirement before any Cargo invocation; minimum three IDs is an admission floor, not automatic release cadence."
+  "next_action": "Keep EG01 and EG27 queued source outcomes. Select the next ready distinct original requirement before any Cargo invocation; minimum three IDs is an admission floor, not automatic release cadence.",
+  "validation_status": "PASS",
+  "delivery_record": "eval/planned-config-review-batch-delivery-20261118.json",
+  "installed_runtime_sha256": "944f4cdbca03cf0f3cee651ff8f5180160fe0b6105677f5391457700e87202c4",
+  "installed_public_assertions": 6
 }

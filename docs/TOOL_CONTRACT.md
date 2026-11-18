@@ -2312,3 +2312,11 @@ Installed November 18 ([delivery](../eval/request-guidance-function-batch-delive
 Installed November18 ([delivery](../eval/cache-guidance-attribute-batch-delivery-20261118.json)). `trace_user_request` adds registered literal VB `RoutePrefix`/`Route` source candidates with exact declared action identity and registration/controller citations. Whole named parameters and `int` constraints are interpreted; multiple declared candidates remain visible. The existing Roslyn companion supplies source ranges. These candidates do not prove hosting, registration execution, precedence, authorization or request execution.
 
 Instruction maintenance captures source-declared scalar and table-valued SQL function evidence alongside existing catalog declarations. Changed function bytes select their referencing guidance; unchanged procedure-only guidance remains independent. Exact raw spans/hashes, preserved authored exceptions and stale-proposal refusal remain. Evidence changes do not authorize policy rewrites. Response-cache filesystem failures now retain the native OS cause with their contextual message.
+
+## Prospective guidance, configuration dependencies and review questions
+
+Installed November18 ([delivery](../eval/planned-config-review-batch-delivery-20261118.json)). Explicit instruction questions naming relative prospective VB/WebForms, JS/TS or SQL source paths receive current scoped authored guidance. The response discloses prospective scope; it does not create or read the proposed source file or establish implementation/compliance evidence. Ordinary code questions retain their existing evidence scope.
+
+Instruction evidence includes source-declared appSettings XML elements with independent raw spans, lines and hashes. Changed keys select dependent guidance without adopting the configuration file's scope. Effective values, transforms/inheritance and getter/store binding are unproved.
+
+Explicit named-file prior-review questions compose the existing recorded-decision reader. Complete scoped events, conditions, provenance, latest state, record hashes and callable history remain available in JSON/Markdown and saved recovery. Recorded decisions remain advisory agent memory and do not authorize suppression or imply current approval. Ordinary code queries do not invoke this reader; historical requests retain their existing separate path.
