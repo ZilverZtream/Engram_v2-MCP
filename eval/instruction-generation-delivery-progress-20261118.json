@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_DEBUG_ACCEPTANCE_PASS_RELEASE_RUNNING",
   "at_utc": "2026-11-18T13:08:12.973357+00:00",
   "original_requirement_id": "TODO-4",
   "supporting_original_requirements": [
@@ -23,7 +23,7 @@
   "implementation": "Admit produce_claude_md to existing shared40KiB/default and caller budget/JSON/immutable recovery. Preserve returned publication outcome if result retention fails; recovery never reruns generation or publication, and unavailable recovery names inspection of existing ownership/files.",
   "native_target": "instruction_generation_delivery",
   "native_cases_written": 2,
-  "native_cases_executed": 0,
+  "native_cases_executed": 2,
   "source_stage_cargo_invocations": 0,
   "source_parsing": "Production and new focused integration target parsed with rustfmt stdin; no typecheck/test pass claimed.",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-generation-delivery-20261118\\verify-public.py",
@@ -46,7 +46,16 @@
     "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-generation-delivery-20261118",
     "retention": "Contracts/source observations/wire evidence/scripts retained for combined acceptance; all newly created live fixtures removed."
   },
-  "next_action": "Accumulate substantive source work under further distinct original requirements. Queue currently has TODO3 and TODO4 only; no Cargo admission. Before a later combined build, preserve all source outcomes and reconcile any further explicit catalog changes against the frozen expectation.",
+  "next_action": "Finish existing release78041/postrelease77627, inspect candidate/installed acceptance and record delivery. Preserve passed acceptance; no replacement build or replay.",
   "source_hash_scope": "Historical component source at80fb750b; e7fa2937 subsequently adds an independent async observation helper in the shared delivery module. Combined acceptance must bind the final shipping source.",
-  "public_verifier_preflight_correction": "Before first execution, validate expected protocol errors from retained JSON-RPC wire responses; the existing transport assertion does not expose the server message."
+  "public_verifier_preflight_correction": "Before first execution, validate expected protocol errors from retained JSON-RPC wire responses; the existing transport assertion does not expose the server message.",
+  "historical_source_stage_limits": [
+    "Acceptance on the new source remains pending; do not call this installed or runtime validated.",
+    "Generator content/ownership/publication and authored instructions were not changed. Existing source limits, internal bounds and response retention quotas remain.",
+    "No actual LegacyValidation source/Q/index mutation, model request, target-language expansion, CodeMap/Blast change or preexisting directory deletion.",
+    "Pending TODO3 actual catalog acceptance now includes the explicit generator-only metadata addition. Its original component projection is preserved, combined projection retains the10percent gate, and no runtime description saving or task benefit is claimed."
+  ],
+  "validation_status": "NATIVE_AND_DEBUG_PASS",
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\native-acceptance.json",
+  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-generation-delivery-20261118\\agent-instruction-batch-20261118-debug1-generation\\receipt.json"
 }

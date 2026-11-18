@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_DEBUG_ACCEPTANCE_PASS_RELEASE_RUNNING",
   "at_utc": "2026-11-18T13:36:41.418568+00:00",
   "original_requirement_id": "EG-27",
   "supporting_original_requirement": "EG-31",
@@ -29,7 +29,7 @@
   "implementation": "Queued updates collect requested instruction evidence after source work, bound to the producer root. Existing get_job_status immutable report snapshots retain the complete job-bound observation; job messages contain only a bounded recovery reference. Observation failures mark coverage degraded without hiding published source or writing policy.",
   "native_target": "async_instruction_observation",
   "native_cases_prepared": 2,
-  "native_cases_executed": 0,
+  "native_cases_executed": 2,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118\\verify-public.py",
   "public_verifier_sha256": "9980b61b8b29e2c1a7aded2ae402df145b12f1c77cd9f963df6a0afa802be319",
   "runtime_deployed": false,
@@ -48,6 +48,15 @@
     "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118",
     "cleanup_condition": "Keep evidence/scripts for review; future owned fixtures must cancel/join workers, close stores and remove their directories."
   },
-  "next_action": "Validate the complete pending source batch through one focused4-case integration target and independent public contracts; no full/lib/no-vector suite or separate debug build.",
-  "public_fixture_byte_contract": "Write explicit UTF-8 LF bytes so independently expected Git/current-source BLAKE3 hashes match the authored fixtures on Windows. Corrected before first public execution."
+  "next_action": "Finish existing release78041/postrelease77627, inspect candidate/installed acceptance and record delivery. Preserve passed acceptance; no replacement build or replay.",
+  "public_fixture_byte_contract": "Write explicit UTF-8 LF bytes so independently expected Git/current-source BLAKE3 hashes match the authored fixtures on Windows. Corrected before first public execution.",
+  "historical_source_stage_limits": [
+    "New source has not yet been compiled or runtime-validated.",
+    "The observation is separate current-disk evidence, not an atomic source-index/policy snapshot, semantic correctness, policy approval or authorisation to rewrite guidance.",
+    "Existing8MiB/24hour/32capture quotas apply to saved get_job_status reports. Expired evidence does not authorise repeating the source update. No database/source-format change.",
+    "No actual LegacyValidation source/Q/index access or mutation, CodeMap/Blast Radius change, provider/model run, independent agents or preexisting folder deletion."
+  ],
+  "validation_status": "NATIVE_AND_DEBUG_PASS",
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\native-acceptance.json",
+  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118\\agent-instruction-batch-20261118-debug1-queued\\receipt.json"
 }

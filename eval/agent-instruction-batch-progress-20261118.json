@@ -33,5 +33,9 @@
   "release_session_id": 78041,
   "postrelease_session_id": 77627,
   "release_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\release-owner-pin1.json",
-  "release_started_at_utc": "2026-11-18T14:05:47.674366+00:00"
+  "release_started_at_utc": "2026-11-18T14:05:47.674366+00:00",
+  "delivery_recorder": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\record-delivery.py",
+  "delivery_recorder_sha256": "6045de337c2d4644064df5cf00e03a5c4dc886fbe0be496db494cb395602b381",
+  "delivery_recorder_executed": false,
+  "verified_live_release_observation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\release-live-observation1.json"
 }
