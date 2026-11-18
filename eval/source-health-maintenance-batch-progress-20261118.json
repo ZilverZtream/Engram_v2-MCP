@@ -1,6 +1,6 @@
 {
-  "status": "NATIVE_AND_DEBUG_ACCEPTED_RELEASE_READY",
-  "at_utc": "2026-11-18T21:10:16.760767+00:00",
+  "status": "OPTIMIZED_RELEASE_RUNNING_NATIVE_DEBUG_ACCEPTED",
+  "at_utc": "2026-11-18T21:12:52.783377+00:00",
   "original_requirement_ids": [
     "EG-13",
     "EG-03",
@@ -39,11 +39,11 @@
   "native_invocations": 1,
   "full_suites": 0,
   "separate_debug_builds": 0,
-  "optimized_release_started": false,
+  "optimized_release_started": true,
   "runtime_deployed": false,
   "protected_wip9": "UNCHANGED",
   "full_original_goal_complete": false,
-  "next_action": "Start one owned optimized release for the accepted frozen source, then reuse it for candidate and installed checks. No native/debug replay or full suite.",
+  "next_action": "Observe this exact release owner. On terminal PASS, the pinned observer packages once, runs27candidate and27installed public assertions, verifies metadata unchanged, and restores normal runtime. No native/debug replay, rebuild or full suite. Root records installed delivery after terminal evidence.",
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118",
     "owned_job": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\native1-owner.json",
@@ -57,5 +57,40 @@
   "public_debug_checks_passed": 27,
   "public_debug_seconds": 38.58825320000324,
   "debug_server_sha256": "3ee6cdc099f4751cf29f6f5e108fdb193273cff7c31c63991e8d437c3328c927",
-  "release_plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\release-plan.json"
+  "release_plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\release-plan.json",
+  "release_invocations": 1,
+  "release_owner": {
+    "pid": 52272,
+    "created": 1795036237.6834912,
+    "command": [
+      "C:\\Python314\\python.exe",
+      "-B",
+      "-u",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\build.py",
+      "--label",
+      "release1",
+      "--",
+      "build",
+      "--locked",
+      "--offline",
+      "-j1",
+      "-p",
+      "engram_server",
+      "--bin",
+      "engram_server",
+      "--release"
+    ]
+  },
+  "release_observer": {
+    "pid": 53744,
+    "created": 1795036293.6901555,
+    "command": [
+      "C:\\Python314\\python.exe",
+      "-B",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118\\after-release1.py"
+    ],
+    "purpose": "Wait for the same release owner; reuse accepted artifact for packaging, candidate/installed checks and normal runtime restoration. Never starts Cargo.",
+    "evidence_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-health-maintenance-batch-20261118",
+    "cleanup": "Observer and child handles close on completion; owned config/public fixtures are removed. Evidence/package retained here; normal daemon intentionally remains."
+  }
 }
