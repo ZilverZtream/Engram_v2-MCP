@@ -55,5 +55,6 @@
     "crates/engram_server/tests/vb_property_evidence_tests.rs": "d93ab61885a69b6e987e4cc375009b4528f9f24b573942222ee7b10cb0303f10",
     "docs/TOOL_CONTRACT.md": "b6334c1999cfb82b6381104fdde4694b771dc82dbf0559dc87382224110c1954"
   },
-  "public_verifier_sha256": "6460e78d71c834e34a527483878e58fcc4ad0964b3379b5dfdb9b27dc2f9cd45"
+  "public_verifier_sha256": "6460e78d71c834e34a527483878e58fcc4ad0964b3379b5dfdb9b27dc2f9cd45",
+  "source_commit": "69da5ff8b10adbf4da4b53969d774a7aa6dea787"
 }

@@ -1208,6 +1208,13 @@
         "finite_component_installed": true,
         "full_original_requirement_complete": false,
         "behavior": "Opening/current hash observations compare identical planned paths; changed, added or no-longer-observed guidance and linked evidence remain qualified and recoverable. Full/Core public checks passed; no compliance or complete-coverage certification."
+      },
+      "captured_vb_property_source_progress_20261118": {
+        "progress": "eval/vb-property-evidence-progress-20261118.json",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "69da5ff8b10adbf4da4b53969d774a7aa6dea787",
+        "runtime_deployed": false,
+        "compiler_bindings_or_semantic_equivalence_established": false
       }
     },
     {

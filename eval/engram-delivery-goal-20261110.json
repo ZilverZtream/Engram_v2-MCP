@@ -2564,6 +2564,16 @@
         "behavior": "Ordinary source, grep and vector queries receive default40KiB complete original-result overflow recovery while explicit budgets retain handler behavior.",
         "validation_status": "PENDING_FOLLOWING_BATCH_NATIVE_AND_PUBLIC_ACCEPTANCE",
         "runtime_deployed": false
+      },
+      {
+        "original_requirement_id": "EG-27",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "69da5ff8b10adbf4da4b53969d774a7aa6dea787",
+        "progress": "eval/vb-property-evidence-progress-20261118.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-property-evidence-20261118\\contract.json",
+        "behavior": "Captured VB property bodies and auto-property initializers select only dependent instruction evidence for maintenance review.",
+        "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+        "runtime_deployed": false
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2796,14 +2806,14 @@
   },
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "progress": "eval/query-default-delivery-progress-20261118.json",
-    "original_requirement": "TODO-4",
-    "pending_source_outcomes": 1,
+    "progress": "eval/vb-property-evidence-progress-20261118.json",
+    "original_requirement": "EG-27",
     "implementation_items_active": 0,
+    "pending_source_outcomes": 2,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
     "previous_batch_delivery": "eval/edit-review-history-batch-delivery-20261117.json",
-    "next_action": "Preserve the following source outcomes and advance another substantive original requirement before combined validation. Do not replay the installed batch or compile merely because the minimum count is reached."
+    "next_action": "Retain as EG-27 source outcome in combined-validation queue; advance another substantive original requirement. Do not compile at the minimum or validate this item alone."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3913,5 +3923,11 @@
     "record": "eval/edit-review-history-batch-delivery-20261117.json",
     "runtime_deployed": true,
     "all_sessions_terminal": true
+  },
+  "vb_property_evidence_source_progress_20261118": {
+    "progress": "eval/vb-property-evidence-progress-20261118.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "69da5ff8b10adbf4da4b53969d774a7aa6dea787",
+    "runtime_deployed": false
   }
 }
