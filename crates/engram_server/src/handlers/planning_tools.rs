@@ -13795,13 +13795,17 @@ fn validate_contract_checkpoint(
         return Ok(serde_json::json!({
             "status": "PASS",
             "implementation_may_begin": true,
+            "implementation_may_begin_scope": "checkpoint_intake_only",
+            "validation_scope": "provided_checkpoint_and_ledger_only",
+            "source_evidence_verified": false,
+            "decision_authority_verified": false,
             "receipt_id": checkpoint["receipt"]["receipt_id"],
             "hard_items_expected": 0,
             "hard_items_present": 0,
             "blocking_unknown_ids": [],
             "failures": [],
             "dispositions": {},
-            "instruction": "No release-critical configured planning rule matched this change; there is nothing to disposition."
+            "instruction": "The supplied checkpoint contains no hard items; there are no supplied IDs to disposition. This does not establish absence of applicable project policy, source verification or approval."
         }));
     }
     if contract.trim().is_empty() {
@@ -13983,6 +13987,10 @@ fn validate_contract_checkpoint(
     Ok(serde_json::json!({
         "status": status,
         "implementation_may_begin": status == "PASS",
+        "implementation_may_begin_scope": "checkpoint_intake_only",
+        "validation_scope": "provided_checkpoint_and_ledger_only",
+        "source_evidence_verified": false,
+        "decision_authority_verified": false,
         "receipt_id": computed_receipt,
         "hard_items_expected": ids.len(),
         "hard_items_present": rows.len(),
@@ -13990,7 +13998,7 @@ fn validate_contract_checkpoint(
         "failures": failures,
         "dispositions": dispositions,
         "instruction": if status == "PASS" {
-            "Checkpoint complete. Preserve this receipt with the frozen feature contract."
+            "Declared checkpoint complete. Preserve this receipt with the frozen feature contract. This is a structural check of submitted claims, not source verification, approval or policy compliance."
         } else if status == "BLOCKED_BY_HUMAN_DECISION" {
             "Ask the human the listed blocking questions; the agent may not select its own defaults."
         } else {

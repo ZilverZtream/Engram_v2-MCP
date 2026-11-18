@@ -453,7 +453,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Hard gate between get_change_set and planning/implementation. Validates the exact checkpoint receipt and row order; requires exactly one completed ledger row for every release-critical hard_items ID (an empty checkpoint passes with nothing to disposition); verifies allowed dispositions, concrete evidence, numbered human questions, scenario mappings, and oracle-guard results. Returns BLOCKED when a product decision is still BLOCKING_UNKNOWN and FAIL on missing, duplicate, reordered, malformed, or unevidenced rows. Pass the exact contract_checkpoint object, completed feature-contract Markdown, and independently drafted acceptance-scenario Markdown."
+        description = "Check the supplied get_change_set checkpoint before planning/implementation. Validates receipt, row order and one completed ledger row per hard_items ID; checks allowed dispositions, nonempty evidence fields, declared oracle results and scenario/question mappings. It does not verify source evidence or approval authority. PASS is a mechanical checkpoint result, not implementation approval or policy compliance; implementation_may_begin is scoped to this prerequisite only. Returns BLOCKED_BY_HUMAN_DECISION for declared blocking questions and FAIL for incomplete or inconsistent intake. Supply the exact checkpoint, completed contract Markdown and independently drafted scenario Markdown."
     )]
     pub async fn validate_feature_contract(
         &self,
