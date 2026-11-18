@@ -45,5 +45,6 @@
     "baseline_owner_closed": true,
     "baseline_fixture_removed": true
   },
-  "next_action": "Join pending health readiness and complete refresh results in one6-case targeted native invocation, then public candidate/installed delivery. No full suite or separate debug build."
+  "next_action": "Join pending health readiness and complete refresh results in one6-case targeted native invocation, then public candidate/installed delivery. No full suite or separate debug build.",
+  "source_commit": "106b803ecb9b3653799a533e6dff6432922aea80"
 }

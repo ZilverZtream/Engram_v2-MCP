@@ -2590,7 +2590,8 @@
           "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
         },
         "counting_rule": "One VB constant-dependency instruction-maintenance outcome. Explicit/inverse selection, namespace spelling, source hashes and two native cases support one original outcome.",
-        "progress": "eval/vb-constant-evidence-progress-20261118.json"
+        "progress": "eval/vb-constant-evidence-progress-20261118.json",
+        "source_commit": "106b803ecb9b3653799a533e6dff6432922aea80"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -3145,7 +3146,8 @@
     "original_requirement_id": "EG-27",
     "implementation_items_active": 0,
     "progress": "eval/vb-constant-evidence-progress-20261118.json",
-    "runtime_deployed": false
+    "runtime_deployed": false,
+    "source_commit": "106b803ecb9b3653799a533e6dff6432922aea80"
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -4299,6 +4301,7 @@
     },
     "counting_rule": "One VB constant-dependency instruction-maintenance outcome. Explicit/inverse selection, namespace spelling, source hashes and two native cases support one original outcome.",
     "progress": "eval/vb-constant-evidence-progress-20261118.json",
-    "runtime_deployed": false
+    "runtime_deployed": false,
+    "source_commit": "106b803ecb9b3653799a533e6dff6432922aea80"
   }
 }
