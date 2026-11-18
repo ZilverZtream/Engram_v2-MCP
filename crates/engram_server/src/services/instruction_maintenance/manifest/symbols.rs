@@ -106,6 +106,11 @@ fn bracketed_sql_identifier(value: &str) -> Option<String> {
 }
 
 fn names(candidate: &Candidate) -> Vec<String> {
+    // Configuration keys are complete literal spellings, not qualified symbols
+    // with a terminal-name alias.
+    if candidate.kind == "app_setting" {
+        return identifier(&candidate.name).then(|| candidate.name.clone()).into_iter().collect();
+    }
     let mut result = BTreeSet::new();
     for name in [&candidate.name, &candidate.qualified_name] {
         result.insert(name.replace("::", "."));
@@ -182,7 +187,8 @@ pub(in crate::services::instruction_maintenance) fn declarations(
                 .to_ascii_lowercase();
             let vb = extension == "vb";
             let sql = extension == "sql";
-            let supported = vb || sql
+            let config = extension == "config";
+            let supported = vb || sql || config
                 || matches!(
                     extension.as_str(),
                     "rs" | "py"
@@ -203,7 +209,11 @@ pub(in crate::services::instruction_maintenance) fn declarations(
                 );
             let extracted = if supported {
                 std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                    if vb {
+                    if config {
+                        engram_index::config_extractor::snapshot_app_setting_candidates(
+                            &engram_core::RelPath::new(path), &snapshot.content,
+                        ).ok()
+                    } else if vb {
                         engram_index::vb_extractor::snapshot_declaration_candidates(
                             &snapshot.content,
                         )
@@ -257,6 +267,8 @@ pub(in crate::services::instruction_maintenance) fn declarations(
                 "symbol_source_budget_exceeded"
             } else if extracted.is_none() {
                 "symbol_extractor_unavailable"
+            } else if config {
+                "xml_app_setting_element_candidates_no_absence_proof"
             } else if vb {
                 "regex_declaration_line_candidates_no_absence_proof"
             } else if sql && extracted.as_ref().is_some_and(|symbols| symbols.iter()
@@ -290,12 +302,25 @@ pub(in crate::services::instruction_maintenance) fn declarations(
                     omitted += 1;
                     continue;
                 }
-                let Some(range) = line_range(&snapshot.content, symbol.start_line, symbol.end_line)
+                let range = if config {
+                    (|| {
+                        let metadata = symbol.metadata.as_ref()?;
+                        let start = metadata.get("snapshot_byte_start")?.parse::<usize>().ok()?;
+                        let end = metadata.get("snapshot_byte_end")?.parse::<usize>().ok()?;
+                        snapshot.content.get(start..end)?;
+                        Some([start, end])
+                    })()
+                } else {
+                    line_range(&snapshot.content, symbol.start_line, symbol.end_line)
+                };
+                let Some(range) = range
                 else {
                     omitted += 1;
                     continue;
                 };
-                let span_kind = if vb && symbol.kind == "property" {
+                let span_kind = if config {
+                    "xml_app_setting_element"
+                } else if vb && symbol.kind == "property" {
                     match symbol.metadata.as_ref().and_then(|m| m.get("snapshot_span_kind")).map(String::as_str) {
                         Some("regex_observed_property_line_range") => "regex_observed_property_line_range",
                         Some("regex_observed_auto_property_line_range") => "regex_observed_auto_property_line_range",

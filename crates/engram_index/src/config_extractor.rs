@@ -13,6 +13,45 @@ use quick_xml::Reader;
 use quick_xml::events::{BytesStart, Event};
 use std::collections::HashMap;
 
+/// Snapshot-only appSettings evidence. Keep ingestion identities unchanged while
+/// retaining the exact authored element, including multiline attributes.
+/// Lines are one-based; snapshot_byte_start/end are raw UTF-8 element bounds.
+/// These literal observations do not evaluate configuration precedence or values.
+pub fn snapshot_app_setting_candidates(
+    rel_path: &RelPath,
+    source: &str,
+) -> anyhow::Result<Vec<ExtractedSymbol>> {
+    let mut reader = Reader::from_str(source);
+    let mut stack = Vec::new();
+    let mut symbols = Vec::new();
+    loop {
+        let start = reader.buffer_position() as usize;
+        match reader.read_event()? {
+            Event::Start(element) => stack.push(local_name_str(&element)),
+            Event::Empty(element) => {
+                let context = xml_path(&stack, &local_name_str(&element));
+                if !context.contains("appsettings/add") {
+                    continue;
+                }
+                let end = reader.buffer_position() as usize;
+                let mut extracted = Vec::new();
+                process_element(&context, &element, rel_path, &mut extracted, &mut Vec::new());
+                for mut symbol in extracted.into_iter().filter(|symbol| symbol.kind == "app_setting") {
+                    symbol.start_line = source.as_bytes()[..start].iter().filter(|&&byte| byte == b'\n').count() as u32 + 1;
+                    symbol.end_line = source.as_bytes()[..end].iter().filter(|&&byte| byte == b'\n').count() as u32 + 1;
+                    let metadata = symbol.metadata.get_or_insert_with(HashMap::new);
+                    metadata.insert("snapshot_byte_start".into(), start.to_string());
+                    metadata.insert("snapshot_byte_end".into(), end.to_string());
+                    symbols.push(symbol);
+                }
+            }
+            Event::End(_) => { stack.pop(); }
+            Event::Eof => return Ok(symbols),
+            _ => {}
+        }
+    }
+}
+
 /// Extract symbols and edges from a web.config or app.config file.
 pub fn extract_web_config(
     rel_path: &RelPath,

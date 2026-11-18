@@ -28,7 +28,7 @@ impl Discovery {
                 .to_ascii_lowercase();
             if !matches!(
                 extension.as_str(),
-                "vb" | "js" | "jsx" | "ts" | "tsx" | "sql"
+                "vb" | "js" | "jsx" | "ts" | "tsx" | "sql" | "config"
             ) {
                 continue;
             }
