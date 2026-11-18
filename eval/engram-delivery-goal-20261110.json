@@ -2577,7 +2577,8 @@
         "native_environment": {
           "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
         },
-        "counting_rule": "One complete refresh-result delivery outcome under original TODO4. Three refresh stages, formatting variants, error flags, bounded recovery and retention fallback are supporting checks, not separate outcomes."
+        "counting_rule": "One complete refresh-result delivery outcome under original TODO4. Three refresh stages, formatting variants, error flags, bounded recovery and retention fallback are supporting checks, not separate outcomes.",
+        "source_commit": "966593d22a68096a9bf657e4c2c479f504d6d0a7"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -3128,7 +3129,8 @@
     "original_requirement_id": "TODO-4",
     "progress": "eval/corpus-refresh-results-progress-20261118.json",
     "implementation_items_active": 0,
-    "runtime_deployed": false
+    "runtime_deployed": false,
+    "source_commit": "966593d22a68096a9bf657e4c2c479f504d6d0a7"
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -4268,6 +4270,7 @@
       "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
     },
     "counting_rule": "One complete refresh-result delivery outcome under original TODO4. Three refresh stages, formatting variants, error flags, bounded recovery and retention fallback are supporting checks, not separate outcomes.",
-    "runtime_deployed": false
+    "runtime_deployed": false,
+    "source_commit": "966593d22a68096a9bf657e4c2c479f504d6d0a7"
   }
 }
