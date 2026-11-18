@@ -1,0 +1,43 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-03",
+  "at_utc": "2026-11-18T19:56:51.378979+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-refresh-git-scope-20261118",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-refresh-git-scope-20261118\\baseline1\\receipt.json",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-refresh-git-scope-20261118\\contract.json",
+  "source_files": [
+    "crates/engram_server/src/handlers/git_refresh_scope.rs",
+    "crates/engram_server/src/handlers/git_tools.rs",
+    "crates/engram_server/src/handlers/project_tools.rs",
+    "crates/engram_server/src/handlers/planning_tools.rs",
+    "crates/engram_server/tests/source_refresh_git_scope.rs"
+  ],
+  "builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "implementation_items_active": 0,
+  "full_original_goal_complete": false,
+  "source_commit": "66d796219c0bd6c1716441288c6812a2c1ebf3db",
+  "progress": "eval/source-refresh-git-scope-progress-20261118.json",
+  "native_target": "source_refresh_git_scope",
+  "native_cases_expected": 2,
+  "native_environment": {
+    "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-refresh-git-scope-20261118\\verify-public.py",
+  "counting_rule": "One original unnecessary-refresh-work outcome. Ignored/untracked cases, normal root/tracked controls and explicit history preservation are acceptance variants, not extra deliverables.",
+  "validation_status": "SYNTAX_ONLY_NATIVE_AND_PUBLIC_AFTER_CHECKS_PENDING",
+  "public_assertions_expected": 12,
+  "syntax": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-refresh-git-scope-20261118\\source-syntax1.json",
+  "scope_limit": "Automatic source refresh and automatic co-change warmup only. Explicit history semantics and old history/temporal rows remain; no general subtree-history or whole-resource closure.",
+  "normal_runtime_change": false,
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "legacy_validation_applicability": "Normal repository-root behavior is preserved; no LegacyValidation runtime speedup claimed. The verified waste occurred in owned VB/TS/SQL source-verification fixtures beneath an unrelated repository.",
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-refresh-git-scope-20261118",
+    "baseline_owners_closed": true,
+    "baseline_fixture_removed": true,
+    "retention": "Retain original controlled baseline, contract and verification receipts here until delivery accounting; no preexisting deletion."
+  },
+  "next_action": "Accumulate independent original source outcomes before combined validation. Do not compile these two pending items or repeat passed baselines."
+}
