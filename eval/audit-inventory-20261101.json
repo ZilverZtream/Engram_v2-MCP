@@ -1248,7 +1248,7 @@
     {
       "id": "EG-27",
       "finding": "Instruction evidence dependencies, freshness and reference drift",
-      "ledger_disposition": "Open workflow gap",
+      "ledger_disposition": "Original bounded freshness/reference workflow verified complete; semantic policy correctness and general task benefit remain separate.",
       "existing_evidence_and_next_gate": "Maintain source/hash/scope, referenced files/symbols, evidence commit and relevant dependent changes in an instruction manifest surfaced through health/update. Supply required linked guidance or disclose incomplete coverage. Detect reference renames and invalidate only dependent evidence; unrelated body edits must not invalidate every instruction. Historical replay must use evidence at its requested commit or explicitly disclose unavailable coverage. Semantic revision proposals remain separately tracked in EG-31.",
       "required_behavior": [
         "Manifest source/hash/scope, referenced files/symbols, evidence commit and dependent changes in health/update output.",
@@ -1256,7 +1256,7 @@
         "Renames and relevant evidence changes affect dependent instructions; unrelated body edits do not invalidate an entire directory.",
         "Bound cycles/traversal and retain source authority; historical replay uses the requested commit or explicitly reports unavailable evidence."
       ],
-      "closure_state": "Installed VB evidence capture, JS/TS dependency-specific freshness and explicit scope-routing observations delivered November13. Actual LegacyValidation map-guide routing matched300independently counted files. Retained public and actual observations establish these mechanical behaviors; semantic correctness, broader relevance/noise and task benefit remain open.",
+      "closure_state": "The four original requirements are supported by retained native and installed behavior plus unchanged current shipping-source binding. Explicit coverage bounds, unavailable/ambiguous references, non-atomic observations and authority qualifications remain. See eval/eg27-original-requirement-closure-20261119.json",
       "dependencies": [],
       "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
       "current_maintenance_work_evidence": "execution_evidence_20261101.instruction_maintenance_workflow",
@@ -1350,6 +1350,11 @@
         "finite_component_installed": true,
         "full_original_requirement_complete": false,
         "behavior": "Observed property accessor/auto-initializer bytes support dependency-specific maintenance selection; unverified candidates remain qualified."
+      },
+      "original_requirement_closure_20261119": {
+        "record": "eval/eg27-original-requirement-closure-20261119.json",
+        "original_required_behavior_complete": true,
+        "general_task_usefulness_established": false
       }
     },
     {
@@ -10476,7 +10481,7 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T23:34:02.103899+00:00",
+  "last_updated_at": "2026-11-18T23:41:21.943468+00:00",
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "record": "eval/agent-integration-result-delivery-progress-20261119.json",

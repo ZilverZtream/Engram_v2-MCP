@@ -1,0 +1,344 @@
+{
+  "status": "ORIGINAL_BOUNDED_FRESHNESS_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+  "at_utc": "2026-11-18T23:41:21.943468+00:00",
+  "original_requirement_id": "EG-27",
+  "required_behavior": [
+    "Manifest source/hash/scope, referenced files/symbols, evidence commit and dependent changes in health/update output.",
+    "Supply required linked guidance outside discovery or name unresolved, conflicting, unreadable or budget-omitted dependencies.",
+    "Renames and relevant evidence changes affect dependent instructions; unrelated body edits do not invalidate an entire directory.",
+    "Bound cycles/traversal and retain source authority; historical replay uses the requested commit or explicitly reports unavailable evidence."
+  ],
+  "original_required_behavior_complete": true,
+  "recorder": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\eg27-original-requirement-closure-20261119\\record-closure.py",
+    "sha256": "4ead4b884a61d441430c10e787f70b1aa0084037f64c4b60e14fb40488893690"
+  },
+  "requirement_evidence": [
+    {
+      "requirement": "Manifest source/hash/scope, referenced files/symbols, evidence commit and dependent changes in health/update output.",
+      "evidence": [
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\instruction-reference-native-history-and-health-contracts.json",
+            "sha256": "8034c935be2f028a86fe17751288e289c8bd6ee4101ffc69b6b25ff7c63382d0"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\instruction-reference-native-history-and-health-contracts.log",
+            "sha256": "49c0661cf8761afc0839d8130b1f011187fdbfaf6a1219ee2699eca1caf2feaf"
+          },
+          "passed_cases": 17,
+          "required_behavior_cases": [
+            "project_health_reports_optional_reference_manifest_separately_from_storage_verdict",
+            "historical_links_use_their_own_tree_and_cycles_do_not_expand_edit_targets",
+            "reference_limits_and_unsupported_syntax_are_named_without_truncating_guidance",
+            "only_roots_reaching_changed_guidance_need_review_and_scope_bytes_survive"
+          ]
+        },
+        {
+          "delivery": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\instruction-review-batch-delivery-20261115.json",
+            "sha256": "651a6d86698838f244dfa2c469a9d834fe0e5295e32dde70a4480acd689b40d7"
+          },
+          "acceptance": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\installed1\\acceptance.json",
+            "sha256": "48de075f35a656492c5641e509a629e66994dc12293cd49c9b5f7c128016761b"
+          },
+          "relevant_checks": {
+            "EG-27:out_of_scope_reference_selects_complete_policy": true,
+            "EG-27:helper_before_after_evidence_remains_exact": true,
+            "EG-27:reference_proof_matches_source_span_and_hash": true,
+            "EG-27:reference_selection_does_not_extend_authority": true,
+            "EG-27:unrelated_guidance_body_does_not_invalidate_packet": true,
+            "EG-27:existing_proposal_contract_preserves_scope_and_exception": true,
+            "EG-27:health_exposes_same_dependency_review_selection": true,
+            "EG-27:stale_dependency_rejects_prior_proposal": true,
+            "EG-27:authored_guidance_remains_unchanged": true
+          }
+        },
+        {
+          "progress": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\selective-instruction-update-progress-20261118.json",
+            "sha256": "3eec7b6460f2c342856eee39e769b7e277c8cfa4f9a29cdbdc77ccce14f861f5"
+          },
+          "delivery": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\request-guidance-function-batch-delivery-20261118.json",
+            "sha256": "7c39f63b72d8a31dbeb7f7ece0082acb68afa83eb4fcf8454f5619f619e3dd7c"
+          },
+          "acceptance": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-guidance-function-batch-20261118\\installed1\\acceptance.json",
+            "sha256": "13ecb6296cb79aea7699dc648f54f08aeea3507da88d9172d585f92525bef966"
+          },
+          "relevant_checks": {
+            "selective_guidance_selected_update_scope_disclosed": true,
+            "selective_guidance_default_selectors_collect_current_guidance": true,
+            "selective_guidance_complete_guide_hash_and_changed_evidence": true,
+            "selective_guidance_outside_index_and_observation_separated": true,
+            "selective_guidance_outside_indexed_content_inherited": true,
+            "selective_guidance_selected_source_published": true,
+            "selective_guidance_authored_policy_and_exception_preserved": true
+          }
+        },
+        {
+          "progress": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\async-instruction-observation-progress-20261118.json",
+            "sha256": "395d2047a7b6332f785ccbe3b2b6eaef7c9bd005398af62497e24c5b89258f36"
+          },
+          "delivery": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\agent-instruction-batch-delivery-20261118.json",
+            "sha256": "9a8508a2b08325b69d476e114c42cff11f2f8c6a397fd715b0161161ca02e9e5"
+          },
+          "acceptance": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\installed1\\acceptance.json",
+            "sha256": "77747f49ea513d7063ab4f55bd0f9e7fcdfb4dd32ccb41e0a63df54c15f03d7f"
+          },
+          "relevant_checks": {
+            "queued_queued_policy_draft_refused": true,
+            "queued_queued_source_job_settled_with_observation": true,
+            "queued_exact_guide_hash_and_scope_retained": true,
+            "queued_exact_changed_source_hashes_retained": true,
+            "queued_unrelated_guidance_not_selected": true,
+            "queued_separate_observation_and_no_policy_write": true,
+            "queued_exact_recovery_after_restart_and_source_change": true,
+            "queued_observation_failure_explicitly_degraded": true,
+            "queued_observation_failure_preserves_published_source": true,
+            "queued_authored_exception_unchanged": true
+          }
+        }
+      ],
+      "observed": "The manifest retains source hashes, exact frontmatter scope, evidence commit, referenced paths/symbol observations and dependent changes. Optional health and synchronous/selective/queued update paths expose separate bounded observations; job recovery retains the original observation."
+    },
+    {
+      "requirement": "Supply required linked guidance outside discovery or name unresolved, conflicting, unreadable or budget-omitted dependencies.",
+      "evidence": [
+        {
+          "delivery": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\ai-workflow-batch-delivery-20261115.json",
+            "sha256": "c257ead43e3ed41946f96d97e301b8ad16000fc25cba8bee56a9e541ce670ba4"
+          },
+          "acceptance": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-workflow-batch-20261115\\installed1\\acceptance.json",
+            "sha256": "f93b7a2f79b9e55c18bde750f943c74fcb05cf9df9709f90a45f01905cff8a3c"
+          },
+          "relevant_checks": {
+            "EG-27:direct_policy_and_link_source_proof_are_complete": true,
+            "EG-27:linked_guidance_is_complete_and_fingerprinted": true,
+            "EG-27:linked_document_does_not_enter_direct_policy_authority": true,
+            "EG-27:markdown_keeps_same_body_and_authority_warning": true,
+            "EG-27:nonmatching_scope_and_nested_body_are_not_supplied": true,
+            "EG-27:returned_hash_bound_action_reads_the_same_complete_document": true,
+            "EG-27:prior_source_action_refuses_changed_linked_bytes": true,
+            "EG-27:linked_body_refresh_needs_no_source_reindex": true,
+            "EG-27:output_budget_omission_is_named_and_complete_source_remains_recoverable": true,
+            "EG-27:authored_policy_and_code_stay_unchanged": true
+          }
+        },
+        {
+          "delivery": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\source-history-schema-batch-delivery-20261115.json",
+            "sha256": "cb33855e74a47b86925cf531a15e9a78a0e15146652523aaeeb94b789f7f8341"
+          },
+          "acceptance": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115\\installed1\\acceptance.json",
+            "sha256": "f0bb0e2b574101d5ca4f4d639abe8b67dd7a59af82b17a710d93903006b564c4"
+          },
+          "relevant_checks": {
+            "EG27:no_current_guidance_True": true,
+            "EG27:pinned_revision_and_complete_direct": true,
+            "EG27:deleted_shared_exact_body_hash": true,
+            "EG27:no_current_read_actions": true,
+            "EG27:scope_and_missing_named": true,
+            "EG27:no_current_guidance_False": true,
+            "EG27:markdown_complete_shared_body_and_revision": true
+          }
+        }
+      ],
+      "observed": "Complete linked guidance outside discovery retains source hashes and separate authority. Named missing/scope/unsupported/budget coverage and exact recovery remain; historical links use the requested revision."
+    },
+    {
+      "requirement": "Renames and relevant evidence changes affect dependent instructions; unrelated body edits do not invalidate an entire directory.",
+      "evidence": [
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg27-code-reference-coverage-final.json",
+            "sha256": "a436776327c3e8ed725ed7a5b8e4910f2b68ae1fed877f610977d384878dbf74"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg27-code-reference-coverage-final.log",
+            "sha256": "946e69c1e4de9316d898082a1016528f8b67b45ec4c3edde5f45c8a38befdff0"
+          },
+          "passed_cases": 45,
+          "required_behavior_cases": [
+            "project_health_reports_optional_reference_manifest_separately_from_storage_verdict",
+            "historical_links_use_their_own_tree_and_cycles_do_not_expand_edit_targets",
+            "reference_limits_and_unsupported_syntax_are_named_without_truncating_guidance",
+            "only_roots_reaching_changed_guidance_need_review_and_scope_bytes_survive",
+            "symbol_behavior::symbol_rename_preserves_before_evidence_and_reports_unresolved_current_reference",
+            "symbol_behavior::symbol_file_move_is_an_observed_binding_change_and_never_a_current_history_substitute",
+            "symbol_behavior::symbol_body_evidence_distinguishes_a_referenced_change_from_an_unrelated_body_edit",
+            "missing_historical_input_subtree_cannot_fabricate_before_absence_for_current_guidance"
+          ]
+        },
+        {
+          "delivery": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\instruction-review-batch-delivery-20261115.json",
+            "sha256": "651a6d86698838f244dfa2c469a9d834fe0e5295e32dde70a4480acd689b40d7"
+          },
+          "acceptance": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\installed1\\acceptance.json",
+            "sha256": "48de075f35a656492c5641e509a629e66994dc12293cd49c9b5f7c128016761b"
+          },
+          "relevant_checks": {
+            "EG-27:out_of_scope_reference_selects_complete_policy": true,
+            "EG-27:helper_before_after_evidence_remains_exact": true,
+            "EG-27:reference_proof_matches_source_span_and_hash": true,
+            "EG-27:reference_selection_does_not_extend_authority": true,
+            "EG-27:unrelated_guidance_body_does_not_invalidate_packet": true,
+            "EG-27:existing_proposal_contract_preserves_scope_and_exception": true,
+            "EG-27:health_exposes_same_dependency_review_selection": true,
+            "EG-27:stale_dependency_rejects_prior_proposal": true,
+            "EG-27:authored_guidance_remains_unchanged": true
+          }
+        },
+        {
+          "delivery": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-instruction-scope-delivery-20261113.json",
+            "sha256": "b2d19dcae71fe3faf69a68212b5e98c6edb826d955d1f57fa9309376de886dbc"
+          },
+          "acceptance": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\instruction-scope\\installed1\\acceptance.json",
+            "sha256": "21cf3c549912538c965a1827ee5120696dde9e27bf3b66be58eb1e700a2872d0"
+          }
+        }
+      ],
+      "observed": "Retained symbol rename/file-move cases preserve before evidence and report unresolved/changed current bindings. Dependency-specific selection leaves unrelated guidance bodies and referenced unchanged symbols stable; raw source identity remains preserved."
+    },
+    {
+      "requirement": "Bound cycles/traversal and retain source authority; historical replay uses the requested commit or explicitly reports unavailable evidence.",
+      "evidence": [
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\instruction-reference-native-history-and-health-contracts.json",
+            "sha256": "8034c935be2f028a86fe17751288e289c8bd6ee4101ffc69b6b25ff7c63382d0"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\instruction-reference-native-history-and-health-contracts.log",
+            "sha256": "49c0661cf8761afc0839d8130b1f011187fdbfaf6a1219ee2699eca1caf2feaf"
+          },
+          "passed_cases": 17,
+          "required_behavior_cases": [
+            "project_health_reports_optional_reference_manifest_separately_from_storage_verdict",
+            "historical_links_use_their_own_tree_and_cycles_do_not_expand_edit_targets",
+            "reference_limits_and_unsupported_syntax_are_named_without_truncating_guidance",
+            "only_roots_reaching_changed_guidance_need_review_and_scope_bytes_survive"
+          ]
+        },
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg27-code-reference-coverage-final.json",
+            "sha256": "a436776327c3e8ed725ed7a5b8e4910f2b68ae1fed877f610977d384878dbf74"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg27-code-reference-coverage-final.log",
+            "sha256": "946e69c1e4de9316d898082a1016528f8b67b45ec4c3edde5f45c8a38befdff0"
+          },
+          "passed_cases": 45,
+          "required_behavior_cases": [
+            "project_health_reports_optional_reference_manifest_separately_from_storage_verdict",
+            "historical_links_use_their_own_tree_and_cycles_do_not_expand_edit_targets",
+            "reference_limits_and_unsupported_syntax_are_named_without_truncating_guidance",
+            "only_roots_reaching_changed_guidance_need_review_and_scope_bytes_survive",
+            "symbol_behavior::symbol_rename_preserves_before_evidence_and_reports_unresolved_current_reference",
+            "symbol_behavior::symbol_file_move_is_an_observed_binding_change_and_never_a_current_history_substitute",
+            "symbol_behavior::symbol_body_evidence_distinguishes_a_referenced_change_from_an_unrelated_body_edit",
+            "missing_historical_input_subtree_cannot_fabricate_before_absence_for_current_guidance"
+          ]
+        },
+        {
+          "delivery": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\source-history-schema-batch-delivery-20261115.json",
+            "sha256": "cb33855e74a47b86925cf531a15e9a78a0e15146652523aaeeb94b789f7f8341"
+          },
+          "acceptance": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115\\installed1\\acceptance.json",
+            "sha256": "f0bb0e2b574101d5ca4f4d639abe8b67dd7a59af82b17a710d93903006b564c4"
+          },
+          "relevant_checks": {
+            "EG27:no_current_guidance_True": true,
+            "EG27:pinned_revision_and_complete_direct": true,
+            "EG27:deleted_shared_exact_body_hash": true,
+            "EG27:no_current_read_actions": true,
+            "EG27:scope_and_missing_named": true,
+            "EG27:no_current_guidance_False": true,
+            "EG27:markdown_complete_shared_body_and_revision": true
+          }
+        },
+        {
+          "delivery": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\ai-workflow-batch-delivery-20261115.json",
+            "sha256": "c257ead43e3ed41946f96d97e301b8ad16000fc25cba8bee56a9e541ce670ba4"
+          },
+          "acceptance": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-workflow-batch-20261115\\installed1\\acceptance.json",
+            "sha256": "f93b7a2f79b9e55c18bde750f943c74fcb05cf9df9709f90a45f01905cff8a3c"
+          },
+          "relevant_checks": {
+            "EG-27:direct_policy_and_link_source_proof_are_complete": true,
+            "EG-27:linked_guidance_is_complete_and_fingerprinted": true,
+            "EG-27:linked_document_does_not_enter_direct_policy_authority": true,
+            "EG-27:markdown_keeps_same_body_and_authority_warning": true,
+            "EG-27:nonmatching_scope_and_nested_body_are_not_supplied": true,
+            "EG-27:returned_hash_bound_action_reads_the_same_complete_document": true,
+            "EG-27:prior_source_action_refuses_changed_linked_bytes": true,
+            "EG-27:linked_body_refresh_needs_no_source_reindex": true,
+            "EG-27:output_budget_omission_is_named_and_complete_source_remains_recoverable": true,
+            "EG-27:authored_policy_and_code_stay_unchanged": true
+          }
+        }
+      ],
+      "observed": "The original native cases verify finite traversal, cycles, named unsupported/omitted/unavailable historical evidence and scope preservation. Installed historical recovery supplies exact deleted committed guidance without substituting current files; linked text is not promoted into direct authority."
+    }
+  ],
+  "current_source_binding": {
+    "last_verified_installed_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\source-health-maintenance-batch-delivery-20261118.json",
+      "sha256": "8d849d5054bca7dfb90ec94def1373256ad8faf3f164e83b4e3cb49b5f5f2171"
+    },
+    "installed_server_sha256": "8ab70ccf5f178b1bf87a624f6b8833855113c2a70a2e9ff757ccdcb300f3cb71",
+    "installed_source_commit": "a425ea3f38bbf2e99a4a88e03cb5a2f809527f04",
+    "frozen_source_commit": "5cf93efd38812c007d5c7868e0bf7cbef3fab112",
+    "relevant_sources_unchanged_since_installed": true,
+    "root_matches_frozen_sources": true,
+    "source_files": {
+      "crates/engram_server/src/services/instruction_maintenance.rs": "77e0d7772588fc85071d6c2c636723dce347ce602bfbe9a93ab0fcf90c1a7c84",
+      "crates/engram_server/src/handlers/project_tools/instruction_observation.rs": "24ae668d53ab9264176d1a9feb60a63b72c27eecd485ea0f51f73e043d30886c",
+      "crates/engram_server/src/services/instruction_maintenance/area_draft.rs": "b049a0caadd30304e09548fd304cb29a683255fb624fd694b6ef1d4523fdfe67",
+      "crates/engram_server/src/services/instruction_maintenance/area_evidence.rs": "2236a878fa7659bc7c37e98f3b5f827cf6abafef444edf7d4b5423d9d33c07d9",
+      "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "3da4e68878e0d4ac7dacf75f8ecd265f1a760a073648fc1a7870a72536ae21f5",
+      "crates/engram_server/src/services/instruction_maintenance/manifest.rs": "576e64f4199f35c8c22b82d39cba098633d5829807ecaccf050f3e71e0a67736",
+      "crates/engram_server/src/services/instruction_maintenance/routing.rs": "05247a059dcedea5721fdcf1f08e975ebe3ca30f02660a4dcb714292c5e69d8f",
+      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/git_changes.rs": "0ed69ce4fd2fd31cf88e1bbae38c3aa5741ce6f2f65f7e5bbcdae925c58ad63c",
+      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/prior_guidance.rs": "701910f72149e6ec088813c97caa50ceed4ae0a8fc9e5239740a36ca5be670db",
+      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs": "a187c2da87e5c50fda4604be78ca8aa45504b45e75993646053a7f8d97717671",
+      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/symbols.rs": "b7ac22c90ad15cc08ebc20ef6b08bfc5235a978a0dad62fad9829013a488746c",
+      "crates/engram_server/src/services/instruction_maintenance/manifest/markdown_links.rs": "4afc2e9dabe2232259d3106508452e77ecf8aa65a4314a71039df57516e62398",
+      "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "e8452132819f182fe218febbb12580f031e8b82bd7b3804488f33f2346a20455"
+    }
+  },
+  "no_new_builds_or_fixture_or_model_runs": true,
+  "authored_files_written": 0,
+  "protected_wip9": "UNCHANGED",
+  "general_task_usefulness_established": false,
+  "full_original_goal_complete": false,
+  "limitations": [
+    "This closes the four original bounded mechanical freshness/reference requirements, not exhaustive dependency discovery, compiler binding, semantic policy correctness, approved policy or general EG24/25 task benefit.",
+    "Current-disk instruction observations and source publication are separate non-atomic observations. Scope selects documents; prose applicability and accepted authority require the existing review workflow.",
+    "Historical native and installed cases are distinct dated executions, not a claim that the complete matrix ran again on the latest binary. Relevant current source is bound to the installed shipping source without another build.",
+    "Supported literal references and positive symbol evidence remain bounded; fragments, ambiguous path bases, missing history and unsupported syntax retain explicit gaps. Exact-content move candidates do not infer arbitrary rename identity or rewrite guidance.",
+    "Legacy ownership/adoption decisions, failed task comparisons, all19storage gates and held work retain their independent states. No actual LegacyValidation source/Q access, index mutation or preexisting cleanup occurred."
+  ],
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\eg27-original-requirement-closure-20261119",
+    "purpose": "This reconciliation script and immutable requirement evidence; no fixture or process created.",
+    "cleanup_condition": "Retain with delivery evidence pending separate accounting; no preexisting deletion."
+  }
+}
