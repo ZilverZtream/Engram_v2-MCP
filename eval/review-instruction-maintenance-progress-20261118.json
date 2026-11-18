@@ -52,7 +52,7 @@
     "crates/engram_server/src/handlers/review_tools/maintenance_context.rs": "426544c01471206d4592b9cac024fabef163f962878e563daf6c834bc885cb23",
     "crates/engram_server/src/handlers/review_tools/response_delivery.rs": "53e6d733f7cdb6bf337b6b97dc944b032ea034d76995da564d5b6fdb780607bb",
     "crates/engram_server/src/tools.rs": "437cbc76912164e5ca28f8eb93402bc8e63d5ae277d555129b9ae26f799cc0ff",
-    "crates/engram_server/tests/review_instruction_maintenance.rs": "2856c39309bb13755a556f8266a37dd0bae8460a60a61ae93a81fba61ab0137b",
+    "crates/engram_server/tests/review_instruction_maintenance.rs": "8c8a1c24491b9f8c1a3a4fa4e58d816148efe5b7dc2ebc053fe0e83008a2038a",
     "docs/TOOL_CONTRACT.md": "8cb62003c17b7850bd3d5cd00075a7a328f7c23c2b8c2391395a9943ae51ac9d"
   },
   "validation_status": "PENDING_FOLLOWING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
@@ -76,5 +76,12 @@
     "Guidance exceptions/scope remain in complete captures. Semantic proposals need an agent and validation against the same checkout/packet; an implementation conflict is not permission to weaken policy.",
     "No actual LegacyValidation source/Q/index/data mutation, real model calls, CodeMap/Blast Radius improvement, language expansion, preexisting deletion or new build. General task benefit and full original requirements remain open."
   ],
-  "source_commit": "8868b9f63e666c5b904b01a01fc4ac4b8e3644c8"
+  "source_commit": "a467a3f8564180eaeae3dd1a09593ff17a9c3508",
+  "original_source_commit": "8868b9f63e666c5b904b01a01fc4ac4b8e3644c8",
+  "fixture_compile_correction": {
+    "failed_native": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native1.json",
+    "cause": "Fixture called unavailable git2 Diff::to_buf; switched to supported print callback preserving ordinary patch line origins. Production behavior/criteria unchanged.",
+    "native_cases_executed_before_correction": 0,
+    "source_commit": "a467a3f8564180eaeae3dd1a09593ff17a9c3508"
+  }
 }

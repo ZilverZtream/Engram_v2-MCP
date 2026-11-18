@@ -1,5 +1,5 @@
 {
-  "status": "COMBINED_NATIVE_RUNNING",
+  "status": "NATIVE_FIXTURE_CORRECTED_RETRY_PREPARED",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118",
   "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\source-preparation.json",
   "native_target": "review_memory_history_delivery",
@@ -10,7 +10,10 @@
   "separate_debug_builds_started": 0,
   "runtime_deployed": false,
   "exec_session_id": 64096,
-  "shipping_source_commit": "1ce5bd71b8eefe771598dc2cb6ff4a87db36c141",
+  "shipping_source_commit": "6d05c4bb132b0170224840a32f820cc1b31b1b70",
   "next_action": "Complete8focused cases; retain passes and correct only observed failures, then run the3owned public contracts against the resulting debug artifact. One release follows successful acceptance.",
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "initial_native_command": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\native1.json",
+  "initial_native_tests_executed": 0,
+  "fixture_only_correction": "a467a3f8564180eaeae3dd1a09593ff17a9c3508"
 }

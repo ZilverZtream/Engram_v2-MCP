@@ -2559,7 +2559,7 @@
         "original_requirement_id": "EG-31",
         "related_original_requirement": "EG-27",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "8868b9f63e666c5b904b01a01fc4ac4b8e3644c8",
+        "source_commit": "a467a3f8564180eaeae3dd1a09593ff17a9c3508",
         "progress": "eval/review-instruction-maintenance-progress-20261118.json",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118\\contract.json",
         "behavior": "Ordinary native-Git reviews supply existing before/current instruction-maintenance evidence and dependency manifests; raw bases remain unknown and full packets survive immutable review recovery.",
@@ -2569,7 +2569,9 @@
         "native_environment": {
           "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
         },
-        "counting_rule": "One ordinary-review maintenance workflow outcome; formats, diff modes, evidence kinds and saved recovery are not separate deliveries."
+        "counting_rule": "One ordinary-review maintenance workflow outcome; formats, diff modes, evidence kinds and saved recovery are not separate deliveries.",
+        "original_source_commit": "8868b9f63e666c5b904b01a01fc4ac4b8e3644c8",
+        "fixture_only_correction": true
       },
       {
         "original_requirement_id": "TODO-28",
@@ -2836,7 +2838,7 @@
     "runtime_deployed": false,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "Finish one combined8-case native command, then public debug acceptance and one paired release. Preserve current installed runtime until candidate acceptance."
+    "next_action": "Native1 compiled production library but test API mismatch prevented execution. Fixture corrected; rerun the same8cases reusing existing build artifacts, then public acceptance. No production change or widened suite."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4064,7 +4066,7 @@
     "original_requirement_id": "EG-31",
     "related_original_requirement": "EG-27",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "source_commit": "8868b9f63e666c5b904b01a01fc4ac4b8e3644c8",
+    "source_commit": "a467a3f8564180eaeae3dd1a09593ff17a9c3508",
     "progress": "eval/review-instruction-maintenance-progress-20261118.json",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118\\contract.json",
     "behavior": "Ordinary native-Git reviews supply existing before/current instruction-maintenance evidence and dependency manifests; raw bases remain unknown and full packets survive immutable review recovery.",
@@ -4074,7 +4076,9 @@
     "native_environment": {
       "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
     },
-    "counting_rule": "One ordinary-review maintenance workflow outcome; formats, diff modes, evidence kinds and saved recovery are not separate deliveries."
+    "counting_rule": "One ordinary-review maintenance workflow outcome; formats, diff modes, evidence kinds and saved recovery are not separate deliveries.",
+    "original_source_commit": "8868b9f63e666c5b904b01a01fc4ac4b8e3644c8",
+    "fixture_only_correction": true
   },
   "previous_runtime_before_ask_authority_batch_recovery_20261118": {
     "record": "eval/query-property-fallback-batch-delivery-20261118.json",
