@@ -61,5 +61,6 @@
     "docs/TOOL_CONTRACT.md": "9a58affd2dbe5fb627957f798da260049a90cfad54c3e6bb39b82edffafdfbcf",
     "crates/engram_server/src/models/requests.rs": "79666fa560c53176dabb640b87d5dcc87bafaa83d700aaadac14748f6bd747f2"
   },
-  "public_verifier_sha256": "82878cb8a65c91f871896f8875c854fe21079136bf97aa86001ee6a03a47fc62"
+  "public_verifier_sha256": "82878cb8a65c91f871896f8875c854fe21079136bf97aa86001ee6a03a47fc62",
+  "source_commit": "2b8acd5076a96e8575d0caa224b6d158c34e4f0e"
 }

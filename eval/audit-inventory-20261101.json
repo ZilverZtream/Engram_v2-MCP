@@ -17158,5 +17158,13 @@
       "TODO-4"
     ],
     "full_original_goal_complete": false
+  },
+  "hybrid_provider_fallback_source_progress_20261118": {
+    "original_requirement_id": "TODO-2",
+    "progress": "eval/hybrid-provider-fallback-progress-20261118.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "2b8acd5076a96e8575d0caa224b6d158c34e4f0e",
+    "runtime_deployed": false,
+    "semantic_or_task_benefit_established": false
   }
 }

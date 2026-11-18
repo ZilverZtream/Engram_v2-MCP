@@ -2575,6 +2575,16 @@
         "behavior": "Captured VB property bodies and auto-property initializers select only dependent instruction evidence for maintenance review.",
         "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
         "runtime_deployed": false
+      },
+      {
+        "original_requirement_id": "TODO-2",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "2b8acd5076a96e8575d0caa224b6d158c34e4f0e",
+        "progress": "eval/hybrid-provider-fallback-progress-20261118.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118\\contract.json",
+        "behavior": "Ordinary hybrid search keeps filtered lexical evidence and truthful actual retrieval outcomes when optional semantic work fails or exhausts its shared configured budget.",
+        "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+        "runtime_deployed": false
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2806,14 +2816,15 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "IMPLEMENTING",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "progress": "eval/hybrid-provider-fallback-progress-20261118.json",
     "original_requirement": "TODO-2",
-    "implementation_items_active": 1,
-    "pending_source_outcomes": 2,
+    "implementation_items_active": 0,
+    "pending_source_outcomes": 3,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "Implement finite optional-semantic fallback with truthful actual outcomes; preserve two queued source outcomes."
+    "previous_batch_delivery": "eval/edit-review-history-batch-delivery-20261117.json",
+    "next_action": "Accumulate with the two queued original source outcomes. Prepare one focused combined native and public acceptance batch only after no ready substantive source change remains; do not release merely at the minimum."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3189,10 +3200,10 @@
   },
   "previous_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T00:11:30.086883+00:00",
-    "reason": "Installed owned source proof established missing ordinary VB property dependency evidence; implemented and committed captured property ranges, pending shared validation. Three baseline checks and syntax passed; no Cargo or deployment.",
-    "source_commit": "69da5ff8",
-    "pending_source_outcomes": 2,
+    "at_utc": "2026-11-18T00:30:18.431246+00:00",
+    "reason": "Corrected queued query-schema guidance; reproduced ordinary hybrid provider failure against positive source evidence; implemented shared optional semantic budget and disclosed lexical fallback, with focused acceptance written. No Cargo or full suite.",
+    "source_commit": "2b8acd5076a96e8575d0caa224b6d158c34e4f0e",
+    "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "full_original_goal_complete": false
   },
@@ -3932,6 +3943,12 @@
     "progress": "eval/vb-property-evidence-progress-20261118.json",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "source_commit": "69da5ff8b10adbf4da4b53969d774a7aa6dea787",
+    "runtime_deployed": false
+  },
+  "hybrid_provider_fallback_source_progress_20261118": {
+    "progress": "eval/hybrid-provider-fallback-progress-20261118.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "2b8acd5076a96e8575d0caa224b6d158c34e4f0e",
     "runtime_deployed": false
   }
 }
