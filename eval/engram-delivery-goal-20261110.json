@@ -2816,7 +2816,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "FOCUSED_NATIVE_RUNNING",
+    "status": "NATIVE_AND_DEBUG_ACCEPTED_RELEASE_PREPARED",
     "progress": "eval/query-property-fallback-batch-progress-20261118.json",
     "original_requirements": [
       "TODO-4",
@@ -2827,10 +2827,15 @@
     "pending_source_outcomes": 3,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "shipping_head": "18fe0cbb5dc7880d5f27fcb76dee744c081a61c6",
-    "next_action": "Observe existing native1 handle7794 to completion; do not restart on a timeout. Then run prepared public acceptance on the implicit debug artifact. One optimized release only after passing focused checks.",
-    "native_label": "native1",
-    "build_session_id": 7794
+    "shipping_head": "a5c5d9b1295a5fe71fad24c40e0f1bddcc33d5ea",
+    "next_action": "Build one optimized release through unchanged guard, reusing frozen shipping source and shared target; then candidate/installed public acceptance and normal-runtime restoration. No further debug/full-suite compile.",
+    "native_label": "native2",
+    "build_session_id": null,
+    "public_label": "debug2",
+    "public_session_id": null,
+    "release_label": "release1",
+    "native_unique_cases_passed": 13,
+    "public_debug_checks": 44
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3206,8 +3211,8 @@
   },
   "previous_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T00:40:22.277525+00:00",
-    "reason": "Reused clean shipping worktree, froze three real source outcomes, prepared13-case focused acceptance and started one guarded BelowNormal Cargo run. Public JSON/Markdown recovery/provider/property drivers and existing package/deploy flow prepared; no full-suite or separate debug build.",
+    "at_utc": "2026-11-18T00:53:54.781147+00:00",
+    "reason": "13unique native cases accepted across one13-case run and one assertion-only rerun;44public assertions accepted with5retained after a harness correction. Production unchanged during corrections. One optimized artifact prepared; full backlog remains active.",
     "full_original_goal_complete": false
   },
   "scoped_http_ask_progress_20261117": "eval/scoped-http-ask-progress-20261117.json",

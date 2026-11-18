@@ -37,7 +37,7 @@
   "source_phase_completed_at_utc": "2026-11-18T00:29:37.352687+00:00",
   "implementation_items_active": 0,
   "native_test_cases_written": 3,
-  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "validation_status": "FOCUSED_NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_PENDING",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118\\verify-public.py",
   "source_checks": {
     "rust_syntax": "PASS via rustfmt; existing files parsed without rewriting",
@@ -67,5 +67,7 @@
   "prepared_public_verifiers": {
     "verify-public.py": "82878cb8a65c91f871896f8875c854fe21079136bf97aa86001ee6a03a47fc62"
   },
-  "acceptance_preparation_20261118": "Same finite behavior contracts; public source/vector queries explicitly cover both JSON and Markdown and verify recovered original MCP hashes. Baseline proofs retained; no new implementation outcome or standalone compile."
+  "acceptance_preparation_20261118": "Same finite behavior contracts; public source/vector queries explicitly cover both JSON and Markdown and verify recovered original MCP hashes. Baseline proofs retained; no new implementation outcome or standalone compile.",
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\native-acceptance.json",
+  "combined_debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\debug2\\receipt.json"
 }

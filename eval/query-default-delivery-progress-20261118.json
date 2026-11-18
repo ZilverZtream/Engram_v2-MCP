@@ -46,7 +46,7 @@
   "baseline_owner_closed_and_fixture_removed": true,
   "baseline_provider_closed": true,
   "native_test_cases_written": 3,
-  "validation_status": "PENDING_FOLLOWING_BATCH_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "validation_status": "FOCUSED_NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_PENDING",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118\\verify-public.py",
   "vector_public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118\\verify-vector.py",
   "source_checks": {
@@ -90,8 +90,10 @@
   "original_source_commit": "028d57dfdbcf83821b89bd6c8068b80375386363",
   "combined_validation_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118",
   "prepared_public_verifiers": {
-    "verify-public.py": "cf8634d19c29cdab07ba67213c8dcae5b813d32ca9348680e455d35222bff267",
+    "verify-public.py": "47b4347c1ef83c233e42a74f0efc093061fe4d5d7364302f5736e750dc3e445a",
     "verify-vector.py": "a165595f2f340fa640d2008bfe1517676031a7acae8652947f9cab98965ab45e"
   },
-  "acceptance_preparation_20261118": "Same finite behavior contracts; public source/vector queries explicitly cover both JSON and Markdown and verify recovered original MCP hashes. Baseline proofs retained; no new implementation outcome or standalone compile."
+  "acceptance_preparation_20261118": "Same finite behavior contracts; public source/vector queries explicitly cover both JSON and Markdown and verify recovered original MCP hashes. Baseline proofs retained; no new implementation outcome or standalone compile.",
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\native-acceptance.json",
+  "combined_debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\debug2\\receipt.json"
 }
