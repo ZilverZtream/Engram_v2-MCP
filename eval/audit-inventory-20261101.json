@@ -10434,15 +10434,15 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T13:08:12.973357+00:00",
+  "last_updated_at": "2026-11-18T13:36:41.418568+00:00",
   "current_execution_focus": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "record": "eval/instruction-generation-delivery-progress-20261118.json",
-    "pending_source_outcomes": 2,
+    "status": "SOURCE_BATCH_READY_FOR_FOCUSED_VALIDATION",
+    "record": "eval/async-instruction-observation-progress-20261118.json",
+    "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "Accumulate substantive source work under further distinct original requirements. Queue currently has TODO3 and TODO4 only; no Cargo admission. Before a later combined build, preserve all source outcomes and reconcile any further explicit catalog changes against the frozen expectation."
+    "next_action": "Validate the complete pending source batch through one focused4-case integration target and independent public contracts; no full/lib/no-vector suite or separate debug build."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -17498,6 +17498,20 @@
     },
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-generation-delivery-20261118\\verify-public.py",
     "counting_rule": "One instruction-generation result delivery outcome. Preview/publication, budgets, formats, failures and recovery are supporting variants, not separate original deliverables.",
+    "runtime_deployed": false
+  },
+  "async_instruction_observation_source_progress_20261118": {
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement_id": "EG-27",
+    "source_commit": "e7fa29378e71930d11e421b0996954567a7f4d2e",
+    "progress": "eval/async-instruction-observation-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118\\contract.json",
+    "native_target": "async_instruction_observation",
+    "native_environment": {
+      "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+    },
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118\\verify-public.py",
+    "counting_rule": "One originalEG27 queued-update instruction evidence outcome. Successful/failing observations, typed capture/recovery, default caller preservation and2nativecases are acceptance variants, not extra deliverables.",
     "runtime_deployed": false
   }
 }

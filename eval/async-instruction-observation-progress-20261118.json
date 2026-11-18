@@ -1,0 +1,52 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-18T13:36:41.418568+00:00",
+  "original_requirement_id": "EG-27",
+  "supporting_original_requirement": "EG-31",
+  "source_commit": "e7fa29378e71930d11e421b0996954567a7f4d2e",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118\\contract.json",
+  "baseline_observation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118\\baseline-observation1.json",
+  "observed_missing_behavior": "update_project rejects instruction_maintenance with wait=false before queuing a job; only waited source updates can return this evidence.",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/project_tools.rs",
+    "crates/engram_server/src/handlers/project_tools/instruction_observation.rs",
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/async_instruction_observation.rs",
+    "crates/engram_server/tests/agent_instruction_delivery.rs"
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/handlers/project_tools.rs": "0b24fd8aee17db987af603d1cf25d715609ac6b215ace34a7276e424081d0465",
+    "crates/engram_server/src/handlers/project_tools/instruction_observation.rs": "24ae668d53ab9264176d1a9feb60a63b72c27eecd485ea0f51f73e043d30886c",
+    "crates/engram_server/src/read_report_delivery.rs": "754de2d3949117124ae359b9e21002660b10cc9027884c385940e9bf8b5d5b2e",
+    "crates/engram_server/src/models/requests.rs": "ea4a99f4417f084f88e6f5e71a8fac670d822b27d9fb2faaf7cb4b2580582513",
+    "crates/engram_server/src/tools.rs": "94bcf24a85998e6173940763de81cea6d8a8ab2f407128ad6ea974eae51e6e26",
+    "crates/engram_server/tests/async_instruction_observation.rs": "c6113f3c636b63cbe5a294bb9c0b44bf3b8f039ba1d272755c7e5e252a9f6bf1",
+    "crates/engram_server/tests/agent_instruction_delivery.rs": "cd6ef6659a39c4f9a364b47ff1f5b4a0ceaadbf8a460c6577f44b6b9b2880bba"
+  },
+  "implementation": "Queued updates collect requested instruction evidence after source work, bound to the producer root. Existing get_job_status immutable report snapshots retain the complete job-bound observation; job messages contain only a bounded recovery reference. Observation failures mark coverage degraded without hiding published source or writing policy.",
+  "native_target": "async_instruction_observation",
+  "native_cases_prepared": 2,
+  "native_cases_executed": 0,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118\\verify-public.py",
+  "public_verifier_sha256": "eeec8f258f84f607fc905b0a06c444cee990e97d4ae38d768845a8ca9689c5d6",
+  "runtime_deployed": false,
+  "source_stage_cargo_invocations": 0,
+  "full_original_goal_complete": false,
+  "counting_rule": "One originalEG27 queued-update instruction evidence outcome. Successful/failing observations, typed capture/recovery, default caller preservation and2nativecases are acceptance variants, not extra deliverables.",
+  "limits": [
+    "New source has not yet been compiled or runtime-validated.",
+    "The observation is separate current-disk evidence, not an atomic source-index/policy snapshot, semantic correctness, policy approval or authorisation to rewrite guidance.",
+    "Existing8MiB/24hour/32capture quotas apply to saved get_job_status reports. Expired evidence does not authorise repeating the source update. No database/source-format change.",
+    "No actual LegacyValidation source/Q/index access or mutation, CodeMap/Blast Radius change, provider/model run, independent agents or preexisting folder deletion."
+  ],
+  "temporary_resources": {
+    "baseline_owners_closed": true,
+    "baseline_fixture_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118",
+    "cleanup_condition": "Keep evidence/scripts for review; future owned fixtures must cancel/join workers, close stores and remove their directories."
+  },
+  "next_action": "Validate the complete pending source batch through one focused4-case integration target and independent public contracts; no full/lib/no-vector suite or separate debug build."
+}

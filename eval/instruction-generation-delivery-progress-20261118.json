@@ -27,7 +27,7 @@
   "source_stage_cargo_invocations": 0,
   "source_parsing": "Production and new focused integration target parsed with rustfmt stdin; no typecheck/test pass claimed.",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-generation-delivery-20261118\\verify-public.py",
-  "public_verifier_sha256": "e9503db3fa93194a70b4d96adf17551a261c900f5e06a5781d613d95b55de7b1",
+  "public_verifier_sha256": "55fdb0d9630e9e4000195c6cd664d094c878197438cc288b60a21353edeebdd0",
   "runtime_deployed": false,
   "full_original_goal_complete": false,
   "counting_rule": "One instruction-generation result delivery outcome. Preview/publication, budgets, formats, failures and recovery are supporting variants, not separate original deliverables.",
@@ -46,5 +46,7 @@
     "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-generation-delivery-20261118",
     "retention": "Contracts/source observations/wire evidence/scripts retained for combined acceptance; all newly created live fixtures removed."
   },
-  "next_action": "Accumulate substantive source work under further distinct original requirements. Queue currently has TODO3 and TODO4 only; no Cargo admission. Before a later combined build, preserve all source outcomes and reconcile any further explicit catalog changes against the frozen expectation."
+  "next_action": "Accumulate substantive source work under further distinct original requirements. Queue currently has TODO3 and TODO4 only; no Cargo admission. Before a later combined build, preserve all source outcomes and reconcile any further explicit catalog changes against the frozen expectation.",
+  "source_hash_scope": "Historical component source at80fb750b; e7fa2937 subsequently adds an independent async observation helper in the shared delivery module. Combined acceptance must bind the final shipping source.",
+  "public_verifier_preflight_correction": "Before first execution, validate expected protocol errors from retained JSON-RPC wire responses; the existing transport assertion does not expose the server message."
 }
