@@ -1399,7 +1399,7 @@
         "Reject stale bases; preserve exceptions and shared-rule references; explain no-guidance-change outcomes.",
         "An implementation conflicting with valid policy is a potential code defect, not permission to weaken policy; never silently rewrite authored guidance."
       ],
-      "closure_state": "Current-source conflict proposal and stale refusal verified on installed LegacyValidation November11; authored guidance preserved. Genuine historical Change and reporting no_change remain supported by their retained original executions, not repeated on every later binary. Wider usefulness and all original acceptance beyond these cases remain unfinished.",
+      "closure_state": "Original functional maintenance contract verified through retained exact historical Change, real reporting no_change, installed present code/policy Conflict and stale refusal; current validator/source binding inspected. No policy publication, semantic approval, independent discovery or task-productivity claim. Historical owned fixture cleanup remains explicitly held. See eval/eg31-original-maintenance-requirement-closure-20261118.json",
       "dependencies": [],
       "current_maintenance_work_evidence": "execution_evidence_20261101.instruction_maintenance_workflow",
       "current_real_no_change_evidence": "execution_evidence_20261101.eg31_actual_reporting_no_change_20261103",
@@ -1451,7 +1451,9 @@
         "record": "eval/review-memory-history-delivery-20261118.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
-      }
+      },
+      "original_required_behavior_complete": true,
+      "original_functional_requirement_closure_20261118": "eval/eg31-original-maintenance-requirement-closure-20261118.json"
     }
   ],
   "storage_release_gates": [
@@ -10453,7 +10455,7 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T21:25:21.193653+00:00",
+  "last_updated_at": "2026-11-18T21:32:18.511334+00:00",
   "current_execution_focus": {
     "status": "OPTIMIZED_RELEASE_RUNNING_NATIVE_DEBUG_ACCEPTED",
     "record": "eval/source-health-maintenance-batch-progress-20261118.json",
@@ -17755,5 +17757,6 @@
   },
   "source_health_maintenance_batch_progress_20261118": "eval/source-health-maintenance-batch-progress-20261118.json",
   "eg12_original_requirement_closure_20261118": "eval/eg12-original-requirement-closure-20261118.json",
-  "eg14_original_drafting_requirement_closure_20261118": "eval/eg14-original-drafting-requirement-closure-20261118.json"
+  "eg14_original_drafting_requirement_closure_20261118": "eval/eg14-original-drafting-requirement-closure-20261118.json",
+  "eg31_original_maintenance_requirement_closure_20261118": "eval/eg31-original-maintenance-requirement-closure-20261118.json"
 }

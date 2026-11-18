@@ -3552,7 +3552,7 @@
     "pending_source_outcomes": 1
   },
   "history_header_filter_progress_20261117": "eval/history-header-filter-progress-20261117.json",
-  "last_updated_at": "2026-11-18T21:25:21.193653+00:00",
+  "last_updated_at": "2026-11-18T21:32:18.511334+00:00",
   "maintenance_history_interaction_batch_delivery_20261117": {
     "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
     "original_requirement_ids": [
@@ -4157,8 +4157,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T21:25:21.193653+00:00",
-    "reason": "Verified13retained EG14 artifacts and original research scope; closed original evidence-backed one-area draft/QA handoff with separately delivered ownership/scope/overflow protections. No new build, model call, fixture or actual LegacyValidation source/Q access. Publication and usefulness remain separately unfinished."
+    "at_utc": "2026-11-18T21:32:18.511334+00:00",
+    "reason": "Verified original EG31 change/no_change/conflict/refusal artifacts and current validator contract; closed original functional maintenance requirements while preserving the exact historical cleanup rejection and broader usefulness limits. No new fixture, build or model."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4284,6 +4284,10 @@
     "EG-14": {
       "record": "eval/eg14-original-drafting-requirement-closure-20261118.json",
       "status": "ORIGINAL_DRAFTING_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
+    },
+    "EG-31": {
+      "record": "eval/eg31-original-maintenance-requirement-closure-20261118.json",
+      "status": "ORIGINAL_FUNCTIONAL_MAINTENANCE_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
     }
   },
   "corpus_refresh_results_source_progress_20261118": {
@@ -4602,5 +4606,16 @@
   },
   "source_health_maintenance_batch_progress_20261118": "eval/source-health-maintenance-batch-progress-20261118.json",
   "eg12_original_requirement_closure_20261118": "eval/eg12-original-requirement-closure-20261118.json",
-  "eg14_original_drafting_requirement_closure_20261118": "eval/eg14-original-drafting-requirement-closure-20261118.json"
+  "eg14_original_drafting_requirement_closure_20261118": "eval/eg14-original-drafting-requirement-closure-20261118.json",
+  "eg31_original_maintenance_requirement_closure_20261118": "eval/eg31-original-maintenance-requirement-closure-20261118.json",
+  "eg31_retained_historical_fixture_cleanup_hold": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-marker-replay-cleanup-blocked-receipt.json",
+      "sha256": "e5292519fb4df9a36c1b45f0cb6a1c476e3b64c849d741b4c8841834c2a95d69"
+    },
+    "exact_path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-marker-replay-fixture-20261103",
+    "status": "PRESERVED: automatic approval review rejected exact owned recursive teardown, blocked by policy. Command was not executed. Do not retry equivalent deletion via another tool/language/GC.",
+    "retention_condition": "Preserve until a permitted disposition is available; not silently complete.",
+    "deleted_or_retried": false
+  }
 }

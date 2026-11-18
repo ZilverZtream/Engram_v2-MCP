@@ -1,0 +1,114 @@
+{
+  "status": "ORIGINAL_FUNCTIONAL_MAINTENANCE_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+  "at_utc": "2026-11-18T21:32:18.511334+00:00",
+  "original_requirement_id": "EG-31",
+  "required_behavior": [
+    "After a representative OX change, propose affected guidance updates with changed evidence, rationale and a source/evidence-bound diff.",
+    "Reject stale bases; preserve exceptions and shared-rule references; explain no-guidance-change outcomes.",
+    "An implementation conflicting with valid policy is a potential code defect, not permission to weaken policy; never silently rewrite authored guidance."
+  ],
+  "original_required_behavior_complete": true,
+  "requirement_evidence": [
+    {
+      "requirement": "After a representative OX change, propose affected guidance updates with changed evidence, rationale and a source/evidence-bound diff.",
+      "historical_change": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-marker-replay-validation-receipt.json",
+        "sha256": "66a8a7ce88622a0b5e7d79bc85452f692946eaf0aba7a0ba41e79d9a700a9ab7"
+      },
+      "report": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-marker-replay-validated-report.json",
+        "sha256": "15994dabff20535aa5786119c7f0949e8d3868e5745888bc6c0eb1a951c26592"
+      },
+      "raw_byte_oracles": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-marker-replay-raw-oracle-receipt.json",
+        "sha256": "ec327027e04c2772d10abac7a86a7dd1da54f2d3493cba0345d521624af39940"
+      },
+      "observed": "One reviewed, exact historical optional-name/default-row guidance change with changed before/after evidence, rationale, bound source/proposal hashes and a nonempty unified diff. Proposed guide matches the accepted historical7448byte guide exactly; no current-policy change implied."
+    },
+    {
+      "requirement": "Reject stale bases; preserve exceptions and shared-rule references; explain no-guidance-change outcomes.",
+      "source_mutation_stale_refusal": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-marker-replay-stale-refusal-receipt.json",
+        "sha256": "940dcfe94f8be1f4bfa145dc968213fae4266281df25912d5a0c94546be8ba6e"
+      },
+      "installed_stale_refusal": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\stale\\acceptance.json",
+        "sha256": "a083c31e88e283c36111dc328f57e49b5e21490d81836b54a9d79901ebf30330"
+      },
+      "explained_no_change": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-legacy_validation-reporting-disposition-receipt.json",
+        "sha256": "748384d95b7a5cec9e93614ec5c1660a2a8d0d166f17ac8d60c208ae45c4f552"
+      },
+      "observed": "Explained no_change preserves the original guide and seven complete accepted fragments/shared-rule conditions; actual fixture mutation and installed stale proposal controls refuse."
+    },
+    {
+      "requirement": "An implementation conflicting with valid policy is a potential code defect, not permission to weaken policy; never silently rewrite authored guidance.",
+      "installed_conflict": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\eg31-installed-maintenance-delivery-20261111.json",
+        "sha256": "621c12c5079c89595710ef2adb536d584e8420791a69a4096d84a5db28469971"
+      },
+      "independent_review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\independent-review.json",
+        "sha256": "9102b40693b39b13c23d2e33906eff7c41d5567c4dd82def01d00294e526dc16"
+      },
+      "observed": "Reviewed present code/policy conflict retains the complete6744byte authored guide unchanged, includes no policy diff, and proposes separate code correction without treating implementation behavior as authority to weaken policy."
+    }
+  ],
+  "current_source_binding": {
+    "file": "crates/engram_server/src/services/instruction_maintenance.rs",
+    "sha256": "77e0d7772588fc85071d6c2c636723dce347ce602bfbe9a93ab0fcf90c1a7c84",
+    "matches_frozen_shipping_checkout": true,
+    "shipping_source_commit": "a425ea3f38bbf2e99a4a88e03cb5a2f809527f04",
+    "inspected_contract": "Current validator checks complete packet freshness, before/after citations, unique exact edits, unchanged declared exceptions, explicit rationale and source/proposed hashes; produces unified diff and semantic-review requirement."
+  },
+  "all_installed_artifacts": {
+    "collection": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\collect\\report.json",
+      "sha256": "71b8f860364f35ad670c1288757db7564d9dbf2bf78f46994e4b1b49b8991319"
+    },
+    "source_oracles": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\collect\\acceptance.json",
+      "sha256": "440274fac218ada7747aae21186f01ccc3b05026d6cbd733fd03097fd3c37e25"
+    },
+    "corrected_request": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\corrected-draft-request.json",
+      "sha256": "1bb742ff10611eec8b2a296c8dfb5021842e8afd228bb7d06d60142b689b29c5"
+    },
+    "validated_proposal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\validate-corrected\\report.json",
+      "sha256": "9b11f0929bb7e4c8aea69280f06c92026ebd543e0a28c9ef6ba4155613ea42e6"
+    },
+    "installed_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\validate-corrected\\acceptance.json",
+      "sha256": "4f8c760dbdfb8387b384df804135174760e5b7c6ff29982a77829b858b330e95"
+    },
+    "stale_refusal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\stale\\acceptance.json",
+      "sha256": "a083c31e88e283c36111dc328f57e49b5e21490d81836b54a9d79901ebf30330"
+    },
+    "independent_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\independent-review.json",
+      "sha256": "9102b40693b39b13c23d2e33906eff7c41d5567c4dd82def01d00294e526dc16"
+    }
+  },
+  "no_new_builds_or_fixture_or_model_runs": true,
+  "authored_files_written": 0,
+  "policy_publication_or_approval_established": false,
+  "full_original_goal_complete": false,
+  "retained_resource_hold": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-marker-replay-cleanup-blocked-receipt.json",
+      "sha256": "e5292519fb4df9a36c1b45f0cb6a1c476e3b64c849d741b4c8841834c2a95d69"
+    },
+    "exact_path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-marker-replay-fixture-20261103",
+    "status": "PRESERVED: automatic approval review rejected exact owned recursive teardown, blocked by policy. Command was not executed. Do not retry equivalent deletion via another tool/language/GC.",
+    "retention_condition": "Preserve until a permitted disposition is available; not silently complete.",
+    "deleted_or_retried": false
+  },
+  "limitations": [
+    "Retained dated change/no_change/conflict cases are distinct executions, not a claim all were rerun on the latest binary. Current source contract and frozen shipping-source binding were inspected without another build.",
+    "Change is an exact bounded historical two-file replay with independent byte oracles; it does not prove independent discovery of a new policy change, current guidance applicability or a current application defect.",
+    "preserved_fragments is a declaration, not an exhaustive semantic proof. Independent reviews and complete byte-preservation evidence support the cited cases; current approvals and all missing evidence still require the existing review workflow.",
+    "This closes the stated original functional proposal/refusal/preservation contract. EG24/25 general usefulness, current app validation, source-coverage limits, held cleanup and broader31findings/19gates remain separate and unfinished."
+  ]
+}
