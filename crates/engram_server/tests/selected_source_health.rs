@@ -26,6 +26,18 @@ async fn health_counts_only_published_files_and_chunks_after_edit_and_delete() -
     let deleted = root.join("invoice.sql");
     std::fs::write(&script, "export function invoiceHealth() { return 'previous'; }\n")?;
     std::fs::write(&deleted, "CREATE TABLE dbo.InvoiceHealth (Id int NOT NULL);\n")?;
+    // Physical storage must differ for a deliberate, owned reason. Otherwise
+    // this check could accidentally depend on an enclosing repository's data.
+    {
+        let repo = git2::Repository::init(&root)?;
+        let mut index = repo.index()?;
+        index.add_path(std::path::Path::new("invoice.ts"))?;
+        index.add_path(std::path::Path::new("invoice.sql"))?;
+        index.write()?;
+        let tree = repo.find_tree(index.write_tree()?)?;
+        let signature = git2::Signature::now("Owned source health", "fixture@example.invalid")?;
+        repo.commit(Some("HEAD"), &signature, &signature, "Owned source health base", &tree, &[])?;
+    }
     // Database/application handles drop before the owned directory on unwind.
     let (state, _) = AppState::new(Config {
         data_dir: owned.path().join("data"), allowed_roots: vec![root.clone()],
