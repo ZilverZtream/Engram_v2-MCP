@@ -72,7 +72,7 @@ pub(super) fn collect<'a>(
         links: vec![],
         gaps: vec![],
         truncated: false,
-        interpretation: "Root page project-base context from existing resolved inheritance edges and current selected source declarations. At most4 base types and256 methods per base file. Authored PreInit/Init/Load subscriptions are possible source context, not compiler binding, guaranteed base-handler execution, lifecycle order, authorization or the effective master. Conditional assignments remain unexecuted observations. Overrides, master/control inheritance, external frameworks, root namespace/import binding and unresolved targets remain unexamined.",
+        interpretation: "Root page project-base context from existing resolved inheritance edges and current selected source declarations. At most4 base types and256 methods per base file. Authored PreInit/Init/Load/PreRender subscriptions are possible source context, not compiler binding, guaranteed base-handler execution, lifecycle order, authorization or the effective master. Conditional assignments remain unexecuted observations. Overrides, master/control inheritance, external frameworks, root namespace/import binding and unresolved targets remain unexamined.",
     };
     let markup = execution::without_markup_comments(page.content);
     let declared = execution::attribute(&markup, "Inherits");
