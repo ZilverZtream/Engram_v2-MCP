@@ -62,5 +62,10 @@
     "crates/engram_server/src/models/requests.rs": "79666fa560c53176dabb640b87d5dcc87bafaa83d700aaadac14748f6bd747f2"
   },
   "public_verifier_sha256": "82878cb8a65c91f871896f8875c854fe21079136bf97aa86001ee6a03a47fc62",
-  "source_commit": "2b8acd5076a96e8575d0caa224b6d158c34e4f0e"
+  "source_commit": "2b8acd5076a96e8575d0caa224b6d158c34e4f0e",
+  "combined_validation_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118",
+  "prepared_public_verifiers": {
+    "verify-public.py": "82878cb8a65c91f871896f8875c854fe21079136bf97aa86001ee6a03a47fc62"
+  },
+  "acceptance_preparation_20261118": "Same finite behavior contracts; public source/vector queries explicitly cover both JSON and Markdown and verify recovered original MCP hashes. Baseline proofs retained; no new implementation outcome or standalone compile."
 }

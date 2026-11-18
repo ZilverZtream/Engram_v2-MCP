@@ -2816,7 +2816,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "FOCUSED_NATIVE_PREPARED",
+    "status": "FOCUSED_NATIVE_RUNNING",
     "progress": "eval/query-property-fallback-batch-progress-20261118.json",
     "original_requirements": [
       "TODO-4",
@@ -2828,7 +2828,9 @@
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
     "shipping_head": "18fe0cbb5dc7880d5f27fcb76dee744c081a61c6",
-    "next_action": "Run13 focused combined native cases through unchanged guard; reuse implicit debug binary for prepared public checks. No full/lib/no-vector suite or additional debug build."
+    "next_action": "Observe existing native1 handle7794 to completion; do not restart on a timeout. Then run prepared public acceptance on the implicit debug artifact. One optimized release only after passing focused checks.",
+    "native_label": "native1",
+    "build_session_id": 7794
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3204,11 +3206,8 @@
   },
   "previous_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T00:30:18.431246+00:00",
-    "reason": "Corrected queued query-schema guidance; reproduced ordinary hybrid provider failure against positive source evidence; implemented shared optional semantic budget and disclosed lexical fallback, with focused acceptance written. No Cargo or full suite.",
-    "source_commit": "2b8acd5076a96e8575d0caa224b6d158c34e4f0e",
-    "pending_source_outcomes": 3,
-    "implementation_items_active": 0,
+    "at_utc": "2026-11-18T00:40:22.277525+00:00",
+    "reason": "Reused clean shipping worktree, froze three real source outcomes, prepared13-case focused acceptance and started one guarded BelowNormal Cargo run. Public JSON/Markdown recovery/provider/property drivers and existing package/deploy flow prepared; no full-suite or separate debug build.",
     "full_original_goal_complete": false
   },
   "scoped_http_ask_progress_20261117": "eval/scoped-http-ask-progress-20261117.json",

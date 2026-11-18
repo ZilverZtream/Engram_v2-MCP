@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_FROZEN_PENDING_NATIVE",
+  "status": "FOCUSED_NATIVE_RUNNING",
   "at_utc": "2026-11-18T00:32:06.355343+00:00",
   "original_requirements": [
     "TODO-4",
@@ -35,10 +35,18 @@
     "cleanup_condition": "Close owned build Job/relay/server/provider/database handles before owned fixtures; retain batch evidence until delivery. No preexisting deletion.",
     "reused_shipping_worktree_removal_condition": "Retain registered worktree while it owns shipping source/local-only commits; removal requires exact-path approval and unique-work reconciliation."
   },
-  "engram_builds_started": 0,
+  "engram_builds_started": 1,
   "runtime_deployed": false,
   "full_original_goal_complete": false,
   "shipping_head": "18fe0cbb5dc7880d5f27fcb76dee744c081a61c6",
   "build_runner_sha256": "d1e91aaabccb555a33faef525675e0bf62a75d51a366d6549365f8267b372afe",
-  "pre_cargo_correction": "The preflight byte-equality assertion caught rustfmt module ordering applied to the root wrapper only. Shipping wrapper synchronized before Cargo; no build/test started by the refused preparation."
+  "pre_cargo_correction": "The preflight byte-equality assertion caught rustfmt module ordering applied to the root wrapper only. Shipping wrapper synchronized before Cargo; no build/test started by the refused preparation.",
+  "native_label": "native1",
+  "build_session_id": 7794,
+  "observed_cargo_pid": 96076,
+  "observed_build_priority": "BelowNormal",
+  "native_tests_executed": 0,
+  "public_driver": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\verify-public.py",
+  "public_driver_sha256": "c221216efd105df613cb227cc1ad1d5c46e8ea13d332752972ac7d8406fa02ed",
+  "deployment_preparation": "Existing paired package/installer/owned runtime verification scripts adapted to this batch; not executed."
 }
