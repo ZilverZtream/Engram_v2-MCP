@@ -188,13 +188,16 @@ async fn raw_diff_without_explicit_base_does_not_guess_current_head_as_maintenan
         let raw = {
             let repo = git2::Repository::open(&f.root)?;
             let tree = repo.head()?.peel_to_tree()?;
-            let patch = repo
-                .diff_tree_to_workdir_with_index(Some(&tree), None)?
-                .to_buf(git2::DiffFormat::Patch)?
-                .as_str()
-                .unwrap()
-                .to_owned();
-            patch
+            let diff = repo.diff_tree_to_workdir_with_index(Some(&tree), None)?;
+            let mut patch = Vec::new();
+            diff.print(git2::DiffFormat::Patch, |_, _, line| {
+                if matches!(line.origin(), '+' | '-' | ' ') {
+                    patch.push(line.origin() as u8);
+                }
+                patch.extend_from_slice(line.content());
+                true
+            })?;
+            String::from_utf8(patch)?
         };
         let report: Value = serde_json::from_str(&f.review(&raw, true, 65536).await?)?;
         let context = &report["instruction_maintenance_context"];
