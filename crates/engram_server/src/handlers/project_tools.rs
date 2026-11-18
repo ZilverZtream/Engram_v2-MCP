@@ -3263,6 +3263,7 @@ impl Engram {
         let pid = req.project_id;
         let ps = self.ensure_project_runtime(&pid).await?;
         let (generation, _source_view) = self.pin_active_source_generation(&pid, &ps.search).await?;
+        let _source_view = std::sync::Arc::new(_source_view);
         #[cfg(test)]
         crate::handlers::search_tools::selected_source_tests::after_selection(&pid).await;
         let source_identity_verified = !self
