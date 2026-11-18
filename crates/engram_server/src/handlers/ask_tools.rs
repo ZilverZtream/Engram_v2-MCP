@@ -18,6 +18,9 @@ use crate::tools::Engram;
 #[path = "ask_response_delivery.rs"]
 mod response_delivery;
 
+#[path = "ask_policy.rs"]
+mod policy;
+
 #[path = "ask_schema.rs"]
 mod schema;
 
@@ -532,8 +535,9 @@ impl Engram {
         }
         let next_best = report::next_best(&plan, &evidence, st);
 
-        // Use only the code paths actually returned, not historical/doc matches
-        // or guessed task scope. Keep policy outside code ranking and status.
+        // Returned code determines ordinary guidance scope. An explicit
+        // instruction question may also name a file that has not been created.
+        // These declared policy targets remain separate from code evidence.
         let policy_paths: Vec<String> = evidence.iter()
             .filter(|item| item.authority == crate::services::ask_engine::evidence::Authority::CurrentCode)
             .filter_map(|item| item.path.clone())
@@ -541,10 +545,9 @@ impl Engram {
             .collect::<std::collections::BTreeSet<_>>().into_iter().collect();
         let project_policy_sources = {
             let root = std::path::PathBuf::from(&rec.directory);
+            let question = req.question.clone();
             tokio::task::spawn_blocking(move || {
-                let mut policy = crate::services::project_policy::resolve(&root, &policy_paths, &[]);
-                policy.notes.push("Policy scope covers the code paths returned in this report, not all files a future edit may touch. Recheck guidance for the final edit scope.".into());
-                policy
+                policy::resolve(&root, &question, &policy_paths)
             }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
         };
 

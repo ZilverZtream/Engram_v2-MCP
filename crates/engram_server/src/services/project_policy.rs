@@ -253,7 +253,7 @@ impl PolicyContext {
     }
 }
 
-fn normalized_relative(path: &str) -> Option<String> {
+pub(crate) fn normalized_relative(path: &str) -> Option<String> {
     let path = path.replace('\\', "/");
     (!path.is_empty()
         && !path.starts_with('/')

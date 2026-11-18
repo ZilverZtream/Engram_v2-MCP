@@ -18,7 +18,8 @@ pub struct AskReport {
     pub mode: String,                // retrieval_only | synthesized
     #[serde(skip_serializing_if = "Option::is_none")]
     pub synthesis: Option<super::synthesis::Synthesis>,
-    /// Authored guidance for the code paths in this report, separate from code facts.
+    /// Authored guidance for returned code and explicitly named instruction
+    /// targets, which can be prospective files. Separate from code facts.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_policy_sources: Option<crate::services::project_policy::PolicyContext>,
     pub evidence: Vec<EvidenceItem>, // ranked, deduped, bounded (high-signal)
