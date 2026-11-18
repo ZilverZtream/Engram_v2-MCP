@@ -1,5 +1,5 @@
 {
-  "status": "AFFECTED_NATIVE_ACCEPTANCE_RUNNING",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_PASS_RELEASE_READY",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
   "frozen_work_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "frozen_source_commit": "cfefe85adfab3af87bf0c07b53702c5d2ded2adb",
@@ -86,8 +86,8 @@
   },
   "started_at_utc": "2026-11-18T02:58:27.835062+00:00",
   "no_other_ready_source_change": "No established separate source change is waiting for this batch; unproven scope-case hypothesis and held original work do not justify filler or block validation.",
-  "next_action": "Poll native2 session27242 without another build or source changes. Retain three unaffected batch passes; seven ask cases cover the ordering correction. Capture the resulting debug artifact and perform the prepared public contracts after native acceptance.",
-  "native_session_id": 27242,
+  "next_action": "Start the one guarded optimized build, then reuse its exact packaged artifact for candidate and installed acceptance. No new native/full-suite/debug build.",
+  "native_session_id": null,
   "native_label": "native2",
   "native_live_owner": {
     "driver_pid": 65496,
@@ -115,5 +115,13 @@
     "one_test_executable": true,
     "separate_debug_build": false
   },
-  "source_sync_metadata_conflict": "Only authored progress JSON conflicted because shipping checkout lacked the separate root metadata commit. Resolved to the exact committed source-progress JSON; production source applied unchanged."
+  "source_sync_metadata_conflict": "Only authored progress JSON conflicted because shipping checkout lacked the separate root metadata commit. Resolved to the exact committed source-progress JSON; production source applied unchanged.",
+  "native_cases_covered": 10,
+  "native_test_executions": 17,
+  "native2_seconds": 364.0596432000166,
+  "debug_artifact": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\debug-artifact2.json",
+  "debug_sha256": "11831a4a2ca663903a6d156a1deb9ff8581b9d8ef314828aa82b6ef4bf945107",
+  "public_session_id": null,
+  "debug_public_checks_passed": 29,
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\debug1\\receipt.json"
 }

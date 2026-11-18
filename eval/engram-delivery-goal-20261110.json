@@ -2823,7 +2823,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "AFFECTED_NATIVE_ACCEPTANCE_RUNNING",
+    "status": "NATIVE_AND_PUBLIC_DEBUG_PASS_RELEASE_READY",
     "progress": "eval/ask-authority-batch-recovery-progress-20261118.json",
     "pending_source_outcomes": 3,
     "implementation_items_active": 0,
@@ -2831,8 +2831,9 @@
     "full_original_goal_complete": false,
     "frozen_source_commit": "cfefe85adfab3af87bf0c07b53702c5d2ded2adb",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
-    "next_action": "Poll native2 session27242 without another build or source changes. Retain three unaffected batch passes; seven ask cases cover the ordering correction. Capture the resulting debug artifact and perform the prepared public contracts after native acceptance.",
-    "native_session_id": 27242
+    "next_action": "Start the one guarded optimized build, then reuse its exact packaged artifact for candidate and installed acceptance. No new native/full-suite/debug build.",
+    "native_session_id": null,
+    "public_session_id": null
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4035,5 +4036,16 @@
     "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
     "runtime_deployed": false,
     "counting_rule": "One complete-batch immutable recovery outcome; read kinds, formats, statuses and restart checks are not separate outcomes."
+  },
+  "ask_authority_batch_recovery_source_batch_20261118": {
+    "status": "NATIVE_AND_PUBLIC_DEBUG_PASS_RELEASE_READY",
+    "progress": "eval/ask-authority-batch-recovery-progress-20261118.json",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
+    "native_cases_distinct_covered": 10,
+    "debug_public_checks_passed": 29,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "runtime_deployed": false,
+    "full_original_goal_complete": false
   }
 }
