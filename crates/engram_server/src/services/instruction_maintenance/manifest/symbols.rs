@@ -226,7 +226,7 @@ pub(in crate::services::instruction_maintenance) fn declarations(
                         let declarations = catalog.tables.iter().map(|table|
                             ("table", &table.key, &table.citation))
                             .chain(catalog.objects.iter()
-                                .filter(|object| matches!(object.kind, "view" | "trigger"))
+                                .filter(|object| matches!(object.kind, "view" | "trigger" | "function"))
                                 .map(|object| (object.kind, &object.key, &object.citation)));
                         for (kind, name, citation) in declarations {
                             symbols.push(engram_index::parsing::ExtractedSymbol {
@@ -260,7 +260,7 @@ pub(in crate::services::instruction_maintenance) fn declarations(
             } else if vb {
                 "regex_declaration_line_candidates_no_absence_proof"
             } else if sql && extracted.as_ref().is_some_and(|symbols| symbols.iter()
-                .any(|symbol| matches!(symbol.kind.as_str(), "table" | "view" | "trigger"))) {
+                .any(|symbol| matches!(symbol.kind.as_str(), "table" | "view" | "trigger" | "function"))) {
                 "sql_catalog_declaration_candidates_no_absence_proof"
             } else if sql {
                 "regex_procedure_line_range_candidates_no_absence_proof"
@@ -309,7 +309,7 @@ pub(in crate::services::instruction_maintenance) fn declarations(
                     "regex_observed_method_line_range"
                 } else if vb {
                     "regex_declaration_line_only"
-                } else if sql && matches!(symbol.kind.as_str(), "table" | "view" | "trigger") {
+                } else if sql && matches!(symbol.kind.as_str(), "table" | "view" | "trigger" | "function") {
                     "sql_catalog_declaration_line_range"
                 } else if sql {
                     "regex_procedure_line_range"
