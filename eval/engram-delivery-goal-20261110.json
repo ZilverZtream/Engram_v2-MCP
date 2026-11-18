@@ -2584,7 +2584,7 @@
       {
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
         "original_requirement_id": "TODO-31",
-        "source_commit": "a8a5c04b84ee6c5e95fb8d342734ba5bb2d4d15e",
+        "source_commit": "62fc1dc99662acceef6fee80de8934cbb20224e8",
         "progress": "eval/attribute-request-trace-progress-20261118.json",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\attribute-request-trace-20261118\\contract.json",
         "native_target": "request_trace_attribute_routes",
@@ -2593,7 +2593,8 @@
           "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
         },
         "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\attribute-request-trace-20261118\\verify-public.py",
-        "counting_rule": "One literal VB attribute-route workflow. Collection/item/full-method, registration/verb/source admission and conventional compatibility are acceptance variants, not independent features."
+        "counting_rule": "One literal VB attribute-route workflow. Collection/item/full-method, registration/verb/source admission and conventional compatibility are acceptance variants, not independent features.",
+        "original_source_commit": "a8a5c04b84ee6c5e95fb8d342734ba5bb2d4d15e"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2825,12 +2826,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "record": "eval/attribute-request-trace-progress-20261118.json",
+    "status": "PREPARING_FOCUSED_ACCEPTANCE",
+    "record": "eval/cache-guidance-attribute-batch-progress-20261118.json",
     "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Prepare one combined focused acceptance batch for the three queued original outcomes; review the source/fixture bindings before admitting Cargo. Retain earlier successful deep-path/history/trace checks; no separate debug or full suite. Minimum3 remains an admission floor, not a requirement to release every3."
+    "next_action": "Freeze the existing clean shipping checkout with only queued source commits and the5-case aggregate. Verify source bindings, then admit one native Cargo invocation through unchanged scripts/run_delivery_build.py."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3026,9 +3027,8 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "record": "eval/request-guidance-function-batch-delivery-20261118.json",
-    "all_build_sessions_terminal": true,
+    "status": "PREPARING_FOCUSED_ACCEPTANCE",
+    "record": "eval/cache-guidance-attribute-batch-progress-20261118.json",
     "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],
@@ -3142,7 +3142,7 @@
   "active_source_implementation": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "original_requirement_id": "TODO-31",
-    "source_commit": "a8a5c04b84ee6c5e95fb8d342734ba5bb2d4d15e",
+    "source_commit": "62fc1dc99662acceef6fee80de8934cbb20224e8",
     "progress": "eval/attribute-request-trace-progress-20261118.json",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\attribute-request-trace-20261118\\contract.json",
     "native_target": "request_trace_attribute_routes",
@@ -3152,6 +3152,7 @@
     },
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\attribute-request-trace-20261118\\verify-public.py",
     "counting_rule": "One literal VB attribute-route workflow. Collection/item/full-method, registration/verb/source admission and conventional compatibility are acceptance variants, not independent features.",
+    "original_source_commit": "a8a5c04b84ee6c5e95fb8d342734ba5bb2d4d15e",
     "implementation_items_active": 0,
     "runtime_deployed": false
   },

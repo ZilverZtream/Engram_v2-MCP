@@ -1,0 +1,37 @@
+{
+  "status": "PREPARING_FOCUSED_ACCEPTANCE",
+  "at_utc": "2026-11-18T17:24:06.382757+00:00",
+  "original_requirement_ids": [
+    "EG-12",
+    "EG-27",
+    "TODO-31"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118",
+  "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "shared_target": "C:\\ai-projects\\Engram-MCP_v2\\target",
+  "native_target": "cache_guidance_attribute_delivery",
+  "native_cases_expected": 5,
+  "native_cases": [
+    "sql_functions::scalar_and_table_valued_functions_preserve_complete_declared_evidence",
+    "sql_functions::changed_function_selects_its_consumer_without_selecting_unchanged_procedure_guidance",
+    "attributes::attribute_collection_and_item_routes_keep_their_exact_action_and_database_source",
+    "attributes::registration_verbs_and_current_source_gate_attributes_while_conventional_candidates_remain",
+    "attributes::literal_method_routes_work_without_a_class_prefix"
+  ],
+  "public_contracts": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\public-contracts1.json",
+  "runtime_deployed": false,
+  "full_original_goal_complete": false,
+  "implementation_items_active": 0,
+  "builds_started": 0,
+  "build_rule": "One combined5-case integration target for3original source outcomes; EG12 error disclosure is verified through public MCP. No full/lib/no-vector suite or separate debug build. Keep passed behavior; rerun only affected failures after relevant corrections.",
+  "review": {
+    "external": "CodeRabbit unavailable: trusted host auth status authenticated:false; no review or login started.",
+    "parent_correction_commit": "62fc1dc99662acceef6fee80de8934cbb20224e8"
+  },
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118",
+    "fixture_parent": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+    "cleanup": "Owned build Job/temp and native/public fixtures close before removal; retain source/contract/wire/receipt evidence. No preexisting deletion."
+  },
+  "next_action": "Freeze the existing clean shipping checkout with only queued source commits and the5-case aggregate. Verify source bindings, then admit one native Cargo invocation through unchanged scripts/run_delivery_build.py."
+}

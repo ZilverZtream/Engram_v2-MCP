@@ -45,7 +45,7 @@
   "source_complete": true,
   "runtime_deployed": false,
   "builds_started": 0,
-  "source_commit": "a8a5c04b84ee6c5e95fb8d342734ba5bb2d4d15e",
+  "source_commit": "62fc1dc99662acceef6fee80de8934cbb20224e8",
   "syntax_check": "PASS_5_RUST_FILES_NO_COMPILATION",
   "native_cases_written": 3,
   "native_cases_executed": 0,
@@ -58,5 +58,12 @@
   },
   "public_verifier_sha256": "444bbdcbea1003488a5d098a6f0e9b435e563e43f668f448382cb6accef79c2e",
   "validated": false,
-  "next_action": "Prepare one combined focused acceptance batch for the three queued original outcomes; review the source/fixture bindings before admitting Cargo. Retain earlier successful deep-path/history/trace checks; no separate debug or full suite. Minimum3 remains an admission floor, not a requirement to release every3."
+  "next_action": "Prepare one combined focused acceptance batch for the three queued original outcomes; review the source/fixture bindings before admitting Cargo. Retain earlier successful deep-path/history/trace checks; no separate debug or full suite. Minimum3 remains an admission floor, not a requirement to release every3.",
+  "original_source_commit": "a8a5c04b84ee6c5e95fb8d342734ba5bb2d4d15e",
+  "review_correction": {
+    "commit": "62fc1dc99662acceef6fee80de8934cbb20224e8",
+    "behavior": "New attribute registrations require selected file generation/hash before they can enable routes. Existing routing control includes edited registration source.",
+    "review_type": "Parent bounded source inspection",
+    "external_coderabbit": "No review ran: trusted host CLI auth status returned authenticated:false."
+  }
 }
