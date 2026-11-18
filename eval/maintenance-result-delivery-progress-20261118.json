@@ -24,7 +24,7 @@
   },
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\verify-public.py",
   "counting_rule": "One original complete maintenance-result delivery outcome across4operations. Tool variants, errors, expiry and retention checks are not independent deliverables.",
-  "validation_status": "SYNTAX_ONLY_COMPILED_AND_PUBLIC_AFTER_CHECKS_PENDING",
+  "validation_status": "FOCUSED_COMBINED_NATIVE_RUNNING",
   "syntax": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\source-syntax1.json",
   "public_assertions_expected": 9,
   "observed_unbudgeted_preview_bytes": 68281,
@@ -38,5 +38,6 @@
     "baseline_fixtures_removed": true,
     "retention": "Retain parameter refusal, unbudgeted preview and source contract here until delivery accounting; no preexisting deletion."
   },
-  "next_action": "Continue original source priorities and consolidate pending validation. Three independent outcomes is the minimum admission floor, not an automatic release schedule. Preserve all baselines and completed deliveries; no passed-check replay."
+  "next_action": "Observe same pinned native owner; reuse its debug artifact for frozen public checks. No release is started by observer. Record acceptance then consider consolidation before release.",
+  "validation_batch": "eval/source-health-maintenance-batch-progress-20261118.json"
 }

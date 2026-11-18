@@ -26,7 +26,7 @@
   },
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-refresh-git-scope-20261118\\verify-public.py",
   "counting_rule": "One original unnecessary-refresh-work outcome. Ignored/untracked cases, normal root/tracked controls and explicit history preservation are acceptance variants, not extra deliverables.",
-  "validation_status": "SYNTAX_ONLY_NATIVE_AND_PUBLIC_AFTER_CHECKS_PENDING",
+  "validation_status": "FOCUSED_COMBINED_NATIVE_RUNNING",
   "public_assertions_expected": 12,
   "syntax": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-refresh-git-scope-20261118\\source-syntax1.json",
   "scope_limit": "Automatic source refresh and automatic co-change warmup only. Explicit history semantics and old history/temporal rows remain; no general subtree-history or whole-resource closure.",
@@ -39,5 +39,6 @@
     "baseline_fixture_removed": true,
     "retention": "Retain original controlled baseline, contract and verification receipts here until delivery accounting; no preexisting deletion."
   },
-  "next_action": "Accumulate independent original source outcomes before combined validation. Do not compile these two pending items or repeat passed baselines."
+  "next_action": "Observe same pinned native owner; reuse its debug artifact for frozen public checks. No release is started by observer. Record acceptance then consider consolidation before release.",
+  "validation_batch": "eval/source-health-maintenance-batch-progress-20261118.json"
 }

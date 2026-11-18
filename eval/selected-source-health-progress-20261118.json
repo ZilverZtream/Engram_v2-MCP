@@ -25,7 +25,7 @@
   },
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selected-source-health-20261118\\verify-public.py",
   "counting_rule": "One original source-consistent public diagnostic outcome; counts, physical-scope labels and restart checks are acceptance variants, not independent deliverables.",
-  "validation_status": "SYNTAX_ONLY_NATIVE_AND_PUBLIC_AFTER_CHECKS_PENDING",
+  "validation_status": "FOCUSED_COMBINED_NATIVE_RUNNING",
   "public_assertions_expected": 6,
   "syntax": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selected-source-health-20261118\\source-syntax1.json",
   "temporary_resources": {
@@ -35,7 +35,15 @@
     "retention": "Retain source contract, original baseline and receipts in this single location until delivery accounting; no preexisting deletion."
   },
   "deferred_observation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selected-source-health-20261118\\deferred-update-timing1.json",
-  "next_action": "Accumulate independent original source outcomes before combined validation. Do not compile this one item or repeat the passed baseline.",
+  "next_action": "Observe same pinned native owner; reuse its debug artifact for frozen public checks. No release is started by observer. Record acceptance then consider consolidation before release.",
   "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
-  "normal_runtime_change": false
+  "normal_runtime_change": false,
+  "validation_batch": "eval/source-health-maintenance-batch-progress-20261118.json",
+  "retained_original_baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selected-source-health-20261118\\baseline1\\receipt.json",
+  "owned_history_baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selected-source-health-20261118\\baseline2\\receipt.json",
+  "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selected-source-health-20261118\\fixture-correction1.json",
+  "source_followup_commits": [
+    "80c762aea8db16e8f0083d1cc253062b51ac7561",
+    "369d5c6a5f3f6e0a30b8ad433f7520adf61171ef"
+  ]
 }

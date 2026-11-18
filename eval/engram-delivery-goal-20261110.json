@@ -2828,12 +2828,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SOURCE_COMPLETE_QUEUED_CONSOLIDATE_ORIGINAL_WORK",
-    "record": "eval/maintenance-result-delivery-progress-20261118.json",
+    "status": "FOCUSED_NATIVE_RUNNING",
+    "record": "eval/source-health-maintenance-batch-progress-20261118.json",
     "implementation_items_active": 0,
     "pending_source_outcomes": 3,
     "full_original_goal_complete": false,
-    "next_action": "Continue original source priorities and consolidate pending validation. Three independent outcomes is the minimum admission floor, not an automatic release schedule. Preserve all baselines and completed deliveries; no passed-check replay."
+    "next_action": "Observe same pinned native owner; reuse its debug artifact for frozen public checks. No release is started by observer. Record acceptance then consider consolidation before release."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3143,19 +3143,9 @@
     "does_not_pause_or_replace_goal": true
   },
   "active_source_implementation": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement_id": "TODO-28",
-    "source_commit": "633a65a188c38cc6dc1cb07b49c6b00326d2b2d4",
-    "progress": "eval/ask-review-decisions-progress-20261118.json",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-decisions-20261118\\contract.json",
-    "native_target": "ask_review_decisions",
-    "native_cases_expected": 2,
-    "native_environment": {
-      "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
-    },
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-decisions-20261118\\verify-public.py",
-    "counting_rule": "One original explicit review/rationale question workflow; scope, latest events and rendering are acceptance variants, not distinct deliverables.",
-    "implementation_items_active": 0
+    "status": "NONE_SOURCE_BATCH_UNDER_VALIDATION",
+    "implementation_items_active": 0,
+    "validation_batch": "eval/source-health-maintenance-batch-progress-20261118.json"
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -3220,8 +3210,7 @@
   },
   "previous_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T06:41:47.589846+00:00",
-    "reason": "Previous turn completed/pushed installed review-memory-history delivery. Current bounded documentation work preserves all original categories and task outcomes with hashed receipts; no runtime replay."
+    "reason": "Verified installed binary against delivery record and attached exact-owner observer to already-running native build; no new Cargo invocation."
   },
   "scoped_http_ask_progress_20261117": "eval/scoped-http-ask-progress-20261117.json",
   "retained_scoped_http_source_focus_20261117": {
@@ -3561,7 +3550,7 @@
     "pending_source_outcomes": 1
   },
   "history_header_filter_progress_20261117": "eval/history-header-filter-progress-20261117.json",
-  "last_updated_at": "2026-11-18T02:56:07.116324+00:00",
+  "last_updated_at": "2026-11-18T21:02:39.809196+00:00",
   "maintenance_history_interaction_batch_delivery_20261117": {
     "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
     "original_requirement_ids": [
@@ -4166,8 +4155,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T20:35:34.662877+00:00",
-    "reason": "Actual94entry ownership preview rejects normal budget and returns68281bytes without it. Source completes4maintenance operation result controls and adds two finite acceptance cases without compilation; runtime unchanged."
+    "at_utc": "2026-11-18T21:02:39.809196+00:00",
+    "reason": "Recovered live native55932 and observer82496 with exact command/create-time pins, reconciled stale execution focus, and preserved source fixture/Arc corrections. No new build."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4600,5 +4589,6 @@
     },
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-result-delivery-20261118\\verify-public.py",
     "counting_rule": "One original complete maintenance-result delivery outcome across4operations. Tool variants, errors, expiry and retention checks are not independent deliverables."
-  }
+  },
+  "source_health_maintenance_batch_progress_20261118": "eval/source-health-maintenance-batch-progress-20261118.json"
 }
