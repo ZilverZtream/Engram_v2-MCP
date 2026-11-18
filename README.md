@@ -86,14 +86,7 @@ and acceptance scope; it is not a new test of every feature on the latest binary
 | Demonstrated task usefulness | [Current-output comparison](eval/legacy_validation-current-task-check-outcome-20261113.json), [historical archive comparison](eval/legacy_validation-archive-task-check-outcome-20261114.json), and [November 15 invoice QA](eval/legacy_validation-invoice-task-outcome-20261115.json). | **[Latest sync-event QA](eval/legacy_validation-sync-event-task-outcome-20261115.json): both arms 6/6, zero false guidance; no incremental benefit.** Assisted input was 122,448 bytes versus 13,720 source-only. The invoice case remains assisted 6/7 versus source-only 7/7; no incremental benefit. Both detected the same defect with ten correct cases each; assisted input grew 58.03%. Earlier 19/20 versus 20/20 and 14/20 versus 16/20 failures, and the [helper QA comparison](eval/legacy_validation-snapping-helper-qa-outcome-20261113.json), remain recorded. Different task sets do not measure version gains; broader held-out/hosted verification and demonstrated implementation benefit remain open. |
 
 
-<!-- query-property-fallback-20261118-pending -->
-The [November 18 query/property/fallback batch](eval/query-property-fallback-batch-progress-20261118.json)
-is **not installed yet**. Its default source/grep/vector reply limits, captured
-VB property evidence and optional-semantic lexical fallback have passed 13 focused
-native cases and 44 public assertions (five assertions retained after a driver
-correction). The optimized release is building; candidate and installed checks
-remain. These results do not establish real-provider latency or task benefit.
-<!-- /query-property-fallback-20261118-pending -->
+The [November 18 installed batch](eval/query-property-fallback-batch-delivery-20261118.json) adds default source/grep/vector reply budgets with exact saved-result recovery, captured VB property evidence for instruction maintenance, and disclosed lexical fallback when optional semantic retrieval fails or exhausts its budget. These finite checks do not establish real-provider latency or incremental LegacyValidation task benefit.
 
 Later installed deliveries include [direct method/source guidance and bounded
 recovery](eval/legacy_validation-method-read-batch-delivery-20261114.json), and [ordinary SQL

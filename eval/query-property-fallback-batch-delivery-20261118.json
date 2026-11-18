@@ -1,0 +1,184 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-18T01:46:47.749000+00:00",
+  "original_requirement_ids": [
+    "TODO-4",
+    "EG-27",
+    "TODO-2"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118",
+  "source_preparation": {
+    "status": "VALIDATED_FROZEN_SHIPPING_SOURCE_READY",
+    "canonical_batch_root_source_reference": "2b8acd5076a96e8575d0caa224b6d158c34e4f0e",
+    "root_fixture_assertion_fix": "6d094457",
+    "shipping_head": "a5c5d9b1295a5fe71fad24c40e0f1bddcc33d5ea",
+    "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "source_baseline": "4d68280cfc07884a157d949da8a2f116c9e9a692",
+    "source_files": [
+      "crates/engram_core/src/config.rs",
+      "crates/engram_index/src/vb_extractor.rs",
+      "crates/engram_index/src/vb_extractor/snapshot_declarations.rs",
+      "crates/engram_server/src/handlers/search_tools.rs",
+      "crates/engram_server/src/handlers/search_tools/hybrid_delivery.rs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/retained_results.rs",
+      "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs",
+      "crates/engram_server/tests/hybrid_query_fallback_tests.rs",
+      "crates/engram_server/tests/query_default_delivery.rs",
+      "crates/engram_server/tests/query_property_fallback_batch.rs",
+      "crates/engram_server/tests/vb_property_evidence_tests.rs",
+      "docs/TOOL_CONTRACT.md"
+    ],
+    "changed_source_sha256": {
+      "crates/engram_core/src/config.rs": "b54a664178145dc71358c416ac7704252a46d00015925d9c445fd62f9eff7d52",
+      "crates/engram_index/src/vb_extractor.rs": "ccf771dfb52b7f0afd8d24c4d3a6b9cd8181f264facecf15a4b19f4a4199052a",
+      "crates/engram_index/src/vb_extractor/snapshot_declarations.rs": "9c2e46d66ad17dcf000e98cf5793e865cc33a186edd1c76f50051c4bc666e0be",
+      "crates/engram_server/src/handlers/search_tools.rs": "235581f2bc8ea46f1f1f8cc2a8fbc9677703afcf50be82d5d627efc1959a4b03",
+      "crates/engram_server/src/handlers/search_tools/hybrid_delivery.rs": "b13d65d7480d4e8266473faf0733f1092820d53e5f797dafbb2cac060647d503",
+      "crates/engram_server/src/models/requests.rs": "79666fa560c53176dabb640b87d5dcc87bafaa83d700aaadac14748f6bd747f2",
+      "crates/engram_server/src/retained_results.rs": "41f160403e8efd67b6ee7eaab23ed92754329c86f900920f416eba929b6f7e3d",
+      "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "9fa930ff5cbf966e1a1fd4cb72290d0c9cec7ef52037f83bd038cfefb3ff8d9c",
+      "crates/engram_server/tests/hybrid_query_fallback_tests.rs": "8abe2603bb7008a62f9405cfecec9a4210b5f66c3b1bef2edb8deb871db826d1",
+      "crates/engram_server/tests/query_default_delivery.rs": "143ca68084da5b82900cba0fca7d5327c0d41c59b93d49cbeee9c2840d1abca0",
+      "crates/engram_server/tests/query_property_fallback_batch.rs": "3f32219a5e9c0e4eda23ce8c8a271037785bf8ec392c6ed8ffdc48f2b3ac5fb5",
+      "crates/engram_server/tests/vb_property_evidence_tests.rs": "758eda5a5c17284991261cb2ab090cd358ee11065bcb5058d408d4d4bc30a5ec",
+      "docs/TOOL_CONTRACT.md": "8dcc17a0b036f704ee47c3794319e38df149f9ceccabab0dc7c2663324eae5cc"
+    },
+    "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\native-acceptance.json",
+    "native_cases_covered": 13,
+    "native_test_executions": 14,
+    "actual_cargo_native_commands": 2,
+    "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\debug2\\receipt.json",
+    "public_debug_checks": 44,
+    "public_debug_retained_assertions": 5,
+    "public_driver_sha256": "da3254bb5f0472986afadf8269e9c3f3b9e308682c97cef244ebc2b92f7dff5d",
+    "protected_wip9": "UNCHANGED_EXCLUDED",
+    "new_worktrees_created": 0,
+    "source_outcomes": 3,
+    "selection": "Three original outcomes passed finite focused acceptance. Native assertion correction changed test code only; public driver correction preserved fitting Markdown live pages. No further ready substantive source change was established in bounded original-requirement selection. Build one optimized artifact; do not repeat full suites or debug compilation.",
+    "full_original_goal_complete": false,
+    "release_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\release1.json",
+    "release_server_sha256": "a027ca4cab6ef71c7311daf3c33b8ae93c03cfe718a03a3725a975398ebf32ba"
+  },
+  "runtime": {
+    "status": "INSTALLED_ACCEPTANCE_PASS",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\package1",
+    "server_sha256": "a027ca4cab6ef71c7311daf3c33b8ae93c03cfe718a03a3725a975398ebf32ba",
+    "manifest_sha256": "58c12fd284d3e4e0eac2f98c77192d307181910c60da47ffd86356ad0b52425d",
+    "old_server_sha256": "7a3e1a18742bd23b3953a12d8642f1af2cc3d462a520175b67fef64a120d6276",
+    "old_manifest_sha256": "dd7f2a008647f85df4ff9c7df65f93fb3e5ff80a4c7bb35caf736a5343bf2e87",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\release1.json",
+      "sha256": "54473808e28db9751bbf3a8faae0c4290bb096576311b25b8daa767a4f22e12c"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "dd7f2a008647f85df4ff9c7df65f93fb3e5ff80a4c7bb35caf736a5343bf2e87",
+      "capture_phase": "Before pair swap; immutable input companion manifest, not the current installed manifest."
+    },
+    "source_commit": "a5c5d9b1295a5fe71fad24c40e0f1bddcc33d5ea",
+    "package_pair_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\pair1.json"
+  },
+  "native_acceptance": {
+    "status": "PASS",
+    "native_cases_covered": 13,
+    "native_test_executions": 14,
+    "actual_cargo_native_commands": 2,
+    "latest_successful_native_label": "native2",
+    "covered_cases": {
+      "hybrid_availability::empty_fallback_retains_coverage_warnings_in_json_and_markdown": "native1",
+      "hybrid_availability::provider_failure_keeps_filtered_source_and_guidance_without_claiming_semantic_ranking": "native1",
+      "hybrid_availability::slow_provider_uses_one_budget_for_code_and_knowledge_without_namespace_retry_fanout": "native1",
+      "method_freshness::authored_method_call_notation_retains_its_literal_and_dependency_specific_changes": "native1",
+      "method_freshness::unavailable_method_call_notation_remains_an_unresolved_reference": "native1",
+      "method_freshness::vb_class_header_retains_unavailable_body_coverage_instead_of_claiming_unchanged_body": "native1",
+      "method_freshness::vb_referenced_method_range_distinguishes_its_body_edit_from_an_unrelated_method_edit": "native1",
+      "property_evidence::auto_property_initializer_is_evidence_without_absorbing_the_next_member": "native1",
+      "property_evidence::referenced_property_tracks_its_accessors_without_invalidating_unrelated_methods": "native1",
+      "query_delivery::fitting_defaults_explicit_budgets_and_capability_errors_keep_existing_contracts": "native1",
+      "query_delivery::indexed_ts_queries_keep_all_original_evidence_in_json_and_markdown": "native1",
+      "query_delivery::selected_vector_evidence_recovers_without_fresh_query_inputs_or_provider_work": "native1",
+      "property_evidence::changed_property_selects_referencing_guidance_without_expanding_its_scope": "native2"
+    },
+    "retained_native1_passing_cases": 12,
+    "source_compatibility": {
+      "changed_paths": [
+        "crates/engram_server/tests/vb_property_evidence_tests.rs"
+      ],
+      "production_inputs_changed": false,
+      "correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\native1-assertion-correction.json"
+    },
+    "native_seconds": {
+      "native1": 733.4265391000081,
+      "native2": 105.42417180002667
+    },
+    "debug_artifact": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\debug-artifact1.json",
+    "all_owned_jobs_relays_and_temps_closed": true
+  },
+  "public_checks_per_artifact": 44,
+  "public_receipts": {
+    "debug2": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\debug2\\receipt.json",
+    "candidate1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\candidate1\\acceptance.json",
+    "installed1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\installed1\\acceptance.json"
+  },
+  "debug_public_assertions_retained_after_harness_correction": 5,
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\restored-runtime\\receipt.json",
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3151,
+  "source_format": 9,
+  "protected_wip9": "UNCHANGED",
+  "full_original_goal_complete": false,
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\Engram-win-x64-query-property-fallback.zip",
+    "sha256": "D1EFEE8C5EAE6064783C1BA015ACE60A7209DE2CEF281781D27E54361DF80C87",
+    "entries": 219,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "58C12FD284D3E4E0EAC2F98C77192D307181910C60DA47FFD86356AD0B52425D"
+  },
+  "windows_zip_sha256": "d1efee8c5eae6064783c1ba015ace60a7209de2cef281781d27e54361df80c87",
+  "build_accounting": {
+    "native_invocations": 2,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "native_unique_cases": 13,
+    "native_test_executions": 14,
+    "native_seconds": 838.8507109000348,
+    "release_seconds": 2763.386097999988,
+    "pure_coding_percentage": null,
+    "note": "One thirteen-case native run plus one failed assertion rerun. Production unchanged during native/public fixture corrections. Five public assertions retained after fitting Markdown paging was correctly recognized."
+  },
+  "temporary_resources": {
+    "native_and_release_jobs_closed": true,
+    "owned_build_temps_removed": true,
+    "public_owners_closed_and_owned_fixtures_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118",
+    "retained_component_locations": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-property-evidence-20261118",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118"
+    ],
+    "managed_rollback_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-a22484e1a1cd43c497e45382b4368298",
+    "retention": "Retain evidence/ZIP/rollback under recorded cleanup conditions; no preexisting deletion.",
+    "intentionally_retained_runtime": {
+      "pid": 106980,
+      "executable": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\restored-runtime\\receipt.json",
+      "purpose": "Normal installed daemon",
+      "cleanup_condition": "Regular application lifecycle; not a temporary fixture."
+    }
+  },
+  "limitations": [
+    "Default reply delivery retains the original selected MCP result, not exhaustive retrieval or source objects. Existing8MiB/24hour/32capture bounds and explicit budgets remain.",
+    "VB property candidates are captured observations, not compiler bindings, absence proof, policy correctness or authority. Unavailable body coverage stays incomplete.",
+    "Optional semantic deadlines are cooperative; synchronous source/lexical work, startup and rendering are not a whole-request SLA. Mixed outcomes are reported and remote cancellation is not proven.",
+    "Owned providers establish finite fallback behavior, not real-provider latency, semantic ranking quality or demonstrated LegacyValidation task/productivity benefit.",
+    "Original31findings/19gates and held work remain open; no language expansion, closed-tool improvement, policy adoption, actual source/index mutation or preexisting-folder deletion."
+  ]
+}

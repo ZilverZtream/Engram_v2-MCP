@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-4",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement": "Uniform complete response budgets and exact recovery across ordinary core query tools for AI use.",
   "observed_missing_behavior": "Only ordinary history now gets automatic default40KiB overflow delivery in the queued current release. search_memory, vector_search and grep_project still pass unbounded max_tokens=None replies through their ordinary transport path; explicit opt-in retention/budgets do not cover normal calls.",
   "priority_basis": "Accepted original bounded-evidence/core-agent-loop requirement, current LegacyValidation Full and named/Core profiles. Check owned TS source/grep/retrieval only; actual normal config hash unchanged.",
@@ -19,8 +19,8 @@
     "Verify owned normal TS source/grep queries demonstrate the old overflow, source syntax plus meaningful focused integration cases and public checks. Keep this next source outcome in following_batch_pending, separate from the frozen edit/review/history release; no added compile or mutation of its shipping checkout."
   ],
   "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
+  "native_tests_executed": 3,
+  "runtime_deployed": true,
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118",
     "purpose": "Owned baseline/finite acceptance for next query-budget source outcome",
@@ -30,7 +30,7 @@
     "baseline_provider_closed": true,
     "all_baseline_owned_fixtures_removed": true
   },
-  "next_action": "Retain this source outcome in delivery_cadence_correction_20261115.next_batch_pending alongside captured VB property evidence. The previous frozen release is delivered; advance substantive original work before combined validation. No standalone compile for this item.",
+  "next_action": "Finite component accepted and installed. Advance original unfinished work; do not replay this batch. Broader original limits remain.",
   "source_phase_completed_at_utc": "2026-11-17T23:33:40.574712+00:00",
   "implementation_items_active": 0,
   "baseline_receipts": [
@@ -46,7 +46,7 @@
   "baseline_owner_closed_and_fixture_removed": true,
   "baseline_provider_closed": true,
   "native_test_cases_written": 3,
-  "validation_status": "FOCUSED_NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_PENDING",
+  "validation_status": "PASS",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118\\verify-public.py",
   "vector_public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118\\verify-vector.py",
   "source_checks": {
@@ -68,11 +68,11 @@
     "verify-vector.py": "6810ea7987db3418859a2eab9f41e018a1c76bdf30f27b65b1c813e7a28e5f17"
   },
   "limits": [
-    "This is default overflow delivery for original selected results, not expanded retrieval/content windows, corpus completeness, ranking equivalence or source-object retention.",
-    "Explicit caller budgets/retained-window controls and capability/error behavior keep their existing contracts. Existing8MiB/24hour/32capture bounds apply.",
-    "Owned baseline proves old overflow on all three tools. New native/public checks and deployment have not run; syntax does not establish runtime correctness.",
-    "Vector baseline uses the existing owned four-value local HTTP provider fixture; no real model or external service. Positive future public vector recovery includes provider-off process restart.",
-    "The compiling edit/review/history release uses its frozen shipping checkout and excludes this later change. No source copied there, no extra compile/full suite, no actual LegacyValidation source/reindex/mutation, no Site/Q, no closed-tool or language expansion, and no preexisting deletion."
+    "Default reply delivery retains the original selected MCP result, not exhaustive retrieval or source objects. Existing8MiB/24hour/32capture bounds and explicit budgets remain.",
+    "VB property candidates are captured observations, not compiler bindings, absence proof, policy correctness or authority. Unavailable body coverage stays incomplete.",
+    "Optional semantic deadlines are cooperative; synchronous source/lexical work, startup and rendering are not a whole-request SLA. Mixed outcomes are reported and remote cancellation is not proven.",
+    "Owned providers establish finite fallback behavior, not real-provider latency, semantic ranking quality or demonstrated LegacyValidation task/productivity benefit.",
+    "Original31findings/19gates and held work remain open; no language expansion, closed-tool improvement, policy adoption, actual source/index mutation or preexisting-folder deletion."
   ],
   "source_commit": "c31765d954fea20369e07d4592dc2dab390deea7",
   "current_runtime_relationship": "Latest installed edit/review/history release excludes this later query-default source change; queued source remains undeployed.",
@@ -95,5 +95,20 @@
   },
   "acceptance_preparation_20261118": "Same finite behavior contracts; public source/vector queries explicitly cover both JSON and Markdown and verify recovered original MCP hashes. Baseline proofs retained; no new implementation outcome or standalone compile.",
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\native-acceptance.json",
-  "combined_debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\debug2\\receipt.json"
+  "combined_debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\debug2\\receipt.json",
+  "source_stage_limits_retained": [
+    "This is default overflow delivery for original selected results, not expanded retrieval/content windows, corpus completeness, ranking equivalence or source-object retention.",
+    "Explicit caller budgets/retained-window controls and capability/error behavior keep their existing contracts. Existing8MiB/24hour/32capture bounds apply.",
+    "Owned baseline proves old overflow on all three tools. New native/public checks and deployment have not run; syntax does not establish runtime correctness.",
+    "Vector baseline uses the existing owned four-value local HTTP provider fixture; no real model or external service. Positive future public vector recovery includes provider-off process restart.",
+    "The compiling edit/review/history release uses its frozen shipping checkout and excludes this later change. No source copied there, no extra compile/full suite, no actual LegacyValidation source/reindex/mutation, no Site/Q, no closed-tool or language expansion, and no preexisting deletion."
+  ],
+  "delivery_record": "eval/query-property-fallback-batch-delivery-20261118.json",
+  "installed_runtime_sha256": "a027ca4cab6ef71c7311daf3c33b8ae93c03cfe718a03a3725a975398ebf32ba",
+  "installed_public_receipts": [
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118\\query-property-fallback-batch-20261118-installed1-queries\\receipt.json",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118\\query-property-fallback-batch-20261118-installed1-vectors\\receipt.json"
+  ],
+  "installed_public_checks": 22,
+  "native_cases_distinct_covered": 3
 }

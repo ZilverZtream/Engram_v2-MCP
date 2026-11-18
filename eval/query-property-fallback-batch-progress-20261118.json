@@ -1,5 +1,5 @@
 {
-  "status": "RELEASE_RUNNING_NATIVE_AND_DEBUG_ACCEPTED",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-18T00:32:06.355343+00:00",
   "original_requirements": [
     "TODO-4",
@@ -36,13 +36,13 @@
     "reused_shipping_worktree_removal_condition": "Retain registered worktree while it owns shipping source/local-only commits; removal requires exact-path approval and unique-work reconciliation."
   },
   "engram_builds_started": 3,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "full_original_goal_complete": false,
   "shipping_head": "a5c5d9b1295a5fe71fad24c40e0f1bddcc33d5ea",
   "build_runner_sha256": "d1e91aaabccb555a33faef525675e0bf62a75d51a366d6549365f8267b372afe",
   "pre_cargo_correction": "The preflight byte-equality assertion caught rustfmt module ordering applied to the root wrapper only. Shipping wrapper synchronized before Cargo; no build/test started by the refused preparation.",
   "native_label": "native2",
-  "build_session_id": 19213,
+  "build_session_id": null,
   "observed_cargo_pid": 96076,
   "observed_build_priority": "BelowNormal",
   "native_tests_executed": 14,
@@ -62,5 +62,10 @@
   "release_label": "release1",
   "release_builds_started": 1,
   "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\source-preparation.json",
-  "release_session_id": 4869
+  "release_session_id": null,
+  "release_seconds": 2763.386097999988,
+  "release_server_sha256": "a027ca4cab6ef71c7311daf3c33b8ae93c03cfe718a03a3725a975398ebf32ba",
+  "all_build_sessions_terminal": true,
+  "delivery_record": "eval/query-property-fallback-batch-delivery-20261118.json",
+  "next_action": "Installed batch complete; advance original unfinished work without replaying this acceptance."
 }

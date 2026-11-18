@@ -1219,8 +1219,17 @@
         "progress": "eval/vb-property-evidence-progress-20261118.json",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
         "source_commit": "69da5ff8b10adbf4da4b53969d774a7aa6dea787",
-        "runtime_deployed": false,
-        "compiler_bindings_or_semantic_equivalence_established": false
+        "runtime_deployed": true,
+        "compiler_bindings_or_semantic_equivalence_established": false,
+        "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+        "delivery_record": "eval/query-property-fallback-batch-delivery-20261118.json",
+        "historical_source_status": true
+      },
+      "captured_vb_property_delivery_20261118": {
+        "record": "eval/query-property-fallback-batch-delivery-20261118.json",
+        "finite_component_installed": true,
+        "full_original_requirement_complete": false,
+        "behavior": "Observed property accessor/auto-initializer bytes support dependency-specific maintenance selection; unverified candidates remain qualified."
       }
     },
     {
@@ -10324,17 +10333,15 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-17T23:55:00.718569+00:00",
+  "last_updated_at": "2026-11-18T01:46:47.749000+00:00",
   "current_execution_focus": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "progress": "eval/query-default-delivery-progress-20261118.json",
-    "original_requirement": "TODO-4",
-    "pending_source_outcomes": 1,
+    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
+    "record": "eval/query-property-fallback-batch-delivery-20261118.json",
+    "pending_source_outcomes": 0,
     "implementation_items_active": 0,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "previous_batch_delivery": "eval/edit-review-history-batch-delivery-20261117.json",
-    "next_action": "Preserve the following source outcomes and advance another substantive original requirement before combined validation. Do not replay the installed batch or compile merely because the minimum count is reached."
+    "next_action": "Advance the next ready unfinished original requirement. Preserve31findings/19gates and held work; do not restart terminal builds or replay this batch."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -16538,10 +16545,10 @@
     "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
   },
   "latest_delivered_runtime": {
-    "record": "eval/edit-review-history-batch-delivery-20261117.json",
-    "server_sha256": "7a3e1a18742bd23b3953a12d8642f1af2cc3d462a520175b67fef64a120d6276",
-    "manifest_sha256": "dd7f2a008647f85df4ff9c7df65f93fb3e5ff80a4c7bb35caf736a5343bf2e87",
-    "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
+    "record": "eval/query-property-fallback-batch-delivery-20261118.json",
+    "server_sha256": "a027ca4cab6ef71c7311daf3c33b8ae93c03cfe718a03a3725a975398ebf32ba",
+    "manifest_sha256": "58c12fd284d3e4e0eac2f98c77192d307181910c60da47ffd86356ad0b52425d",
+    "shipping_source_commit": "a5c5d9b1295a5fe71fad24c40e0f1bddcc33d5ea",
     "selected_generation": 3151,
     "source_format": 9,
     "assets_verified": 215,
@@ -16566,9 +16573,9 @@
   },
   "active_release_validation": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "record": "eval/edit-review-history-batch-delivery-20261117.json",
+    "record": "eval/query-property-fallback-batch-delivery-20261118.json",
     "all_build_sessions_terminal": true,
-    "original_full_goal_complete": false
+    "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
@@ -17142,8 +17149,10 @@
     "progress": "eval/query-default-delivery-progress-20261118.json",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118\\contract.json",
     "behavior": "Ordinary source, grep and vector queries receive default40KiB complete original-result overflow recovery while explicit budgets retain handler behavior.",
-    "validation_status": "PENDING_FOLLOWING_BATCH_NATIVE_AND_PUBLIC_ACCEPTANCE",
-    "runtime_deployed": false
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "runtime_deployed": true,
+    "delivery_record": "eval/query-property-fallback-batch-delivery-20261118.json",
+    "historical_source_status": true
   },
   "runtime_pointer_before_edit_review_history_delivery_20261117": {
     "record": "eval/guidance-sql-review-batch-delivery-20261117.json",
@@ -17170,7 +17179,30 @@
     "progress": "eval/hybrid-provider-fallback-progress-20261118.json",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "source_commit": "2b8acd5076a96e8575d0caa224b6d158c34e4f0e",
-    "runtime_deployed": false,
-    "semantic_or_task_benefit_established": false
+    "runtime_deployed": true,
+    "semantic_or_task_benefit_established": false,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "delivery_record": "eval/query-property-fallback-batch-delivery-20261118.json",
+    "historical_source_status": true
+  },
+  "runtime_pointer_before_query_property_fallback_delivery_20261118": {
+    "record": "eval/edit-review-history-batch-delivery-20261117.json",
+    "server_sha256": "7a3e1a18742bd23b3953a12d8642f1af2cc3d462a520175b67fef64a120d6276",
+    "manifest_sha256": "dd7f2a008647f85df4ff9c7df65f93fb3e5ff80a4c7bb35caf736a5343bf2e87",
+    "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
+    "selected_generation": 3151,
+    "source_format": 9,
+    "assets_verified": 215,
+    "normal_runtime_restored": true,
+    "full_original_goal_complete": false
+  },
+  "query_property_fallback_batch_delivery_20261118": {
+    "record": "eval/query-property-fallback-batch-delivery-20261118.json",
+    "original_requirement_ids": [
+      "TODO-4",
+      "EG-27",
+      "TODO-2"
+    ],
+    "full_original_goal_complete": false
   }
 }

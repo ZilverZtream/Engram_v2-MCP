@@ -21,5 +21,7 @@
     "Pending paragraph must be replaced with the delivered receipt only after optimized candidate/installed acceptance and normal-runtime restoration."
   ],
   "pending_document_marker": "query-property-fallback-20261118-pending",
-  "temporary_resources": "No fixtures or new scratch location. Existing release and batch evidence retained under their recorded owners."
+  "temporary_resources": "No fixtures or new scratch location. Existing release and batch evidence retained under their recorded owners.",
+  "pending_runtime_documentation_reconciled": true,
+  "installed_delivery_record": "eval/query-property-fallback-batch-delivery-20261118.json"
 }

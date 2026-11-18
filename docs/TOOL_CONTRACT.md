@@ -1984,7 +1984,7 @@ usefulness remain unproved where the source evidence does not establish them.
 
 ## Default core-query reply budgets
 
-Source change 2026-11-18 (following batch; validation/deployment pending):
+Installed 2026-11-18 ([delivery](../eval/query-property-fallback-batch-delivery-20261118.json)):
 ordinary `search_memory`, `vector_search` and `grep_project` results without
 `max_tokens` use the same40KiB complete public reply ceiling and original-MCP
 recovery as history. Fitting replies retain their existing shapes. Oversized
@@ -2053,7 +2053,7 @@ No existing legacy ownership decisions are resolved by retaining complete text.
 
 ## Captured VB property evidence for instruction maintenance
 
-Source change 2026-11-18 (validation and deployment pending): instruction
+Installed 2026-11-18 ([delivery](../eval/query-property-fallback-batch-delivery-20261118.json)): instruction
 maintenance can observe ordinary VB property declarations in captured source,
 including getter/setter bodies through `End Property` and single-line automatic
 property initializers. Exact namespace/type-qualified candidates carry source
@@ -2072,7 +2072,7 @@ live index or start the sidecar. Pending source record:
 
 ## Optional semantic retrieval in ordinary search
 
-Source change 2026-11-18 (validation and deployment pending): `search_memory`
+Installed 2026-11-18 ([delivery](../eval/query-property-fallback-batch-delivery-20261118.json)): `search_memory`
 uses the configured `vector_search_timeout_ms` as a shared budget for optional
 hybrid attempts across the requested project and user namespaces. A failed
 attempt or exhausted budget falls back to the existing lexical query with the

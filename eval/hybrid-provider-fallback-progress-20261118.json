@@ -1,7 +1,7 @@
 {
   "original_requirement_id": "TODO-2",
   "original_requirement": "Ship real semantic embeddings or degrade honestly in the ordinary core agent query loop.",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "source_phase_started_at_utc": "2026-11-18T00:20:44.866177+00:00",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118\\contract.json",
@@ -23,8 +23,8 @@
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118\\baseline1\\receipt.json",
   "baseline_checks_passed": 3,
   "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
+  "native_tests_executed": 3,
+  "runtime_deployed": true,
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118",
     "purpose": "Owned source/provider availability proof and acceptance; retain evidence until delivery",
@@ -33,11 +33,11 @@
     "owned_fixture_removed": true,
     "cleanup_condition": "Stop owned provider threads and close server/database handles before owned fixture removal; no preexisting deletion."
   },
-  "next_action": "Accumulate with the two queued original source outcomes. Prepare one focused combined native and public acceptance batch only after no ready substantive source change remains; do not release merely at the minimum.",
+  "next_action": "Finite component accepted and installed. Advance original unfinished work; do not replay this batch. Broader original limits remain.",
   "source_phase_completed_at_utc": "2026-11-18T00:29:37.352687+00:00",
   "implementation_items_active": 0,
   "native_test_cases_written": 3,
-  "validation_status": "FOCUSED_NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_PENDING",
+  "validation_status": "PASS",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118\\verify-public.py",
   "source_checks": {
     "rust_syntax": "PASS via rustfmt; existing files parsed without rewriting",
@@ -48,10 +48,11 @@
     "native_tests_executed": 0
   },
   "limitations": [
-    "No native or candidate/public acceptance has run for the new behavior; not deployed. Installed baseline proves unavailable-provider loss only.",
-    "No LegacyValidation source/index/data mutation, no actual Site/Q access, no real model calls or broader latency/semantic/task-benefit claim.",
-    "Cooperative optional attempt deadline is not a wall-clock cap on startup, synchronous lexical/source work, fallback, rendering or remote computation. Mixed outcomes remain disclosed.",
-    "No change to explicit vector_search error/capability semantics or non-semantic backend ranking. Existing source pins, filters, guidance and saved-result budgets remain."
+    "Default reply delivery retains the original selected MCP result, not exhaustive retrieval or source objects. Existing8MiB/24hour/32capture bounds and explicit budgets remain.",
+    "VB property candidates are captured observations, not compiler bindings, absence proof, policy correctness or authority. Unavailable body coverage stays incomplete.",
+    "Optional semantic deadlines are cooperative; synchronous source/lexical work, startup and rendering are not a whole-request SLA. Mixed outcomes are reported and remote cancellation is not proven.",
+    "Owned providers establish finite fallback behavior, not real-provider latency, semantic ranking quality or demonstrated LegacyValidation task/productivity benefit.",
+    "Original31findings/19gates and held work remain open; no language expansion, closed-tool improvement, policy adoption, actual source/index mutation or preexisting-folder deletion."
   ],
   "source_sha256": {
     "crates/engram_server/src/handlers/search_tools.rs": "58cdecd3f6673551f0b42d68c78f2d8af6ea8659271a41d02f5e356664bc70ed",
@@ -69,5 +70,18 @@
   },
   "acceptance_preparation_20261118": "Same finite behavior contracts; public source/vector queries explicitly cover both JSON and Markdown and verify recovered original MCP hashes. Baseline proofs retained; no new implementation outcome or standalone compile.",
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\native-acceptance.json",
-  "combined_debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\debug2\\receipt.json"
+  "combined_debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\debug2\\receipt.json",
+  "source_stage_limits_retained": [
+    "No native or candidate/public acceptance has run for the new behavior; not deployed. Installed baseline proves unavailable-provider loss only.",
+    "No LegacyValidation source/index/data mutation, no actual Site/Q access, no real model calls or broader latency/semantic/task-benefit claim.",
+    "Cooperative optional attempt deadline is not a wall-clock cap on startup, synchronous lexical/source work, fallback, rendering or remote computation. Mixed outcomes remain disclosed.",
+    "No change to explicit vector_search error/capability semantics or non-semantic backend ranking. Existing source pins, filters, guidance and saved-result budgets remain."
+  ],
+  "delivery_record": "eval/query-property-fallback-batch-delivery-20261118.json",
+  "installed_runtime_sha256": "a027ca4cab6ef71c7311daf3c33b8ae93c03cfe718a03a3725a975398ebf32ba",
+  "installed_public_receipts": [
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118\\query-property-fallback-batch-20261118-installed1-hybrid\\receipt.json"
+  ],
+  "installed_public_checks": 11,
+  "native_cases_distinct_covered": 3
 }

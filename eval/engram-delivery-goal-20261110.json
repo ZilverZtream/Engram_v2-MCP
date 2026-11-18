@@ -2554,43 +2554,11 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "TODO-4",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "c31765d954fea20369e07d4592dc2dab390deea7",
-        "progress": "eval/query-default-delivery-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118\\contract.json",
-        "behavior": "Ordinary source, grep and vector queries receive default40KiB complete original-result overflow recovery while explicit budgets retain handler behavior.",
-        "validation_status": "PENDING_FOLLOWING_BATCH_NATIVE_AND_PUBLIC_ACCEPTANCE",
-        "runtime_deployed": false,
-        "original_source_commit": "028d57dfdbcf83821b89bd6c8068b80375386363"
-      },
-      {
-        "original_requirement_id": "EG-27",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "69da5ff8b10adbf4da4b53969d774a7aa6dea787",
-        "progress": "eval/vb-property-evidence-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-property-evidence-20261118\\contract.json",
-        "behavior": "Captured VB property bodies and auto-property initializers select only dependent instruction evidence for maintenance review.",
-        "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
-        "runtime_deployed": false
-      },
-      {
-        "original_requirement_id": "TODO-2",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "2b8acd5076a96e8575d0caa224b6d158c34e4f0e",
-        "progress": "eval/hybrid-provider-fallback-progress-20261118.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\hybrid-provider-fallback-20261118\\contract.json",
-        "behavior": "Ordinary hybrid search keeps filtered lexical evidence and truthful actual retrieval outcomes when optional semantic work fails or exhausts its shared configured budget.",
-        "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
-        "runtime_deployed": false
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
-    "last_completed_batch": "eval/contract-config-review-batch-delivery-20261117.json",
+    "last_completed_batch": "eval/query-property-fallback-batch-delivery-20261118.json",
     "incremental_codegen": {
       "enabled_for_future_runs": true,
       "source_commit": "48ec7f6cd9e93a43f90674ce4f7504ae98bd2e35",
@@ -2816,27 +2784,13 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "RELEASE_RUNNING_NATIVE_AND_DEBUG_ACCEPTED",
-    "progress": "eval/query-property-fallback-batch-progress-20261118.json",
-    "original_requirements": [
-      "TODO-4",
-      "EG-27",
-      "TODO-2"
-    ],
+    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
+    "record": "eval/query-property-fallback-batch-delivery-20261118.json",
+    "pending_source_outcomes": 0,
     "implementation_items_active": 0,
-    "pending_source_outcomes": 3,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "shipping_head": "a5c5d9b1295a5fe71fad24c40e0f1bddcc33d5ea",
-    "next_action": "Observe the single existing optimized release1 handle4869. Never restart solely for observation timeout. Reuse its artifact for package/candidate/installed checks and normal-runtime restoration. Frozen shipping worktree a5c5d9b; full original backlog remains active.",
-    "native_label": "native2",
-    "build_session_id": null,
-    "public_label": "debug2",
-    "public_session_id": null,
-    "release_label": "release1",
-    "native_unique_cases_passed": 13,
-    "public_debug_checks": 44,
-    "release_session_id": 4869
+    "next_action": "Advance the next ready unfinished original requirement. Preserve31findings/19gates and held work; do not restart terminal builds or replay this batch."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2944,10 +2898,10 @@
     "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
   },
   "latest_delivered_runtime": {
-    "record": "eval/edit-review-history-batch-delivery-20261117.json",
-    "server_sha256": "7a3e1a18742bd23b3953a12d8642f1af2cc3d462a520175b67fef64a120d6276",
-    "manifest_sha256": "dd7f2a008647f85df4ff9c7df65f93fb3e5ff80a4c7bb35caf736a5343bf2e87",
-    "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
+    "record": "eval/query-property-fallback-batch-delivery-20261118.json",
+    "server_sha256": "a027ca4cab6ef71c7311daf3c33b8ae93c03cfe718a03a3725a975398ebf32ba",
+    "manifest_sha256": "58c12fd284d3e4e0eac2f98c77192d307181910c60da47ffd86356ad0b52425d",
+    "shipping_source_commit": "a5c5d9b1295a5fe71fad24c40e0f1bddcc33d5ea",
     "selected_generation": 3151,
     "source_format": 9,
     "assets_verified": 215,
@@ -3033,8 +2987,9 @@
   },
   "active_release_validation": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "record": "eval/edit-review-history-batch-delivery-20261117.json",
-    "all_build_sessions_terminal": true
+    "record": "eval/query-property-fallback-batch-delivery-20261118.json",
+    "all_build_sessions_terminal": true,
+    "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
@@ -3145,9 +3100,9 @@
     "does_not_pause_or_replace_goal": true
   },
   "active_source_implementation": {
-    "status": "NONE_FOLLOWING_SOURCE_RETAINED",
+    "status": "NONE_PREVIOUS_BATCH_DELIVERED",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 1
+    "pending_source_outcomes": 0
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -3212,8 +3167,8 @@
   },
   "previous_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T00:53:54.781147+00:00",
-    "reason": "13unique native cases accepted across one13-case run and one assertion-only rerun;44public assertions accepted with5retained after a harness correction. Production unchanged during corrections. One optimized artifact prepared; full backlog remains active.",
+    "at_utc": "2026-11-18T01:46:47.749000+00:00",
+    "reason": "Three original outcomes passed installed acceptance and normal runtime restoration; full original backlog remains active.",
     "full_original_goal_complete": false
   },
   "scoped_http_ask_progress_20261117": "eval/scoped-http-ask-progress-20261117.json",
@@ -3919,8 +3874,10 @@
     "progress": "eval/query-default-delivery-progress-20261118.json",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118\\contract.json",
     "behavior": "Ordinary source, grep and vector queries receive default40KiB complete original-result overflow recovery while explicit budgets retain handler behavior.",
-    "validation_status": "PENDING_FOLLOWING_BATCH_NATIVE_AND_PUBLIC_ACCEPTANCE",
-    "runtime_deployed": false
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "runtime_deployed": true,
+    "delivery_record": "eval/query-property-fallback-batch-delivery-20261118.json",
+    "historical_source_status": true
   },
   "previous_runtime_before_edit_review_history_20261117": {
     "record": "eval/guidance-sql-review-batch-delivery-20261117.json",
@@ -3952,24 +3909,51 @@
     "progress": "eval/vb-property-evidence-progress-20261118.json",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "source_commit": "69da5ff8b10adbf4da4b53969d774a7aa6dea787",
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "delivery_record": "eval/query-property-fallback-batch-delivery-20261118.json",
+    "historical_source_status": true
   },
   "hybrid_provider_fallback_source_progress_20261118": {
     "progress": "eval/hybrid-provider-fallback-progress-20261118.json",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "source_commit": "2b8acd5076a96e8575d0caa224b6d158c34e4f0e",
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "delivery_record": "eval/query-property-fallback-batch-delivery-20261118.json",
+    "historical_source_status": true
   },
   "query_property_fallback_source_batch_20261118": {
     "progress": "eval/query-property-fallback-batch-progress-20261118.json",
-    "status": "SOURCE_FROZEN_PENDING_NATIVE",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "shipping_head": "18fe0cbb5dc7880d5f27fcb76dee744c081a61c6",
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "record": "eval/query-property-fallback-batch-delivery-20261118.json"
   },
   "shortlist_documentation_correction_20261118": {
     "record": "eval/legacy_validation-shortlist-status-update-20261118.json",
     "status": "DOCUMENTATION_CORRECTION_VERIFIED",
-    "pending_runtime_batch_installed": false,
+    "pending_runtime_batch_installed": true,
     "new_compile_outcome_counted": false
+  },
+  "previous_runtime_before_query_property_fallback_20261118": {
+    "record": "eval/edit-review-history-batch-delivery-20261117.json",
+    "server_sha256": "7a3e1a18742bd23b3953a12d8642f1af2cc3d462a520175b67fef64a120d6276",
+    "manifest_sha256": "dd7f2a008647f85df4ff9c7df65f93fb3e5ff80a4c7bb35caf736a5343bf2e87",
+    "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
+    "selected_generation": 3151,
+    "source_format": 9,
+    "assets_verified": 215,
+    "normal_runtime_restored": true,
+    "full_original_goal_complete": false
+  },
+  "query_property_fallback_batch_delivery_20261118": {
+    "record": "eval/query-property-fallback-batch-delivery-20261118.json",
+    "original_requirement_ids": [
+      "TODO-4",
+      "EG-27",
+      "TODO-2"
+    ],
+    "full_original_goal_complete": false
   }
 }

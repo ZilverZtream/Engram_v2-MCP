@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-27",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "source_phase_started_at_utc": "2026-11-18T00:06:06.918348+00:00",
   "observed_missing_behavior": "Installed owned public proof: an ordinary qualified VB property is unresolved both before and after its getter changes; dependency-specific review cannot observe it.",
   "finite_acceptance": [
@@ -17,8 +17,8 @@
     "docs/TOOL_CONTRACT.md"
   ],
   "engram_builds_started": 0,
-  "native_tests_executed": 0,
-  "runtime_deployed": false,
+  "native_tests_executed": 4,
+  "runtime_deployed": true,
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-property-evidence-20261118",
     "purpose": "Owned VB property evidence baseline and acceptance; retained evidence until delivery",
@@ -28,11 +28,11 @@
   },
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-property-evidence-20261118",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-property-evidence-20261118\\contract.json",
-  "next_action": "Retain as EG-27 source outcome in combined-validation queue; advance another substantive original requirement. Do not compile at the minimum or validate this item alone.",
+  "next_action": "Finite component accepted and installed. Advance original unfinished work; do not replay this batch. Broader original limits remain.",
   "source_phase_completed_at_utc": "2026-11-18T00:09:32.240403+00:00",
   "implementation_items_active": 0,
   "native_test_cases_written": 3,
-  "validation_status": "FOCUSED_NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_PENDING",
+  "validation_status": "PASS",
   "baseline_checks_passed": 3,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-property-evidence-20261118\\verify-public.py",
   "source_checks": {
@@ -44,9 +44,11 @@
     "native_tests_executed": 0
   },
   "limitations": [
-    "Source changes and written tests are not runtime validation; not deployed.",
-    "Candidate observations are not compiler bindings, absence proof, semantic relevance or policy acceptance. Existing snapshot size/candidate limits remain.",
-    "No current LegacyValidation source accessed or mutated; baseline uses owned VB source only. Snapshot-only property candidates do not change live indexing or sidecar behavior."
+    "Default reply delivery retains the original selected MCP result, not exhaustive retrieval or source objects. Existing8MiB/24hour/32capture bounds and explicit budgets remain.",
+    "VB property candidates are captured observations, not compiler bindings, absence proof, policy correctness or authority. Unavailable body coverage stays incomplete.",
+    "Optional semantic deadlines are cooperative; synchronous source/lexical work, startup and rendering are not a whole-request SLA. Mixed outcomes are reported and remote cancellation is not proven.",
+    "Owned providers establish finite fallback behavior, not real-provider latency, semantic ranking quality or demonstrated LegacyValidation task/productivity benefit.",
+    "Original31findings/19gates and held work remain open; no language expansion, closed-tool improvement, policy adoption, actual source/index mutation or preexisting-folder deletion."
   ],
   "source_sha256": {
     "crates/engram_index/src/vb_extractor.rs": "ccf771dfb52b7f0afd8d24c4d3a6b9cd8181f264facecf15a4b19f4a4199052a",
@@ -63,5 +65,17 @@
   },
   "acceptance_preparation_20261118": "Same finite behavior contracts; public source/vector queries explicitly cover both JSON and Markdown and verify recovered original MCP hashes. Baseline proofs retained; no new implementation outcome or standalone compile.",
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\native-acceptance.json",
-  "combined_debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\debug2\\receipt.json"
+  "combined_debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\debug2\\receipt.json",
+  "source_stage_limits_retained": [
+    "Source changes and written tests are not runtime validation; not deployed.",
+    "Candidate observations are not compiler bindings, absence proof, semantic relevance or policy acceptance. Existing snapshot size/candidate limits remain.",
+    "No current LegacyValidation source accessed or mutated; baseline uses owned VB source only. Snapshot-only property candidates do not change live indexing or sidecar behavior."
+  ],
+  "delivery_record": "eval/query-property-fallback-batch-delivery-20261118.json",
+  "installed_runtime_sha256": "a027ca4cab6ef71c7311daf3c33b8ae93c03cfe718a03a3725a975398ebf32ba",
+  "installed_public_receipts": [
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-property-evidence-20261118\\query-property-fallback-batch-20261118-installed1-properties\\receipt.json"
+  ],
+  "installed_public_checks": 11,
+  "native_cases_distinct_covered": 3
 }
