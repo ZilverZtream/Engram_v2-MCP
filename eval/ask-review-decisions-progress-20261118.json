@@ -1,0 +1,46 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-28",
+  "source_commit": "633a65a188c38cc6dc1cb07b49c6b00326d2b2d4",
+  "progress": "eval/ask-review-decisions-progress-20261118.json",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-decisions-20261118\\contract.json",
+  "native_target": "ask_review_decisions",
+  "native_cases_expected": 2,
+  "native_environment": {
+    "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-decisions-20261118\\verify-public.py",
+  "counting_rule": "One original explicit review/rationale question workflow; scope, latest events and rendering are acceptance variants, not distinct deliverables.",
+  "at_utc": "2026-11-18T18:40:27.957976+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-decisions-20261118",
+  "runtime_deployed": false,
+  "builds_started": 0,
+  "native_tests_executed": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-decisions-20261118\\baseline1\\receipt.json",
+    "sha256": "ca914e20cfa6d8893529d1bac9f44a98817217d39ed1054631dec84e250859f2",
+    "server_sha256": "8981757964cab9a132ea5088d33229fdf8e9b8dd4a5cd2d7be1b7564b619aca2",
+    "status": "BASELINE_GAP_CONFIRMED",
+    "checks": 4
+  },
+  "source_files": [
+    "crates/engram_server/src/handlers/ask_tools.rs",
+    "crates/engram_server/src/handlers/ask_review_decisions.rs",
+    "crates/engram_server/src/services/ask_engine/report.rs",
+    "crates/engram_server/tests/ask_review_decisions.rs"
+  ],
+  "syntax": "Four Rust sources and Python verifier parse; no Cargo run",
+  "implementation_items_active": 0,
+  "review": {
+    "external": "Retained trusted host CodeRabbit auth false; no external review/login.",
+    "parent": "Existing typed decision reader provides bounded path relevance, latest events and raw record hashes. Low-authority context bypasses generic snippet clipping; explicit review requests cannot become answered approval claims. Ordinary and revision-pinned paths do not run this reader. Existing Core dependency already includes get_review_decisions."
+  },
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-decisions-20261118",
+    "baseline_owner_closed": true,
+    "baseline_fixture_removed": true,
+    "retention": "Retain contract/verifier/wire/receipts until delivery accounting; new fixtures close application/database/Git handles before TempDir removal. No preexisting deletion."
+  },
+  "full_original_goal_complete": false,
+  "next_action": "Freeze the existing shipping checkout with the three source outcomes and one seven-case integration target. Verify bindings and run only focused combined native/public acceptance; minimum three is an admission floor, not release-by-count."
+}

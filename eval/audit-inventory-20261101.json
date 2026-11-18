@@ -10451,12 +10451,13 @@
   },
   "last_updated_at": "2026-11-18T18:09:09.784064+00:00",
   "current_execution_focus": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "record": "eval/config-instruction-evidence-progress-20261118.json",
-    "pending_source_outcomes": 2,
+    "status": "FOCUSED_NATIVE_RUNNING",
+    "record": "eval/planned-config-review-batch-progress-20261118.json",
+    "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Keep EG01 and EG27 queued source outcomes. Select the next ready distinct original requirement before any Cargo invocation; minimum three IDs is an admission floor, not automatic release cadence."
+    "next_action": "Observe the same native1 session95223 to terminal; no relaunch. Inspect the seven case outcomes, retain passes, then run the three public contracts against the emitted debug executable before one optimized release.",
+    "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\native1-owner.json"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -16687,10 +16688,10 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "record": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
-    "all_build_sessions_terminal": true,
-    "full_original_goal_complete": false
+    "status": "FOCUSED_NATIVE_RUNNING",
+    "record": "eval/planned-config-review-batch-progress-20261118.json",
+    "full_original_goal_complete": false,
+    "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planned-config-review-batch-20261118\\native1-owner.json"
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
@@ -17653,8 +17654,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T18:30:25.773683+00:00",
-    "reason": "Installed configuration-key maintenance gap reproduced; snapshot-only XML declaration evidence and selective guide selection committed without compilation. Existing ingestion body and protected work preserved."
+    "at_utc": "2026-11-18T18:40:27.957976+00:00",
+    "reason": "Explicit prior-review question gap reproduced against installed runtime; existing bounded reader composed in source with two focused acceptance cases, without compilation or broader routing/model work."
   },
   "config_instruction_evidence_source_progress_20261118": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
@@ -17669,6 +17670,22 @@
     },
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\config-instruction-evidence-20261118\\verify-public.py",
     "counting_rule": "One original configuration-key instruction evidence workflow; XML element spans and selective maintenance are acceptance variants, not separate deliverables.",
+    "runtime_deployed": false,
+    "full_original_goal_complete": false
+  },
+  "ask_review_decisions_source_progress_20261118": {
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement_id": "TODO-28",
+    "source_commit": "633a65a188c38cc6dc1cb07b49c6b00326d2b2d4",
+    "progress": "eval/ask-review-decisions-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-decisions-20261118\\contract.json",
+    "native_target": "ask_review_decisions",
+    "native_cases_expected": 2,
+    "native_environment": {
+      "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+    },
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-decisions-20261118\\verify-public.py",
+    "counting_rule": "One original explicit review/rationale question workflow; scope, latest events and rendering are acceptance variants, not distinct deliverables.",
     "runtime_deployed": false,
     "full_original_goal_complete": false
   }
