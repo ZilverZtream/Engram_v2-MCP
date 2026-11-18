@@ -1897,9 +1897,28 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         // Load/filter metadata independently of optional provider work. A timed
         // out embedder must not turn known matching history into an empty success.
-        let eligible = cards::metadata_for_line_filtered_cached(
-            &dir, tip, &self.state.registry, filter.clone(),
+        let max_commits = req.validated_max_commits()
+            .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+        let window = cards::metadata_for_line_window_cached(
+            &dir, tip, &self.state.registry, filter.clone(), max_commits,
         ).await.map_err(|e| McpError::internal_error(format!("change metadata: {e}"), None))?;
+        let history_scan = json!({"basis":"recent_first_parent_commit_window",
+            "resolved_revision":tip.to_string(),"max_commits":max_commits,
+            "commits_scanned":window.commits_scanned,
+            "complete_first_parent_history":window.next_revision.is_none(),
+            "older_history_not_scanned":window.next_revision.is_some(),
+            "next_revision":window.next_revision.map(|oid|oid.to_string()),
+            "interpretation":"Commit limit applies before author/date/path predicates. Eligible and ranked counts describe this window only; an empty window does not prove no older match. Follow next_history_window for older history. Each window ranks independently, not globally. First-parent changes and existing capped card/file previews are not exhaustive branch history. This bounds retained traversal/description work, not OS call duration, provider time or end-to-end latency."});
+        let next_history_window = if let Some(next) = window.next_revision {
+            let mut arguments = serde_json::to_value(&req)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            arguments["mode"] = json!("precedent");
+            arguments["as_of_rev"] = json!(next.to_string());
+            arguments["max_commits"] = json!(max_commits);
+            arguments["offset"] = json!(0);
+            Some(json!({"tool":"search_history","arguments":arguments}))
+        } else { None };
+        let eligible = window.cards;
         let total = eligible.len();
         let quality = ps.search.semantic_quality();
         let semantic_budget = req.validated_semantic_timeout_ms()
@@ -1947,12 +1966,13 @@ impl Engram {
         };
         let order = result.ranked;
 
-        let header = format!(
-            "Precedents: {} of {total} published changes ({label}); ranked by whole-change \
+        let mut header = format!(
+            "Precedents: {} of {total} eligible changes in the scanned window ({label}); ranked by whole-change \
              {baseline_tier} cards, {how}. Semantic retrieval: {semantic_status} (budget {semantic_budget} ms; excludes Git/metadata and LLM reranking). Bulk changes of over {} files are excluded.\n",
             order.len().min(limit),
             cards::BULK_FILES,
         );
+        header.push_str(&format!("History acquisition: {history_scan}\nnext_history_window: {}\n", serde_json::to_string(&next_history_window).map_err(|e|McpError::internal_error(e.to_string(),None))?));
         let mut blocks = Vec::new();
         let mut rows = Vec::new();
         for (i, card) in order.iter().take(limit).enumerate() {
@@ -2006,6 +2026,7 @@ impl Engram {
         history_response::finish(&req,header,&blocks,&rows,json!({"mode":"precedent",
             "scope":label,"resolved_revision":tip.to_string(),"retrieval_capability":baseline_tier,
             "rerank":how,"semantic_retrieval":semantic_delivery,"eligible_changes_before_bulk_exclusion":total,
+            "history_scan":history_scan,"next_history_window":next_history_window,
             "ranked_matches_before_limit":order.len(),
             "bulk_changes_excluded_over_files":cards::BULK_FILES,
             "active_generation":null}))
@@ -2074,7 +2095,13 @@ impl Engram {
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         req.validated_semantic_timeout_ms()
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
-        match history_mode(req.mode.as_deref(), &req.query)? {
+        req.validated_max_commits()
+            .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+        let mode = history_mode(req.mode.as_deref(), &req.query)?;
+        if req.max_commits.is_some() && !matches!(mode, HistoryMode::Precedent) {
+            return Err(McpError::invalid_params("max_commits is only supported for precedent history acquisition", None));
+        }
+        match mode {
             HistoryMode::Precedent => return self.handle_precedents(req).await,
             HistoryMode::Commit => return self.handle_history_commit(req).await,
             HistoryMode::Patch => return self.handle_history_patch(req).await,

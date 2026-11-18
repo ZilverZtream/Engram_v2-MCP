@@ -2228,3 +2228,30 @@ Changed or removed records require fresh evidence; this is guarded current-recor
 recovery, not an immutable historical archive. No actual LegacyValidation task benefit is
 claimed by source implementation or owned checks.
 [Pending source record](../eval/memory-decision-provenance-progress-20261118.json).
+
+
+Source change 2026-11-18 (following batch; validation/deployment pending):
+
+`search_history` precedent acquisition now scans a finite recent first-parent
+window before optional embedding/reranking. `max_commits` accepts1..10000 and
+omission defaults to1000. It limits commit traversal/descriptions before
+existing author/date/path predicates; it does not bound filesystem-call time,
+provider time, rendering or end-to-end latency. Text, exact-commit and patch
+modes reject an explicitly supplied `max_commits` rather than silently ignoring it.
+
+`history_scan` reports the pinned revision, commits scanned, window limit and
+whether older first-parent history remains unsearched. Eligible/ranked counts
+apply only to this window. `next_history_window` is a literal tool action pinned
+to the next unvisited parent, with query, filters, ranking and response budgets
+retained and result offset reset to zero. Read the current selected results
+before advancing. Each window ranks independently; this does not establish a
+global top-k, complete branch history or absence of older matches. An empty
+filtered window still supplies older continuation. Exact commit recovery actions
+remain separate from acquisition continuation and retain full Git messages/files.
+Default/current branch movement cannot change the immutable older cutoff, though
+objects must remain available and current index/provider state may change.
+
+Existing unlimited internal metadata callers, cache identity/quotas, source
+recovery, cutoff semantics, card-description/file caps and provider budgets
+remain unchanged. Owned JS/SQL fixture baseline and source checks do not establish
+LegacyValidation latency, ranking quality, task benefit or completion of the broader goal.

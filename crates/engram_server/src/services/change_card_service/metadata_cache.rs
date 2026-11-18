@@ -187,6 +187,20 @@ pub(super) fn read_filtered(
     registry: Option<&dyn Store>,
     filter: &CardFilter,
 ) -> anyhow::Result<(Vec<Oid>, Vec<ChangeCard>, CardBuildStats)> {
+    let (line, cards, stats, _) = read_filtered_window(root, tip, known, registry, filter, None)?;
+    Ok((line, cards, stats))
+}
+
+/// Only walk the selected recent prefix. Do not first enumerate all ancestors:
+/// that would leave the original cold-query acquisition cost unbounded.
+pub(super) fn read_filtered_window(
+    root: &Path,
+    tip: Oid,
+    known: &HashSet<String>,
+    registry: Option<&dyn Store>,
+    filter: &CardFilter,
+    max_commits: Option<usize>,
+) -> anyhow::Result<(Vec<Oid>, Vec<ChangeCard>, CardBuildStats, Option<Oid>)> {
     let opened = std::time::Instant::now();
     let repo = engram_git::history::GitWalker::open_repo(root)?;
     let mut stats = CardBuildStats {
@@ -194,7 +208,23 @@ pub(super) fn read_filtered(
         ..Default::default()
     };
     let walked = std::time::Instant::now();
-    let line = first_parent_line(&repo, tip)?;
+    let (line, next) = if let Some(limit) = max_commits {
+        anyhow::ensure!((1..=MAX_PRECEDENT_COMMIT_LIMIT).contains(&limit), "max_commits must be between1 and10000");
+        let mut line = Vec::new();
+        let mut cursor = Some(tip);
+        while line.len() < limit {
+            let Some(oid) = cursor else { break };
+            let commit = repo.find_commit(oid)?;
+            line.push(oid);
+            cursor = if commit.parent_count() == 0 { None } else { Some(commit.parent_id(0)?) };
+        }
+        // Existing metadata/ranking/cache ordering remains oldest first inside
+        // this window. The next unvisited parent is an immutable older cutoff.
+        line.reverse();
+        (line, cursor)
+    } else {
+        (first_parent_line(&repo, tip)?, None)
+    };
     stats.first_parent_walk_ns = walked.elapsed().as_nanos() as u64;
     stats.line_commits = line.len();
     let mut missing = Vec::new();
@@ -346,7 +376,7 @@ pub(super) fn read_filtered(
             "Change-card metadata cache unavailable; Git results remain authoritative"
         );
     }
-    Ok((line, fresh, stats))
+    Ok((line, fresh, stats, next))
 }
 
 #[cfg(test)]

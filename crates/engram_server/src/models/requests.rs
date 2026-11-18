@@ -2181,9 +2181,17 @@ pub struct IndexGitHistoryRequest {
     pub wait: bool,
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SearchHistoryRequest {
+    /// Precedent acquisition: scan at most this many recent first-parent commits
+    /// (1..10000, default1000), before author/date/path filtering. Older history
+    /// remains unsearched until next_history_window is followed. Each window
+    /// ranks independently; this is a work bound, not a wall-clock deadline.
+    /// Valid only for precedent or auto when it selects precedent.
+    #[serde(default)]
+    #[schemars(range(min = 1, max = 10000))]
+    pub max_commits: Option<usize>,
     pub query: String,
     pub project_id: String,
     /// Optional complete response budget, estimated as ceil(UTF-8 text bytes/4).
@@ -2802,6 +2810,12 @@ impl AnalyzeRevertsRequest {
 }
 
 impl SearchHistoryRequest {
+    pub fn validated_max_commits(&self) -> anyhow::Result<usize> {
+        let limit = self.max_commits.unwrap_or(crate::services::change_card_service::DEFAULT_PRECEDENT_COMMIT_LIMIT);
+        anyhow::ensure!((1..=crate::services::change_card_service::MAX_PRECEDENT_COMMIT_LIMIT).contains(&limit), "max_commits must be between1 and10000");
+        Ok(limit)
+    }
+
     pub fn validated_semantic_timeout_ms(&self) -> anyhow::Result<u64> {
         crate::services::change_card_service::checked_semantic_timeout_ms(self.semantic_timeout_ms)
     }

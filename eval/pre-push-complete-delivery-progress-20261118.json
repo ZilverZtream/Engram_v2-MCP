@@ -1,0 +1,37 @@
+{
+  "original_requirement_id": "TODO-4",
+  "related_original_requirements": [
+    "EG-14",
+    "EG-31"
+  ],
+  "behavior": "Bound the entire direct pre_push_audit response while preserving the complete captured result and explicit evidence deferral.",
+  "finite_acceptance": [
+    "Default complete response text fits40KiB and explicit max_tokens budgets count four UTF-8 bytes per estimated token. Small fitting ordinary/maintenance results retain their original result and evidence status.",
+    "Large direct maintenance results expose deferred evidence, not successful compliance or approval. Immutable recovery retains the exact original MCP result, including complete instructions, before/current source, packet identity and all limitations after source edits and server restart.",
+    "Recovery validates controls before runtime/source acquisition, never reruns audit/drafting or mixes fresh maintenance inputs with saved evidence. Use owned TS/guidance fixtures without models, real LegacyValidation source or new storage infrastructure."
+  ],
+  "counting_rule": "One direct pre-push audit complete-response outcome, across ordinary and maintenance branches. Not a separate result per format, source kind or recovery control.",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pre-push-complete-delivery-20261118",
+  "native_target": "pre_push_complete_delivery",
+  "native_environment": {
+    "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "status": "NO_CHANGE_REQUIRED_ALREADY_INSTALLED",
+  "source_phase_started_at_utc": "2026-11-18T04:44:04.671554+00:00",
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "observed_missing_behavior": "DISPROVED: shared public read_report_delivery already handles pre_push_audit, including default40KiB, caller budgets and complete original MCP recovery. Installed308 reply was1110bytes and deferred a152811byte original MCP result.",
+  "implementation_files": [
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/handlers/quality_gate_tools.rs",
+    "crates/engram_server/src/handlers/quality_gate_tools/response_delivery.rs",
+    "crates/engram_server/src/tools.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pre-push-complete-delivery-20261118\\contract.json",
+  "implementation_items_active": 0,
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pre-push-complete-delivery-20261118\\baseline1\\receipt.json",
+  "baseline_harness_error": "Expected raw maintenance packet after inspecting handler alone; KeyError packet on the already-deferred public envelope. Failed hypothesis receipt retained; owner exited0 and owned fixture removed. No production defect or source change.",
+  "next_action": "Do not duplicate shared delivery or replay baseline. Select another unfinished original requirement."
+}

@@ -1,0 +1,75 @@
+{
+  "original_requirement_id": "EG-21",
+  "related_original_requirements": [
+    "EG-20",
+    "EG-22"
+  ],
+  "behavior": "Bound precedent acquisition to a recent first-parent commit window and supply an exact older-window continuation rather than reconstructing all history for each request.",
+  "finite_acceptance": [
+    "Precedent/automatic-prose search describes at most max_commits recent first-parent changes per request, default1000 and caller-selectable1..10000. Existing unlimited internal metadata callers remain unchanged. This is a work bound, not a wall-clock/OS-call deadline.",
+    "Results distinguish eligible/ranked matches inside this window from all repository history. An exact next_history_window action retains query/author/date/path/ranking/budget options and pins the next older first-parent revision, including when the current filtered window has no matches. New HEAD commits do not leak into continuation.",
+    "Owned JS/SQL Git fixtures demonstrate disjoint complete continuation, unchanged original cutoff/filter behavior and complete source recovery actions. Text/commit/patch modes reject a supplied precedent-only max_commits before project acquisition. No LegacyValidation source/model/real repository traversal, general speedup claim or new cache/storage framework."
+  ],
+  "counting_rule": "One bounded precedent-acquisition workflow outcome. Window traversal, filter preservation, JSON/Markdown and continuation are not separate outcomes.",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118",
+  "native_target": "history_bounded_acquisition",
+  "native_environment": {
+    "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\contract.json",
+  "source_phase_started_at_utc": "2026-11-18T04:49:03.554933+00:00",
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "observed_missing_behavior": "Installed308 owned baseline: all6 first-parent changes acquired/ranked with no bounded-window/older-continuation metadata. Code confirms full line walk and metadata materialization precede optional provider budgets. Historical40.49s is not a new/current latency measurement.",
+  "implementation_files": [
+    "crates/engram_server/src/services/change_card_service.rs",
+    "crates/engram_server/src/services/change_card_service/metadata_cache.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/handlers/git_tools.rs",
+    "crates/engram_server/src/tools.rs",
+    "docs/TOOL_CONTRACT.md",
+    "crates/engram_server/src/handlers/planning_tools.rs",
+    "crates/engram_server/tests/integration_test.rs",
+    "crates/engram_server/tests/history_bounded_acquisition.rs",
+    "crates/engram_server/tests/review_memory_history_delivery.rs"
+  ],
+  "implementation_items_active": 0,
+  "source_phase_completed_at_utc": "2026-11-18T04:54:53.239935+00:00",
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\baseline1\\receipt.json",
+  "baseline_checks_passed": 4,
+  "native_test_cases_written": 3,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\verify-public.py",
+  "public_verifier_sha256": "c46cebf9cc2e20b8349d684000515085486128459dda3e4165857ff248b2c2ea",
+  "source_sha256": {
+    "crates/engram_server/src/services/change_card_service.rs": "9874d67451c62fbb0d84f665c42d9fb8f5de653a6e6e5ccb0a6b89f5e5815c0c",
+    "crates/engram_server/src/services/change_card_service/metadata_cache.rs": "4c72dcf1a5ab37b613e0e8d58d4b7cf4862728b5f19a395095dfcc28580f1b2e",
+    "crates/engram_server/src/models/requests.rs": "7c414fdebfbaf6f92564ebeb13fd4e67a7c5df7ab62029b3513d14e18a2223b0",
+    "crates/engram_server/src/handlers/git_tools.rs": "b2eff6303fb488f336600ac01bb6647730933902e9614b6a42eac84acdcb67fa",
+    "crates/engram_server/src/tools.rs": "9bc86ac075f106f3da566e9b6edaef2a4a117f9d9d754bc4b92e9002574f8d9e",
+    "docs/TOOL_CONTRACT.md": "9c67435fc654568ea748e860f157f81637daaad632495bead9c2c62b9de1bb20",
+    "crates/engram_server/src/handlers/planning_tools.rs": "b1d721d0de16a56242fecee5b2a54084e10340a2d1606ee2c679269d763c5676",
+    "crates/engram_server/tests/integration_test.rs": "dfe42ed2b3ab3b66eff6f921c8717997b7f9402969198eaee2ec7336f19d7eeb",
+    "crates/engram_server/tests/history_bounded_acquisition.rs": "cf8e8cc8e33b1dc22cbbb5b1ecd43704825f08b8eaf1894ec010883eaa29d698",
+    "crates/engram_server/tests/review_memory_history_delivery.rs": "f05b59b1e7e30534acdba3c1ad7141e0793137731875dc27d0d608f95762d858"
+  },
+  "source_checks": {
+    "rust_syntax": "PASS via rustfmt; new tests formatted and existing modules parsed without broad rewrite",
+    "python_syntax": "PASS via compile(); no bytecode artifact",
+    "diff_whitespace": "PASS",
+    "protected_wip9": "UNCHANGED",
+    "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "engram_builds_started": 0,
+    "native_tests_executed": 0
+  },
+  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "priority_basis": "Normal LegacyValidation configuration retains Full tools/Ollama identity; search_history is available. Owned JS/SQL history tests the common acquisition workflow; no actual LegacyValidation history/source/index is accessed.",
+  "limitations": [
+    "Source and3native cases/public verifier are not executed or deployed. Shared combined validation remains required.",
+    "Default precedent results now cover the newest1000 first-parent commits. Follow the explicit older-window action for earlier history. Windows rank independently, not a global top-k; filters can make a window empty.",
+    "This is a commit-work bound, not a hard OS-call or whole-request latency deadline. Existing card previews, cache limits and optional provider budgets remain; no LegacyValidation speedup, ranking quality or task benefit is claimed.",
+    "No CodeMap/Blast Radius improvement, target-language expansion, model request, actual LegacyValidation source/Q access or preexisting deletion. All baseline owners closed and owned fixture removed."
+  ],
+  "next_action": "Validate the3independent queued source outcomes in one focused integration executable, then public candidate/installed acceptance and one release. Do not start separate source-only compiles or replay delivered batches."
+}

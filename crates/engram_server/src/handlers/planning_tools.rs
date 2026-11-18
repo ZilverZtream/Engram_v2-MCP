@@ -10367,7 +10367,7 @@ impl Engram {
         let t_hist = std::time::Instant::now();
         match self
             .search_history_hits(crate::models::SearchHistoryRequest {
-            max_tokens: None, output_json: false, offset: 0,
+            max_tokens: None, output_json: false, offset: 0, max_commits: None,
                 project_id: req.project_id.clone(),
                 query: retrieval_story.clone(),
                 file_filter: None,

@@ -357,6 +357,33 @@ async fn cards_for_line_measured(
     cards_for_line_observed(repo_dir,tip,search,prefixes,None,CardFilter::default()).await
 }
 
+pub const DEFAULT_PRECEDENT_COMMIT_LIMIT: usize = 1000;
+pub const MAX_PRECEDENT_COMMIT_LIMIT: usize = 10_000;
+
+/// A finite acquisition window, not a repository-wide match count or time SLA.
+pub struct MetadataWindow {
+    pub cards: Vec<Arc<ChangeCard>>,
+    pub commits_scanned: usize,
+    pub next_revision: Option<Oid>,
+}
+
+pub async fn metadata_for_line_window_cached(
+    repo_dir: &Path, tip: Oid, registry: &engram_core::Registry,
+    filter: CardFilter, max_commits: usize,
+) -> anyhow::Result<MetadataWindow> {
+    let root = repo_dir.to_path_buf();
+    let registry = registry.clone();
+    tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        let (line, cards, _, next_revision) = metadata_cache::read_filtered_window(
+            &root, tip, &Default::default(), Some(&registry), &filter, Some(max_commits),
+        )?;
+        Ok(MetadataWindow {
+            cards: cards.into_iter().filter(|card| filter.admits(card)).map(Arc::new).collect(),
+            commits_scanned: line.len(), next_revision,
+        })
+    }).await?
+}
+
 /// Read the same scoped history without contacting the embedding provider.
 pub async fn metadata_for_line_filtered_cached(
     repo_dir: &Path, tip: Oid, registry: &engram_core::Registry, filter: CardFilter,
