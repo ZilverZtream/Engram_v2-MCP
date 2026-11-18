@@ -14,6 +14,10 @@ const TOOLS: &[&str] = &[
     "refresh_corpora",
     "update_project",
     "index_project",
+    "repair_project",
+    "index_git_history",
+    "ingest_zip_history",
+    "ingest_quality_gates",
     "list_projects",
     "list_advanced_tools",
     "project_info",
@@ -104,6 +108,17 @@ fn project_free(tool: &str) -> bool {
 
 fn returned_operation(tool: &str) -> bool {
     matches!(tool, "update_project" | "index_project" | "refresh_corpora" | "produce_claude_md")
+        || maintenance_operation(tool)
+}
+
+fn maintenance_operation(tool: &str) -> bool {
+    matches!(tool, "repair_project" | "index_git_history" | "ingest_zip_history" | "ingest_quality_gates")
+}
+
+const MAINTENANCE_DELIVERY_INSTRUCTION: &str = "Recover the original returned outcome; do not repeat this repair, history import or ownership operation to recover its response. A queued acknowledgement is not completion; poll its returned job_id separately. Delivery does not establish rollback, current freshness or policy approval.";
+
+fn maintenance_outcome() -> Value {
+    json!({"handler_returned":true,"instruction":MAINTENANCE_DELIVERY_INSTRUCTION})
 }
 
 /// Save a job's separate instruction observation under the existing global job
@@ -225,7 +240,9 @@ pub fn advertise(mut tool: Tool) -> Tool {
     schema.insert("required".into(), if global { json!([]) } else { json!(["project_id"]) });
     let description = tool.description.as_deref().unwrap_or("");
     let recovery = if global { " Project-free recovery." } else { "" };
-    let error_scope = if tool.name == "refresh_corpora" { "Stage-error reports retain isError and also support bounded delivery; non-text results remain unchanged." } else { "Errors/non-text unchanged." };
+    let error_scope = if tool.name == "refresh_corpora" { "Stage-error reports retain isError and also support bounded delivery; non-text results remain unchanged." }
+        else if maintenance_operation(tool.name.as_ref()) { "Returned error reports retain isError and support bounded delivery; non-text results remain unchanged." }
+        else { "Errors/non-text unchanged." };
     tool.description = Some(format!("{description} 40KiB default reply (max_tokens). Reassemble the immutable original MCP result via response_delivery.next_call; no rerun or fresh-call fields needed.{recovery} {error_scope}").into());
     if tool.name == "produce_claude_md" {
         tool.description = Some(format!("{} Recovery never generates or publishes. Inspect saved write/conflict notes; a returned proposal is not publication. Retention failure preserves the original outcome with an explicit budget-overrun warning.", tool.description.as_deref().unwrap_or("")).into());
@@ -238,6 +255,9 @@ pub fn advertise(mut tool: Tool) -> Tool {
     }
     if tool.name == "index_project" {
         tool.description = Some(format!("{} Delivery recovery never repeats indexing or registration and requires no directory/project_name. JSON and deferred results expose returned project/job IDs when present. Queued acknowledgements are not completed jobs. If result retention fails after indexing, the complete original outcome is returned with an explicit budget warning.", tool.description.as_deref().unwrap_or("")).into());
+    }
+    if maintenance_operation(tool.name.as_ref()) {
+        tool.description = Some(format!("{} Recovery never repeats this operation; queued acknowledgements still require job polling.", tool.description.as_deref().unwrap_or("")).into());
     }
     tool
 }
@@ -405,6 +425,9 @@ impl Report {
         if self.tool == "index_project" {
             if let Some(operation) = operation { value["operation"] = operation.clone(); }
         }
+        if maintenance_operation(self.tool) {
+            value["operation"] = maintenance_outcome();
+        }
         value.to_string()
     }
 
@@ -427,9 +450,11 @@ impl Report {
                     self.tool,
                 )
                 .map_err(|error| {
-                    if self.tool == "produce_claude_md" && error.message.starts_with("Response snapshot unavailable;") {
+                    let unavailable = error.message.starts_with("Response snapshot unavailable;")
+                        || error.message.starts_with("Response snapshot expired;");
+                    if self.tool == "produce_claude_md" && unavailable {
                         McpError::invalid_params(format!("Response snapshot unavailable. {GENERATION_DELIVERY_INSTRUCTION}"), None)
-                    } else if returned_operation(self.tool) && error.message.starts_with("Response snapshot unavailable;") {
+                    } else if returned_operation(self.tool) && unavailable {
                         McpError::invalid_params(format!("Response snapshot unavailable. Do not repeat {} solely to recover its response. Reconcile list_projects/project_info and any returned job_id with get_job_status before deciding on a new operation.", self.tool), None)
                     } else { error }
                 })
@@ -498,6 +523,19 @@ impl Report {
                     }).to_string()));
                     return Ok(fallback);
                 }
+                if maintenance_operation(self.tool) {
+                    fallback.content.push(Content::text(json!({
+                        "tool":self.tool,"project_id":self.project,
+                        "operation":maintenance_outcome(),
+                        "response_delivery":{
+                            "status":"ORIGINAL_OUTCOME_PRESERVED_DELIVERY_FAILED",
+                            "budget_honored":false,"response_budget_bytes":self.budget,
+                            "recovery_available":false,"reason":error.message,
+                            "instruction":"The operation already returned. Its complete original outcome remains above and exceeds this delivery budget. Do not repeat the operation to recover the report; delivery failure does not imply rollback. Queued jobs still require polling."
+                        }
+                    }).to_string()));
+                    return Ok(fallback);
+                }
                 fallback.content.push(Content::text(json!({
                     "tool":"update_project","project_id":self.project,
                     "response_delivery":{
@@ -518,7 +556,7 @@ impl Report {
         data: &Path,
         original: CallToolResult,
     ) -> Result<CallToolResult, McpError> {
-        if (original.is_error == Some(true) && self.tool != "refresh_corpora")
+        if (original.is_error == Some(true) && self.tool != "refresh_corpora" && !maintenance_operation(self.tool))
             || original
                 .content
                 .iter()
@@ -526,8 +564,10 @@ impl Report {
         {
             return Ok(original);
         }
-        let stage_error = self.tool == "refresh_corpora" && original.is_error == Some(true);
-        let operation = (self.tool == "index_project").then(|| index_operation(&original));
+        let stage_error = (self.tool == "refresh_corpora" || maintenance_operation(self.tool)) && original.is_error == Some(true);
+        let operation = if self.tool == "index_project" { Some(index_operation(&original)) }
+            else if maintenance_operation(self.tool) { Some(maintenance_outcome()) }
+            else { None };
         let original = if self.json_envelope {
             let result = serde_json::to_value(&original)
                 .map_err(|error| McpError::internal_error(error.to_string(), None))?;
