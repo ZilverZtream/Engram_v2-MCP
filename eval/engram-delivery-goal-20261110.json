@@ -3965,5 +3965,11 @@
     "status": "SOURCE_FROZEN_PENDING_NATIVE",
     "shipping_head": "18fe0cbb5dc7880d5f27fcb76dee744c081a61c6",
     "runtime_deployed": false
+  },
+  "shortlist_documentation_correction_20261118": {
+    "record": "eval/legacy_validation-shortlist-status-update-20261118.json",
+    "status": "DOCUMENTATION_CORRECTION_VERIFIED",
+    "pending_runtime_batch_installed": false,
+    "new_compile_outcome_counted": false
   }
 }

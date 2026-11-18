@@ -1,0 +1,25 @@
+{
+  "status": "DOCUMENTATION_CORRECTION_VERIFIED",
+  "at_utc": "2026-11-18T00:58:31.767742+00:00",
+  "original_requirement_id": "EG-26",
+  "changes": [
+    "Original nine-row shortlist now includes latest installed per-finding review links, default history recovery, edit-session drift and named-preset dependency closure.",
+    "Pending November18 source/native/debug acceptance is explicitly separate from installed deliveries. Original limits, negative usefulness outcomes and historical links retained."
+  ],
+  "verification": {
+    "original_shortlist_rows": 9,
+    "linked_receipts_present": 32,
+    "latest_installed_server_sha256": "7a3e1a18742bd23b3953a12d8642f1af2cc3d462a520175b67fef64a120d6276",
+    "native_unique_cases": 13,
+    "public_assertions": 44,
+    "retained_public_assertions": 5,
+    "engram_builds_started_for_documentation": 0,
+    "new_runtime_calls": 0
+  },
+  "limits": [
+    "Documentation correction only; not a new implementation outcome, fresh feature replay or full catalog closure.",
+    "Pending paragraph must be replaced with the delivered receipt only after optimized candidate/installed acceptance and normal-runtime restoration."
+  ],
+  "pending_document_marker": "query-property-fallback-20261118-pending",
+  "temporary_resources": "No fixtures or new scratch location. Existing release and batch evidence retained under their recorded owners."
+}

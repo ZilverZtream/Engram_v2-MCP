@@ -1117,6 +1117,12 @@
         "description_utf8_bytes_after": 79416,
         "measurement_scope": "Owned empty-project Full125 advertisement, not actual LegacyValidation count or measured provider tokens, tool-choice accuracy, latency or task usefulness. All non-description metadata/schema fields unchanged. Whole-catalog reconciliation remains open.",
         "full_original_requirement_complete": false
+      },
+      "shortlist_documentation_correction_20261118": {
+        "record": "eval/legacy_validation-shortlist-status-update-20261118.json",
+        "status": "DOCUMENTATION_CORRECTION_VERIFIED",
+        "whole_catalog_closed": false,
+        "runtime_change": false
       }
     },
     {
