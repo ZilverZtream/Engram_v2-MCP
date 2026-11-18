@@ -45,5 +45,6 @@
     "baseline_fixture_directories_removed": true,
     "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118",
     "cleanup_condition": "Retain oracles, wire and receipts until separately accounted; new native/public fixtures own and close all resources."
-  }
+  },
+  "source_commit": "65942c3542daa9bcfc8a6fc1074127ceaa6d4a39"
 }
