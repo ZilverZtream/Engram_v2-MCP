@@ -2567,6 +2567,19 @@
         },
         "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118\\verify-public.py",
         "counting_rule": "One originalTODO31 VB HTTP-handler entry outcome; declaration/range, source/refusal and SQL variants are acceptance cases, not independent deliverables."
+      },
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "EG-27",
+        "source_commit": "aac8cd34ad439a30b0a491ce238cb33bdd3a8095",
+        "progress": "eval/selective-instruction-update-progress-20261118.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selective-instruction-update-20261118\\contract.json",
+        "native_target": "selective_instruction_update",
+        "native_environment": {
+          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+        },
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selective-instruction-update-20261118\\verify-public.py",
+        "counting_rule": "One EG27 selective edit-to-guidance workflow. Implicit selectors, outside inheritance, draft refusal and optional observation failure are acceptance variants, not separate deliverables."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2798,12 +2811,13 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "record": "eval/request-http-handler-progress-20261118.json",
-    "pending_source_outcomes": 1,
+    "status": "SOURCE_COMPLETE_AWAITING_SUBSTANTIVE_COMBINED_BATCH",
+    "record": "eval/selective-instruction-update-progress-20261118.json",
+    "pending_source_outcomes": 2,
     "implementation_items_active": 0,
+    "runtime_deployed": false,
     "full_original_goal_complete": false,
-    "next_action": "Advance the next ready original requirement; preserve held work and passed acceptance."
+    "next_action": "Continue substantive source delivery from the original backlog. Two distinct outcomes are pending. Do not run Cargo now, add filler to reach the minimum, or treat the three-outcome floor as a release schedule."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3114,16 +3128,16 @@
   },
   "active_source_implementation": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement_id": "TODO-31",
-    "source_commit": "65942c3542daa9bcfc8a6fc1074127ceaa6d4a39",
-    "progress": "eval/request-http-handler-progress-20261118.json",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118\\contract.json",
-    "native_target": "request_trace_http_handlers",
+    "original_requirement_id": "EG-27",
+    "source_commit": "aac8cd34ad439a30b0a491ce238cb33bdd3a8095",
+    "progress": "eval/selective-instruction-update-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selective-instruction-update-20261118\\contract.json",
+    "native_target": "selective_instruction_update",
     "native_environment": {
       "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
     },
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-http-handler-20261118\\verify-public.py",
-    "counting_rule": "One originalTODO31 VB HTTP-handler entry outcome; declaration/range, source/refusal and SQL variants are acceptance cases, not independent deliverables.",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selective-instruction-update-20261118\\verify-public.py",
+    "counting_rule": "One EG27 selective edit-to-guidance workflow. Implicit selectors, outside inheritance, draft refusal and optional observation failure are acceptance variants, not separate deliverables.",
     "implementation_items_active": 0,
     "runtime_deployed": false
   },
@@ -4136,8 +4150,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T14:48:06.257950+00:00",
-    "reason": "Three original outcomes installed; full original goal remains unfinished."
+    "at_utc": "2026-11-18T15:01:38.601743+00:00",
+    "reason": "Reproduced normal selective-refresh/instruction-maintenance refusal through owned public MCP, implemented the combined workflow with source-scope disclosure and existing pre-mutation bounds, and prepared two focused cases without Cargo. Pending queue now2original outcomes; installed runtime unchanged."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",

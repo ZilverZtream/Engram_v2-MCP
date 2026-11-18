@@ -43,5 +43,6 @@
     "baseline_fixture_removed": true,
     "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selective-instruction-update-20261118",
     "cleanup_condition": "Retain oracles/wire/receipts; all new native/public fixtures own and close handles before removing their directories."
-  }
+  },
+  "source_commit": "aac8cd34ad439a30b0a491ce238cb33bdd3a8095"
 }
