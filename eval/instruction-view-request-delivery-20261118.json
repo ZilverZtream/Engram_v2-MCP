@@ -1,0 +1,141 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-18T11:07:07.868746+00:00",
+  "original_requirement_ids": [
+    "EG-27",
+    "TODO-31",
+    "TODO-28"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118",
+  "source_preparation": {
+    "status": "FROZEN_EXISTING_SHIPPING_CHECKOUT_READY",
+    "at_utc": "2026-11-18T09:56:09.534246+00:00",
+    "source_commit": "67387ed7f30f30ab528b5e86515c06306ddbb367",
+    "previous_checkout_commit": "ca579ceb967eb515ee602dfc33656de5629aad1e",
+    "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "checkout_clean": true,
+    "protected_wip9_unchanged": true,
+    "shared_target": "C:\\ai-projects\\Engram-MCP_v2\\target",
+    "new_worktrees_created": 0
+  },
+  "runtime": {
+    "status": "INSTALLED_ACCEPTANCE_PASS",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\package1",
+    "server_sha256": "17b46b3fffdf4e3a821421d6c16b5f65577ea59686fb2fd75e8cc37c184d13e8",
+    "manifest_sha256": "6286fdaa5e4a59f975f9bc6043ca2a4b2b68d0e12aa22fde57f8ff919b9a00d3",
+    "old_server_sha256": "1efb13336d019a70a001a3f8422a670c786865871e9b17ebfbabd4e4e24ebf2b",
+    "old_manifest_sha256": "6d431321bc8684ee3e6966960f018cfd8318a0bf7220757768b08056d6c8b8ae",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\release1.json",
+      "sha256": "092a718e8329f6eaea970629db5b63cc81a8e32770857500e43f0b721c4d4762"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "6d431321bc8684ee3e6966960f018cfd8318a0bf7220757768b08056d6c8b8ae",
+      "capture_phase": "Before pair swap; immutable package input, not current installed identity."
+    },
+    "source_commit": "67387ed7f30f30ab528b5e86515c06306ddbb367"
+  },
+  "native_acceptance": {
+    "status": "PASS",
+    "native_cases_covered": 6,
+    "native_executions": 6,
+    "cargo_invocations": 1,
+    "latest_successful_native_label": "native1",
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\native1.json",
+    "seconds": 585.1453234999999,
+    "full_suite_runs": 0,
+    "separate_debug_builds": 0
+  },
+  "public_check_assertions_per_artifact": 36,
+  "public_receipts": {
+    "debug1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\debug1\\receipt.json",
+    "candidate1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\candidate1\\acceptance.json",
+    "installed1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\installed1\\acceptance.json"
+  },
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\restored-runtime\\receipt.json",
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3151,
+  "source_format": 9,
+  "protected_wip9": "UNCHANGED",
+  "full_original_goal_complete": false,
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\Engram-win-x64-instruction-view-request.zip",
+    "sha256": "94BB572573D714603E9D53536C12C05484B7221A8D8428B1A1D69DEAE2AE6DE6",
+    "entries": 219,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "6286FDAA5E4A59F975F9BC6043CA2A4B2B68D0E12AA22FDE57F8FF919B9A00D3"
+  },
+  "windows_zip_sha256": "94bb572573d714603e9d53536c12c05484b7221a8d8428b1a1d69deae2ae6de6",
+  "build_accounting": {
+    "native_invocations": 1,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "native_unique_cases": 6,
+    "native_test_executions": 6,
+    "native_seconds": 585.1453234999999,
+    "release_seconds": 2162.9394811,
+    "pure_coding_percentage": null,
+    "note": "One selected integration target and one optimized release. All six cases passed on the first invocation; no native/debug replay. Pure coding time and a compilation speedup were not measured."
+  },
+  "temporary_resources": {
+    "native_and_release_jobs_closed": true,
+    "owned_build_temps_removed": true,
+    "public_owners_closed_and_owned_fixtures_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118",
+    "managed_rollback_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-f891cbcd8b3b4d0a92010d8c54d49570",
+    "intentionally_retained_runtime": {
+      "pid": 39756,
+      "purpose": "Normal installed daemon, restored at acceptance time; its ordinary idle lifecycle owns it."
+    },
+    "retention": "Retain contracts, wire/source evidence, package/ZIP and rollback until separately accounted for. No preexisting folders removed."
+  },
+  "limitations": [
+    "Bracketed SQL reference normalization uses the existing simple-name vocabulary and observed exact SQL declaration keys. It does not infer SQL collation, database binding, semantic impact or expanded instruction authority.",
+    "PreRender handlers are static source context admitted through existing source hashes and bounds. First-line Handles and explicit AutoEventWireup=true conventions do not prove execution, lifecycle order, effective visibility or dynamic composition. Other lifecycle phases remain unexamined.",
+    "Named SQL views retain token-normalized source declarations and lexical references. Explicit SQL-view question wording is supported; projected column types, deployed definitions, ALTER/DROP order, execution and default-schema/collation binding are not established.",
+    "Public assertion counts include overlapping Full/Core clarification checks, not distinct features or task-benefit measurements. No actual LegacyValidation source/Q/index edits, model calls, CodeMap/Blast Radius work, target-language expansion or preexisting deletion.",
+    "All31 original findings and19 gates retain their existing required behavior and unfinished acceptance. The full goal and broader task usefulness remain unproven."
+  ],
+  "deployment_accounting": {
+    "successful_attempt": 5,
+    "successful_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\deployment5-state.json",
+    "completion_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\completion1-state.json",
+    "observer_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\postrelease5-state.json",
+    "earlier_attempts": [
+      {
+        "attempt": 1,
+        "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\deployment1-state.json",
+        "reason": "Quiescence helper rejected the legitimate sidecar-owned console; no candidate checks ran."
+      },
+      {
+        "attempt": 2,
+        "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\deployment2-state.json",
+        "reason": "Remaining normal wrapper children blocked candidate preflight; no candidate checks ran."
+      },
+      {
+        "attempt": 3,
+        "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\deployment3-state.json",
+        "reason": "Copied hold helper referenced the preceding config filename and stopped before hold readiness."
+      },
+      {
+        "attempt": 4,
+        "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\deployment4-state.json",
+        "reason": "Read-only registry snapshot refused dirty shutdown without explicit memory recovery; no candidate checks ran."
+      }
+    ],
+    "registry_recovery": {
+      "disposition": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\readonly-recovery-disposition1.json",
+      "scope": "Recovery confined to RAM overlay with unchanged source verification; no on-disk repair."
+    },
+    "additional_builds": 0,
+    "additional_repackages": 0
+  }
+}

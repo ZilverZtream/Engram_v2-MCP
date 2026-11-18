@@ -2264,3 +2264,11 @@ Existing unlimited internal metadata callers, cache identity/quotas, source
 recovery, cutoff semantics, card-description/file caps and provider budgets
 remain unchanged. Owned JS/SQL fixture baseline and source checks do not establish
 LegacyValidation latency, ranking quality, task benefit or completion of the broader goal.
+
+## Named SQL views and response-preparation context
+
+Installed November18 ([delivery](../eval/instruction-view-request-delivery-20261118.json)).
+
+`query_schema` accepts `query_type: {"kind":"view","name":"sales.OrderSummary"}`. It returns complete token-normalized source declarations and citations; duplicate basename definitions remain ambiguous. `ask_codebase` questions such as `Describe SQL view sales.OrderSummary` reuse that reader, preserve scoped guidance and supply callable Full/Core clarification. Source-hash refusal and exact saved-result recovery retain their existing contracts. This does not infer view-column types, deployed state or execution.
+
+Ordinary WebForms traces include admitted `Handles Me.PreRender`, `Handles MyBase.PreRender` and explicitly automatically wired `Page_PreRender` source context. Existing composition/source/traversal bounds remain; runtime order, visibility and execution are unproven. Instruction maintenance also retains observed bracketed SQL references such as `[dbo].[Orders]` as qualified dependencies, without granting wider policy authority or inferring database binding.

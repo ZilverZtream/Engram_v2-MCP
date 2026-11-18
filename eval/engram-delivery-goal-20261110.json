@@ -2557,45 +2557,21 @@
     "next_batch_pending": [
       {
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "EG-27",
-        "source_commit": "18f87b47673e4e824fb0ef4ede387239e4af3375",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-bracketed-guidance-20261118\\contract.json",
-        "native_target": "sql_bracketed_instruction_maintenance",
+        "original_requirement_id": "EG-26",
+        "source_commit": "c4a87166860fe4882d9f2b4187d1e27c39dbf1bb",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-provider-readiness-20261118\\contract.json",
+        "native_target": "health_provider_readiness",
         "native_environment": {
           "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
         },
-        "counting_rule": "One SQL instruction-dependency identity outcome; normalization, before/current evidence, inverse selection and two fixture cases are not separate deliverables.",
-        "progress": "eval/sql-bracketed-guidance-progress-20261118.json"
-      },
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "TODO-31",
-        "source_commit": "f640658d750ad88cb4fd7c3ee6823becc283c524",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-prerender-context-20261118\\contract.json",
-        "native_target": "request_trace_prerender_context",
-        "native_environment": {
-          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
-        },
-        "counting_rule": "One response-preparation context outcome, across existing page/control/master composition. Binding spellings, downstream SQL, formats and freshness checks are supporting acceptance, not distinct outcomes.",
-        "progress": "eval/request-prerender-context-progress-20261118.json"
-      },
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "TODO-28",
-        "source_commit": "9417f1ee732686c355783b2484ff66fcf552a3b0",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-view-evidence-20261118\\contract.json",
-        "native_target": "ask_view_evidence_tests",
-        "native_environment": {
-          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
-        },
-        "counting_rule": "One complete named-view evidence workflow outcome. The direct reader, natural-language entry, Full/Core recovery, two cases and table-related view handoff are one outcome.",
-        "progress": "eval/ask-view-evidence-progress-20261118.json"
+        "counting_rule": "One honest semantic-provider readiness reporting outcome. Configured/off variants, no-provider-request assertions and preserved integrity fields support the same outcome.",
+        "progress": "eval/health-provider-readiness-progress-20261118.json"
       }
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
-    "last_completed_batch": "eval/review-memory-history-delivery-20261118.json",
+    "last_completed_batch": "eval/instruction-view-request-delivery-20261118.json",
     "incremental_codegen": {
       "enabled_for_future_runs": true,
       "source_commit": "48ec7f6cd9e93a43f90674ce4f7504ae98bd2e35",
@@ -2804,20 +2780,7 @@
     "combined_delivery_record": "eval/method-schema-area-batch-delivery-20261116.json",
     "reconciliation": "The linked progress and installed batch receipts already prove this delivery, whose frozen source is an ancestor of current WORK. Retain prior acceptance and stated limits; do not reimplement or replay to refresh this status. This is a bookkeeping correction, not another deliverable or a reason to compile."
   },
-  "following_batch_pending": [
-    {
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "original_requirement_id": "EG-26",
-      "source_commit": "c4a87166860fe4882d9f2b4187d1e27c39dbf1bb",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-provider-readiness-20261118\\contract.json",
-      "native_target": "health_provider_readiness",
-      "native_environment": {
-        "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
-      },
-      "counting_rule": "One honest semantic-provider readiness reporting outcome. Configured/off variants, no-provider-request assertions and preserved integrity fields support the same outcome.",
-      "progress": "eval/health-provider-readiness-progress-20261118.json"
-    }
-  ],
+  "following_batch_pending": [],
   "method_schema_area_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/method-schema-area-batch-delivery-20261116.json",
@@ -2835,16 +2798,12 @@
   },
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement": "EG-26",
     "record": "eval/health-provider-readiness-progress-20261118.json",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-provider-readiness-20261118",
+    "pending_source_outcomes": 1,
     "implementation_items_active": 0,
-    "pending_following_source_outcomes": 1,
-    "engram_builds_started": 0,
-    "runtime_deployed": false,
+    "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "parallel_release": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118",
-    "next_action": "Retain this source outcome for the following independent batch; advance the next original requirement while the existing release and prepared installation finish. Do not change the frozen checkout or repeat passed checks."
+    "next_action": "Advance the next ready unfinished original requirement. Preserve31findings/19gates and held work; do not restart terminal builds or replay accepted checks."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2952,10 +2911,10 @@
     "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
   },
   "latest_delivered_runtime": {
-    "record": "eval/review-memory-history-delivery-20261118.json",
-    "server_sha256": "1efb13336d019a70a001a3f8422a670c786865871e9b17ebfbabd4e4e24ebf2b",
-    "manifest_sha256": "6d431321bc8684ee3e6966960f018cfd8318a0bf7220757768b08056d6c8b8ae",
-    "shipping_source_commit": "ca579ceb967eb515ee602dfc33656de5629aad1e",
+    "record": "eval/instruction-view-request-delivery-20261118.json",
+    "server_sha256": "17b46b3fffdf4e3a821421d6c16b5f65577ea59686fb2fd75e8cc37c184d13e8",
+    "manifest_sha256": "6286fdaa5e4a59f975f9bc6043ca2a4b2b68d0e12aa22fde57f8ff919b9a00d3",
+    "shipping_source_commit": "67387ed7f30f30ab528b5e86515c06306ddbb367",
     "selected_generation": 3151,
     "source_format": 9,
     "assets_verified": 215,
@@ -3040,21 +2999,9 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "OPTIMIZED_RELEASE_RUNNING_NATIVE_AND_DEBUG_ACCEPTED",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118",
-    "original_requirement_ids": [
-      "EG-27",
-      "TODO-31",
-      "TODO-28"
-    ],
-    "release_session_id": 55409,
-    "postrelease_session_id": 32765,
-    "release_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\release-owner-pin1.json",
-    "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\native-acceptance.json",
-    "debug_public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\debug1\\receipt.json",
-    "prepared_pipeline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\deployment-preparation1.json",
-    "prepared_recorder": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\recording-preparation1.json",
-    "release_builds_started": 1,
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": "eval/instruction-view-request-delivery-20261118.json",
+    "all_build_sessions_terminal": true,
     "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],
@@ -4187,8 +4134,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T10:42:06.975767+00:00",
-    "reason": "Prepared exact deployment/recording and implemented the next original EG26 readiness correction while the same optimized build runs. Two future behavior cases written; no new Cargo or provider requests."
+    "at_utc": "2026-11-18T11:07:07.868746+00:00",
+    "reason": "Three original finite outcomes installed after one native target, public checks, one release and normal restoration; full original goal remains unfinished."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4217,7 +4164,7 @@
     "whole_EG26_complete": false
   },
   "sql_bracketed_guidance_source_progress_20261118": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "original_requirement_id": "EG-27",
     "source_commit": "18f87b47673e4e824fb0ef4ede387239e4af3375",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-bracketed-guidance-20261118\\contract.json",
@@ -4227,11 +4174,14 @@
     },
     "counting_rule": "One SQL instruction-dependency identity outcome; normalization, before/current evidence, inverse selection and two fixture cases are not separate deliverables.",
     "progress": "eval/sql-bracketed-guidance-progress-20261118.json",
-    "runtime_deployed": false,
-    "related_original_requirement": "EG-31"
+    "runtime_deployed": true,
+    "related_original_requirement": "EG-31",
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "delivery_record": "eval/instruction-view-request-delivery-20261118.json",
+    "historical_source_status": true
   },
   "request_prerender_context_source_progress_20261118": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "original_requirement_id": "TODO-31",
     "source_commit": "f640658d750ad88cb4fd7c3ee6823becc283c524",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-prerender-context-20261118\\contract.json",
@@ -4241,10 +4191,13 @@
     },
     "counting_rule": "One response-preparation context outcome, across existing page/control/master composition. Binding spellings, downstream SQL, formats and freshness checks are supporting acceptance, not distinct outcomes.",
     "progress": "eval/request-prerender-context-progress-20261118.json",
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "delivery_record": "eval/instruction-view-request-delivery-20261118.json",
+    "historical_source_status": true
   },
   "ask_view_evidence_source_progress_20261118": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "original_requirement_id": "TODO-28",
     "source_commit": "9417f1ee732686c355783b2484ff66fcf552a3b0",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-view-evidence-20261118\\contract.json",
@@ -4254,7 +4207,10 @@
     },
     "counting_rule": "One complete named-view evidence workflow outcome. The direct reader, natural-language entry, Full/Core recovery, two cases and table-related view handoff are one outcome.",
     "progress": "eval/ask-view-evidence-progress-20261118.json",
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "delivery_record": "eval/instruction-view-request-delivery-20261118.json",
+    "historical_source_status": true
   },
   "health_provider_readiness_source_progress_20261118": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
@@ -4268,5 +4224,25 @@
     "counting_rule": "One honest semantic-provider readiness reporting outcome. Configured/off variants, no-provider-request assertions and preserved integrity fields support the same outcome.",
     "progress": "eval/health-provider-readiness-progress-20261118.json",
     "runtime_deployed": false
+  },
+  "previous_runtime_before_instruction_view_request_20261118": {
+    "record": "eval/review-memory-history-delivery-20261118.json",
+    "server_sha256": "1efb13336d019a70a001a3f8422a670c786865871e9b17ebfbabd4e4e24ebf2b",
+    "manifest_sha256": "6d431321bc8684ee3e6966960f018cfd8318a0bf7220757768b08056d6c8b8ae",
+    "shipping_source_commit": "ca579ceb967eb515ee602dfc33656de5629aad1e",
+    "selected_generation": 3151,
+    "source_format": 9,
+    "assets_verified": 215,
+    "normal_runtime_restored": true,
+    "full_original_goal_complete": false
+  },
+  "instruction_view_request_delivery_20261118": {
+    "record": "eval/instruction-view-request-delivery-20261118.json",
+    "original_requirement_ids": [
+      "EG-27",
+      "TODO-31",
+      "TODO-28"
+    ],
+    "full_original_goal_complete": false
   }
 }

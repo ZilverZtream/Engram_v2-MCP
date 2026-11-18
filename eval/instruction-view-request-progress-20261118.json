@@ -1,5 +1,5 @@
 {
-  "status": "OPTIMIZED_RELEASE_RUNNING_NATIVE_AND_DEBUG_ACCEPTED",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-18T10:08:28.894432+00:00",
   "original_requirement_ids": [
     "EG-27",
@@ -8,7 +8,7 @@
   ],
   "source_outcomes": [
     {
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "original_requirement_id": "EG-27",
       "source_commit": "18f87b47673e4e824fb0ef4ede387239e4af3375",
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-bracketed-guidance-20261118\\contract.json",
@@ -17,10 +17,12 @@
         "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
       },
       "counting_rule": "One SQL instruction-dependency identity outcome; normalization, before/current evidence, inverse selection and two fixture cases are not separate deliverables.",
-      "progress": "eval/sql-bracketed-guidance-progress-20261118.json"
+      "progress": "eval/sql-bracketed-guidance-progress-20261118.json",
+      "source_stage_status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "delivery_record": "eval/instruction-view-request-delivery-20261118.json"
     },
     {
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "original_requirement_id": "TODO-31",
       "source_commit": "f640658d750ad88cb4fd7c3ee6823becc283c524",
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-prerender-context-20261118\\contract.json",
@@ -29,10 +31,12 @@
         "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
       },
       "counting_rule": "One response-preparation context outcome, across existing page/control/master composition. Binding spellings, downstream SQL, formats and freshness checks are supporting acceptance, not distinct outcomes.",
-      "progress": "eval/request-prerender-context-progress-20261118.json"
+      "progress": "eval/request-prerender-context-progress-20261118.json",
+      "source_stage_status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "delivery_record": "eval/instruction-view-request-delivery-20261118.json"
     },
     {
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "original_requirement_id": "TODO-28",
       "source_commit": "9417f1ee732686c355783b2484ff66fcf552a3b0",
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-view-evidence-20261118\\contract.json",
@@ -41,7 +45,9 @@
         "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
       },
       "counting_rule": "One complete named-view evidence workflow outcome. The direct reader, natural-language entry, Full/Core recovery, two cases and table-related view handoff are one outcome.",
-      "progress": "eval/ask-view-evidence-progress-20261118.json"
+      "progress": "eval/ask-view-evidence-progress-20261118.json",
+      "source_stage_status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "delivery_record": "eval/instruction-view-request-delivery-20261118.json"
     }
   ],
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118",
@@ -75,7 +81,7 @@
   "public_seconds": 14.946699600000102,
   "public_count_qualification": "Assertions include overlapping Full/Core clarification checks; this is not a count of distinct features or proof of task usefulness.",
   "release_builds_started": 1,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "full_original_goal_complete": false,
   "protected_wip9_unchanged": true,
   "temporary_resources": {
@@ -85,9 +91,14 @@
     "public_fixtures_removed": true,
     "retained_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118"
   },
-  "release_session_id": 55409,
+  "release_session_id": null,
   "release_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\release-owner-pin1.json",
-  "postrelease_session_id": 32765,
+  "postrelease_session_id": null,
   "prepared_deployment": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\deployment-preparation1.json",
-  "prepared_recorder": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\recording-preparation1.json"
+  "prepared_recorder": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\recording-preparation1.json",
+  "delivery_record": "eval/instruction-view-request-delivery-20261118.json",
+  "all_build_sessions_terminal": true,
+  "next_action": "Advance the next ready unfinished original requirement. Preserve31findings/19gates and held work; do not restart terminal builds or replay accepted checks.",
+  "deployment_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\deployment5-state.json",
+  "completion_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\completion1-state.json"
 }

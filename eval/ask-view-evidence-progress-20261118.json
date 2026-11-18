@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_AWAITING_RELEASE",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-18T09:55:43.856965+00:00",
   "original_requirement_id": "TODO-28",
   "source_commit": "9417f1ee732686c355783b2484ff66fcf552a3b0",
@@ -12,19 +12,21 @@
   "source_checks": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-view-evidence-20261118\\source-check1.json",
   "behavior": "Named source view lookup and explicit SQL-view natural-language questions preserve complete declarations, citations, ambiguity, scoped guidance and original report recovery.",
   "native_cases_written": 2,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "counting_rule": "One complete named-view evidence workflow outcome. The direct reader, natural-language entry, Full/Core recovery, two cases and table-related view handoff are one outcome.",
   "limitations": [
-    "Type checking, behavioral cases and actual public candidate/installed verification remain pending.",
-    "No live database, column-type inference, runtime execution, default-schema/collation binding or deployment-order evaluation.",
-    "Explicit SQL-view question wording is supported; ordinary UI view wording and existing table/procedure paths remain unchanged. No broad TODO28 closure or measured task usefulness."
+    "Bracketed SQL reference normalization uses the existing simple-name vocabulary and observed exact SQL declaration keys. It does not infer SQL collation, database binding, semantic impact or expanded instruction authority.",
+    "PreRender handlers are static source context admitted through existing source hashes and bounds. First-line Handles and explicit AutoEventWireup=true conventions do not prove execution, lifecycle order, effective visibility or dynamic composition. Other lifecycle phases remain unexamined.",
+    "Named SQL views retain token-normalized source declarations and lexical references. Explicit SQL-view question wording is supported; projected column types, deployed definitions, ALTER/DROP order, execution and default-schema/collation binding are not established.",
+    "Public assertion counts include overlapping Full/Core clarification checks, not distinct features or task-benefit measurements. No actual LegacyValidation source/Q/index edits, model calls, CodeMap/Blast Radius work, target-language expansion or preexisting deletion.",
+    "All31 original findings and19 gates retain their existing required behavior and unfinished acceptance. The full goal and broader task usefulness remain unproven."
   ],
   "temporary_resources": {
     "fixtures_created": 0,
     "receipts": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-view-evidence-20261118",
     "cleanup": "New fixtures close server/graph/database handles before owned TempDir removal; no preexisting paths removed."
   },
-  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED",
+  "validation_status": "PASS",
   "combined_validation_record": "eval/instruction-view-request-progress-20261118.json",
   "source_stage_execution_accounting": {
     "cargo_invocations": 0,
@@ -33,5 +35,15 @@
   "native_cases_executed": 2,
   "shared_combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\native-acceptance.json",
   "shared_debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\debug1\\receipt.json",
-  "execution_accounting_note": "Native cases counted per component; all components share one Cargo invocation and one public batch. Source-stage zero counters are historical, not a reason to repeat passed checks."
+  "execution_accounting_note": "Native cases counted per component; all components share one Cargo invocation and one public batch. Source-stage zero counters are historical, not a reason to repeat passed checks.",
+  "historical_source_stage_limits": [
+    "Type checking, behavioral cases and actual public candidate/installed verification remain pending.",
+    "No live database, column-type inference, runtime execution, default-schema/collation binding or deployment-order evaluation.",
+    "Explicit SQL-view question wording is supported; ordinary UI view wording and existing table/procedure paths remain unchanged. No broad TODO28 closure or measured task usefulness."
+  ],
+  "delivery_record": "eval/instruction-view-request-delivery-20261118.json",
+  "installed_runtime_sha256": "17b46b3fffdf4e3a821421d6c16b5f65577ea59686fb2fd75e8cc37c184d13e8",
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\installed1\\acceptance.json",
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118\\native-acceptance.json",
+  "next_action": "Finite component accepted and installed; advance the remaining original backlog without extending this acceptance."
 }

@@ -10427,17 +10427,15 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T06:41:47.589846+00:00",
+  "last_updated_at": "2026-11-18T11:07:07.868746+00:00",
   "current_execution_focus": {
-    "status": "DOCUMENTATION_RECONCILIATION_VERIFIED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
-    "original_requirement": "EG-26",
-    "record": "eval/legacy_validation-original-shortlist-readiness-20261118.json",
-    "pending_source_outcomes": 0,
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "record": "eval/health-provider-readiness-progress-20261118.json",
+    "pending_source_outcomes": 1,
     "implementation_items_active": 0,
-    "runtime_change": false,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "Advance the next original requirement after the completed nine-category evidence account. Do not repeat this documentation pass, task comparisons, terminal builds or already-installed acceptance. Full catalog, remaining task usefulness and held requirements remain open."
+    "next_action": "Advance the next ready unfinished original requirement. Preserve31findings/19gates and held work; do not restart terminal builds or replay accepted checks."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -16641,10 +16639,10 @@
     "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
   },
   "latest_delivered_runtime": {
-    "record": "eval/review-memory-history-delivery-20261118.json",
-    "server_sha256": "1efb13336d019a70a001a3f8422a670c786865871e9b17ebfbabd4e4e24ebf2b",
-    "manifest_sha256": "6d431321bc8684ee3e6966960f018cfd8318a0bf7220757768b08056d6c8b8ae",
-    "shipping_source_commit": "ca579ceb967eb515ee602dfc33656de5629aad1e",
+    "record": "eval/instruction-view-request-delivery-20261118.json",
+    "server_sha256": "17b46b3fffdf4e3a821421d6c16b5f65577ea59686fb2fd75e8cc37c184d13e8",
+    "manifest_sha256": "6286fdaa5e4a59f975f9bc6043ca2a4b2b68d0e12aa22fde57f8ff919b9a00d3",
+    "shipping_source_commit": "67387ed7f30f30ab528b5e86515c06306ddbb367",
     "selected_generation": 3151,
     "source_format": 9,
     "assets_verified": 215,
@@ -16669,7 +16667,7 @@
   },
   "active_release_validation": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "record": "eval/review-memory-history-delivery-20261118.json",
+    "record": "eval/instruction-view-request-delivery-20261118.json",
     "all_build_sessions_terminal": true,
     "full_original_goal_complete": false
   },
@@ -17440,5 +17438,25 @@
     "status": "DOCUMENTATION_RECONCILIATION_VERIFIED",
     "runtime_change": false,
     "whole_EG26_complete": false
+  },
+  "previous_runtime_before_instruction_view_request_20261118": {
+    "record": "eval/review-memory-history-delivery-20261118.json",
+    "server_sha256": "1efb13336d019a70a001a3f8422a670c786865871e9b17ebfbabd4e4e24ebf2b",
+    "manifest_sha256": "6d431321bc8684ee3e6966960f018cfd8318a0bf7220757768b08056d6c8b8ae",
+    "shipping_source_commit": "ca579ceb967eb515ee602dfc33656de5629aad1e",
+    "selected_generation": 3151,
+    "source_format": 9,
+    "assets_verified": 215,
+    "normal_runtime_restored": true,
+    "full_original_goal_complete": false
+  },
+  "instruction_view_request_delivery_20261118": {
+    "record": "eval/instruction-view-request-delivery-20261118.json",
+    "original_requirement_ids": [
+      "EG-27",
+      "TODO-31",
+      "TODO-28"
+    ],
+    "full_original_goal_complete": false
   }
 }

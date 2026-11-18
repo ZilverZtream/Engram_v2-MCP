@@ -92,6 +92,8 @@ The [November 18 review, memory and history delivery](eval/review-memory-history
 
 The [following November 18 delivery](eval/ask-authority-batch-recovery-delivery-20261118.json) preserves natural-language evidence during optional semantic outages, separates documentary guidance from implementation evidence, and adds exact saved recovery of budget-omitted batch reads. Owned checks establish these behaviors; incremental LegacyValidation task benefit remains unproven.
 
+The [SQL and WebForms delivery](eval/instruction-view-request-delivery-20261118.json) preserves bracketed SQL instruction references, adds authored WebForms PreRender context and supplies complete named SQL-view evidence through direct and natural-language reads. These are source-behavior deliveries; broader LegacyValidation task benefit remains unproven.
+
 Later installed deliveries include [direct method/source guidance and bounded
 recovery](eval/legacy_validation-method-read-batch-delivery-20261114.json), and [ordinary SQL
 keys, schema-bound views and source-cited route registrations](eval/legacy_validation-request-schema-batch-delivery-20261114.json).
