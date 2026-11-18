@@ -1732,6 +1732,15 @@ impl Engram {
         index_antipatterns: bool,
         reindex_paths: Vec<String>,
     ) -> Result<String, McpError> {
+        self.spawn_job_update_project_with_instructions(project_id, new_gen,
+            max_commits, index_antipatterns, reindex_paths, None).await
+    }
+
+    async fn spawn_job_update_project_with_instructions(
+        &self, project_id: String, new_gen: u64, max_commits: usize,
+        index_antipatterns: bool, reindex_paths: Vec<String>,
+        instruction_maintenance: Option<crate::services::instruction_maintenance::MaintenanceRequest>,
+    ) -> Result<String, McpError> {
         // Serialize job registration with deletion's final admission check.
         // Keep this until the job handle and cancellation token are tracked.
         let _runtime = self.state.acquire_project_runtime_lock(&project_id).await;
@@ -2037,6 +2046,32 @@ impl Engram {
                 }
             }
 
+            let instruction_delivery = if let Some(request) = instruction_maintenance {
+                let observation = if !token.is_cancelled() && (res.is_ok() || source_published) {
+                    phase.phase("instruction_observation", None, None);
+                    Engram::new(state.clone()).collect_job_instruction_observation(
+                        &project_id_for_job, request, project_dir.clone()).await
+                } else {
+                    serde_json::json!({"instruction_reference_observation":{
+                        "status":"not_collected","authored_files_written":0,
+                        "reason":"Source job failed or cancellation was requested; no post-update instruction capture was attempted."
+                    }})
+                };
+                let observed = observation["instruction_reference_observation"]["status"] == "observed";
+                let captured = crate::read_report_delivery::save_job_instruction_observation(
+                    &state.cfg.data_dir, &job_id_for_job, observation);
+                let (delivery, warning) = match captured {
+                    Ok(delivery) => (Some(delivery), (!observed).then_some(
+                        "Post-update instruction evidence was not confirmed; inspect its saved observation. Source outcome is separate; do not repeat the update solely for instruction evidence.".to_owned())),
+                    Err(error) => (None, Some(format!(
+                        "Post-update instruction observation could not be retained: {}. Source outcome is separate; use pre_push_audit for another observation, not another source update.", error.message))),
+                };
+                if let Some(warning) = warning {
+                    if let Ok(mut warnings) = enrichment_warnings.lock() { warnings.push(warning); }
+                }
+                delivery
+            } else { None };
+
             // ENG-AUD-2026-S03-0001: Surface enrichment warnings as "degraded"
             // status so callers can distinguish clean success from partial success.
             let enrich_warnings_collected: Vec<String> = enrichment_warnings
@@ -2049,11 +2084,15 @@ impl Engram {
                 res.is_err() && !source_published,
                 &enrich_warnings_collected,
             );
-            let final_msg = determine_job_message(
+            let mut final_msg = determine_job_message(
                 token.is_cancelled() && !source_published,
                 res.as_ref().err().filter(|_| !source_published).map(|e| e.to_string()).as_deref(),
                 &enrich_warnings_collected,
             );
+            if let Some(delivery) = instruction_delivery {
+                final_msg.push_str("\ninstruction_observation_delivery: ");
+                final_msg.push_str(&delivery);
+            }
 
             // Fix 12: Derive progress from the actual outcome, not a pre-set constant.
             // "degraded" counts as complete (indexing finished, enrichment partial).
@@ -2236,9 +2275,6 @@ impl Engram {
             }
         }
         if let Some(maintenance) = &req.instruction_maintenance {
-            if !req.wait {
-                return Err(McpError::invalid_params("instruction_maintenance requires wait=true; queued updates have no completed source observation", None));
-            }
             crate::services::instruction_maintenance::validate_observation_request(maintenance)
                 .map_err(|error| McpError::invalid_params(error.to_string(), None))?;
         }
@@ -2270,12 +2306,13 @@ impl Engram {
         }
 
         let job_id = self
-            .spawn_job_update_project(
+            .spawn_job_update_project_with_instructions(
                 req.project_id.clone(),
                 new_gen,
                 req.sanitized_max_commits(),
                 req.index_antipatterns,
                 req.reindex_paths.clone(),
+                req.instruction_maintenance,
             )
             .await?;
         Ok(CallToolResult::success(vec![Content::text(format!(

@@ -63,7 +63,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Incrementally re-index changed files and refresh git intelligence. Optional only_paths (1..4096 exact eligible paths, wait=true) exclusively re-extracts those files and inherits outside revisions without checking current outside bytes; it skips Git/global enrichment and requires an already verified source identity with no foreign unpublished attempt. Extractors may read referenced companion files. only_paths cannot combine with reindex_paths, anti-pattern refresh or instruction maintenance. Otherwise reindex_paths adds forced paths to the normal whole-project change scan. Optional instruction_maintenance with wait=true observes guidance after the normal update; changed_paths discovers current applicable guidance for explicit changed files and does not restrict the source update. It does not write policy."
+        description = "Incrementally re-index changed files and refresh git intelligence. Optional only_paths (1..4096 exact eligible paths, wait=true) exclusively re-extracts those files and inherits outside revisions without checking current outside bytes; it skips Git/global enrichment and requires an already verified source identity with no foreign unpublished attempt. Extractors may read referenced companion files. only_paths cannot combine with reindex_paths, anti-pattern refresh or instruction maintenance. Otherwise reindex_paths adds forced paths to the normal whole-project change scan. instruction_maintenance observes guidance after the update; changed_paths selects guidance, not source-refresh scope. For wait=false, get_job_status returns saved observation recovery. No policy is written."
     )]
     pub async fn update_project(
         &self,
@@ -948,7 +948,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Status and persisted phase progress of one background job by job_id. Poll after index_project, update_project or index_git_history returns a job. Reports observed counts/unit, phase percentage, timestamps and estimated phase time remaining (null when unknown); phase100% is not whole-job completion."
+        description = "Status and persisted phase progress of one background job by job_id. Poll after index_project, update_project or index_git_history returns a job. Reports observed counts/unit, phase percentage, timestamps and estimated phase time remaining (null when unknown); phase100% is not whole-job completion. Optional post-update instruction evidence uses saved recovery as a separate worktree observation."
     )]
     pub async fn get_job_status(
         &self,

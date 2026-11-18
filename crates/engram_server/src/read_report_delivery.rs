@@ -106,6 +106,26 @@ fn returned_operation(tool: &str) -> bool {
     matches!(tool, "update_project" | "index_project" | "refresh_corpora" | "produce_claude_md")
 }
 
+/// Save a job's separate instruction observation under the existing global job
+/// recovery contract. Only this bounded reference belongs in the job row.
+pub(crate) fn save_job_instruction_observation(
+    data: &Path, job_id: &str, observation: Value,
+) -> Result<String, McpError> {
+    let report = Report {
+        tool: "get_job_status", project: "server-discovery".into(), budget: 40960,
+        response_id: None, offset: 0, capture_window: false,
+        json_envelope: false, project_free: true,
+    }.checked()?;
+    let captured = CallToolResult::success(vec![Content::text(json!({
+        "job_id":job_id,"observation":observation,
+        "interpretation":"Separate worktree instruction observation after this source job; not an atomic index/policy snapshot, current freshness proof or policy approval. Recovery never reruns the update or writes authored guidance."
+    }).to_string())]);
+    let body = serde_json::to_string(&captured)
+        .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+    let id = snapshots::save_read_report(data, &report.project, &body, report.tool)?;
+    Ok(report.manifest_for(&id, body.len(), None))
+}
+
 const GENERATION_DELIVERY_INSTRUCTION: &str = "Do not repeat produce_claude_md to recover this response. Recover the original root, companion files and complete rule ledger, including publication notes and conflicts. A returned proposal does not establish that files were written or policy was accepted. Recovery never generates or publishes files. If recovery expires, inspect existing files and ownership receipts before deciding on another operation.";
 
 const INDEX_DELIVERY_INSTRUCTION: &str = "Do not repeat index_project to recover this response. The original acknowledgement is in the saved result. A queued job acknowledgement does not establish job completion; poll get_job_status for its job_id. If recovery expires, reconcile list_projects/project_info and any returned job_id before deciding on a new operation. Delivery does not imply rollback.";

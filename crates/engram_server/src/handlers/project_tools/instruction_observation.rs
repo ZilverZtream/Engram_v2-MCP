@@ -21,6 +21,20 @@ fn review_and_confirm(
 }
 
 impl Engram {
+    /// Bind a queued observation to the source root used by its producer before
+    /// reading files; the shared collector also checks identity continuity.
+    pub(super) async fn collect_job_instruction_observation(
+        &self, project_id: &str, request: MaintenanceRequest, source_root: PathBuf,
+    ) -> Value {
+        self.collect_instruction_observation_with(project_id, request,
+            "separate_worktree_observation_collected_after_queued_source_update",
+            move |root, project, request| {
+                anyhow::ensure!(root == source_root,
+                    "Project source root changed after the queued update; instruction observation withheld");
+                review_and_confirm(root, project, request)
+            }).await
+    }
+
     async fn instruction_observation_identity(&self, project_id: &str) -> anyhow::Result<Identity> {
         let registry = self.state.registry.clone();
         let pid = project_id.to_owned();

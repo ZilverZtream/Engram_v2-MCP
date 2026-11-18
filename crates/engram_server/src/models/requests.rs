@@ -528,8 +528,9 @@ pub struct UpdateProjectRequest {
     /// wait=true, and no other update/maintenance scope.
     #[serde(default)]
     pub only_paths: Option<Vec<String>>,
-    /// Observe selected instruction references after a synchronous source
-    /// update. Draft proposals belong to pre_push_audit; no policy is written.
+    /// Observe selected instruction references after the source update.
+    /// Queued calls return observation recovery through get_job_status.
+    /// Draft proposals belong to pre_push_audit; no policy is written.
     #[serde(default)]
     pub instruction_maintenance: Option<crate::services::instruction_maintenance::MaintenanceRequest>,
     /// Re-extract these exact project-relative files even when unchanged.
