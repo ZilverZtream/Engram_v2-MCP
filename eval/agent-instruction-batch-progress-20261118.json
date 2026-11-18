@@ -1,5 +1,5 @@
 {
-  "status": "FOCUSED_NATIVE_BATCH_RUNNING",
+  "status": "NATIVE_AND_DEBUG_ACCEPTANCE_PASS",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118",
   "source_commit": "bf4abd6ae44fd65db5688706f6adea71d08894ad",
   "original_requirement_ids": [
@@ -13,12 +13,21 @@
   "runtime_deployed": false,
   "full_original_goal_complete": false,
   "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\source-preparation1.json",
-  "next_action": "Observe exact native82997/postnative79903. Observer reuses a fresh Cargo-produced debug executable for the three pinned public contracts. Do not duplicate builds or runs; inspect exact failed case if terminal failure.",
-  "native_session_id": 82997,
+  "next_action": "Prepare and run one optimized release for this frozen source; reuse it for candidate/installed checks. Do not rerun passed native/debug contracts or create a separate debug build.",
+  "native_session_id": null,
   "native_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\native-owner-pin1.json",
   "no_shipping_source_mutation_until_terminal": true,
-  "postnative_session_id": 79903,
+  "postnative_session_id": null,
   "postnative_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\postnative1-state.json",
   "public_driver": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\verify-public.py",
-  "public_driver_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\public-driver-pin1.json"
+  "public_driver_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\public-driver-pin1.json",
+  "native_and_debug_sessions_terminal": true,
+  "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\native-acceptance.json",
+  "native_cases_passed": 4,
+  "native_seconds": 583.0634294999982,
+  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\debug1\\receipt.json",
+  "public_debug_assertions": 20,
+  "public_debug_seconds": 23.3021026000024,
+  "debug_binary_sha256": "147e656d0d1f34a8efefe22d05edadea5253fe51d4ca0f71752de49972ff5b07",
+  "new_owned_fixture_prefixes_remaining": []
 }
