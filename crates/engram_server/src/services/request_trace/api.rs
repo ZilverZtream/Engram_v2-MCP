@@ -7,6 +7,25 @@ use engram_graph::GraphStore;
 use serde::Serialize;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, sync::Arc};
+pub use super::api_attributes::extend as extend_attribute_routes;
+
+#[derive(Debug, Clone, Serialize)]
+pub struct AttributeRegistration {
+    pub source_path: String,
+    pub source_line: usize,
+    pub source_blake3: String,
+    pub evidence: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct DeclaredAction {
+    pub class_node_id: String,
+    pub method_node_id: String,
+    pub name: String,
+    pub declaration_line: usize,
+    pub route_prefix: String,
+    pub registration: AttributeRegistration,
+}
 
 #[derive(Debug, Serialize)]
 pub struct Route {
@@ -18,6 +37,8 @@ pub struct Route {
     pub source_line: usize,
     pub source_blake3: String,
     pub evidence: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub declared_action: Option<DeclaredAction>,
 }
 
 fn word(token: &Token, value: &str) -> bool {
@@ -118,6 +139,7 @@ pub(super) fn routes(source: &Source<'_>, path: &str) -> Vec<Route> {
             continue;
         }
         result.push(Route {
+            declared_action: None,
             controller,
             route_name: name,
             pattern: template,
@@ -140,7 +162,7 @@ pub(super) fn routes(source: &Source<'_>, path: &str) -> Vec<Route> {
     result
 }
 
-fn method_selected(
+pub(super) fn method_selected(
     body: &str,
     preceding: &str,
     verb: Option<&str>,
@@ -186,12 +208,19 @@ pub fn trace(
     selected: &BTreeMap<String, u64>,
 ) -> anyhow::Result<Value> {
     let expected = format!("{}Controller", route.controller);
-    let declared_dependency_registrations = super::container_registrations::in_route_source(&route.source_path, sources);
+    let registration_path = route.declared_action.as_ref()
+        .map_or(route.source_path.as_str(), |action| action.registration.source_path.as_str());
+    let declared_dependency_registrations = super::container_registrations::in_route_source(registration_path, sources);
     let mut outputs = Vec::new();
-    let mut gaps = vec!["Conventional source candidates only: route registration, precedence, constraints, omitted optional segments, action overload selection and dependency injection are not established.".to_string()];
+    let mut gaps = vec![if route.declared_action.is_some() {
+        "Literal attribute source candidates only: registration control flow, route precedence, overload selection, dependency injection and runtime dispatch are not established."
+    } else {
+        "Conventional source candidates only: route registration, precedence, constraints, omitted optional segments, action overload selection and dependency injection are not established."
+    }.to_string()];
     let root = routing::app_root(&route.source_path, sources);
     for source in sources.iter().filter(|s| {
         s.path.to_ascii_lowercase().ends_with(".vb") && routing::app_root(s.path, sources) == root
+            && (route.declared_action.is_none() || s.path == route.source_path)
     }) {
         let tokens = routing::tokens(source.content, true);
         if !tokens
@@ -231,6 +260,9 @@ pub fn trace(
                     .next()
                     .is_some_and(|name| name.eq_ignore_ascii_case(&expected))
         }) {
+            if route.declared_action.as_ref().is_some_and(|action| action.class_node_id != class.node_id) {
+                continue;
+            }
             if !execution::verified_node(graph, project, class, sources, selected)? {
                 gaps.push(format!(
                     "{}: controller source differs from selected revision",
@@ -263,6 +295,9 @@ pub fn trace(
                     && n.start_line > class.start_line
                     && n.end_line <= class.end_line
             }) {
+                if route.declared_action.as_ref().is_some_and(|action| action.method_node_id != node.node_id) {
+                    continue;
+                }
                 let name = execution::member_name(node);
                 let start = node.start_line.saturating_sub(1) as usize;
                 // Roslyn includes attributes in a MethodBlock span; fallback
@@ -293,10 +328,12 @@ pub fn trace(
                     body,
                     &preceding,
                     verb,
-                    action.or_else(|| route.parameters.get("action").map(String::as_str)),
+                    action.or_else(|| route.declared_action.as_ref().map(|action| action.name.as_str()))
+                        .or_else(|| route.parameters.get("action").map(String::as_str)),
                     name,
                 ) {
-                    chosen.push((node.clone(), format!("Conventional controller {} and authored HTTP verb/action candidate; runtime dispatch not proven", class.name)));
+                    let basis = if route.declared_action.is_some() { "Literal Route/RoutePrefix" } else { "Conventional controller" };
+                    chosen.push((node.clone(), format!("{basis} {} and authored HTTP verb/action candidate; runtime dispatch not proven", class.name)));
                 }
             }
             let mut initial = execution::empty_trace(source.path, include_db, include_triggers);

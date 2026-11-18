@@ -116,7 +116,8 @@ impl Engram {
             }
             let mut sources: Vec<_> = owned.iter().map(|(path, content)| routing::Source { path, content }).collect();
             sources.extend(root_markers.iter().map(|path| routing::Source { path, content: "" }));
-            let routing = routing::resolve(&req.entry_point, &sources)?;
+            let mut routing = routing::resolve(&req.entry_point, &sources)?;
+            api::extend_attribute_routes(&graph, &req.project_id, &mut routing, &sources, selected)?;
             let mut pages = Vec::new();
             // Duplicate registrations remain visible in routing, but tracing the
             // same page entry twice must not imply two executions of its handlers.
