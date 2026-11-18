@@ -2554,7 +2554,20 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "EG-12",
+        "source_commit": "749ff12f4183c08980fcc3d6c4873e93d1c2d60e",
+        "progress": "eval/response-cache-os-error-progress-20261118.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118\\contract.json",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118\\verify-public.py",
+        "native_target": null,
+        "native_test_added": false,
+        "public_acceptance_required": true,
+        "counting_rule": "One original useful-OS-error response-persistence outcome; six propagation sites are not six deliverables."
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2784,11 +2797,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "PREVIOUS_FINITE_ACCEPTANCE_COMPLETE_SELECT_NEXT_ORIGINAL_REQUIREMENT",
-    "record": "eval/eg12-installed-deep-response-acceptance-20261118.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "record": "eval/response-cache-os-error-progress-20261118.json",
+    "pending_source_outcomes": 1,
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Advance the next ready original missing behavior. Preserve installed request/guidance/function delivery, completed EG18/EG22/EG23 and accepted EG12 deep-path recovery. Do not repeat passed acceptance or expand this into exhaustive filesystem fault testing."
+    "next_action": "Keep queued without Cargo. Advance another original source requirement, then run affected public verification on the next admitted combined candidate/installed artifact. Preserve accepted successful deep-path recovery."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3098,25 +3112,18 @@
     "does_not_pause_or_replace_goal": true
   },
   "active_source_implementation": {
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "original_requirement_id": "TODO-28",
-    "source_commit": "54b3ea292571f158cf5c47072b04e79b3167fcb7",
-    "progress": "eval/ask-sql-functions-progress-20261118.json",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118\\contract.json",
-    "native_target": "ask_sql_function_evidence",
-    "native_environment": {
-      "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
-    },
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-functions-20261118\\verify-public.py",
-    "public_modes": [
-      "Full",
-      "Core"
-    ],
-    "counting_rule": "One TODO28 named SQL-function evidence workflow. Scalar/TVF, ambiguity, Full/Core, source guard and recovery are acceptance variants, not independent deliverables.",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement_id": "EG-12",
+    "source_commit": "749ff12f4183c08980fcc3d6c4873e93d1c2d60e",
+    "progress": "eval/response-cache-os-error-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118\\contract.json",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118\\verify-public.py",
+    "native_target": null,
+    "native_test_added": false,
+    "public_acceptance_required": true,
+    "counting_rule": "One original useful-OS-error response-persistence outcome; six propagation sites are not six deliverables.",
     "implementation_items_active": 0,
-    "runtime_deployed": true,
-    "delivery_record": "eval/request-guidance-function-batch-delivery-20261118.json",
-    "historical_source_status": true
+    "runtime_deployed": false
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -4127,8 +4134,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T16:39:53.330246+00:00",
-    "reason": "Current installed EG12 deep Windows response recovery accepted without compilation; original limitations preserved."
+    "at_utc": "2026-11-18T16:46:31.981453+00:00",
+    "reason": "Original EG12 useful native OS-error cause gap reproduced through installed MCP and source-complete fix queued without compilation."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4412,6 +4419,12 @@
   "eg12_installed_deep_response_acceptance_20261118": {
     "record": "eval/eg12-installed-deep-response-acceptance-20261118.json",
     "status": "INSTALLED_DEEP_PATH_RESPONSE_RECOVERY_VERIFIED",
+    "full_original_goal_complete": false
+  },
+  "response_cache_os_error_source_progress_20261118": {
+    "progress": "eval/response-cache-os-error-progress-20261118.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "runtime_deployed": false,
     "full_original_goal_complete": false
   }
 }

@@ -1,0 +1,44 @@
+{
+  "original_requirement_id": "EG-12",
+  "original_requirement": "A Windows-owned deep-path fixture persists and recovers a large response byte-for-byte with atomic containment and useful OS errors.",
+  "observed_missing_behavior": "Shared snapshot persistence drops native filesystem causes on directory creation, staging, write/sync, existing-snapshot verification and retention refresh. The already installed native atomic-publication branch includes its OS cause.",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/change_set_delivery.rs"
+  ],
+  "finite_acceptance": [
+    "On the current installed artifact, an owned file occupying the response-cache directory yields only the generic cache-creation error; retain the exact MCP frame and prove the blocker was not overwritten.",
+    "Preserve existing error context and the native cause for the same persistence operations without changing source/result bytes, error codes, cache layout, containment, admission or publication.",
+    "After the next admitted combined build, the same public failure discloses its OS cause and retains the blocker. Existing installed successful318-character/67655-byte recovery remains accepted and is not replayed."
+  ],
+  "stop_rule": "One diagnosed persistence failure and native-cause propagation only; no exhaustive filesystem fault testing, new storage subsystem, fallback write path or standalone compilation.",
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118",
+    "fixture_parent": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118",
+    "cleanup": "Reuse owned public fixture construction and close all MCP owners before removing its newly created temporary directory; retain only scripts/receipts/wire here."
+  },
+  "build_rule": "Queue one original source outcome. Do not compile before enough independent original source outcomes are ready; no filler or release-every-three rule.",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "builds_started": 0,
+  "validated": false,
+  "runtime_deployed": false,
+  "source_commit": "749ff12f4183c08980fcc3d6c4873e93d1c2d60e",
+  "source_complete": true,
+  "syntax_check": "PASS_RUSTFMT_STDIN_NO_REFORMAT",
+  "native_tests_run": false,
+  "public_baseline_run": true,
+  "public_after_change_run": false,
+  "source_sha256": {
+    "crates/engram_server/src/handlers/change_set_delivery.rs": "143ef066bb7a137d9cb73076bda3f23612cc9c6961e00d95e30783e92580b3a5"
+  },
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118\\baseline1\\receipt.json",
+    "sha256": "b2373a040d5f3a22c0563bd34d48c6b78da4a87361ac864e6063657f43f8fdba",
+    "status": "BASELINE_MISSING_NATIVE_OS_CAUSE",
+    "artifact_sha256": "bae71931020244e0dbc1394755c847fd707067417b18e0578c1e9762d0ff46ce"
+  },
+  "verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\response-cache-os-error-20261118\\verify-public.py",
+    "sha256": "fbfffbdc504d00483bf59700c09c9fb6f2641ff1a9ccea0e09943f142f5391d3"
+  },
+  "next_action": "Keep queued without Cargo. Advance another original source requirement, then run affected public verification on the next admitted combined candidate/installed artifact. Preserve accepted successful deep-path recovery."
+}
