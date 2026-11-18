@@ -1,0 +1,119 @@
+{
+  "status": "AFFECTED_NATIVE_ACCEPTANCE_RUNNING",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
+  "frozen_work_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "frozen_source_commit": "cfefe85adfab3af87bf0c07b53702c5d2ded2adb",
+  "source_outcomes": [
+    {
+      "original_requirement_id": "TODO-28",
+      "related_original_requirement": "TODO-2",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "e10df98c9e51b83bb871023b7aff97b6fa1674e7",
+      "progress": "eval/ask-provider-availability-progress-20261118.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-provider-availability-20261118\\contract.json",
+      "behavior": "Natural-language search-backed arms retain filtered lexical evidence and honest unavailable semantic coverage under optional provider failure/timeout.",
+      "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+      "runtime_deployed": false,
+      "counting_rule": "One availability outcome across arms and formats; not separate deliveries per provider."
+    },
+    {
+      "original_requirement_id": "EG-14",
+      "related_original_requirement": "EG-26",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "895f81753941d51e3a0da7dd01e5e7fe737853ae",
+      "progress": "eval/ask-authored-evidence-progress-20261118.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authored-evidence-20261118\\contract.json",
+      "behavior": "Retrieved Markdown guidance and docs retain authored text, qualifiers and recovery while clearly separated from executable implementation evidence.",
+      "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+      "runtime_deployed": false,
+      "counting_rule": "One documentary-authority outcome, not separate outcomes per provider, file, format or citation.",
+      "original_source_commit": "502dc647dd74c2b60196d00180fcb4eddcc086da",
+      "production_ordering_correction": true
+    },
+    {
+      "original_requirement_id": "TODO-4",
+      "related_original_requirement": "EG-02",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "14ab9936cb4c5f0e45096bad1b2582c94e522ec5",
+      "progress": "eval/batch-read-immutable-results-progress-20261118.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-read-immutable-results-20261118\\contract.json",
+      "behavior": "Budget-omitted batch reads retain all original executed evidence, errors and qualifications through bounded immutable recovery without rereading source or memory.",
+      "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+      "runtime_deployed": false,
+      "counting_rule": "One complete-batch immutable recovery outcome; read kinds, formats, statuses and restart checks are not separate outcomes."
+    }
+  ],
+  "native_targets": [
+    "ask_provider_availability_tests",
+    "ask_authored_evidence_tests",
+    "batch_read_immutable_results",
+    "batch_read_tests"
+  ],
+  "native_cases_expected": 10,
+  "full_suite": false,
+  "separate_debug_build": false,
+  "release_builds_started": 0,
+  "cargo_commands_started": 2,
+  "runtime_deployed": false,
+  "runner_sha256": "3f39bf8b50f18ea894d95d5bce239acf0bb4c6778fbd8fa0d9b52f224755a686",
+  "runner_basis": {
+    "previous_runner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118\\build.py",
+    "changes": [
+      "BelowNormal child process priority",
+      "Owned fixture root inside this batch case"
+    ],
+    "unchanged_admission_guard": true
+  },
+  "frozen_changed_source_sha256": {
+    "crates/engram_server/src/services/ask_engine/providers.rs": "0d23bcbadbd45826d2ea239973de5926aaef53c02bcc90563e4c3a3731c30d7a",
+    "crates/engram_server/src/services/ask_engine/providers/semantic_delivery.rs": "af45b83c5a5ff9b9d907c45a2d5b1cea55a04feb46297c6806ac30f4439997d4",
+    "crates/engram_server/src/services/ask_engine/retrieval.rs": "61de6a2d2002fde550391a58d1ad25d65954e01282787b15759c12a3de6b37de",
+    "crates/engram_server/src/services/ask_engine/report.rs": "9c83f48503e9d9168d2464671e2105c99f70b56b7f7cf0f5722e1d4892dcdcc7",
+    "crates/engram_server/src/models/requests.rs": "697a011df5669d0f7be0ce711807acefc4fd525b01d590acef69bfcbd6dd70b3",
+    "crates/engram_server/tests/ask_provider_availability_tests.rs": "fa8078133ba5acbd2852100b2429dd43548260b3168620ed02906b044d476c7c",
+    "crates/engram_server/tests/ask_authored_evidence_tests.rs": "5b18730d65b0fdf86b391f7a8804819c40a24e6bee347d54f63188910c2958e0",
+    "crates/engram_server/src/handlers/batch_read_tools.rs": "2aa01b47086aa0224ef5b62e341b8e41d9207a3e3799cbc51fa34a0cc2f552f5",
+    "crates/engram_server/src/handlers/change_set_delivery.rs": "dad71b6c628cd2289d628d7573bfc801f76ccf8c2859b000364aba8bfa4dbfbe",
+    "crates/engram_server/src/tools.rs": "e861890f01c13110f2b83a542c323dc4a69a716f9d861bb9ee5475ec4ad4948a",
+    "crates/engram_server/tests/batch_read_immutable_results.rs": "820cf74f40deab0a41b60f42f2bdfa821594f0241d7dd5226bb10b4ec5412e78"
+  },
+  "preparation_correction": "Initial byte equality check encountered normal LF/CRLF checkout differences before any Cargo start. Verified identical normalized source and recorded exact frozen physical input hashes; no source behavior was changed.",
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
+    "native_fixture_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\fixtures",
+    "purpose": "Combined finite acceptance and one reusable runtime delivery for three original source outcomes",
+    "cleanup_condition": "Owned Job/relay must close before runner temp cleanup; fixtures own and close databases/resources on completion and unwind. Retain receipts until delivery; no preexisting deletion."
+  },
+  "started_at_utc": "2026-11-18T02:58:27.835062+00:00",
+  "no_other_ready_source_change": "No established separate source change is waiting for this batch; unproven scope-case hypothesis and held original work do not justify filler or block validation.",
+  "next_action": "Poll native2 session27242 without another build or source changes. Retain three unaffected batch passes; seven ask cases cover the ordering correction. Capture the resulting debug artifact and perform the prepared public contracts after native acceptance.",
+  "native_session_id": 27242,
+  "native_label": "native2",
+  "native_live_owner": {
+    "driver_pid": 65496,
+    "relay_pid": 117096,
+    "cargo_pid_observed": 98440,
+    "rustc_pid_observed": 130120,
+    "priority": "BelowNormal",
+    "observed_at_utc": "2026-11-18T02:59:26.702632+00:00"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118\\verify-public.py",
+  "native_unique_cases_executed": 10,
+  "native_passes_retained": 9,
+  "native_failures": 1,
+  "native_seconds": 663.9287926000543,
+  "failed_case": "actual_typescript_implementation_keeps_code_authority_and_precedes_documentary_context",
+  "native_job_closed": true,
+  "native_owned_temp_removed": true,
+  "initial_frozen_source_commit": "0c2d062c115d5249366a16dc925eea667f8e4162",
+  "native1_retained_passes": 3,
+  "native1_passes_requiring_changed_ask_ordering_acceptance": 6,
+  "native2_plan": {
+    "target": "ask_delivery_contracts",
+    "cases": 7,
+    "purpose": "Affected ask authority/availability acceptance after a real ordering correction; retain three unaffected batch passes.",
+    "one_test_executable": true,
+    "separate_debug_build": false
+  },
+  "source_sync_metadata_conflict": "Only authored progress JSON conflicted because shipping checkout lacked the separate root metadata commit. Resolved to the exact committed source-progress JSON; production source applied unchanged."
+}
