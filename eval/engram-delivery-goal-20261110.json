@@ -2578,6 +2578,18 @@
         },
         "counting_rule": "One response-preparation context outcome, across existing page/control/master composition. Binding spellings, downstream SQL, formats and freshness checks are supporting acceptance, not distinct outcomes.",
         "progress": "eval/request-prerender-context-progress-20261118.json"
+      },
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "TODO-28",
+        "source_commit": "9417f1ee732686c355783b2484ff66fcf552a3b0",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-view-evidence-20261118\\contract.json",
+        "native_target": "ask_view_evidence_tests",
+        "native_environment": {
+          "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+        },
+        "counting_rule": "One complete named-view evidence workflow outcome. The direct reader, natural-language entry, Full/Core recovery, two cases and table-related view handoff are one outcome.",
+        "progress": "eval/ask-view-evidence-progress-20261118.json"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2809,17 +2821,18 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement": "TODO-31",
-    "record": "eval/request-prerender-context-progress-20261118.json",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-prerender-context-20261118",
-    "source_commit": "f640658d750ad88cb4fd7c3ee6823becc283c524",
+    "status": "SOURCE_COMPLETE_READY_FOR_COMBINED_VALIDATION",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-view-request-20261118",
+    "original_requirements": [
+      "EG-27",
+      "TODO-31",
+      "TODO-28"
+    ],
     "implementation_items_active": 0,
-    "pending_source_outcomes": 2,
+    "pending_source_outcomes": 3,
     "engram_builds_started": 0,
-    "runtime_deployed": false,
     "full_original_goal_complete": false,
-    "next_action": "Advance one distinct unfinished original requirement for the combined batch. Retain SQL-reference and PreRender source outcomes without expanding their acceptance; no compile before the unchanged three-outcome guard passes."
+    "next_action": "Freeze source at the existing shipping checkout; run only the instruction_view_request_delivery integration target under the unchanged guard; then verify actual public behavior and deploy one release after acceptance."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4196,6 +4209,19 @@
     },
     "counting_rule": "One response-preparation context outcome, across existing page/control/master composition. Binding spellings, downstream SQL, formats and freshness checks are supporting acceptance, not distinct outcomes.",
     "progress": "eval/request-prerender-context-progress-20261118.json",
+    "runtime_deployed": false
+  },
+  "ask_view_evidence_source_progress_20261118": {
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement_id": "TODO-28",
+    "source_commit": "9417f1ee732686c355783b2484ff66fcf552a3b0",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-view-evidence-20261118\\contract.json",
+    "native_target": "ask_view_evidence_tests",
+    "native_environment": {
+      "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+    },
+    "counting_rule": "One complete named-view evidence workflow outcome. The direct reader, natural-language entry, Full/Core recovery, two cases and table-related view handoff are one outcome.",
+    "progress": "eval/ask-view-evidence-progress-20261118.json",
     "runtime_deployed": false
   }
 }

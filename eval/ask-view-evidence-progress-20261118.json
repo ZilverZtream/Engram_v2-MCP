@@ -1,0 +1,29 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-18T09:55:43.856965+00:00",
+  "original_requirement_id": "TODO-28",
+  "source_commit": "9417f1ee732686c355783b2484ff66fcf552a3b0",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-view-evidence-20261118",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-view-evidence-20261118\\contract.json",
+  "native_target": "ask_view_evidence_tests",
+  "native_environment": {
+    "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "source_checks": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-view-evidence-20261118\\source-check1.json",
+  "behavior": "Named source view lookup and explicit SQL-view natural-language questions preserve complete declarations, citations, ambiguity, scoped guidance and original report recovery.",
+  "native_cases_written": 2,
+  "native_cases_executed": 0,
+  "cargo_invocations": 0,
+  "runtime_deployed": false,
+  "counting_rule": "One complete named-view evidence workflow outcome. The direct reader, natural-language entry, Full/Core recovery, two cases and table-related view handoff are one outcome.",
+  "limitations": [
+    "Type checking, behavioral cases and actual public candidate/installed verification remain pending.",
+    "No live database, column-type inference, runtime execution, default-schema/collation binding or deployment-order evaluation.",
+    "Explicit SQL-view question wording is supported; ordinary UI view wording and existing table/procedure paths remain unchanged. No broad TODO28 closure or measured task usefulness."
+  ],
+  "temporary_resources": {
+    "fixtures_created": 0,
+    "receipts": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-view-evidence-20261118",
+    "cleanup": "New fixtures close server/graph/database handles before owned TempDir removal; no preexisting paths removed."
+  }
+}
