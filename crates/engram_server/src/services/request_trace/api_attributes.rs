@@ -99,13 +99,37 @@ pub fn extend(
         .iter()
         .filter(|source| source.path.to_ascii_lowercase().ends_with(".vb"))
     {
+        if capped(result) {
+            return Ok(());
+        }
         let tokens = routing::tokens(source.content, true);
-        for call in tokens.windows(4).filter(|call| {
-            word(&call[0], ".")
-                && word(&call[1], "MapHttpAttributeRoutes")
-                && word(&call[2], "(")
-                && word(&call[3], ")")
+        let mut calls = tokens
+            .windows(4)
+            .filter(|call| {
+                word(&call[0], ".")
+                    && word(&call[1], "MapHttpAttributeRoutes")
+                    && word(&call[2], "(")
+                    && word(&call[3], ")")
+            })
+            .peekable();
+        if calls.peek().is_none() {
+            continue;
+        }
+        let file = graph.get_node(project, &format!("file:{}", source.path))?;
+        let hash = blake3::hash(source.content.as_bytes()).to_hex().to_string();
+        if !file.as_ref().is_some_and(|file| {
+            selected.get(source.path) == Some(&file.generation)
+                && file
+                    .metadata
+                    .as_ref()
+                    .and_then(|metadata| metadata.get("file_hash"))
+                    .and_then(|value| value.as_str())
+                    == Some(hash.as_str())
         }) {
+            result.gaps.push(format!("{}: attribute registration source differs from the selected revision; refresh the changed source", source.path));
+            continue;
+        }
+        for call in calls {
             if registrations.len() == routing::MAX_CANDIDATES {
                 result.candidates_truncated = true;
                 result.gaps.push(

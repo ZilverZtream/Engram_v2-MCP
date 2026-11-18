@@ -218,6 +218,17 @@ fn registration_verbs_and_current_source_gate_attributes_while_conventional_cand
         );
         fixture.close()?;
     }
+    let mut stale_registration = Fixture::new(true, false)?;
+    stale_registration.files[1]
+        .1
+        .push_str("' registration edited after indexing\n");
+    ensure!(
+        stale_registration
+            .resolve("GET /api/v2/projects/42/approvals")?
+            .api_candidates
+            .is_empty()
+    );
+    stale_registration.close()?;
     Ok(())
 }
 
