@@ -2816,7 +2816,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "NATIVE_AND_DEBUG_ACCEPTED_RELEASE_PREPARED",
+    "status": "RELEASE_RUNNING_NATIVE_AND_DEBUG_ACCEPTED",
     "progress": "eval/query-property-fallback-batch-progress-20261118.json",
     "original_requirements": [
       "TODO-4",
@@ -2828,14 +2828,15 @@
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
     "shipping_head": "a5c5d9b1295a5fe71fad24c40e0f1bddcc33d5ea",
-    "next_action": "Build one optimized release through unchanged guard, reusing frozen shipping source and shared target; then candidate/installed public acceptance and normal-runtime restoration. No further debug/full-suite compile.",
+    "next_action": "Observe the single existing optimized release1 handle4869. Never restart solely for observation timeout. Reuse its artifact for package/candidate/installed checks and normal-runtime restoration. Frozen shipping worktree a5c5d9b; full original backlog remains active.",
     "native_label": "native2",
     "build_session_id": null,
     "public_label": "debug2",
     "public_session_id": null,
     "release_label": "release1",
     "native_unique_cases_passed": 13,
-    "public_debug_checks": 44
+    "public_debug_checks": 44,
+    "release_session_id": 4869
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
