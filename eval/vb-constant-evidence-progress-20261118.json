@@ -17,13 +17,13 @@
   "source_sha256": {
     "crates/engram_index/src/vb_extractor.rs": "55dff0bcb0916e30d2800bfade3a58e397208dd7ac9bd12de57ac47632cfae5b",
     "crates/engram_index/src/vb_extractor/snapshot_declarations.rs": "26d8724d187237246aeffad97a8a2f7d19a3ca1bd23b95ca9cc1dba9146e3774",
-    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "2eb3aa3ccb204174cd69e3756129eff631ef2917b4d46e824870e7476ed68b30",
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "cdb485947e50d3be1762a249d4004bfa265e8c24292850d6bf61851ad1e36908",
     "crates/engram_server/tests/vb_constant_evidence.rs": "0f0de9467f12ffb04f1d2544abeecf5615a9a3a20ac090f5f0d953fd0e2ce172"
   },
   "installed_baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-constant-evidence-20261118\\baseline1\\receipt.json",
   "native_target": "vb_constant_evidence",
   "native_cases_written": 2,
-  "native_cases_executed": 0,
+  "native_cases_executed": 2,
   "native_environment": {
     "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
   },
@@ -49,5 +49,18 @@
   "source_commit": "106b803ecb9b3653799a533e6dff6432922aea80",
   "first_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native1.json",
   "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native1-source-correction.json",
-  "validation_status": "CORRECTED_AWAITING_THREE_FAILED_CASES"
+  "validation_status": "NATIVE_AND_DEBUG_PASS_OPTIMIZED_RELEASE_RUNNING",
+  "native_cases_distinct_passed": 2,
+  "native_test_executions": 3,
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native-acceptance.json",
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-constant-evidence-20261118\\debug1-constants\\receipt.json",
+  "debug_public_pass": true,
+  "release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118",
+  "release_session_id": 1047,
+  "source_stage_hashes_before_validation_corrections": {
+    "crates/engram_index/src/vb_extractor.rs": "55dff0bcb0916e30d2800bfade3a58e397208dd7ac9bd12de57ac47632cfae5b",
+    "crates/engram_index/src/vb_extractor/snapshot_declarations.rs": "26d8724d187237246aeffad97a8a2f7d19a3ca1bd23b95ca9cc1dba9146e3774",
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "2eb3aa3ccb204174cd69e3756129eff631ef2917b4d46e824870e7476ed68b30",
+    "crates/engram_server/tests/vb_constant_evidence.rs": "0f0de9467f12ffb04f1d2544abeecf5615a9a3a20ac090f5f0d953fd0e2ce172"
+  }
 }

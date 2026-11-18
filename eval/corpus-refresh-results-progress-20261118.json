@@ -30,7 +30,7 @@
   },
   "native_target": "corpus_refresh_results",
   "native_cases_written": 2,
-  "native_cases_executed": 0,
+  "native_cases_executed": 2,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\corpus-refresh-results-20261118\\verify-public.py",
   "public_verifier_sha256": "350ec57cf363ef425ff71ec1c2b612644685f2b157753a75d6b204d0dab30f98",
   "public_cases_executed": 0,
@@ -68,5 +68,21 @@
   "native_environment": {
     "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
   },
-  "source_commit": "966593d22a68096a9bf657e4c2c479f504d6d0a7"
+  "source_commit": "966593d22a68096a9bf657e4c2c479f504d6d0a7",
+  "validation_status": "NATIVE_AND_DEBUG_PASS_OPTIMIZED_RELEASE_RUNNING",
+  "native_cases_distinct_passed": 2,
+  "native_test_executions": 2,
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native-acceptance.json",
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\corpus-refresh-results-20261118\\debug1-refresh\\receipt.json",
+  "debug_public_pass": true,
+  "release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118",
+  "release_session_id": 1047,
+  "source_stage_hashes_before_validation_corrections": {
+    "crates/engram_server/src/handlers/project_tools.rs": "df739d23c4cd49e4f897c491c9181e23d8641ecbd77eca47714639d0fddb09be",
+    "crates/engram_server/src/services/corpus_refresh.rs": "a0f822bda2588b4aa99d1606f21839b48254df0d9d81a7181b6aff6e6594b78b",
+    "crates/engram_server/src/services/mod.rs": "345b380e2fc0e1ebc4ec18f8491131bde31473022c43e8de96512b0c590f0875",
+    "crates/engram_server/src/read_report_delivery.rs": "d0b2e4695d32d8537da5e64577feac18de61b171c2850245278680bd379f0e4d",
+    "crates/engram_server/src/tools.rs": "599636ad37572f92c64640b645ec1b771808df431ef968f6c9136a2ec04c9c8b",
+    "crates/engram_server/tests/corpus_refresh_results.rs": "2c1bb84c15da30b9eb9df2f462246b5ab9f2744908b4abf1c5c2d4d4344b5b3f"
+  }
 }

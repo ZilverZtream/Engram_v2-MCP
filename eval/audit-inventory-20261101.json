@@ -10436,14 +10436,18 @@
   },
   "last_updated_at": "2026-11-18T11:12:53.688943+00:00",
   "current_execution_focus": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "record": "eval/health-provider-readiness-progress-20261118.json",
-    "pending_source_outcomes": 1,
+    "status": "OPTIMIZED_RELEASE_RUNNING",
+    "record": "eval/health-refresh-constant-progress-20261118.json",
+    "original_requirement_ids": [
+      "EG-26",
+      "TODO-4",
+      "EG-27"
+    ],
+    "release_session_id": 1047,
+    "release_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\release-owner-pin1.json",
     "implementation_items_active": 0,
-    "last_original_requirement_completed": "EG-18",
-    "completion_record": "eval/eg18-original-requirement-closure-20261118.json",
     "full_original_goal_complete": false,
-    "next_action": "Select the next unfulfilled original behavior; preserve pending health source and batch at least three independent outcomes before Cargo. Do not reopen completed EG18 dependency closure."
+    "next_action": "Poll exact release exec1047; do not restart on timeout. After terminal PASS, package this existing artifact, collect current idle-owner quiescence evidence, then candidate/install/restore."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -16674,10 +16678,19 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "record": "eval/instruction-view-request-delivery-20261118.json",
-    "all_build_sessions_terminal": true,
-    "full_original_goal_complete": false
+    "status": "OPTIMIZED_RELEASE_RUNNING",
+    "record": "eval/health-refresh-constant-progress-20261118.json",
+    "original_requirement_ids": [
+      "EG-26",
+      "TODO-4",
+      "EG-27"
+    ],
+    "release_session_id": 1047,
+    "release_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\release-owner-pin1.json",
+    "implementation_items_active": 0,
+    "full_original_goal_complete": false,
+    "next_action": "Poll exact release exec1047; do not restart on timeout. After terminal PASS, package this existing artifact, collect current idle-owner quiescence evidence, then candidate/install/restore.",
+    "runtime_deployed": false
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {

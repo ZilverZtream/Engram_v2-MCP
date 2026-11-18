@@ -12,7 +12,7 @@
   "behavior": "project_health distinguishes the configured semantic tier from unprobed operational availability; storage integrity remains independently reported.",
   "source_checks": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-provider-readiness-20261118\\source-check1.json",
   "native_cases_written": 2,
-  "native_cases_executed": 0,
+  "native_cases_executed": 2,
   "source_stage_cargo_invocations": 0,
   "runtime_deployed": false,
   "counting_rule": "One honest semantic-provider readiness reporting outcome. Configured/off variants, no-provider-request assertions and preserved integrity fields support the same outcome.",
@@ -29,5 +29,12 @@
   },
   "first_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native1.json",
   "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native1-source-correction.json",
-  "validation_status": "CORRECTED_AWAITING_THREE_FAILED_CASES"
+  "validation_status": "NATIVE_AND_DEBUG_PASS_OPTIMIZED_RELEASE_RUNNING",
+  "native_cases_distinct_passed": 2,
+  "native_test_executions": 5,
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native-acceptance.json",
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-provider-readiness-20261118\\debug1-health\\receipt.json",
+  "debug_public_pass": true,
+  "release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118",
+  "release_session_id": 1047
 }
