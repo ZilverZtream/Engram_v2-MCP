@@ -2826,12 +2826,13 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "PREPARING_FOCUSED_ACCEPTANCE",
+    "status": "FOCUSED_NATIVE_RUNNING",
     "record": "eval/cache-guidance-attribute-batch-progress-20261118.json",
     "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Freeze the existing clean shipping checkout with only queued source commits and the5-case aggregate. Verify source bindings, then admit one native Cargo invocation through unchanged scripts/run_delivery_build.py."
+    "next_action": "Observe the existing native1 owner until terminal. Preserve its result; do not relaunch. Then run the three public contracts against the emitted debug artifact before one optimized release.",
+    "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\native1-owner.json"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3027,9 +3028,10 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "PREPARING_FOCUSED_ACCEPTANCE",
+    "status": "FOCUSED_NATIVE_RUNNING",
     "record": "eval/cache-guidance-attribute-batch-progress-20261118.json",
-    "full_original_goal_complete": false
+    "full_original_goal_complete": false,
+    "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\cache-guidance-attribute-batch-20261118\\native1-owner.json"
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
