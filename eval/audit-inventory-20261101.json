@@ -10436,16 +10436,18 @@
   },
   "last_updated_at": "2026-11-18T13:36:41.418568+00:00",
   "current_execution_focus": {
-    "status": "FOCUSED_NATIVE_BATCH_RUNNING",
+    "status": "OPTIMIZED_RELEASE_RUNNING",
     "record": "eval/agent-instruction-batch-progress-20261118.json",
-    "native_session_id": 82997,
-    "postnative_session_id": 79903,
-    "native_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\native-owner-pin1.json",
+    "release_session_id": 78041,
+    "postrelease_session_id": 77627,
+    "release_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\release-owner-pin1.json",
     "implementation_items_active": 0,
     "pending_source_outcomes": 3,
+    "native_acceptance": "PASS",
+    "public_debug_acceptance": "PASS",
     "runtime_deployed": false,
     "full_original_goal_complete": false,
-    "next_action": "Observe exact native82997/postnative79903. Observer reuses a fresh Cargo-produced debug executable for the three pinned public contracts. Do not duplicate builds or runs; inspect exact failed case if terminal failure."
+    "next_action": "Observe existing release78041 and postrelease77627. Reuse their single artifact for candidate/installed acceptance. No passed-check replay, replacement Cargo run or source-checkout movement."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
