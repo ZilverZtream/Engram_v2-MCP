@@ -1,0 +1,185 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-18T14:48:06.257950+00:00",
+  "original_requirement_ids": [
+    "TODO-3",
+    "TODO-4",
+    "EG-27"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118",
+  "source_preparation": {
+    "status": "SOURCE_FROZEN_FOR_FOCUSED_ACCEPTANCE",
+    "at_utc": "2026-11-18T13:38:14.703364+00:00",
+    "source_commit": "bf4abd6ae44fd65db5688706f6adea71d08894ad",
+    "previous_checkout_commit": "2a1971d553cad50cce640d064df58f6910606afd",
+    "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "checkout_clean": true,
+    "shared_target": "C:\\ai-projects\\Engram-MCP_v2\\target",
+    "new_worktrees_created": 0,
+    "protected_wip9_unchanged": true,
+    "original_requirement_ids": [
+      "TODO-3",
+      "TODO-4",
+      "EG-27"
+    ],
+    "native_target": "agent_instruction_delivery",
+    "native_cases_expected": 4,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "build_driver_source": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\build.py",
+    "build_driver_sha256": "8e421e20253370b35a64eba0c0d7bf2c2e3bcd854d0ce0b68c069cf1e2891c19",
+    "temp_retention": "Own build Job/temp under this case; fixture temp resources under the recorded parent. Keep receipts and source pins after teardown; no preexisting folder deletion."
+  },
+  "runtime": {
+    "status": "INSTALLED_ACCEPTANCE_PASS",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\package1",
+    "server_sha256": "103dc1d77b44ead3ffafc056a0dccf45ce9ee367a0ac9b70094dc02292613208",
+    "manifest_sha256": "b0407e88d907dd6095a3c6a31afedad400c4ef102fbc7a662bee4e982e8c7a2c",
+    "old_server_sha256": "0cfa62e65e370f2031b644e26b51e9699658149e3f0d506e5966e7002de7c78e",
+    "old_manifest_sha256": "1ddd99605a204f56e7fa88ac5919e2d3f493633e2653f5a5fdf931675d04e0d0",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\release1.json",
+      "sha256": "954acccad064f5e048a3cc25a805ed39f76212f8cb14052cf04b6352a238bd97"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "1ddd99605a204f56e7fa88ac5919e2d3f493633e2653f5a5fdf931675d04e0d0",
+      "capture_phase": "Immutable package input before pair swap; not the current installed identity."
+    },
+    "source_commit": "bf4abd6ae44fd65db5688706f6adea71d08894ad"
+  },
+  "native_acceptance": {
+    "status": "PASS",
+    "native_cases_covered": 4,
+    "native_test_executions": 4,
+    "cargo_invocations": 1,
+    "successful_native_labels": [
+      "native1"
+    ],
+    "latest_successful_native_label": "native1",
+    "seconds": 583.0634294999982,
+    "cases": [
+      "generation::preview_recovers_every_rule_and_exception_after_rule_changes_and_runtime_close",
+      "generation::publication_outcome_survives_recovery_and_failed_retention_without_rewriting_files",
+      "queued_observation::invalid_drafts_refuse_before_queue_and_failed_observation_preserves_published_source",
+      "queued_observation::queued_update_recovers_job_bound_manifest_after_runtime_and_guidance_change"
+    ],
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\native1.json",
+    "full_suites": 0,
+    "separate_debug_builds": 0
+  },
+  "public_check_assertions_per_artifact": 20,
+  "description_catalog": {
+    "tool_count": 125,
+    "baseline_bytes": 82408,
+    "installed_bytes": 74041,
+    "reduction_percent": 10.153140471798855
+  },
+  "public_receipts": {
+    "debug1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\debug1\\receipt.json",
+    "candidate1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\candidate1\\acceptance.json",
+    "installed1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\installed1\\acceptance.json"
+  },
+  "description_measurement_receipt": {
+    "status": "PASS",
+    "binary_sha256": "103dc1d77b44ead3ffafc056a0dccf45ce9ee367a0ac9b70094dc02292613208",
+    "owners": [
+      {
+        "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\agent-instruction-batch-20261118-installed1-descriptions\\wire",
+        "closed": true,
+        "pid": 7660,
+        "natural_exit": true,
+        "reader_joined": true,
+        "exit_code": 0,
+        "pending_observations": []
+      }
+    ],
+    "engram_builds_started": 0,
+    "real_model_calls": 0,
+    "tool_count": 125,
+    "description_utf8_bytes": 74041,
+    "catalog_sha256": "0f7cb65ba7fd1b487348f4b6a19141412ee9a7e73a810d29633515df887c8f18",
+    "only_declared_batch_metadata_changes": true,
+    "only_intended_descriptions_changed": true,
+    "baseline_description_bytes": 82408,
+    "component_projection_bytes": 73591,
+    "declared_co_delivery_tools": [
+      "produce_claude_md",
+      "update_project",
+      "get_job_status"
+    ],
+    "description_reduction_percent": 10.153140471798855,
+    "owned_fixture_removed": true
+  },
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\restored-runtime\\receipt.json",
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3151,
+  "source_format": 9,
+  "protected_wip9": "UNCHANGED",
+  "full_original_goal_complete": false,
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\Engram-win-x64-agent-instructions.zip",
+    "sha256": "3E4585AD02D40FA3F0BFEA57182178A22E3C96E072F1CCD5C7240AE148902CA6",
+    "entries": 219,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "B0407E88D907DD6095A3C6A31AFEDAD400C4EF102FBC7A662BEE4E982E8C7A2C"
+  },
+  "windows_zip_sha256": "3e4585ad02d40fa3f0bfea57182178a22e3c96e072f1ccd5c7240ae148902ca6",
+  "build_accounting": {
+    "native_invocations": 1,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "native_unique_cases": 4,
+    "native_test_executions": 4,
+    "native_seconds": 583.0634294999982,
+    "release_seconds": 2627.937216899998,
+    "pure_coding_percentage": null,
+    "note": "Focused native target passed first invocation; one release reused for candidate/installed acceptance. No coding percentage or compilation speedup measured."
+  },
+  "deployment_accounting": {
+    "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\deployment1-state.json",
+    "completion": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\completion1-state.json",
+    "owner_quiescence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\quiescence-owner1\\receipt.json",
+    "normal_proxy_quiescence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\quiescence-proxies1\\receipt.json",
+    "packaging_attempts": [
+      {
+        "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\postrelease1-state.json",
+        "status": "FAIL_BEFORE_PACKAGE_CREATION",
+        "reason": "Prepared release-plan1.json had not been bound to the reused package helper release-plan.json input."
+      },
+      {
+        "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\postrelease2-state.json",
+        "status": "CORRECTED_PACKAGE_INSTALLED"
+      }
+    ],
+    "packaging_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\packaging1-disposition.json",
+    "registry_recovery": "Existing explicit RAM-overlay recovery with unchanged source verification; no on-disk repair.",
+    "rebuilds_during_deployment": 0
+  },
+  "temporary_resources": {
+    "native_and_release_jobs_closed": true,
+    "owned_build_temps_removed": true,
+    "public_owners_closed_and_owned_fixtures_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118",
+    "managed_rollback_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-af17f7807d94438dae05af4cca944fda",
+    "intentionally_retained_runtime": {
+      "pid": 34820,
+      "purpose": "Normal installed daemon, subject to its ordinary idle lifecycle."
+    },
+    "retention": "Retain evidence/package/ZIP and rollback until separately accounted for; no preexisting deletion."
+  },
+  "limitations": [
+    "Owned Full125-tool catalog description bytes fell from82408 to74041 (10.153140471798855percent), including declared generator and queued-observation metadata changes. No provider-token, actual LegacyValidation usage or productivity measurement.",
+    "Generation recovery preserves the original preview/publication result and never generates or publishes again. Existing source/generation/ownership and retention limits remain. Failed retention preserves the result with an explicit budget-overrun warning.",
+    "Queued instruction observations are separate current-disk evidence, not atomic index/policy snapshots, semantic correctness or permission to rewrite guidance. Observation failure preserves published source with explicitly degraded coverage. Existing8MiB/24hour/32capture quotas apply; missing evidence does not authorise repeating updates.",
+    "No actual LegacyValidation source/Q/index mutation, CodeMap/Blast Radius improvement, provider/model call, sidecar rebuild, language expansion or preexisting deletion.",
+    "All31original findings/19gates and independently completed EG18 are preserved. The full goal and demonstrated LegacyValidation task usefulness remain unfinished."
+  ]
+}

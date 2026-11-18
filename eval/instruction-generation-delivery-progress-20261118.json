@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_DEBUG_ACCEPTANCE_PASS_RELEASE_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-18T13:08:12.973357+00:00",
   "original_requirement_id": "TODO-4",
   "supporting_original_requirements": [
@@ -28,17 +28,18 @@
   "source_parsing": "Production and new focused integration target parsed with rustfmt stdin; no typecheck/test pass claimed.",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-generation-delivery-20261118\\verify-public.py",
   "public_verifier_sha256": "55fdb0d9630e9e4000195c6cd664d094c878197438cc288b60a21353edeebdd0",
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "full_original_goal_complete": false,
   "counting_rule": "One instruction-generation result delivery outcome. Preview/publication, budgets, formats, failures and recovery are supporting variants, not separate original deliverables.",
   "normal_configuration_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
   "normal_full_configuration_verified_unchanged": true,
   "co_delivery_catalog_projection": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\co-delivery-projection1.json",
   "limitations": [
-    "Acceptance on the new source remains pending; do not call this installed or runtime validated.",
-    "Generator content/ownership/publication and authored instructions were not changed. Existing source limits, internal bounds and response retention quotas remain.",
-    "No actual LegacyValidation source/Q/index mutation, model request, target-language expansion, CodeMap/Blast change or preexisting directory deletion.",
-    "Pending TODO3 actual catalog acceptance now includes the explicit generator-only metadata addition. Its original component projection is preserved, combined projection retains the10percent gate, and no runtime description saving or task benefit is claimed."
+    "Owned Full125-tool catalog description bytes fell from82408 to74041 (10.153140471798855percent), including declared generator and queued-observation metadata changes. No provider-token, actual LegacyValidation usage or productivity measurement.",
+    "Generation recovery preserves the original preview/publication result and never generates or publishes again. Existing source/generation/ownership and retention limits remain. Failed retention preserves the result with an explicit budget-overrun warning.",
+    "Queued instruction observations are separate current-disk evidence, not atomic index/policy snapshots, semantic correctness or permission to rewrite guidance. Observation failure preserves published source with explicitly degraded coverage. Existing8MiB/24hour/32capture quotas apply; missing evidence does not authorise repeating updates.",
+    "No actual LegacyValidation source/Q/index mutation, CodeMap/Blast Radius improvement, provider/model call, sidecar rebuild, language expansion or preexisting deletion.",
+    "All31original findings/19gates and independently completed EG18 are preserved. The full goal and demonstrated LegacyValidation task usefulness remain unfinished."
   ],
   "temporary_resources": {
     "baseline_process_closed": true,
@@ -46,7 +47,7 @@
     "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-generation-delivery-20261118",
     "retention": "Contracts/source observations/wire evidence/scripts retained for combined acceptance; all newly created live fixtures removed."
   },
-  "next_action": "Finish existing release78041/postrelease77627, inspect candidate/installed acceptance and record delivery. Preserve passed acceptance; no replacement build or replay.",
+  "next_action": "Finite component installed; advance remaining original requirements without extending acceptance.",
   "source_hash_scope": "Historical component source at80fb750b; e7fa2937 subsequently adds an independent async observation helper in the shared delivery module. Combined acceptance must bind the final shipping source.",
   "public_verifier_preflight_correction": "Before first execution, validate expected protocol errors from retained JSON-RPC wire responses; the existing transport assertion does not expose the server message.",
   "historical_source_stage_limits": [
@@ -55,7 +56,11 @@
     "No actual LegacyValidation source/Q/index mutation, model request, target-language expansion, CodeMap/Blast change or preexisting directory deletion.",
     "Pending TODO3 actual catalog acceptance now includes the explicit generator-only metadata addition. Its original component projection is preserved, combined projection retains the10percent gate, and no runtime description saving or task benefit is claimed."
   ],
-  "validation_status": "NATIVE_AND_DEBUG_PASS",
+  "validation_status": "PASS",
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\native-acceptance.json",
-  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-generation-delivery-20261118\\agent-instruction-batch-20261118-debug1-generation\\receipt.json"
+  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-generation-delivery-20261118\\agent-instruction-batch-20261118-debug1-generation\\receipt.json",
+  "delivery_record": "eval/agent-instruction-batch-delivery-20261118.json",
+  "installed_runtime_sha256": "103dc1d77b44ead3ffafc056a0dccf45ce9ee367a0ac9b70094dc02292613208",
+  "installed_public_assertions": 8,
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\installed1\\acceptance.json"
 }

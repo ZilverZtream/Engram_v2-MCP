@@ -2284,3 +2284,15 @@ Shared `max_tokens`, `output_json` and immutable response recovery retain full r
 `project_health` reports the configured semantic tier separately from unprobed provider availability; configured semantic services do not receive a READY claim. This does not contact the provider or alter source-store health findings.
 
 Instruction maintenance captures qualified, explicitly visible single-line VB constant declarations from supplied before/current bytes. Initializer changes can select dependent guidance while unrelated method edits leave that constant evidence unchanged. Source/range hashes and unverified-candidate status remain; no compiler binding, semantic constant evaluation, absence proof, policy authority or authored rewrite is inferred.
+
+## Instruction generation delivery and queued observations
+
+Installed November 18 ([delivery](../eval/agent-instruction-batch-delivery-20261118.json)).
+
+`produce_claude_md` supports shared `max_tokens`, `output_json` and immutable result recovery, with a default whole-response bound of 40 KiB. Saved JSON text represents the original MCP result; it does not introduce a `structuredContent` guarantee. Recovery never repeats generation or publication and preserves authored files and subsequent edits. If retention fails, the original result is returned with an explicit budget-overrun warning.
+
+`update_project(wait=false, instruction_maintenance=...)` queues source work with a separate instruction observation. The terminal `get_job_status` message contains an `instruction_observation_delivery:` JSON reference for retrieving the saved original observation through `get_job_status` response recovery. Recovery needs no fresh project or job query. Observation failure preserves published source with explicitly degraded evidence coverage. Queued draft requests are refused before source work; this mode does not publish policy.
+
+Instruction observation and index publication are separate operations. Existing saved-report limits are 8 MiB, 24 hours and 32 captures. Missing or expired evidence is not permission to repeat a source update.
+
+The owned Full catalog of 125 tools reduced description UTF-8 bytes from 82,408 to 74,041, including declared generator and queued-observation metadata additions. Names and other schemas/metadata match the prepared combined expectation. This measures description bytes; provider tokens, actual LegacyValidation runtime usage and task quality were not measured.

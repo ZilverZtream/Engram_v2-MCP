@@ -10434,20 +10434,14 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T13:36:41.418568+00:00",
+  "last_updated_at": "2026-11-18T14:48:06.257950+00:00",
   "current_execution_focus": {
-    "status": "OPTIMIZED_RELEASE_RUNNING",
-    "record": "eval/agent-instruction-batch-progress-20261118.json",
-    "release_session_id": 78041,
-    "postrelease_session_id": 77627,
-    "release_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\release-owner-pin1.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "record": "eval/request-http-handler-progress-20261118.json",
+    "pending_source_outcomes": 1,
     "implementation_items_active": 0,
-    "pending_source_outcomes": 3,
-    "native_acceptance": "PASS",
-    "public_debug_acceptance": "PASS",
-    "runtime_deployed": false,
     "full_original_goal_complete": false,
-    "next_action": "Observe existing release78041 and postrelease77627. Reuse their single artifact for candidate/installed acceptance. No passed-check replay, replacement Cargo run or source-checkout movement."
+    "next_action": "Advance the next ready original requirement; preserve held work and passed acceptance."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -16651,10 +16645,10 @@
     "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
   },
   "latest_delivered_runtime": {
-    "record": "eval/health-refresh-constant-delivery-20261118.json",
-    "server_sha256": "0cfa62e65e370f2031b644e26b51e9699658149e3f0d506e5966e7002de7c78e",
-    "manifest_sha256": "1ddd99605a204f56e7fa88ac5919e2d3f493633e2653f5a5fdf931675d04e0d0",
-    "shipping_source_commit": "2a1971d553cad50cce640d064df58f6910606afd",
+    "record": "eval/agent-instruction-batch-delivery-20261118.json",
+    "server_sha256": "103dc1d77b44ead3ffafc056a0dccf45ce9ee367a0ac9b70094dc02292613208",
+    "manifest_sha256": "b0407e88d907dd6095a3c6a31afedad400c4ef102fbc7a662bee4e982e8c7a2c",
+    "shipping_source_commit": "bf4abd6ae44fd65db5688706f6adea71d08894ad",
     "selected_generation": 3151,
     "source_format": 9,
     "assets_verified": 215,
@@ -16678,16 +16672,10 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "FOCUSED_NATIVE_BATCH_RUNNING",
-    "record": "eval/agent-instruction-batch-progress-20261118.json",
-    "native_session_id": 82997,
-    "postnative_session_id": 79903,
-    "native_owner_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\native-owner-pin1.json",
-    "implementation_items_active": 0,
-    "pending_source_outcomes": 3,
-    "runtime_deployed": false,
-    "full_original_goal_complete": false,
-    "next_action": "Observe exact native82997/postnative79903. Observer reuses a fresh Cargo-produced debug executable for the three pinned public contracts. Do not duplicate builds or runs; inspect exact failed case if terminal failure."
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": "eval/agent-instruction-batch-delivery-20261118.json",
+    "all_build_sessions_terminal": true,
+    "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
@@ -17498,7 +17486,7 @@
     "full_original_goal_complete": false
   },
   "instruction_generation_delivery_source_progress_20261118": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "original_requirement_id": "TODO-4",
     "source_commit": "80fb750b54e76c00354647dd36f92706ecae8c95",
     "progress": "eval/instruction-generation-delivery-progress-20261118.json",
@@ -17509,10 +17497,13 @@
     },
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-generation-delivery-20261118\\verify-public.py",
     "counting_rule": "One instruction-generation result delivery outcome. Preview/publication, budgets, formats, failures and recovery are supporting variants, not separate original deliverables.",
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "validation_status": "PASS",
+    "delivery_record": "eval/agent-instruction-batch-delivery-20261118.json",
+    "historical_source_status": true
   },
   "async_instruction_observation_source_progress_20261118": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "original_requirement_id": "EG-27",
     "source_commit": "e7fa29378e71930d11e421b0996954567a7f4d2e",
     "progress": "eval/async-instruction-observation-progress-20261118.json",
@@ -17523,6 +17514,29 @@
     },
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118\\verify-public.py",
     "counting_rule": "One originalEG27 queued-update instruction evidence outcome. Successful/failing observations, typed capture/recovery, default caller preservation and2nativecases are acceptance variants, not extra deliverables.",
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "validation_status": "PASS",
+    "delivery_record": "eval/agent-instruction-batch-delivery-20261118.json",
+    "historical_source_status": true
+  },
+  "previous_runtime_before_agent_instruction_batch_20261118": {
+    "record": "eval/health-refresh-constant-delivery-20261118.json",
+    "server_sha256": "0cfa62e65e370f2031b644e26b51e9699658149e3f0d506e5966e7002de7c78e",
+    "manifest_sha256": "1ddd99605a204f56e7fa88ac5919e2d3f493633e2653f5a5fdf931675d04e0d0",
+    "shipping_source_commit": "2a1971d553cad50cce640d064df58f6910606afd",
+    "selected_generation": 3151,
+    "source_format": 9,
+    "assets_verified": 215,
+    "normal_runtime_restored": true,
+    "full_original_goal_complete": false
+  },
+  "agent_instruction_batch_delivery_20261118": {
+    "record": "eval/agent-instruction-batch-delivery-20261118.json",
+    "original_requirement_ids": [
+      "TODO-3",
+      "TODO-4",
+      "EG-27"
+    ],
+    "full_original_goal_complete": false
   }
 }

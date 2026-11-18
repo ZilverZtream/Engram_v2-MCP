@@ -96,6 +96,8 @@ The [SQL and WebForms delivery](eval/instruction-view-request-delivery-20261118.
 
 The [health, refresh and instruction delivery](eval/health-refresh-constant-delivery-20261118.json) separates configured semantic tier from unprobed availability, retains full per-stage refresh results/failures, and tracks captured VB constant dependencies. Owned acceptance passed; incremental LegacyValidation task benefit remains unproven.
 
+The [agent instruction delivery](eval/agent-instruction-batch-delivery-20261118.json) reduces repeated tool-description bytes, retains complete bounded generation results, and makes instruction evidence available for queued updates. Owned acceptance passed; incremental LegacyValidation task benefit remains unproven.
+
 Later installed deliveries include [direct method/source guidance and bounded
 recovery](eval/legacy_validation-method-read-batch-delivery-20261114.json), and [ordinary SQL
 keys, schema-bound views and source-cited route registrations](eval/legacy_validation-request-schema-batch-delivery-20261114.json).

@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_DEBUG_ACCEPTANCE_PASS_RELEASE_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "TODO-3",
   "supporting_original_requirement": "EG-26",
   "at_utc": "2026-11-18T12:29:24.807201+00:00",
@@ -40,16 +40,16 @@
   "native_tests_written": 0,
   "native_tests_executed": 0,
   "source_stage_cargo_invocations": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\verify-public.py",
   "public_verifier_sha256": "1bdc2de8be63c5fd91865a2169144cd65b940cd4a34863923e114e7cb17d6839",
   "counting_rule": "One reduction of repeated Full-catalog delivery descriptions. Read-report and retained-window strings, output modes and profiles are not separate outcomes.",
   "limits": [
-    "Actual updated MCP advertisement comparison awaits a later combined build. The10.7percent figure is a source projection, not a delivered runtime measurement.",
-    "Owned125-tool Full catalog is not an actual LegacyValidation tool count. Normal Full configuration is verified unchanged, but provider tokens, latency, tool-choice quality and task usefulness are unmeasured.",
-    "Request schemas, dispatch, runtime result/recovery implementation, unique safeguards and profiles are unchanged by this description-only delta.",
-    "This source is not part of the currently frozen health/refresh/constant release; do not recompile that accepted batch for it.",
-    "Combined validation also checks declared produce_claude_md budget/recovery metadata from the separately queued TODO4 outcome. The original isolated10.7percent projection is retained; combined projected reduction is separately recorded. No runtime advertisement or provider-token gain is yet claimed."
+    "Owned Full125-tool catalog description bytes fell from82408 to74041 (10.153140471798855percent), including declared generator and queued-observation metadata changes. No provider-token, actual LegacyValidation usage or productivity measurement.",
+    "Generation recovery preserves the original preview/publication result and never generates or publishes again. Existing source/generation/ownership and retention limits remain. Failed retention preserves the result with an explicit budget-overrun warning.",
+    "Queued instruction observations are separate current-disk evidence, not atomic index/policy snapshots, semantic correctness or permission to rewrite guidance. Observation failure preserves published source with explicitly degraded coverage. Existing8MiB/24hour/32capture quotas apply; missing evidence does not authorise repeating updates.",
+    "No actual LegacyValidation source/Q/index mutation, CodeMap/Blast Radius improvement, provider/model call, sidecar rebuild, language expansion or preexisting deletion.",
+    "All31original findings/19gates and independently completed EG18 are preserved. The full goal and demonstrated LegacyValidation task usefulness remain unfinished."
   ],
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118",
@@ -57,7 +57,7 @@
     "baseline_fixture_removed": true,
     "retention": "Baseline/projection/contracts retained; no live new fixture or preexisting deletion."
   },
-  "next_action": "Finish existing release78041/postrelease77627, inspect candidate/installed acceptance and record delivery. Preserve passed acceptance; no replacement build or replay.",
+  "next_action": "Finite component installed; advance remaining original requirements without extending acceptance.",
   "source_commit": "0bc18a5fb2c4fbbb7612bc206886c22f42c0bdda",
   "combined_catalog_projection": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\co-delivery-projection2.json",
   "co_delivery_projection": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\co-delivery-projection1.json",
@@ -68,8 +68,19 @@
     "This source is not part of the currently frozen health/refresh/constant release; do not recompile that accepted batch for it.",
     "Combined validation also checks declared produce_claude_md budget/recovery metadata from the separately queued TODO4 outcome. The original isolated10.7percent projection is retained; combined projected reduction is separately recorded. No runtime advertisement or provider-token gain is yet claimed."
   ],
-  "validation_status": "NATIVE_AND_DEBUG_PASS",
+  "validation_status": "PASS",
   "native_cases_executed": 0,
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\native-acceptance.json",
-  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\agent-instruction-batch-20261118-debug1-descriptions\\receipt.json"
+  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-delivery-description-20261118\\agent-instruction-batch-20261118-debug1-descriptions\\receipt.json",
+  "delivery_record": "eval/agent-instruction-batch-delivery-20261118.json",
+  "installed_runtime_sha256": "103dc1d77b44ead3ffafc056a0dccf45ce9ee367a0ac9b70094dc02292613208",
+  "installed_public_assertions": 2,
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\installed1\\acceptance.json",
+  "limitations": [
+    "Owned Full125-tool catalog description bytes fell from82408 to74041 (10.153140471798855percent), including declared generator and queued-observation metadata changes. No provider-token, actual LegacyValidation usage or productivity measurement.",
+    "Generation recovery preserves the original preview/publication result and never generates or publishes again. Existing source/generation/ownership and retention limits remain. Failed retention preserves the result with an explicit budget-overrun warning.",
+    "Queued instruction observations are separate current-disk evidence, not atomic index/policy snapshots, semantic correctness or permission to rewrite guidance. Observation failure preserves published source with explicitly degraded coverage. Existing8MiB/24hour/32capture quotas apply; missing evidence does not authorise repeating updates.",
+    "No actual LegacyValidation source/Q/index mutation, CodeMap/Blast Radius improvement, provider/model call, sidecar rebuild, language expansion or preexisting deletion.",
+    "All31original findings/19gates and independently completed EG18 are preserved. The full goal and demonstrated LegacyValidation task usefulness remain unfinished."
+  ]
 }

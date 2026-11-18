@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_DEBUG_ACCEPTANCE_PASS_RELEASE_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-18T13:36:41.418568+00:00",
   "original_requirement_id": "EG-27",
   "supporting_original_requirement": "EG-31",
@@ -32,15 +32,16 @@
   "native_cases_executed": 2,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118\\verify-public.py",
   "public_verifier_sha256": "9980b61b8b29e2c1a7aded2ae402df145b12f1c77cd9f963df6a0afa802be319",
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "source_stage_cargo_invocations": 0,
   "full_original_goal_complete": false,
   "counting_rule": "One originalEG27 queued-update instruction evidence outcome. Successful/failing observations, typed capture/recovery, default caller preservation and2nativecases are acceptance variants, not extra deliverables.",
   "limits": [
-    "New source has not yet been compiled or runtime-validated.",
-    "The observation is separate current-disk evidence, not an atomic source-index/policy snapshot, semantic correctness, policy approval or authorisation to rewrite guidance.",
-    "Existing8MiB/24hour/32capture quotas apply to saved get_job_status reports. Expired evidence does not authorise repeating the source update. No database/source-format change.",
-    "No actual LegacyValidation source/Q/index access or mutation, CodeMap/Blast Radius change, provider/model run, independent agents or preexisting folder deletion."
+    "Owned Full125-tool catalog description bytes fell from82408 to74041 (10.153140471798855percent), including declared generator and queued-observation metadata changes. No provider-token, actual LegacyValidation usage or productivity measurement.",
+    "Generation recovery preserves the original preview/publication result and never generates or publishes again. Existing source/generation/ownership and retention limits remain. Failed retention preserves the result with an explicit budget-overrun warning.",
+    "Queued instruction observations are separate current-disk evidence, not atomic index/policy snapshots, semantic correctness or permission to rewrite guidance. Observation failure preserves published source with explicitly degraded coverage. Existing8MiB/24hour/32capture quotas apply; missing evidence does not authorise repeating updates.",
+    "No actual LegacyValidation source/Q/index mutation, CodeMap/Blast Radius improvement, provider/model call, sidecar rebuild, language expansion or preexisting deletion.",
+    "All31original findings/19gates and independently completed EG18 are preserved. The full goal and demonstrated LegacyValidation task usefulness remain unfinished."
   ],
   "temporary_resources": {
     "baseline_owners_closed": true,
@@ -48,7 +49,7 @@
     "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118",
     "cleanup_condition": "Keep evidence/scripts for review; future owned fixtures must cancel/join workers, close stores and remove their directories."
   },
-  "next_action": "Finish existing release78041/postrelease77627, inspect candidate/installed acceptance and record delivery. Preserve passed acceptance; no replacement build or replay.",
+  "next_action": "Finite component installed; advance remaining original requirements without extending acceptance.",
   "public_fixture_byte_contract": "Write explicit UTF-8 LF bytes so independently expected Git/current-source BLAKE3 hashes match the authored fixtures on Windows. Corrected before first public execution.",
   "historical_source_stage_limits": [
     "New source has not yet been compiled or runtime-validated.",
@@ -56,7 +57,18 @@
     "Existing8MiB/24hour/32capture quotas apply to saved get_job_status reports. Expired evidence does not authorise repeating the source update. No database/source-format change.",
     "No actual LegacyValidation source/Q/index access or mutation, CodeMap/Blast Radius change, provider/model run, independent agents or preexisting folder deletion."
   ],
-  "validation_status": "NATIVE_AND_DEBUG_PASS",
+  "validation_status": "PASS",
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\native-acceptance.json",
-  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118\\agent-instruction-batch-20261118-debug1-queued\\receipt.json"
+  "public_debug_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\async-instruction-observation-20261118\\agent-instruction-batch-20261118-debug1-queued\\receipt.json",
+  "delivery_record": "eval/agent-instruction-batch-delivery-20261118.json",
+  "installed_runtime_sha256": "103dc1d77b44ead3ffafc056a0dccf45ce9ee367a0ac9b70094dc02292613208",
+  "installed_public_assertions": 10,
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-instruction-batch-20261118\\installed1\\acceptance.json",
+  "limitations": [
+    "Owned Full125-tool catalog description bytes fell from82408 to74041 (10.153140471798855percent), including declared generator and queued-observation metadata changes. No provider-token, actual LegacyValidation usage or productivity measurement.",
+    "Generation recovery preserves the original preview/publication result and never generates or publishes again. Existing source/generation/ownership and retention limits remain. Failed retention preserves the result with an explicit budget-overrun warning.",
+    "Queued instruction observations are separate current-disk evidence, not atomic index/policy snapshots, semantic correctness or permission to rewrite guidance. Observation failure preserves published source with explicitly degraded coverage. Existing8MiB/24hour/32capture quotas apply; missing evidence does not authorise repeating updates.",
+    "No actual LegacyValidation source/Q/index mutation, CodeMap/Blast Radius improvement, provider/model call, sidecar rebuild, language expansion or preexisting deletion.",
+    "All31original findings/19gates and independently completed EG18 are preserved. The full goal and demonstrated LegacyValidation task usefulness remain unfinished."
+  ]
 }
