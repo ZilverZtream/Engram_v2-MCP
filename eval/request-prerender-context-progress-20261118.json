@@ -1,0 +1,46 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-18T09:47:19.438711+00:00",
+  "original_requirement_id": "TODO-31",
+  "related_original_requirement_id": "TODO-28",
+  "source_commit": "f640658d750ad88cb4fd7c3ee6823becc283c524",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-prerender-context-20261118",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-prerender-context-20261118\\contract.json",
+  "behavior": "Include admitted explicit VB Handles Me/MyBase.PreRender and authored AutoEventWireup=true Page_PreRender as source request context, retaining downstream paths and existing source guards.",
+  "files": [
+    "crates/engram_server/src/services/request_trace/execution.rs",
+    "crates/engram_server/src/services/request_trace/master_pages.rs",
+    "crates/engram_server/src/services/request_trace/base_pages.rs",
+    "crates/engram_server/tests/request_trace_prerender_context.rs"
+  ],
+  "source_checks": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-prerender-context-20261118\\source-check1.json",
+  "native_target": "request_trace_prerender_context",
+  "native_environment": {
+    "ENGRAM_TEST_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "native_cases_written": 2,
+  "native_cases_executed": 0,
+  "public_runtime_checks_executed": 0,
+  "cargo_invocations": 0,
+  "runtime_deployed": false,
+  "counting_rule": "One response-preparation context outcome, across existing page/control/master composition. Binding spellings, downstream SQL, formats and freshness checks are supporting acceptance, not distinct outcomes.",
+  "normal_runtime_configuration": {
+    "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "matches_retained_installed_profile": true,
+    "no_current_LegacyValidation_task_gain_claimed": true
+  },
+  "framework_sources": [
+    "https://learn.microsoft.com/en-us/dotnet/api/system.web.ui.control.prerender?view=netframework-4.8",
+    "https://learn.microsoft.com/en-us/dotnet/api/system.web.configuration.pagessection.autoeventwireup?view=netframework-4.8.1"
+  ],
+  "limitations": [
+    "Source syntax checks passed; type checking, behavioral cases and public candidate/installed acceptance remain pending.",
+    "No runtime lifecycle order, reachability, visibility, dynamic event creation or execution is established. Other lifecycle phases remain unexamined.",
+    "No overall TODO31 closure or task-quality/productivity claim. Existing source admission, method bounds and request graph traversal limits remain."
+  ],
+  "temporary_resources": {
+    "created_fixture_directories": 0,
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-prerender-context-20261118",
+    "retained": "Contract, protected-work hashes and source-check receipt for combined validation. New graph fixtures close graph handles before removing owned resources."
+  }
+}
