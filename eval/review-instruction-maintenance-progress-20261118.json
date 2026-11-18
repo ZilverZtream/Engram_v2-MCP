@@ -46,7 +46,7 @@
     "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
   },
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118\\verify-public.py",
-  "public_verifier_sha256": "03ea4a1dd7d6f54890a22fbb8568161d2c450573174ff2b2ed949f12aff918c8",
+  "public_verifier_sha256": "a69364ef6ca8e39a372147d5126d8f1e155942969f310f606beda5e7ec3d0309",
   "source_sha256": {
     "crates/engram_server/src/handlers/review_tools.rs": "cd33a2a572e8876735da7d417a2997f1a9c2ca0238055a3b05565d6a3edb1e2c",
     "crates/engram_server/src/handlers/review_tools/maintenance_context.rs": "426544c01471206d4592b9cac024fabef163f962878e563daf6c834bc885cb23",
@@ -83,5 +83,17 @@
     "cause": "Fixture called unavailable git2 Diff::to_buf; switched to supported print callback preserving ordinary patch line origins. Production behavior/criteria unchanged.",
     "native_cases_executed_before_correction": 0,
     "source_commit": "a467a3f8564180eaeae3dd1a09593ff17a9c3508"
+  },
+  "public_fixture_correction": {
+    "status": "HARNESS_NEWLINE_CORRECTION",
+    "failed_aggregate": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\debug1\\receipt.json",
+    "failed_component": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-instruction-maintenance-20261118\\review-memory-history-20261118-debug1-review\\receipt.json",
+    "strict_assertions_retained": true,
+    "evidence": "Git-before matches expected LF exactly; current TS, current guidance and recovered complete large guidance each differ from expected text only by CRLF. Fixture write_text now uses newline empty, retaining the intended LF bytes. No production source change.",
+    "previous_verifier_sha256": "03ea4a1dd7d6f54890a22fbb8568161d2c450573174ff2b2ed949f12aff918c8",
+    "corrected_verifier_sha256": "a69364ef6ca8e39a372147d5126d8f1e155942969f310f606beda5e7ec3d0309",
+    "engram_builds_started": 0,
+    "owners_closed": true,
+    "owned_fixture_removed": true
   }
 }

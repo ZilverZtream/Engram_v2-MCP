@@ -2833,14 +2833,14 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "AFFECTED_NATIVE3_RUNNING",
+    "status": "NATIVE_PASS_PUBLIC_FIXTURE_CORRECTED",
     "progress": "eval/review-memory-history-progress-20261118.json",
     "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "runtime_deployed": false,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "Observe the existing validation sequence17953/state. It runs native3(2memory cases), then debug1(30public checks), then one release only after acceptance passes. Do not restart it or replay completed commands. On failure inspect only the retained failing stage. Candidate/installed acceptance remains after release."
+    "next_action": "All8distinct native cases covered. First public review fixture differed only by Windows newline translation; preserve its failed receipt, use corrected exact-byte fixture on the existing debug binary. No extra Cargo or full-suite run. Release follows complete public acceptance."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3218,9 +3218,8 @@
   },
   "previous_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T04:34:31.577765+00:00",
-    "reason": "Installed and recorded the validated three-outcome308e5347 runtime; recovered an interrupted candidate without rebuild and accounted for policy-blocked owned resources. Completed following full memory provenance/recovery source with two written checks and zero builds; EG31 ordinary-review source retained. Full original goal active.",
-    "source_commit": "0fcf9d775297dca094f9ecad9041756705c3ce24",
+    "at_utc": "2026-11-18T05:25:51.958588+00:00",
+    "reason": "Previous turn committed bounded history acquisition, corrected memory-source selection and completed6native review/history cases. Current turn observed the same live validation handle through successful2-case memory acceptance; no native replay.",
     "full_original_goal_complete": false
   },
   "scoped_http_ask_progress_20261117": "eval/scoped-http-ask-progress-20261117.json",
@@ -4138,7 +4137,7 @@
     "progress": "eval/history-bounded-acquisition-progress-20261118.json"
   },
   "review_memory_history_source_batch_20261118": {
-    "status": "AFFECTED_NATIVE3_RUNNING",
+    "status": "NATIVE_PASS_PUBLIC_FIXTURE_CORRECTED",
     "progress": "eval/review-memory-history-progress-20261118.json",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118",
     "original_requirement_ids": [
@@ -4148,6 +4147,8 @@
     ],
     "runtime_deployed": false,
     "validation_sequence_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-memory-history-20261118\\validation-sequence1-state.json",
-    "exec_session_id": 17953
+    "exec_session_id": null,
+    "native_cases_distinct_covered": 8,
+    "validation_sequence_terminal": "FAIL_AT_DEBUG1_FIXTURE_NEWLINES"
   }
 }
