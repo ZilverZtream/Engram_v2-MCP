@@ -2570,6 +2570,19 @@
           "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
         },
         "counting_rule": "One ordinary-review maintenance workflow outcome; formats, diff modes, evidence kinds and saved recovery are not separate deliveries."
+      },
+      {
+        "original_requirement_id": "TODO-28",
+        "related_original_requirement": "EG-19",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "0fcf9d775297dca094f9ecad9041756705c3ce24",
+        "progress": "eval/memory-decision-provenance-progress-20261118.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118\\contract.json",
+        "behavior": "Natural-language memory evidence retains exact stored record provenance and full guarded read actions; metadata-only changes refuse old recovery and categories do not imply approved policy.",
+        "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+        "runtime_deployed": false,
+        "native_target": "memory_decision_provenance",
+        "counting_rule": "One source-bound full memory context/provenance recovery outcome for the natural-language entry point. Category-authority correction supports that outcome; it is not an additional deliverable or a reused Markdown-classification outcome."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2801,16 +2814,15 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "IMPLEMENTING",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "progress": "eval/memory-decision-provenance-progress-20261118.json",
     "original_requirement": "TODO-28",
-    "implementation_items_active": 1,
-    "following_pending_source_outcomes": 1,
-    "frozen_release_in_progress": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
+    "pending_source_outcomes": 2,
+    "implementation_items_active": 0,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "Complete the memory-record provenance/recovery source contract and verifier. Preserve the already-installed three-outcome batch and the following EG31 source; no build for this item alone.",
-    "previous_batch_delivery": "eval/ask-authority-batch-recovery-delivery-20261118.json"
+    "previous_batch_delivery": "eval/ask-authority-batch-recovery-delivery-20261118.json",
+    "next_action": "Retain with following EG31 ordinary-review source and advance another substantive original requirement before combined validation. No standalone Cargo or release for memory recovery; do not replay the already-installed batch."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3120,11 +3132,10 @@
     "does_not_pause_or_replace_goal": true
   },
   "active_source_implementation": {
-    "status": "IMPLEMENTING",
-    "progress": "eval/memory-decision-provenance-progress-20261118.json",
-    "original_requirement": "TODO-28",
-    "implementation_items_active": 1,
-    "current_release_excludes_this_work": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118"
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "implementation_items_active": 0,
+    "pending_source_outcomes": 2,
+    "progress": "eval/memory-decision-provenance-progress-20261118.json"
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -3189,8 +3200,9 @@
   },
   "previous_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T04:23:36.657846+00:00",
-    "reason": "Three original source outcomes passed installed public acceptance and normal runtime restoration; full original goal remains active.",
+    "at_utc": "2026-11-18T04:34:31.577765+00:00",
+    "reason": "Installed and recorded the validated three-outcome308e5347 runtime; recovered an interrupted candidate without rebuild and accounted for policy-blocked owned resources. Completed following full memory provenance/recovery source with two written checks and zero builds; EG31 ordinary-review source retained. Full original goal active.",
+    "source_commit": "0fcf9d775297dca094f9ecad9041756705c3ce24",
     "full_original_goal_complete": false
   },
   "scoped_http_ask_progress_20261117": "eval/scoped-http-ask-progress-20261117.json",
@@ -4023,15 +4035,16 @@
     "historical_source_status": true
   },
   "ask_authority_batch_recovery_source_batch_20261118": {
-    "status": "NATIVE_AND_PUBLIC_DEBUG_PASS_RELEASE_READY",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "progress": "eval/ask-authority-batch-recovery-progress-20261118.json",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-authority-batch-recovery-20261118",
     "native_cases_distinct_covered": 10,
     "debug_public_checks_passed": 29,
     "full_suites": 0,
     "separate_debug_builds": 0,
-    "runtime_deployed": false,
-    "full_original_goal_complete": false
+    "runtime_deployed": true,
+    "full_original_goal_complete": false,
+    "delivery_record": "eval/ask-authority-batch-recovery-delivery-20261118.json"
   },
   "ordinary_review_maintenance_source_progress_20261118": {
     "original_requirement_id": "EG-31",
@@ -4068,5 +4081,18 @@
       "TODO-4"
     ],
     "full_original_goal_complete": false
+  },
+  "memory_decision_provenance_source_progress_20261118": {
+    "original_requirement_id": "TODO-28",
+    "related_original_requirement": "EG-19",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "0fcf9d775297dca094f9ecad9041756705c3ce24",
+    "progress": "eval/memory-decision-provenance-progress-20261118.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-decision-provenance-20261118\\contract.json",
+    "behavior": "Natural-language memory evidence retains exact stored record provenance and full guarded read actions; metadata-only changes refuse old recovery and categories do not imply approved policy.",
+    "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+    "runtime_deployed": false,
+    "native_target": "memory_decision_provenance",
+    "counting_rule": "One source-bound full memory context/provenance recovery outcome for the natural-language entry point. Category-authority correction supports that outcome; it is not an additional deliverable or a reused Markdown-classification outcome."
   }
 }

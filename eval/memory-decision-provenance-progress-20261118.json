@@ -148,5 +148,6 @@
     "baseline_owner_closed": true,
     "baseline_owned_fixture_removed": true,
     "cleanup_condition": "Close owned server/database resources before fixture cleanup; retain evidence until delivery. No preexisting deletion."
-  }
+  },
+  "source_commit": "0fcf9d775297dca094f9ecad9041756705c3ce24"
 }
