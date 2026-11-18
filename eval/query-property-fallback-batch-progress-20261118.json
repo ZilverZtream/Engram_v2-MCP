@@ -1,0 +1,44 @@
+{
+  "status": "SOURCE_FROZEN_PENDING_NATIVE",
+  "at_utc": "2026-11-18T00:32:06.355343+00:00",
+  "original_requirements": [
+    "TODO-4",
+    "EG-27",
+    "TODO-2"
+  ],
+  "root_head": "eb7ec308a55a7927b88fc6b08986c38e68c85b96",
+  "shipping_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "shipping_previous_head": "4d68280cfc07884a157d949da8a2f116c9e9a692",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118",
+  "source_paths": [
+    "crates/engram_core/src/config.rs",
+    "crates/engram_index/src/vb_extractor.rs",
+    "crates/engram_index/src/vb_extractor/snapshot_declarations.rs",
+    "crates/engram_server/src/handlers/search_tools.rs",
+    "crates/engram_server/src/handlers/search_tools/hybrid_delivery.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/retained_results.rs",
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs",
+    "crates/engram_server/tests/hybrid_query_fallback_tests.rs",
+    "crates/engram_server/tests/query_default_delivery.rs",
+    "crates/engram_server/tests/vb_property_evidence_tests.rs",
+    "crates/engram_server/tests/query_property_fallback_batch.rs"
+  ],
+  "native_test_target": "query_property_fallback_batch",
+  "native_cases": 13,
+  "finite_native_scope": "Nine new behavior checks plus four existing method-evidence checks. No lib/full/no-vector suite or separate debug build.",
+  "release_plan": "One optimized artifact after focused native/public acceptance; reuse for candidate and installed acceptance.",
+  "entry_reason": "Three real original outcomes have source proofs and separate useful behavior. Earlier bounded selection found no additional ready substantive source change; no filler outcome was added for Cargo. Other original evidence, authority decisions and held work remain open.",
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-property-fallback-batch-20261118",
+    "purpose": "Shared source freeze/native/public/release evidence for this batch",
+    "cleanup_condition": "Close owned build Job/relay/server/provider/database handles before owned fixtures; retain batch evidence until delivery. No preexisting deletion.",
+    "reused_shipping_worktree_removal_condition": "Retain registered worktree while it owns shipping source/local-only commits; removal requires exact-path approval and unique-work reconciliation."
+  },
+  "engram_builds_started": 0,
+  "runtime_deployed": false,
+  "full_original_goal_complete": false,
+  "shipping_head": "18fe0cbb5dc7880d5f27fcb76dee744c081a61c6",
+  "build_runner_sha256": "d1e91aaabccb555a33faef525675e0bf62a75d51a366d6549365f8267b372afe",
+  "pre_cargo_correction": "The preflight byte-equality assertion caught rustfmt module ordering applied to the root wrapper only. Shipping wrapper synchronized before Cargo; no build/test started by the refused preparation."
+}
