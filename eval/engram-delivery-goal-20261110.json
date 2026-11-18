@@ -2801,9 +2801,10 @@
     "record": "eval/health-provider-readiness-progress-20261118.json",
     "pending_source_outcomes": 1,
     "implementation_items_active": 0,
-    "full_original_goal_active": true,
+    "last_original_requirement_completed": "EG-18",
+    "completion_record": "eval/eg18-original-requirement-closure-20261118.json",
     "full_original_goal_complete": false,
-    "next_action": "Advance the next ready unfinished original requirement. Preserve31findings/19gates and held work; do not restart terminal builds or replay accepted checks."
+    "next_action": "Select the next unfulfilled original behavior; preserve pending health source and batch at least three independent outcomes before Cargo. Do not reopen completed EG18 dependency closure."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4134,8 +4135,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-18T11:07:07.868746+00:00",
-    "reason": "Three original finite outcomes installed after one native target, public checks, one release and normal restoration; full original goal remains unfinished."
+    "at_utc": "2026-11-18T11:12:53.688943+00:00",
+    "reason": "Verified and closed original EG18 requirement from hashed installed receipts and unchanged preset implementation; zero additional tests, models or builds."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4244,5 +4245,12 @@
       "TODO-28"
     ],
     "full_original_goal_complete": false
+  },
+  "completed_original_requirements": {
+    "EG-18": {
+      "status": "VERIFIED_COMPLETE",
+      "record": "eval/eg18-original-requirement-closure-20261118.json",
+      "full_original_goal_complete": false
+    }
   }
 }

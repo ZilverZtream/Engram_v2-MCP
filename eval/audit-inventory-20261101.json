@@ -811,8 +811,8 @@
     {
       "id": "EG-18",
       "finding": "Core tool preset dependency closure",
-      "ledger_disposition": "Installed Core32 dependency chain and normal Full150 discovery verified",
-      "existing_evidence_and_next_gate": "core-client-job-lifecycle-and-citations.json/log:5PASS136.912s; source stable, fixtures empty. Core32 includes project discovery/get_chunk/memory/job lifecycle. Other specialist handoffs require full profile, not equivalence. Current deployed behavior remains to verify.",
+      "ledger_disposition": "Original EG18 Core dependency and Full/.NET default contract verified complete; retain dated acceptance and independent limits.",
+      "existing_evidence_and_next_gate": "Original required behavior is fulfilled by the evidence mapped in eval/eg18-original-requirement-closure-20261118.json. Do not rebuild or expand this requirement. Task usefulness and backend/data readiness remain separate original work.",
       "required_behavior": [
         "Limited MCP tools/list permits project discovery and resolution of advertised citations/context dependencies including get_chunk and memory-bank reads.",
         "Full discovery remains default and LegacyValidation .NET capabilities remain available."
@@ -861,7 +861,14 @@
         "installed_public_checks": 19,
         "broader_finding_complete": false,
         "limits": "Named presets are opt-in; actual LegacyValidation remains Full. Closure is limited to shared Core dependencies, role roots and demonstrated structured recovery, not every prose suggestion or backend/model availability."
-      }
+      },
+      "original_requirement_fulfillment": {
+        "status": "VERIFIED_COMPLETE",
+        "record": "eval/eg18-original-requirement-closure-20261118.json",
+        "required_behavior_preserved": true,
+        "full_original_goal_complete": false
+      },
+      "ledger_disposition_before_20261118_closure": "Installed Core32 dependency chain and normal Full150 discovery verified"
     },
     {
       "id": "EG-19",
@@ -10427,15 +10434,16 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-18T11:07:07.868746+00:00",
+  "last_updated_at": "2026-11-18T11:12:53.688943+00:00",
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "record": "eval/health-provider-readiness-progress-20261118.json",
     "pending_source_outcomes": 1,
     "implementation_items_active": 0,
-    "full_original_goal_active": true,
+    "last_original_requirement_completed": "EG-18",
+    "completion_record": "eval/eg18-original-requirement-closure-20261118.json",
     "full_original_goal_complete": false,
-    "next_action": "Advance the next ready unfinished original requirement. Preserve31findings/19gates and held work; do not restart terminal builds or replay accepted checks."
+    "next_action": "Select the next unfulfilled original behavior; preserve pending health source and batch at least three independent outcomes before Cargo. Do not reopen completed EG18 dependency closure."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {

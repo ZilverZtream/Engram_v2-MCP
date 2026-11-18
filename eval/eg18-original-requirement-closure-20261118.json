@@ -1,0 +1,79 @@
+{
+  "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+  "at_utc": "2026-11-18T11:12:53.688943+00:00",
+  "original_requirement_id": "EG-18",
+  "required_behavior": [
+    "Limited MCP tools/list permits project discovery and resolution of advertised citations/context dependencies including get_chunk and memory-bank reads.",
+    "Full discovery remains default and LegacyValidation .NET capabilities remain available."
+  ],
+  "contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\eg18-original-requirement-20261118\\contract.json",
+    "sha256": "e52d0a1aef48681886164128a6ddf1caaec53d4a7a9cc3399d8eb30049e2daa2"
+  },
+  "evidence": {
+    "original_installed_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\eg18-installed-preset-delivery-20261111.json",
+      "sha256": "eac609304990357d07ddf78f1dd4c39720712927275dcdfe7e8582b884c22e6a"
+    },
+    "core_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg18-installed-20261111\\core\\acceptance.json",
+      "sha256": "f5fe2c2fc6457ab14e1c854b67e22f477f66194e0ffde812c144d9df9bba3f0b"
+    },
+    "full_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg18-installed-20261111\\full\\acceptance.json",
+      "sha256": "14cedd14d404521e990b1e0529df40a565d4aba4090af25c5704a08ee2b3f35c"
+    },
+    "latest_preset_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\preset-browser-bootstrap-batch-delivery-20261117.json",
+      "sha256": "df538d8b51d40a4c8669e42c3e78f8328d7e168ad3db75ac66c7dbae03c141a3"
+    },
+    "latest_preset_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117\\preset-browser-bootstrap-batch-20261117-installed1\\receipt.json",
+      "sha256": "95c4a04e024aae82bac2a368cf52670753619b257a62352a8feb8499ae8d7101"
+    }
+  },
+  "requirement_mapping": [
+    {
+      "required_behavior_index": 0,
+      "status": "PROVEN",
+      "evidence": "Original Core tools/list/schema and project discovery, stored code/current source and memory section calls passed; original local MCP job ownership/status/cancellation evidence is retained. Latest owned Full/Core/workflow advertisement and callable dependencies passed19checks.",
+      "source_invariant": "Current installed tool_surface.rs is byte-identical in Git to the latest accepted preset source; required Core project/source/memory/job entries remain."
+    },
+    {
+      "required_behavior_index": 1,
+      "status": "PROVEN",
+      "evidence": "Default Full retains .NET and workflow roots in latest installed public check; legacy boolean and optional preset precedence native cases retained. Current normal config SHA is identical and records advertise_all_tools=true with no explicit preset.",
+      "source_invariant": "Config changes after accepted preset source contain only timeout documentation, preserving Full default and effective preset selection."
+    }
+  ],
+  "lineage": {
+    "accepted_preset_source": "b54808bdaf4c500f10c2ea494f4b52ad24142cce",
+    "current_installed_source": "67387ed7f30f30ab528b5e86515c06306ddbb367",
+    "tool_surface_unchanged": true,
+    "config_change_documentation_only": true,
+    "config_diff": "diff --git a/crates/engram_core/src/config.rs b/crates/engram_core/src/config.rs\nindex 55e9f959..ed41cbb4 100644\n--- a/crates/engram_core/src/config.rs\n+++ b/crates/engram_core/src/config.rs\n@@ -161,7 +161,10 @@ pub struct Config {\n     pub dream_default_min_cluster_size: usize,\n \n     // --- Vector search configuration ---\n-    /// Timeout in milliseconds for a single vector search query.\n+    /// Timeout in milliseconds for a single vector_search query. Also the shared\n+    /// optional-semantic budget for search_memory across project/user namespaces;\n+    /// failed or timed-out hybrid attempts return disclosed lexical fallback.\n+    /// Does not bound runtime startup, lexical/source work or total request time.\n     #[serde(default = \"default_vector_search_timeout_ms\")]\n     pub vector_search_timeout_ms: u64,\n \n",
+    "current_delivery": "eval/instruction-view-request-delivery-20261118.json",
+    "current_normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
+  },
+  "closure_scope": "The original EG18 limited Core dependency and Full/.NET default requirements above. Named workflow roots and their demonstrated recovery also remain delivered. This does not declare every prose suggestion in every specialist universally callable or establish model/backend availability or workflow equivalence.",
+  "limitations": [
+    "Normal LegacyValidation remains Full; no preset reduction benefit is claimed for its current runtime.",
+    "No new test, build or model run was required; versions and dated acceptance are explicit. This is closure of delivered work, not a new runtime improvement.",
+    "EG24/25 task usefulness and all other original findings/gates keep their independent states."
+  ],
+  "resources": {
+    "new_fixtures": 0,
+    "builds": 0,
+    "model_calls": 0,
+    "retained_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\eg18-original-requirement-20261118",
+    "purpose": "Original requirement/evidence mapping; no preexisting deletion."
+  },
+  "full_original_goal_complete": false,
+  "original_research": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\original-agent-findings-20261101.json",
+    "sha256": "5832177fe5afa5e2e4659bca775ee208f98061d20012b2f2418fdd36672df08d",
+    "agent": "tool_roi",
+    "excerpt": "ency closure, not simply fewer advertised tools.** `CORE_TOOLS` contains `search_memory`, `ask_codebase` and planning tools, but omits `get_chunk`, `list_projects`, `project_info` and `read_memory_bank`: [tool_surface.rs](/C:/ai-projects/Engram-MCP_v2/crates/engram_server/src/tool_surface.rs:160). Those evidence tools are expressly required in the full-surface integration test: [tool_surface_tier_tests.rs](/C:/ai-projects/Engram-MCP_v2/crates/engram_server/tests/tool_surface_tier_tests.rs:147). First repair that optional preset; later offer dependency-closed development, QA and migration presets. Do not hide .NET tools from LegacyValidation.",
+    "acceptance_mapping": "Core project/code/memory discovery repaired; development/QA/migration surfaces and callable recovery verified by retained19-check receipt; default Full/.NET retained. Semantic equivalence of specialists and backend availability were not promised by this preset requirement."
+  }
+}
