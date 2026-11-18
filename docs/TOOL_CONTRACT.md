@@ -2272,3 +2272,15 @@ Installed November18 ([delivery](../eval/instruction-view-request-delivery-20261
 `query_schema` accepts `query_type: {"kind":"view","name":"sales.OrderSummary"}`. It returns complete token-normalized source declarations and citations; duplicate basename definitions remain ambiguous. `ask_codebase` questions such as `Describe SQL view sales.OrderSummary` reuse that reader, preserve scoped guidance and supply callable Full/Core clarification. Source-hash refusal and exact saved-result recovery retain their existing contracts. This does not infer view-column types, deployed state or execution.
 
 Ordinary WebForms traces include admitted `Handles Me.PreRender`, `Handles MyBase.PreRender` and explicitly automatically wired `Page_PreRender` source context. Existing composition/source/traversal bounds remain; runtime order, visibility and execution are unproven. Instruction maintenance also retains observed bracketed SQL references such as `[dbo].[Orders]` as qualified dependencies, without granting wider policy authority or inferring database binding.
+
+## Corpus refresh results and constant instruction evidence
+
+Installed November18 ([delivery](../eval/health-refresh-constant-delivery-20261118.json)).
+
+`refresh_corpora` returns a versioned JSON report with `stage_errors`, `status` and `stages`. Each attempted stage retains its complete original MCP result or protocol error; the optional review stage reports its skip. Any reported stage failure sets aggregate `isError`. Independent stages continue; earlier successful writes are not rolled back. `returned` means the handler returned, without certifying corpus completeness or working-tree freshness.
+
+Shared `max_tokens`, `output_json` and immutable response recovery retain full results instead of the former four/six-line stage summaries. Recovery never refreshes corpora again. Failed retention preserves the original result and explicitly discloses the budget overrun.
+
+`project_health` reports the configured semantic tier separately from unprobed provider availability; configured semantic services do not receive a READY claim. This does not contact the provider or alter source-store health findings.
+
+Instruction maintenance captures qualified, explicitly visible single-line VB constant declarations from supplied before/current bytes. Initializer changes can select dependent guidance while unrelated method edits leave that constant evidence unchanged. Source/range hashes and unverified-candidate status remain; no compiler binding, semantic constant evaluation, absence proof, policy authority or authored rewrite is inferred.

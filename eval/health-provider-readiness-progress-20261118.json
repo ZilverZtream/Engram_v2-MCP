@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-18T10:42:06.975767+00:00",
   "original_requirement_id": "EG-26",
   "source_commit": "c4a87166860fe4882d9f2b4187d1e27c39dbf1bb",
@@ -14,13 +14,15 @@
   "native_cases_written": 2,
   "native_cases_executed": 2,
   "source_stage_cargo_invocations": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "counting_rule": "One honest semantic-provider readiness reporting outcome. Configured/off variants, no-provider-request assertions and preserved integrity fields support the same outcome.",
   "current_LegacyValidation_profile": "Normal configuration uses Ollama. This fixes interpretation of that configured tier; no current provider outage or measured task gain is claimed.",
   "limitations": [
-    "Syntax checks passed; type checking, native cases and public acceptance await a later combined batch.",
-    "Health does not probe a provider or establish retrieval latency, relevance or task quality. Actual retrieval outcomes remain separately reported.",
-    "This source work does not close full catalog reconciliation or EG26. The existing instruction/view/request release remains frozen and unchanged."
+    "Health distinguishes configured semantic tier from unprobed availability. It does not contact providers or prove retrieval latency, relevance or task usefulness; store/generation health remains independent.",
+    "refresh_corpora retains complete stage results/errors, continues independent stages and preserves aggregate isError. Stage return does not certify complete/fresh corpora or roll back earlier writes. Existing response retention quotas apply; retention failure preserves the original result with an explicit budget-overrun warning.",
+    "Explicitly visible single-line VB constants are positive captured declarations, not compiler bindings, semantic constant evaluation or absence proof. Existing source/candidate bounds and instruction scope/authority remain.",
+    "Public check counts are overlapping contract assertions, not distinct features or measured agent benefit. No actual LegacyValidation source/Q/index mutation, CodeMap/Blast Radius change, model comparison, sidecar rebuild, language expansion or preexisting deletion.",
+    "Original31finding rows/19gates and independently completed EG18 contract are preserved. Other unfinished requirements, task usefulness and full goal remain unfinished."
   ],
   "temporary_resources": {
     "fixtures_created": 0,
@@ -29,12 +31,21 @@
   },
   "first_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native1.json",
   "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native1-source-correction.json",
-  "validation_status": "NATIVE_AND_DEBUG_PASS_OPTIMIZED_RELEASE_RUNNING",
+  "validation_status": "PASS",
   "native_cases_distinct_passed": 2,
   "native_test_executions": 5,
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native-acceptance.json",
   "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-provider-readiness-20261118\\debug1-health\\receipt.json",
   "debug_public_pass": true,
   "release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118",
-  "release_session_id": 1047
+  "release_session_id": 1047,
+  "historical_source_stage_limits": [
+    "Syntax checks passed; type checking, native cases and public acceptance await a later combined batch.",
+    "Health does not probe a provider or establish retrieval latency, relevance or task quality. Actual retrieval outcomes remain separately reported.",
+    "This source work does not close full catalog reconciliation or EG26. The existing instruction/view/request release remains frozen and unchanged."
+  ],
+  "delivery_record": "eval/health-refresh-constant-delivery-20261118.json",
+  "installed_runtime_sha256": "0cfa62e65e370f2031b644e26b51e9699658149e3f0d506e5966e7002de7c78e",
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\installed1\\acceptance.json",
+  "next_action": "Finite component accepted and installed; advance the remaining original backlog without extending this acceptance."
 }

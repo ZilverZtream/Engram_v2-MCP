@@ -1,0 +1,161 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-18T12:52:50.112093+00:00",
+  "original_requirement_ids": [
+    "EG-26",
+    "TODO-4",
+    "EG-27"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118",
+  "source_preparation": {
+    "status": "FIXTURE_ONLY_CORRECTION_SOURCE_READY",
+    "source_commit": "2a1971d553cad50cce640d064df58f6910606afd",
+    "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "retained_passes": 5,
+    "native_cases_to_rerun": 1,
+    "correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native2-fixture-correction.json",
+    "production_source_unchanged_from_previous_native": true,
+    "at_utc": "2026-11-18T11:56:34.166741+00:00"
+  },
+  "runtime": {
+    "status": "INSTALLED_ACCEPTANCE_PASS",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\package1",
+    "server_sha256": "0cfa62e65e370f2031b644e26b51e9699658149e3f0d506e5966e7002de7c78e",
+    "manifest_sha256": "1ddd99605a204f56e7fa88ac5919e2d3f493633e2653f5a5fdf931675d04e0d0",
+    "old_server_sha256": "17b46b3fffdf4e3a821421d6c16b5f65577ea59686fb2fd75e8cc37c184d13e8",
+    "old_manifest_sha256": "6286fdaa5e4a59f975f9bc6043ca2a4b2b68d0e12aa22fde57f8ff919b9a00d3",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\release1.json",
+      "sha256": "e48cc2cf7a08646fdf5b576b146e9ab1f55f5a97d4f9f32027433419cb01c3be"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "6286fdaa5e4a59f975f9bc6043ca2a4b2b68d0e12aa22fde57f8ff919b9a00d3",
+      "capture_phase": "Before pair swap; immutable package input, not current installed identity."
+    },
+    "source_commit": "2a1971d553cad50cce640d064df58f6910606afd"
+  },
+  "native_acceptance": {
+    "status": "PASS",
+    "native_cases_covered": 6,
+    "native_test_executions": 10,
+    "cargo_invocations": 3,
+    "successful_native_labels": [
+      "native3"
+    ],
+    "latest_successful_native_label": "native3",
+    "receipt_label": "native3",
+    "retained_and_current_passes": {
+      "constant_dependencies::changed_constant_selects_only_its_guide_preserving_authored_scope_and_exceptions": {
+        "result": "ok",
+        "receipt": "native1"
+      },
+      "constant_dependencies::conversion_version_initializer_is_exact_dependency_evidence_not_whole_file_invalidation": {
+        "result": "ok",
+        "receipt": "native2"
+      },
+      "health_readiness::configured_semantic_service_is_not_reported_ready_without_operational_evidence": {
+        "result": "ok",
+        "receipt": "native3"
+      },
+      "health_readiness::disabled_semantic_retrieval_retains_its_integrity_and_degraded_scope": {
+        "result": "ok",
+        "receipt": "native2"
+      },
+      "refresh_results::actual_refresh_reports_missing_projects_and_preserves_successful_stage_outcomes": {
+        "result": "ok",
+        "receipt": "native1"
+      },
+      "refresh_results::complete_stage_errors_and_late_warnings_survive_budgeted_recovery": {
+        "result": "ok",
+        "receipt": "native1"
+      }
+    },
+    "seconds": 899.0232631000017,
+    "full_suite_runs": 0,
+    "separate_debug_builds": 0,
+    "corrections": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native1-source-correction.json",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native2-fixture-correction.json"
+    ]
+  },
+  "public_check_assertions_per_artifact": 29,
+  "public_receipts": {
+    "debug1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\debug1\\receipt.json",
+    "candidate1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\candidate1\\acceptance.json",
+    "installed1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\installed1\\acceptance.json"
+  },
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\restored-runtime\\receipt.json",
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3151,
+  "source_format": 9,
+  "protected_wip9": "UNCHANGED",
+  "full_original_goal_complete": false,
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\Engram-win-x64-health-refresh-constant.zip",
+    "sha256": "AA03FC595008CAEB327C7366AC633A46514A140FFA26FB896C1FE279002B94B8",
+    "entries": 219,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "1DDD99605A204F56E7FA88AC5919E2D3F493633E2653F5A5FDF931675D04E0D0"
+  },
+  "windows_zip_sha256": "aa03fc595008caeb327c7366ac633a46514a140ffa26fb896c1fe279002b94b8",
+  "build_accounting": {
+    "native_invocations": 3,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "native_unique_cases": 6,
+    "native_test_executions": 10,
+    "native_seconds": 899.0232631000017,
+    "release_seconds": 2688.1667572000024,
+    "pure_coding_percentage": null,
+    "note": "Native1:3PASS3FAIL. Corrected constant qualification and health publication fixture. Native2 reran only3failed cases:2PASS1FAIL. Isolated semantic fixture bootstrap from indexing-report embeddings; native3 reran only1case:PASS. Unaffected passes retained. One optimized release; no full suite or separate debug build. No coding percentage or compile speedup measured.",
+    "correction_receipts": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native1-source-correction.json",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\native2-fixture-correction.json"
+    ]
+  },
+  "temporary_resources": {
+    "native_and_release_jobs_closed": true,
+    "owned_build_temps_removed": true,
+    "public_owners_closed_and_owned_fixtures_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118",
+    "managed_rollback_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-0e5db8b99fcf411297a82dafdd1bc703",
+    "intentionally_retained_runtime": {
+      "pid": 25388,
+      "purpose": "Normal installed daemon, restored at acceptance time; its ordinary idle lifecycle owns it."
+    },
+    "retention": "Retain contracts, wire/source evidence, package/ZIP and rollback until separately accounted for. No preexisting folders removed."
+  },
+  "limitations": [
+    "Health distinguishes configured semantic tier from unprobed availability. It does not contact providers or prove retrieval latency, relevance or task usefulness; store/generation health remains independent.",
+    "refresh_corpora retains complete stage results/errors, continues independent stages and preserves aggregate isError. Stage return does not certify complete/fresh corpora or roll back earlier writes. Existing response retention quotas apply; retention failure preserves the original result with an explicit budget-overrun warning.",
+    "Explicitly visible single-line VB constants are positive captured declarations, not compiler bindings, semantic constant evaluation or absence proof. Existing source/candidate bounds and instruction scope/authority remain.",
+    "Public check counts are overlapping contract assertions, not distinct features or measured agent benefit. No actual LegacyValidation source/Q/index mutation, CodeMap/Blast Radius change, model comparison, sidecar rebuild, language expansion or preexisting deletion.",
+    "Original31finding rows/19gates and independently completed EG18 contract are preserved. Other unfinished requirements, task usefulness and full goal remain unfinished."
+  ],
+  "deployment_accounting": {
+    "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\deployment3-state.json",
+    "earlier_attempts": [
+      {
+        "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\deployment1-state.json",
+        "reason": "Proxy quiescence required a cmd wrapper; the two observed normal proxies use the existing Copilot node discovery shim. No candidate checks or install ran. Retained completed daemon quiescence and unchanged release/package."
+      },
+      {
+        "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\deployment2-state.json",
+        "reason": "State verifier still selected released hold1 instead of the second attempt hold. Failed before fixture creation or candidate calls; no package/build replay. Corrected hold path for attempt3."
+      }
+    ],
+    "completion": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\completion1-state.json",
+    "owner_quiescence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\quiescence-owner1\\receipt.json",
+    "normal_proxy_quiescence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\health-refresh-constant-20261118\\quiescence-proxies2\\receipt.json",
+    "registry_recovery": "Existing explicit RAM-overlay recovery with unchanged source verification; no on-disk repair.",
+    "rebuilds_during_deployment": 0
+  }
+}

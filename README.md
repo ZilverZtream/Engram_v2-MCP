@@ -94,6 +94,8 @@ The [following November 18 delivery](eval/ask-authority-batch-recovery-delivery-
 
 The [SQL and WebForms delivery](eval/instruction-view-request-delivery-20261118.json) preserves bracketed SQL instruction references, adds authored WebForms PreRender context and supplies complete named SQL-view evidence through direct and natural-language reads. These are source-behavior deliveries; broader LegacyValidation task benefit remains unproven.
 
+The [health, refresh and instruction delivery](eval/health-refresh-constant-delivery-20261118.json) separates configured semantic tier from unprobed availability, retains full per-stage refresh results/failures, and tracks captured VB constant dependencies. Owned acceptance passed; incremental LegacyValidation task benefit remains unproven.
+
 Later installed deliveries include [direct method/source guidance and bounded
 recovery](eval/legacy_validation-method-read-batch-delivery-20261114.json), and [ordinary SQL
 keys, schema-bound views and source-cited route registrations](eval/legacy_validation-request-schema-batch-delivery-20261114.json).
