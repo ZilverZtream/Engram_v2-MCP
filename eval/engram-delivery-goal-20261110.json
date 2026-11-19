@@ -3191,7 +3191,15 @@
       "acceptance": "An opt-in, explicitly typed reference request retains an inherited selected source endpoint, withholds future or missing endpoints and future source edge revisions, and returns selected generation, verified file revisions and truthful bounded coverage. The existing call shape retains raw graph navigation.",
       "verification": "A focused executable with the exact new reader, real lexical managed source selection and real GraphStore retained the inherited revision-1 caller for revision-2 target, and withheld a deleted source, a future endpoint, a missing endpoint and a future edge at the inherited caller. The installed baseline returned the ordinary LegacyValidation VetroController to IWebhookVetroService call as raw text, with no selected revision check. Independent LegacyValidation Git verified the source call at controller line 17 and interface declaration at line 3. The existing public handler graph fixture now covers outgoing selected references under a published edit. Full packaged MCP acceptance remains pending. No historical graph, source freshness or runtime call behavior inferred. No Cargo build."
     },
-    "next_action": "Advance the next independent original requirement. Selected-source direct graph reference checks are queued for one later package, with broader S16 limits retained."
+    "selected_file_integrity": {
+      "status": "IMPLEMENTED_FOCUSED_NATIVE_STORE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-39 selected-source identity diagnosis for a suspect file in a larger project",
+      "observed_gap": "Installed whole-project check_integrity falls back to counts alone above the identity comparison bound. An agent cannot ask it to compare the vector keys of one suspect published file.",
+      "implementation": "check_integrity exact-file observation and existing index identity reader with a literal path and selected physical revision.",
+      "acceptance": "A read-only exact path selects only its published revision, including inherited files, and compares bounded lexical and vector keys without counting the entire project. Report missing membership, missing vector support, and incomplete coverage explicitly. A scoped request must not trigger the existing project-wide auto-repair.",
+      "verification": "The focused native test ran the exact new predicates and existing key reader against actual Tantivy and LanceDB stores. A 4,103-row lexical fixture exceeded the project key limit, then the exact selected revision observed two rows and one matching key in both stores. The query excluded an unpublished physical revision, a similarly named sibling and a native row from another namespace. The public integration fixture now checks inherited corruption, unaffected and absent files, and refusal of scoped auto-repair. Retained LegacyValidation project_info confirms the deployed VB.NET/WebForms and JavaScript/TypeScript configuration. Full packaged MCP acceptance remains pending. No Cargo build or live mutation."
+    },
+    "next_action": "Advance an independent original requirement. Direct selected-source references and exact-file integrity are queued for combined public validation."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",

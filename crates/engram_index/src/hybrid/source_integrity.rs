@@ -17,6 +17,42 @@ const MAX_IDENTITY_ROWS: usize = 4096;
 const MAX_IDENTITY_BYTES: usize = 4 * 1024 * 1024;
 
 #[cfg(feature = "vector")]
+#[derive(Clone)]
+pub(super) struct FileScope {
+    pub path: String,
+    pub revision: u64,
+}
+
+#[cfg(feature = "vector")]
+impl FileScope {
+    pub(super) fn lexical_query(
+        &self,
+        path: tantivy::schema::Field,
+        generation: tantivy::schema::Field,
+    ) -> Box<dyn tantivy::query::Query> {
+        use tantivy::query::{BooleanQuery, Occur, Query, TermQuery};
+        use tantivy::schema::{IndexRecordOption, Term};
+        let term =
+            |value| Box::new(TermQuery::new(value, IndexRecordOption::Basic)) as Box<dyn Query>;
+        Box::new(BooleanQuery::new(vec![
+            (Occur::Must, term(Term::from_field_text(path, &self.path))),
+            (
+                Occur::Must,
+                term(Term::from_field_u64(generation, self.revision)),
+            ),
+        ]))
+    }
+
+    pub(super) fn vector_filter(&self) -> String {
+        format!(
+            "namespace = 'memory' AND path = '{}' AND generation = {}",
+            self.path.replace('\'', "''"),
+            crate::sql_literals::u64_literal(self.revision),
+        )
+    }
+}
+
+#[cfg(feature = "vector")]
 pub(super) fn lexical_rows(
     searcher: &tantivy::Searcher,
     query: &dyn tantivy::query::Query,

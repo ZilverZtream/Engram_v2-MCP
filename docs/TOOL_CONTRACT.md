@@ -1043,7 +1043,15 @@ not rerun the tool. This adds no provider-token accounting, domain-specific
 parsing of Markdown reports or new source-completeness claim.
 
 
-### Namespace integrity after partial ingestion
+### Integrity after partial ingestion
+
+For a suspect indexed file, call
+`check_integrity(project_id, source_file="Site/App_Code/Example.vb")`.
+The exact path selects its published physical revision, which may be inherited
+from an earlier generation. The report contains counts and, within the key
+comparison limits, the number of matching vector identities. An absent path,
+disabled vectors, and counts-only coverage have separate statuses. This call
+observes one file and cannot request auto-repair or assess project-wide health.
 
 `check_integrity` returns `retained_namespaces` alongside the existing published
 `source_generation` observation. Non-memory namespaces compare all retained

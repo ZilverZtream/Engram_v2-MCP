@@ -1134,7 +1134,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Verify index integrity (Tantivy/Redb sentinels), optionally auto-repair. Use when results look wrong or after a crash; repair_project for targeted rebuilds."
+        description = "Compare Tantivy and vector index integrity, optionally auto-repair. Supply source_file for a read-only comparison of one exact published file and its selected physical revision, including bounded vector key matching. Scoped checks cannot request auto_repair. Use repair_project for targeted rebuilds."
     )]
     pub async fn check_integrity(
         &self,

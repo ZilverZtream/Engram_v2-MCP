@@ -3056,6 +3056,10 @@ pub struct GetMetricsRequest {
 #[serde(deny_unknown_fields)]
 pub struct CheckIntegrityRequest {
     pub project_id: String,
+    /// Compare one exact project-relative file at its published physical
+    /// revision. This mode is read-only and cannot request auto-repair.
+    #[serde(default)]
+    pub source_file: Option<String>,
     /// Auto-repair mismatches if found (overrides config). Default: use config value.
     #[serde(default)]
     pub auto_repair: Option<bool>,

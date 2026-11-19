@@ -4596,6 +4596,15 @@ impl Engram {
         &self,
         req: CheckIntegrityRequest,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(path) = req.source_file.as_deref() {
+            if req.auto_repair == Some(true) {
+                return Err(McpError::invalid_params(
+                    "source_file integrity checks are read-only; omit auto_repair or set it false",
+                    None,
+                ));
+            }
+            return self.handle_selected_file_integrity(&req.project_id, path).await;
+        }
         let _ps = self.ensure_project_runtime(&req.project_id).await?;
         let auto_repair = crate::services::integrity_service::resolve_auto_repair(
             self.state.cfg.integrity_auto_repair,
@@ -4611,6 +4620,57 @@ impl Engram {
         let json = serde_json::to_string_pretty(&result)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         Ok(CallToolResult::success(vec![Content::text(json)]))
+    }
+
+    async fn handle_selected_file_integrity(
+        &self,
+        project: &str,
+        path: &str,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(project)?;
+        let path = path.replace('\\', "/");
+        if path.len() > 1024
+            || path.contains(':')
+            || path.chars().any(char::is_control)
+            || path.split('/').any(|part| matches!(part, "" | "." | ".."))
+        {
+            return Err(McpError::invalid_params(
+                "source_file must be one literal project-relative indexed path",
+                None,
+            ));
+        }
+        let runtime = self.ensure_project_runtime(project).await?;
+        let (generation, view) = self.pin_active_source_generation(project, &runtime.search).await?;
+        let selected = view.selected_file_revisions();
+        let revision = selected.and_then(|files| files.get(&path)).copied();
+        let embeddings = !matches!(self.state.cfg.embedding_backend.as_str(), "" | "fts_only");
+        let rows = if embeddings && revision.is_some() {
+            runtime.search.observe_selected_source_file(project, generation, &view, &path).await
+                .map_err(|error| McpError::internal_error(error.to_string(), None))?
+        } else {
+            None
+        };
+        let status = match rows {
+            Some(row) if row.lexical_count != row.vector_count => "count_mismatch",
+            Some(row) if row.lexical_count == 0 => "no_index_rows",
+            Some(row) if row.matching_vector_ids == Some(row.lexical_count) => "matching_identities",
+            Some(row) if row.matching_vector_ids.is_some() => "identity_mismatch",
+            Some(_) => "counts_only",
+            None if selected.is_none() => "managed_source_selection_unavailable",
+            None if revision.is_none() => "file_not_selected",
+            None if !embeddings => "embeddings_disabled",
+            None => "vector_observation_unavailable",
+        };
+        let report = serde_json::json!({
+            "scope":"selected_source_file", "project_id":project, "source_file":path,
+            "active_generation":generation, "physical_revision":revision, "status":status,
+            "tantivy_doc_count":rows.map(|row| row.lexical_count),
+            "vector_doc_count":rows.map(|row| row.vector_count),
+            "matching_vector_ids":rows.and_then(|row| row.matching_vector_ids),
+            "repairs_attempted":[],
+            "coverage":"Read-only comparison of indexed memory rows for this path and revision. Identity checks are bounded to 4096 selected rows and 4 MiB of lexical key text. This check does not establish project health, working-tree freshness or vector quality."
+        });
+        Ok(CallToolResult::success(vec![Content::text(report.to_string())]))
     }
 
     pub async fn handle_get_checkpoint_status(

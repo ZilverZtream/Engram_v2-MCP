@@ -2868,9 +2868,6 @@ impl HybridSearchEngine {
     ) -> anyhow::Result<Option<SourceGenerationObservation>> {
         #[cfg(feature = "vector")]
         {
-            // Without a manifest scope there is no precise comparison to make.
-            // This is unknown, including a missing managed scope, never healthy.
-            // Partial/damaged metadata in an existing scope still fails below.
             if !self.has_managed_source_snapshots(project_id)? {
                 return Ok(None);
             }
@@ -2878,53 +2875,99 @@ impl HybridSearchEngine {
             if !view.is_managed() {
                 return Ok(None);
             }
-            let snapshot = view._snapshot.clone();
-            let lexical_snapshot = snapshot.clone();
-            let lexical = self.clone();
-            let project = project_id.to_owned();
-            let (lexical_count, lexical_keys) = tokio::task::spawn_blocking(move || {
-                let reader = lexical.tantivy_index.reader()?;
-                let query = BooleanQuery::new(vec![
-                    (Occur::Must, Box::new(TermQuery::new(
-                        Term::from_field_text(lexical.fields.project_id, &project),
-                        IndexRecordOption::Basic,
-                    )) as Box<dyn tantivy::query::Query>),
-                    (Occur::Must, Box::new(TermQuery::new(
-                        Term::from_field_text(lexical.fields.namespace, "memory"),
-                        IndexRecordOption::Basic,
-                    ))),
-                    (Occur::Must, lexical_snapshot.query(&lexical.fields)),
-                ]);
-                source_integrity::lexical_rows(&reader.searcher(), &query, lexical.fields.pk, compare_keys)
-            }).await??;
-            let epoch = self.pin_vector_epoch(project_id)?;
-            let worker = self.clone();
-            let (vector_count, matching_vector_ids) = self.run_native_vector_query(epoch.clone(), &CancellationToken::new(), async move {
-                // Native work owns the selection even if its requester exits.
-                let selection = format!("namespace = 'memory' AND ({})", snapshot.sql());
-                worker.ensure_managed_vector_table_present(&epoch)?;
-                if !worker.native_store.capture()?.connection.table_names().execute().await?.contains(&epoch.table) {
-                    return Ok((0, None));
-                }
-                let table = worker.open_vector_epoch_table(&epoch).await?;
-                let count = table.count_rows(Some(selection)).await?;
-                let matching = match lexical_keys {
-                    Some(keys) if lexical_count == count => {
-                        let selection = format!("namespace = 'memory' AND ({})", snapshot.sql());
-                        Some(source_integrity::match_vector_keys(&table, selection, keys).await?)
-                    }
-                    _ => None,
-                };
-                drop(snapshot);
-                Ok((count, matching))
-            }).await?;
-            Ok(Some(SourceGenerationObservation { lexical_count, vector_count, matching_vector_ids }))
+            Ok(Some(self.observe_selected_source_rows(
+                project_id, view._snapshot.clone(), None, compare_keys,
+            ).await?))
         }
         #[cfg(not(feature = "vector"))]
         {
             let _ = (project_id, generation, compare_keys);
             Ok(None)
         }
+    }
+
+    /// Compare one literal selected path at its physical revision. The caller's
+    /// lease remains in use even if the active generation changes during the read.
+    /// None means the file is unselected, the view is legacy or vectors are unavailable.
+    pub async fn observe_selected_source_file(
+        &self,
+        project_id: &str,
+        generation: u64,
+        view: &SourceSnapshotGuard,
+        path: &str,
+    ) -> anyhow::Result<Option<SourceGenerationObservation>> {
+        self.validate_source_snapshot_guard(project_id, generation, view)?;
+        #[cfg(feature = "vector")]
+        {
+            let Some(revision) = view.selected_file_revisions().and_then(|files| files.get(path)) else {
+                return Ok(None);
+            };
+            Ok(Some(self.observe_selected_source_rows(
+                project_id, view._snapshot.clone(), Some(source_integrity::FileScope { path: path.to_owned(), revision: *revision }), true,
+            ).await?))
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = path;
+            Ok(None)
+        }
+    }
+
+    #[cfg(feature = "vector")]
+    async fn observe_selected_source_rows(
+        &self,
+        project_id: &str,
+        snapshot: snapshots::Lease,
+        file: Option<source_integrity::FileScope>,
+        compare_keys: bool,
+    ) -> anyhow::Result<SourceGenerationObservation> {
+        let lexical_snapshot = snapshot.clone();
+        let lexical_file = file.clone();
+        let lexical = self.clone();
+        let project = project_id.to_owned();
+        let (lexical_count, lexical_keys) = tokio::task::spawn_blocking(move || {
+            let term = |term| Box::new(TermQuery::new(term, IndexRecordOption::Basic))
+                as Box<dyn tantivy::query::Query>;
+            let mut clauses = vec![
+                (Occur::Must, term(Term::from_field_text(lexical.fields.project_id, &project))),
+                (Occur::Must, term(Term::from_field_text(lexical.fields.namespace, "memory"))),
+            ];
+            let source = lexical_file.as_ref().map_or_else(
+                || lexical_snapshot.query(&lexical.fields),
+                |scope| scope.lexical_query(lexical.fields.path, lexical.fields.generation),
+            );
+            clauses.push((Occur::Must, source));
+            let reader = lexical.tantivy_index.reader()?;
+            source_integrity::lexical_rows(
+                &reader.searcher(), &BooleanQuery::new(clauses), lexical.fields.pk, compare_keys,
+            )
+        }).await??;
+        let epoch = self.pin_vector_epoch(project_id)?;
+        let worker = self.clone();
+        let (vector_count, matching_vector_ids) = self.run_native_vector_query(
+            epoch.clone(), &CancellationToken::new(), async move {
+                // The native read owns the source selection even on cancellation.
+                let filter = || file.as_ref().map_or_else(
+                    || format!("namespace = 'memory' AND ({})", snapshot.sql()),
+                    source_integrity::FileScope::vector_filter,
+                );
+                worker.ensure_managed_vector_table_present(&epoch)?;
+                if !worker.native_store.capture()?.connection.table_names().execute().await?.contains(&epoch.table) {
+                    return Ok((0, None));
+                }
+                let table = worker.open_vector_epoch_table(&epoch).await?;
+                let count = table.count_rows(Some(filter())).await?;
+                let matching = match lexical_keys {
+                    Some(keys) if lexical_count == count => {
+                        Some(source_integrity::match_vector_keys(&table, filter(), keys).await?)
+                    }
+                    _ => None,
+                };
+                drop(snapshot);
+                Ok((count, matching))
+            },
+        ).await?;
+        Ok(SourceGenerationObservation { lexical_count, vector_count, matching_vector_ids })
     }
 
     pub async fn count_vectors(&self, project_id: &str) -> anyhow::Result<usize> {

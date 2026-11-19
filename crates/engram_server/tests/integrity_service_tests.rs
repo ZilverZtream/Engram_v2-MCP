@@ -237,6 +237,39 @@ async fn equal_counts_with_a_replaced_selected_vector_trigger_scoped_recovery() 
     assert_eq!(observed["mismatches"][0]["actual"], 2);
     assert!(observed["repairs_attempted"].as_array().unwrap().is_empty());
 
+    let server = Engram::new(fixture.state.clone());
+    for (path, status, revision) in [
+        ("a.vb", "identity_mismatch", Some(1)),
+        ("c.vb", "matching_identities", Some(2)),
+        ("absent.vb", "file_not_selected", None),
+    ] {
+        let result = server
+            .handle_check_integrity(
+                serde_json::from_value(json!({"project_id":PID,"source_file":path})).unwrap(),
+            )
+            .await
+            .unwrap();
+        let report: Value =
+            serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
+        assert_eq!(report["status"], status);
+        assert_eq!(report["active_generation"], 2);
+        assert_eq!(report["physical_revision"].as_u64(), revision);
+        assert_eq!(report["tantivy_doc_count"].as_u64(), revision.map(|_| 1));
+        assert!(report["repairs_attempted"].as_array().unwrap().is_empty());
+        assert!(report.get("overall_healthy").is_none());
+    }
+    assert!(
+        server
+            .handle_check_integrity(
+                serde_json::from_value(json!({
+                    "project_id":PID,"source_file":"a.vb","auto_repair":true,
+                }))
+                .unwrap()
+            )
+            .await
+            .is_err()
+    );
+
     let repaired = fixture.check(true).await;
     assert_eq!(
         repaired["repairs_attempted"][0]["action"],
