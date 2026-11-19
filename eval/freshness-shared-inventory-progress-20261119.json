@@ -1,0 +1,40 @@
+{
+  "original_requirement_id": "EG-13",
+  "related_requirement_id": "S07",
+  "source_commit": "ff4370b264138b641a4718f89fa3c985553a3736",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-shared-inventory-20261119\\verify-public.py",
+    "sha256": "fec4a5710a58718ddeb0d5509ee9a83f0fd40932ea5a41d5c8ae3e4ebcf6cb1b"
+  },
+  "public_assertions_expected": 4,
+  "public_assertions": [
+    "clean_coverage_ignores_empty_file",
+    "inventory_basis_is_attached_only_when_shared",
+    "new_nonempty_path_is_counted_in_both_diagnostics",
+    "selected_generation_and_source_unchanged"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-shared-inventory-20261119\\baseline2\\receipt.json",
+    "sha256": "9fe3200b664ef341239d9a806a51c6e0c4f72801817fd0a90feb1946925b8b44"
+  },
+  "baseline_setup_attempt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-shared-inventory-20261119\\baseline1\\receipt.json",
+    "sha256": "42b34561c5905c72477d4aebaeb557faf752261d2464df29257f03853c0b0dcd"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "S07: source counts and completeness diagnostics use consistent observations.",
+  "observed_gap": "The normal freshness call obtains a disk inventory for change detection, then independently walks the same checkout to compute completeness expectations.",
+  "implementation_files": [
+    "crates/engram_server/src/services/project_service.rs",
+    "crates/engram_server/src/handlers/project_tools.rs"
+  ],
+  "behavior": "Reuse the complete nonempty path inventory captured during disk change detection. Observation failure and explicit check_disk=false retain independent completeness behavior.",
+  "limitations": [
+    "Current build excludes this source commit. No compile or runtime gain has been measured.",
+    "The first baseline indexed an empty file and exposed its existing graph-only row. The corrected fixture adds the empty file after indexing to isolate the disk inventory denominator."
+  ],
+  "temporary_resources": "The two owned MCP fixtures were removed after process and reader closure. The verifier and receipts remain in the recorded case.",
+  "full_original_goal_complete": false
+}
