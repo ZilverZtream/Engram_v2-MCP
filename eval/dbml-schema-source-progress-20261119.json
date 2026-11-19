@@ -1,0 +1,81 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-19T04:22:24.607037+00:00",
+  "original_requirement_id": "TODO-35",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-schema-source-20261119",
+  "source_commit": "614676745a2d509321d50240771de9eb98e99120",
+  "source_files": [
+    "crates/engram_server/src/services/schema_query.rs",
+    "crates/engram_server/src/services/schema_query/dbml.rs",
+    "crates/engram_server/src/handlers/schema_tools.rs",
+    "crates/engram_server/src/handlers/ask_schema.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/tools.rs"
+  ],
+  "observed_missing_behavior": "An indexed BOM/CRLF DBML file is available through hash-bound source recovery, but query_schema and the legacy graph DDL reader return no matching table. ask_codebase returns no typed DBML column evidence. Owned native baseline passed four gap assertions.",
+  "implemented_behavior": [
+    "Existing selected-source schema scan admits DBML with the same physical revision, raw-file BLAKE3, path scope, file/total byte and memory limits.",
+    "Namespaced direct table/type Column mappings retain names, literal DbType, explicit CanBeNull/IsPrimaryKey and exact table spans. Absent nullable flags remain unknown; CLR, generated/derived, association and deployed semantics are not invented.",
+    "DBML rows are explicitly marked dbml_mapping, including flattened column and ambiguity candidates. Same-qualified SQL declarations retain precedence in named lookups; different qualified candidates retain ambiguity.",
+    "Existing natural-language table/SQL composition returns the same source evidence; unrelated unresolved code symbols do not begin DBML schema scans. Mapping names do not establish graph/code/database binding.",
+    "The legacy get_table_schema handler is unchanged; its description directs mapping questions to query_schema. Protected cognitive_tools.rs is preserved."
+  ],
+  "current_legacy_validation_relevance": {
+    "retained_actual_evidence": "eval/legacy_validation-request-dbml-mapping-delivery-20261112.json",
+    "basis": "Actual retained LegacyValidation request evidence reaches DBML mappings in iFalt.dbml. DBML is an already indexed .NET/LegacyValidation format; this adds no target-language support. Normal Full already advertises query_schema and ask_codebase.",
+    "limits": "Current actual LegacyValidation DBML/source/Q/index was not read, modified or refreshed; no production DB schema, mapping-wide compatibility or application behavior is certified."
+  },
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-schema-source-20261119\\baseline1\\receipt.json",
+    "sha256": "3daed8000209e4c9f2ad3ed420d4b97a06fe3a4e94a060fb1e8c5e80a625f554",
+    "seconds": 2.3718131000059657,
+    "checks": {
+      "dbml_source_is_admitted_and_available": true,
+      "schema_reader_misses_dbml_table": true,
+      "legacy_reader_misses_dbml_table": true,
+      "natural_language_has_no_typed_dbml_columns": true
+    },
+    "independent_xml_oracle": "Python ElementTree confirms the authored namespace and three mapping columns; BOM/CRLF file hashes are pinned in retained native source recovery."
+  },
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-schema-source-20261119\\contract.json",
+  "acceptance_contract_sha256": "9faf7ee3c38569873409a7290ae9ca0c718daf7e25559dd1d27748620a5fa232",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-schema-source-20261119\\verify-public.py",
+  "public_verifier_sha256": "934b78bd72169138e16b0771fbaf980b570019360f0803fa3e3b0d2dffdf44e2",
+  "public_assertions_expected": 8,
+  "required_check_names": [
+    "all_mapped_columns_and_explicit_types",
+    "changed_dbml_hash_withholds_old_schema",
+    "natural_language_json_and_markdown_retain_columns",
+    "nullable_query_does_not_invent_missing_flags",
+    "nullable_unknown_and_key_are_source_qualified",
+    "raw_hash_and_exact_dbml_table_span",
+    "reindex_admits_new_mapping_with_new_hash",
+    "sql_declaration_table_shape_is_preserved"
+  ],
+  "public_after_assertions_executed": 0,
+  "native_unit_cases_expected": 0,
+  "native_target": null,
+  "typechecked": false,
+  "runtime_deployed": false,
+  "implementation_items_active": 0,
+  "verification": {
+    "rust_syntax": "All6changed Rust files parsed using rustfmt --emit stdout; new owned module formatted. Parsing is not typechecking.",
+    "python_syntax": "Verifier parses using Python AST.",
+    "protected_work": "All9prior raw hashes unchanged.",
+    "new_builds": 0,
+    "unit_debug_or_full_suites": 0
+  },
+  "counting_rule": "One original database-schema usefulness outcome: the source reader and existing natural-language composition are one user workflow. Mapping fields, source scopes, qualifiers, stale refusal and SQL precedence are acceptance aspects, not separate source outcomes.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-schema-source-20261119",
+    "owned_native_fixture": "Native process/readers closed; the owned source/index fixture was removed.",
+    "retained": "Contract, verifier, source-recovery/SQL-control replies and baseline wire/receipts remain here until queued acceptance is resolved. No preexisting folders removed."
+  },
+  "limitations": [
+    "Source-only: production typechecking and eight candidate/installed public assertions remain pending.",
+    "Model mappings are not deployed schema, effective defaults/types/nullability/keys, relationships or execution. DBML associations, derived-type columns and generated/computed semantics remain unassessed.",
+    "No actual LegacyValidation source/index/Q operation, external model request, sidecar rebuild, source-format/storage-schema change, CodeMap/Blast change or task-productivity claim."
+  ],
+  "next_action": "Consolidate the three queued source outcomes and include any other ready original work before a deliberate batch freeze. Three is only a minimum; no automatic Cargo cycle. Keep DBML acceptance bounded to these eight cases.",
+  "full_original_goal_complete": false
+}

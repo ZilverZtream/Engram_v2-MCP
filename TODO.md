@@ -809,6 +809,7 @@ proposals that duplicate the existing surface:
   Evidence: `eval/legacy_validation-next-tool-hints-delivery-20261113.json`.
 
 - [x] **35. Database Oracle remainder (spec 39: query_schema, detect_n_plus_one, find_missing_indexes)** (M–L)
+  November19 source complete: `query_schema` and natural-language table questions return selected-current DBML mapping columns/types/explicit nullable/key flags with raw hashes and source spans. SQL declarations retain precedence for the same qualified name. Eight public checks await combined validation; mapping facts are not deployed database schema and this is not installed yet. [Progress](eval/dbml-schema-source-progress-20261119.json).
   For data-heavy projects. `query_schema` first — agents constantly need "what columns
   does this table actually have."
 

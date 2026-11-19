@@ -2580,6 +2580,18 @@
         "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-project-recovery-20261119\\verify-public.py",
         "public_assertions_expected": 7,
         "counting_rule": "One original actionable project-identity recovery outcome across three basic readers. Tools, error fields, normal/empty/reserved controls and non-registration are acceptance aspects, not independent source outcomes."
+      },
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "TODO-35",
+        "source_commit": "614676745a2d509321d50240771de9eb98e99120",
+        "progress": "eval/dbml-schema-source-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-schema-source-20261119\\contract.json",
+        "native_target": null,
+        "native_cases_expected": 0,
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-schema-source-20261119\\verify-public.py",
+        "public_assertions_expected": 8,
+        "counting_rule": "One original database-schema usefulness outcome: the source reader and existing natural-language composition are one user workflow. Mapping fields, source scopes, qualifiers, stale refusal and SQL precedence are acceptance aspects, not separate source outcomes."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2811,12 +2823,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "TWO_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
-    "progress": "eval/graph-project-recovery-progress-20261119.json",
-    "pending_source_outcomes": 2,
+    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "progress": "eval/dbml-schema-source-progress-20261119.json",
+    "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Continue substantive original source work and retain both queued outcomes. No Cargo with only two independent outcomes; the three-outcome floor is not an automatic release schedule."
+    "next_action": "Consolidate the three queued source outcomes and include any other ready original work before a deliberate batch freeze. Three is only a minimum; no automatic Cargo cycle. Keep DBML acceptance bounded to these eight cases."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4155,8 +4167,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T03:54:15.166119+00:00",
-    "reason": "Reproduced three unknown-project false empty successes in1.469seconds, retained the existing correct resolve_id control, and committed metadata-only project validation with seven public checks queued. No new build or full suite."
+    "at_utc": "2026-11-19T04:22:24.607037+00:00",
+    "reason": "Reproduced absent DBML schema evidence through native public APIs, added current-source mapping column evidence and scoped composition, and queued eight public checks. Six Rust files parsed; no new Cargo or suite."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4712,6 +4724,11 @@
   "graph_project_recovery_source_progress_20261119": {
     "record": "eval/graph-project-recovery-progress-20261119.json",
     "source_commit": "03c2980c2755e40709cc0ed075cafc249cd22273",
+    "runtime_deployed": false
+  },
+  "dbml_schema_source_progress_20261119": {
+    "record": "eval/dbml-schema-source-progress-20261119.json",
+    "source_commit": "614676745a2d509321d50240771de9eb98e99120",
     "runtime_deployed": false
   }
 }
