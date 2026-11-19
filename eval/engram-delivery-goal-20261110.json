@@ -2826,17 +2826,11 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SOURCE_OUTCOMES_QUEUED_FOR_LATER_COMBINED_VALIDATION",
+    "status": "OPTIMIZED_BUILD_RUNNING",
     "implementation_items_active": 0,
-    "original_requirement": "TODO-28: route ordinary WebForms page/action questions to existing request evidence.",
-    "observed_gap": "Explicit HTTP and control questions reject relative page names accepted by trace_user_request.",
-    "implementation_files": [
-      "crates/engram_server/src/services/ask_engine/request_trace.rs"
-    ],
-    "acceptance": "Relative page HTTP and control questions select the same source and handlers as the direct tracer, with callable recovery. VB codebehind mentions do not trigger request tracing.",
-    "full_original_goal_complete": false,
-    "record": "eval/ask-relative-webforms-progress-20261119.json",
-    "next_action": "Prepare one combined release for redirect evidence, integrity result recovery and relative WebForms questions. Include the server-only profile change with the recorded validation. Do not launch a separate profile build."
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119",
+    "next_action": "Observe build session 48350 and release observer 49407. The observer packages the successful artifact, runs the prior release public contracts for profile regression, and installs only after candidate verification and release gates. Observe installed checks and normal runtime restoration before recording delivery.",
+    "full_original_goal_complete": false
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3032,28 +3026,52 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "INSTALLED_ACCEPTANCE_AND_NORMAL_RESTORATION_COMPLETE",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119",
-    "source_commit": "c468bca6484c805fe65236eef03af14bab67b59b",
-    "original_requirement_ids": [
-      "TODO-27",
-      "TODO-4",
-      "TODO-34"
-    ],
-    "source_outcomes": 3,
-    "release_builds_planned": 1,
-    "unit_or_debug_builds_planned": 0,
-    "public_assertions_per_artifact": 17,
-    "execution_session_id": 81750,
-    "driver_pid": 54780,
-    "relay_pid": 84284,
-    "owner_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\release1-owner.json",
-    "postrelease_observer_session_id": 12508,
-    "postrelease_observer_pid": 85544,
-    "postrelease_observer_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\postrelease-observer-pin1.json",
-    "helper_preflight": "Source/contracts/installed identity, current hashes, driver syntax and PowerShell syntax PASS.",
-    "full_original_goal_complete": false,
-    "record": "eval/browser-sql-review-batch-delivery-20261119.json"
+    "status": "OPTIMIZED_BUILD_RUNNING",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119",
+    "source_commit": "a3cb19412943a646ba907849d5fc53718231c4a3",
+    "build_session": 48350,
+    "observer_session": 49407,
+    "driver": {
+      "role": "driver_pid",
+      "pid": 78332,
+      "created": 1795073731.7435465,
+      "command": [
+        "C:\\Python314\\python.exe",
+        "-B",
+        "-u",
+        "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\build.py",
+        "--label",
+        "release1",
+        "--",
+        "build",
+        "--locked",
+        "--offline",
+        "-j1",
+        "-p",
+        "engram_server",
+        "--bin",
+        "engram_server",
+        "--release"
+      ]
+    },
+    "observer": {
+      "pid": 78780,
+      "created": 1795073822.1083996,
+      "command": [
+        "C:\\Python314\\python.exe",
+        "-B",
+        "-u",
+        "after-release1.py"
+      ],
+      "session": 49407
+    },
+    "optimized_builds": 1,
+    "unit_debug_or_full_suites": 0,
+    "checks_per_artifact": 17,
+    "additional_candidate_profile_checks": 17,
+    "profile_compiler_observation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\profile-compiler-observation1.json",
+    "preflight": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\release-helper-preflight1.json",
+    "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
@@ -4175,8 +4193,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T07:34:29.481443+00:00",
-    "reason": "Implemented relative routing for ordinary WebForms questions and confirmed the gap with the installed service on retained LegacyValidation source evidence."
+    "at_utc": "2026-11-19T07:37:34.123639+00:00",
+    "reason": "The three-outcome optimized build and terminal release observer are running. The server compiler uses optimization level 1, as confirmed from the owned process."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
