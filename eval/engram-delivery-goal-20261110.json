@@ -4259,6 +4259,14 @@
     "EG-21": {
       "record": "eval/eg20-eg21-original-requirement-closure-20261119.json",
       "status": "ORIGINAL_BOUNDED_HISTORY_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
+    },
+    "EG-10": {
+      "record": "eval/review-parser-original-requirements-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
+    },
+    "EG-19": {
+      "record": "eval/review-parser-original-requirements-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
     }
   },
   "corpus_refresh_results_source_progress_20261118": {

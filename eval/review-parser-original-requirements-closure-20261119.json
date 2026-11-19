@@ -1,0 +1,225 @@
+{
+  "status": "ORIGINAL_BOUNDED_REVIEW_AND_VB_PACKAGE_REQUIREMENTS_VERIFIED_COMPLETE",
+  "at_utc": "2026-11-19T01:45:55.581752+00:00",
+  "original_requirement_ids": [
+    "EG-10",
+    "EG-19"
+  ],
+  "required_behavior": {
+    "EG-10": [
+      "A fresh exact package launched from an unrelated working directory performs real VB/Roslyn work.",
+      "Preferred broken/missing overrides fail visibly; stale publish assets are controlled and Rust/companion identities recorded together."
+    ],
+    "EG-19": [
+      "Review supplies bounded relevant prior rulings with scope, decision evidence and revision applicability.",
+      "Findings remain visible; changed code cannot inherit blanket suppression; historical cutoffs remain effective."
+    ]
+  },
+  "original_required_behavior_complete": true,
+  "recorder": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-parser-original-requirements-20261119\\record-closure.py",
+    "sha256": "69556af689ca6ddb702096c973e295e1d0489541740c174ee6e1fac986bf8925"
+  },
+  "requirement_evidence": {
+    "EG-10.1": {
+      "fresh_package_and_installed_real_companion_work": {
+        "candidate1": {
+          "vb": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119\\candidate1\\receipt.json",
+            "sha256": "0f0e03c282dc19eed88409de19a73f2b0c889d069eab730f5d557027ab65be9a"
+          },
+          "review": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\candidate1\\receipt.json",
+            "sha256": "2c9c5e7e4f3ee835ad77c6fb18d94a341d9909b4db873d5b6f271d9fe7bc0666"
+          }
+        },
+        "installed1": {
+          "vb": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119\\installed1\\receipt.json",
+            "sha256": "d171cf217c6320fdf006008259bc2da5ceb713dc9f0485bff7267ae19d0ad70d"
+          },
+          "review": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\installed1\\receipt.json",
+            "sha256": "c4af2afda72efd72f421b68b18ee5956a3a2699b73252f7e99fa0358ce52f3fb"
+          }
+        }
+      },
+      "pair": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\pair1.json",
+        "sha256": "e01c248ae9c649c66920873ac658cead8f2484440790817caf47932de75fdaf1"
+      },
+      "installed_assets": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\installed-assets1.json",
+        "sha256": "3c46bd86db96ec0e54c044848d0fdc1c898a7b06f2e58da518c3f63b4e46dd60"
+      },
+      "transport_working_directory": "Existing owned native transport launches from the private fixture tmp directory, independent of package/project directories."
+    },
+    "EG-10.2": {
+      "explicit_missing_startup_failure_and_healthy_retry": {
+        "candidate1": {
+          "vb": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119\\candidate1\\receipt.json",
+            "sha256": "0f0e03c282dc19eed88409de19a73f2b0c889d069eab730f5d557027ab65be9a"
+          },
+          "review": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\candidate1\\receipt.json",
+            "sha256": "2c9c5e7e4f3ee835ad77c6fb18d94a341d9909b4db873d5b6f271d9fe7bc0666"
+          }
+        },
+        "installed1": {
+          "vb": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119\\installed1\\receipt.json",
+            "sha256": "d171cf217c6320fdf006008259bc2da5ceb713dc9f0485bff7267ae19d0ad70d"
+          },
+          "review": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\installed1\\receipt.json",
+            "sha256": "c4af2afda72efd72f421b68b18ee5956a3a2699b73252f7e99fa0358ce52f3fb"
+          }
+        }
+      },
+      "current_package_inventory_and_stale_asset_boundary": "Fresh package and ZIP are manifest-bound to 215 runtime assets; 214 companion/runtime assets retained their verified identities. Build/deploy scripts preserve exact manifest ownership and control stale owned publish assets; their source binding is recorded below.",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\review-bootstrap-parser-batch-delivery-20261119.json",
+        "sha256": "772c14b759c9532276794bfdf1294a734c9a7c47d0535a346b2b132d76e42f35"
+      }
+    },
+    "EG-19.1": {
+      "installed_scope_revision_comparison": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-scope\\installed1\\acceptance.json",
+        "sha256": "5e598b3c7ed4f246c4f8283449e403a216a06da1ad0b871624d5de41dd148b95"
+      },
+      "earlier_delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-review-scope-delivery-20261113.json",
+        "sha256": "c3fd084aa7e371df8c8dd65c5b908bb91d2a40ee5846674c22366fae5b44cad6"
+      },
+      "current_scoped_complete_rulings": {
+        "candidate1": {
+          "vb": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119\\candidate1\\receipt.json",
+            "sha256": "0f0e03c282dc19eed88409de19a73f2b0c889d069eab730f5d557027ab65be9a"
+          },
+          "review": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\candidate1\\receipt.json",
+            "sha256": "2c9c5e7e4f3ee835ad77c6fb18d94a341d9909b4db873d5b6f271d9fe7bc0666"
+          }
+        },
+        "installed1": {
+          "vb": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119\\installed1\\receipt.json",
+            "sha256": "d171cf217c6320fdf006008259bc2da5ceb713dc9f0485bff7267ae19d0ad70d"
+          },
+          "review": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\installed1\\receipt.json",
+            "sha256": "c4af2afda72efd72f421b68b18ee5956a3a2699b73252f7e99fa0358ce52f3fb"
+          }
+        }
+      }
+    },
+    "EG-19.2": {
+      "findings_survive_changed_unapplied_and_unknown_revision": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-scope\\installed1\\acceptance.json",
+        "sha256": "5e598b3c7ed4f246c4f8283449e403a216a06da1ad0b871624d5de41dd148b95"
+      },
+      "current_date_filter_before_latest_and_relevance": {
+        "candidate1": {
+          "vb": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119\\candidate1\\receipt.json",
+            "sha256": "0f0e03c282dc19eed88409de19a73f2b0c889d069eab730f5d557027ab65be9a"
+          },
+          "review": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\candidate1\\receipt.json",
+            "sha256": "2c9c5e7e4f3ee835ad77c6fb18d94a341d9909b4db873d5b6f271d9fe7bc0666"
+          }
+        },
+        "installed1": {
+          "vb": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119\\installed1\\receipt.json",
+            "sha256": "d171cf217c6320fdf006008259bc2da5ceb713dc9f0485bff7267ae19d0ad70d"
+          },
+          "review": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\installed1\\receipt.json",
+            "sha256": "c4af2afda72efd72f421b68b18ee5956a3a2699b73252f7e99fa0358ce52f3fb"
+          }
+        }
+      },
+      "whole_report_and_recovery": {
+        "candidate": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\candidate1\\acceptance.json",
+          "sha256": "df261e6181d64fdf6c83f5e40105c45426bd57d8c40dcebe4d5a48750e34b282"
+        },
+        "installed": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\installed1\\acceptance.json",
+          "sha256": "1be9f86ede4afb11356e5456a5b23fce800b23d158f83ad1f1c2af0780cab283"
+        }
+      }
+    }
+  },
+  "current_source_binding": {
+    "source_commit": "52be11e05c5dc6d5078d7e6da74ad2157fccb481",
+    "normalization": "Universal newlines and UTF-8 BOM only; no token/content normalization",
+    "files": {
+      "crates/engram_index/src/vb_extractor.rs": {
+        "sha256_normalized": "4780953bd6357a9ef2ad3408879576f7c22386999188bd5b7e6258c1037d9ae3",
+        "matches_installed_source": true
+      },
+      "crates/engram_server/src/handlers/review_tools/prior_context.rs": {
+        "sha256_normalized": "43937897266cf8f4228f5f5da6ffb3e2e845b9690fd550860cc08b00d3e3de01",
+        "matches_installed_source": true,
+        "scope_assessment_unchanged_since_installed_revision_oracle": true
+      },
+      "crates/engram_server/src/handlers/review_decisions.rs": {
+        "sha256_normalized": "e2627ee76a07bdd0f810f818558b02afaa81db393bf837245c15d840401e1337",
+        "matches_installed_source": true
+      },
+      "crates/engram_server/src/handlers/review_decision_discovery.rs": {
+        "sha256_normalized": "fd843fa0da3eb7880401f1ed8f42afd7b74b9cedf0157e53652312064eb8b30c",
+        "matches_installed_source": true
+      },
+      "crates/engram_server/src/handlers/review_tools.rs": {
+        "sha256_normalized": "02e85379f781e8b5492f774bdc19743b4529903822bfe4188b7d6704d6ed18d7",
+        "matches_installed_source": true
+      },
+      "crates/engram_server/src/models/requests.rs": {
+        "sha256_normalized": "f78adb16f1f545efe5cad2f6a8aede6dfa267442bf0695f624db0d4cd34a6bab",
+        "matches_installed_source": true
+      },
+      "scripts/build_windows_release.ps1": {
+        "sha256_normalized": "d3c987de576cf1d920cbdbc0ecbc8ecda9ba0eada302c86babb93b4d41b92910",
+        "matches_installed_source": true
+      },
+      "scripts/deploy_windows_release_pair.ps1": {
+        "sha256_normalized": "d099e636c0a75a2c06bb8cab270c43b0ba723512b9763cd54e333e2a35fc182e",
+        "matches_installed_source": true
+      },
+      "scripts/package_windows_release.ps1": {
+        "sha256_normalized": "2f3fe066d5c4b8c6106fbc14f58daea8c462f57cf4bcfe7bede28d088976bbcb",
+        "matches_installed_source": true
+      },
+      "tools/vb_roslyn_sidecar/Program.cs": {
+        "sha256_normalized": "b4018c183ec23917319c411ae76788f61811bc34ccbb8ec4355e9813832204b5",
+        "matches_installed_source": true
+      },
+      "tools/vb_roslyn_sidecar/AstEmitter.cs": {
+        "sha256_normalized": "0d948e27589705ab8ae604779079294f7e8cd4af432d796abddc6b27bb54940a",
+        "matches_installed_source": true
+      }
+    }
+  },
+  "general_task_usefulness_established": false,
+  "full_original_goal_complete": false,
+  "new_builds": 0,
+  "new_test_or_model_runs": 0,
+  "product_source_edits": 0,
+  "limitations": [
+    "This reconciles the two original bounded requirements from retained candidate/installed evidence; it is not a new runtime improvement or a fresh replay.",
+    "Imported scope, author, source dates and conditions remain advisory and unverified; no current approval or blanket exception suppression is inferred.",
+    "A decision-date cutoff does not execute historical source gates. Undated current indexed summaries are withheld; discovery remains bounded/partial. Natural-language date parsing was not added.",
+    "Explicit startup failure is distinguished from existing supported per-file degraded extraction and absent-override automatic discovery. No broader protocol, standalone legacy-extraction or whole-process guarantee is added.",
+    "Current package verification does not establish public hosting, other operating systems, complete storage19gates, general productivity or v1 readiness."
+  ],
+  "temporary_resources": {
+    "new_fixtures_or_product_owners_created": 0,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-parser-original-requirements-20261119",
+    "retention": "Keep reconciliation script and referenced delivery evidence. All referenced owned acceptance fixtures/owners are closed; existing managed rollback and failed-attempt evidence remain retained under their delivery records. No preexisting deletion."
+  }
+}

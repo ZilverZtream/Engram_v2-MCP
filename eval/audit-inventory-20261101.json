@@ -593,7 +593,7 @@
     {
       "id": "EG-10",
       "finding": "Installed VB sidecar missing, causing fallback",
-      "ledger_disposition": "Reviewed, deployed and verified",
+      "ledger_disposition": "Original bounded required behavior verified complete; authority, task-usefulness and broader release limits retained",
       "existing_evidence_and_next_gate": "Self-contained companion/runtime with recoverable asset inventory. Seventeen real companion checks, interrupted-copy recovery and a target path containing spaces pass. Installed Rust launched the packaged companion from an unrelated working directory; all 215 installed assets are manifest-bound.",
       "required_behavior": [
         "A fresh exact package launched from an unrelated working directory performs real VB/Roslyn work.",
@@ -620,6 +620,11 @@
         "record": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
+      },
+      "original_requirement_closure_20261119": {
+        "record": "eval/review-parser-original-requirements-closure-20261119.json",
+        "original_required_behavior_complete": true,
+        "general_task_usefulness_established": false
       }
     },
     {
@@ -920,7 +925,7 @@
     {
       "id": "EG-19",
       "finding": "Review-decision annotations in review",
-      "ledger_disposition": "Implemented in shipped lineage; original decision-applicability and authority gates remain open",
+      "ledger_disposition": "Original bounded required behavior verified complete; authority, task-usefulness and broader release limits retained",
       "existing_evidence_and_next_gate": "Supply relevant prior rulings with scope, provenance and revision applicability; materially changed code must not inherit blanket suppression.",
       "required_behavior": [
         "Review supplies bounded relevant prior rulings with scope, decision evidence and revision applicability.",
@@ -1003,6 +1008,11 @@
         "record": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
+      },
+      "original_requirement_closure_20261119": {
+        "record": "eval/review-parser-original-requirements-closure-20261119.json",
+        "original_required_behavior_complete": true,
+        "general_task_usefulness_established": false
       }
     },
     {
