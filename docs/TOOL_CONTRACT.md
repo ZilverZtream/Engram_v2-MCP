@@ -1822,6 +1822,13 @@ MCP tool schemas before using them with an existing installation.
   selector. Each read keeps its own result or error and a callable refresh action.
 - Follow `pre_commit_review.review_next_calls` when the report identifies an
   additional staged or unstaged diff you need to review. Each call covers its own diff.
+
+`pre_commit_review` accepts `path_prefixes` on native `staged`, `unstaged`, and
+`head` reviews. For example, `["Site/App_Code", "Site/ts"]` selects literal
+Git worktree-relative directories before review gates run. Scope is visible in
+the result and carried into alternate-diff calls. Omit the field to review the
+whole selected diff. Raw unified-diff and patch-file inputs already specify
+their own file set.
 - With `expected_git_commit`, `get_index_freshness` reports tracked changes and
   non-ignored untracked entries. With `check_disk: false`, generation coverage can
   use published source membership while current disk coverage stays unknown.

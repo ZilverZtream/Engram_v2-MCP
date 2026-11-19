@@ -804,10 +804,15 @@ fn parse_hunk_header(line: &str) -> Option<DiffHunk> {
 ///
 /// Uses `git2` (already a dep via `engram_git`) — no shell calls.
 pub fn resolve_diff_source(project_dir: &Path, diff_input: &str) -> anyhow::Result<String> {
+    resolve_review_diff(project_dir, diff_input, &[])
+}
+
+pub(crate) fn resolve_review_diff(project_dir: &Path, diff_input: &str, scopes: &[String]) -> anyhow::Result<String> {
     match diff_input.trim() {
-        "staged" => git_diff_staged(project_dir),
-        "unstaged" => git_diff_unstaged(project_dir),
-        "head" => git_diff_head(project_dir),
+        "staged" => git_diff_staged(project_dir, scopes),
+        "unstaged" => git_diff_unstaged(project_dir, scopes),
+        "head" => git_diff_head(project_dir, scopes),
+        _ if !scopes.is_empty() => anyhow::bail!("path_prefixes requires staged, unstaged or head diff"),
         path if !path.contains(['\r', '\n'])
             && (path.ends_with(".patch") || path.ends_with(".diff")) => {
             use std::io::Read as _;
@@ -862,12 +867,18 @@ pub(crate) struct WorkingTreeChanges {
     pub staged_with_unstaged: std::collections::BTreeSet<String>,
 }
 
-pub(crate) fn working_tree_changes(project_dir: &Path, include_paths: bool) -> anyhow::Result<WorkingTreeChanges> {
+pub(crate) fn working_tree_changes(project_dir: &Path, include_paths: bool, scopes: &[String]) -> anyhow::Result<WorkingTreeChanges> {
     let repo = git2::Repository::discover(project_dir)?;
     let mut opts = git2::StatusOptions::new();
     opts.include_untracked(true)
-        .recurse_untracked_dirs(include_paths)
+        .recurse_untracked_dirs(include_paths || !scopes.is_empty())
         .include_ignored(false);
+    if !scopes.is_empty() {
+        opts.disable_pathspec_match(true);
+        for scope in scopes {
+            opts.pathspec(scope);
+        }
+    }
     use git2::Status;
     let index_changes = Status::INDEX_NEW | Status::INDEX_MODIFIED | Status::INDEX_DELETED
         | Status::INDEX_RENAMED | Status::INDEX_TYPECHANGE;
@@ -897,18 +908,29 @@ pub(crate) fn working_tree_changes(project_dir: &Path, include_paths: bool) -> a
     Ok(changes)
 }
 
-fn git_diff_staged(project_dir: &Path) -> anyhow::Result<String> {
+fn review_diff_options(scopes: &[String]) -> git2::DiffOptions {
+    let mut opts = git2::DiffOptions::new();
+    if !scopes.is_empty() {
+        opts.disable_pathspec_match(true);
+        for scope in scopes {
+            opts.pathspec(scope);
+        }
+    }
+    opts
+}
+
+fn git_diff_staged(project_dir: &Path, scopes: &[String]) -> anyhow::Result<String> {
     let repo = git2::Repository::discover(project_dir)?;
     let head_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
-    let mut opts = git2::DiffOptions::new();
+    let mut opts = review_diff_options(scopes);
     opts.include_untracked(false);
     let diff = repo.diff_tree_to_index(head_tree.as_ref(), None, Some(&mut opts))?;
     diff_to_patch_text(&diff)
 }
 
-fn git_diff_unstaged(project_dir: &Path) -> anyhow::Result<String> {
+fn git_diff_unstaged(project_dir: &Path, scopes: &[String]) -> anyhow::Result<String> {
     let repo = git2::Repository::discover(project_dir)?;
-    let mut opts = git2::DiffOptions::new();
+    let mut opts = review_diff_options(scopes);
     opts.include_untracked(true)
         .recurse_untracked_dirs(true)
         .show_untracked_content(true);
@@ -916,13 +938,14 @@ fn git_diff_unstaged(project_dir: &Path) -> anyhow::Result<String> {
     diff_to_patch_text(&diff)
 }
 
-fn git_diff_head(project_dir: &Path) -> anyhow::Result<String> {
+fn git_diff_head(project_dir: &Path, scopes: &[String]) -> anyhow::Result<String> {
     let repo = git2::Repository::discover(project_dir)?;
     let head_commit = repo.head()?.peel_to_commit()?;
     let parent = head_commit.parent(0).ok();
     let new_tree = head_commit.tree()?;
     let old_tree = parent.as_ref().and_then(|p| p.tree().ok());
-    let diff = repo.diff_tree_to_tree(old_tree.as_ref(), Some(&new_tree), None)?;
+    let mut opts = review_diff_options(scopes);
+    let diff = repo.diff_tree_to_tree(old_tree.as_ref(), Some(&new_tree), Some(&mut opts))?;
     diff_to_patch_text(&diff)
 }
 

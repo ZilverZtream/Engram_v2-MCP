@@ -13,7 +13,7 @@ use rmcp::model::{CallToolResult, Content};
 use crate::handlers::validate_project_id;
 use crate::models::requests::PreCommitReviewRequest;
 use crate::services::pre_commit_review_service::{
-    ReviewConfig, Severity, render_compact_markdown, render_json, render_markdown, resolve_diff_source,
+    ReviewConfig, Severity, render_compact_markdown, render_json, render_markdown, resolve_review_diff,
     run_parsed_review_with_source_view,
 };
 use crate::services::project_service::ensure_project_record;
@@ -43,7 +43,7 @@ fn alternate_review_calls(
 impl Engram {
     pub async fn handle_pre_commit_review(
         &self,
-        req: PreCommitReviewRequest,
+        mut req: PreCommitReviewRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         if req.review_decisions_before.as_deref()
@@ -60,6 +60,14 @@ impl Engram {
         }
         if req.response_offset != 0 {
             return Err(McpError::invalid_params("response_offset requires response_id from a review recovery action", None));
+        }
+        if req.path_prefixes.len() > 32 || req.path_prefixes.iter_mut().any(|scope| {
+            *scope = scope.replace('\\', "/").trim_end_matches('/').to_owned();
+            scope.len() > 4096 || scope.contains(':') || scope.chars().any(char::is_control)
+                || scope.split('/').any(|part| part.is_empty() || part == "." || part == "..")
+        }) {
+            return Err(McpError::invalid_params(
+                "path_prefixes requires at most 32 literal paths relative to the Git worktree root", None));
         }
         let min_severity = Severity::from_str(&req.min_severity).ok_or_else(|| {
             McpError::invalid_params(
@@ -93,7 +101,7 @@ impl Engram {
                 let (project_dir, review_source) =
                     resolve_review_directory(&root, req.working_directory.as_deref())
                         .map_err(|error| McpError::invalid_params(error.to_string(), None))?;
-                let diff_text = resolve_diff_source(&project_dir, &req.diff).map_err(|error| {
+                let diff_text = resolve_review_diff(&project_dir, &req.diff, &req.path_prefixes).map_err(|error| {
                     McpError::invalid_params(format!("diff resolution failed: {error}"), None)
                 })?;
                 let parsed = std::sync::Arc::new(
@@ -107,11 +115,18 @@ impl Engram {
             .map_err(|error| McpError::internal_error(error.to_string(), None))??;
         let mode = req.diff.trim();
         let native_diff = matches!(mode, "staged" | "unstaged" | "head");
+        let scope_note = if req.path_prefixes.is_empty() {
+            String::new()
+        } else {
+            format!("\n\nRequested Git path scope: {}. Other paths are outside this review.",
+                serde_json::json!(req.path_prefixes))
+        };
 
         if diff_text.trim().is_empty() {
             let status = if native_diff {
+                let scopes = req.path_prefixes.clone();
                 tokio::task::spawn_blocking(move || {
-                    crate::services::pre_commit_review_service::working_tree_changes(&project_dir, true)
+                    crate::services::pre_commit_review_service::working_tree_changes(&project_dir, true, &scopes)
                 })
                 .await
                 .map_err(anyhow::Error::from)
@@ -142,13 +157,17 @@ impl Engram {
                 "findings":[], "gate_status":[],
                 "summary":{"files_analysed":0,"gates_run":0,"total_findings":0},
                 "coverage":{"submitted_files":[],"textual_diff_files":[],"unexamined_files":unexamined,
+                    "path_prefixes":req.path_prefixes,
                     "static_analysis":"not_run","compilation":"not_run","test_execution":"not_run"},
                 "note":note,"review_next_calls":review_next_calls
             });
-            let body = if req.output_json { payload.to_string() }
+            let mut body = if req.output_json { payload.to_string() }
                 else if nothing_detected { "No changes detected in the requested diff. Nothing to review.".into() }
                 else if review_next_calls.is_empty() { format!("Not reviewed. {note}") }
                 else { format!("Not reviewed. {note}\n\nreview_next_calls: {}", payload["review_next_calls"]) };
+            if !req.output_json {
+                body.push_str(&scope_note);
+            }
             return response_delivery::finish(&req, &self.state.cfg.data_dir, body, &payload);
         }
 
@@ -219,11 +238,12 @@ impl Engram {
         let elapsed_ms = start.elapsed().as_millis();
         let root = project_dir.clone();
         let reviewed_files = parsed.clone();
+        let scopes = req.path_prefixes.clone();
         let (source_after, head_after, alternate_changes) = tokio::task::spawn_blocking(move || {
             let source = source_snapshot(&root, &reviewed_files);
             let head = head_commit(&root);
             let alternate = if native_diff {
-                crate::services::pre_commit_review_service::working_tree_changes(&root, false).ok()
+                crate::services::pre_commit_review_service::working_tree_changes(&root, false, &scopes).ok()
             } else {
                 None
             };
@@ -263,6 +283,7 @@ impl Engram {
             .map_or_else(|| "unknown".to_string(), |files| files.len().to_string());
         let coverage = serde_json::json!({
             "submitted_files":parsed.iter().map(|f| &f.path).collect::<Vec<_>>(),
+            "path_prefixes":req.path_prefixes,
             "repository_policy":"retrieved for agent review; prose compliance is not mechanically verified",
             "unindexed_files":unindexed,
             "textual_diff_files":parsed.iter().filter(|f| !f.is_binary && !f.hunks.is_empty()).map(|f| &f.path).collect::<Vec<_>>(),
@@ -324,6 +345,7 @@ impl Engram {
             } else {
                 render_markdown(&findings, files_analysed, gates_run, elapsed_ms, &outcomes)
             };
+            report.push_str(&scope_note);
             if changed_during_review || snapshot_unavailable {
                 report = report.replace(
                     "GREEN — no concerns within reported static gate coverage",
@@ -555,7 +577,7 @@ mod worktree_binding_tests {
             resolve_review_directory(&indexed, Some(linked.to_str().unwrap())).unwrap();
         assert_eq!(root, linked.canonicalize().unwrap());
         assert_eq!(source, "explicit_same_repository_worktree");
-        let diff = resolve_diff_source(&root, "unstaged").unwrap();
+        let diff = resolve_review_diff(&root, "unstaged", &[]).unwrap();
         assert!(diff.contains("+edited in linked worktree"), "{diff}");
     }
 

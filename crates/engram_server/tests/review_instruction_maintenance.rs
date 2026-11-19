@@ -223,6 +223,28 @@ async fn raw_diff_without_explicit_base_does_not_guess_current_head_as_maintenan
 }
 
 #[tokio::test]
+async fn empty_scoped_review_keeps_scope_in_its_alternate_diff_call() -> Result<()> {
+    let fixture = Fixture::new(false).await?;
+    let reply = fixture.app.handle_pre_commit_review(serde_json::from_value(json!({
+        "project_id":fixture.pid, "diff":"staged", "path_prefixes":["Schema/"],
+        "output_json":true, "max_tokens":65536, "skip_gates":["blast_radius", "temporal"]
+    }))?).await?;
+    let empty: Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text)?;
+    ensure!(empty["verdict"] == "NOT_REVIEWED");
+    ensure!(empty["coverage"]["path_prefixes"] == json!(["Schema"]));
+    ensure!(empty["coverage"]["unexamined_files"] == json!(["Schema/invoice.sql"]));
+    let action = &empty["review_next_calls"][0];
+    ensure!(action["tool"] == "pre_commit_review");
+    ensure!(action["arguments"]["diff"] == "unstaged");
+    ensure!(action["arguments"]["path_prefixes"] == json!(["Schema"]));
+    let reply = fixture.app.handle_pre_commit_review(
+        serde_json::from_value(action["arguments"].clone())?).await?;
+    let report: Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text)?;
+    ensure!(report["coverage"]["submitted_files"] == json!(["Schema/invoice.sql"]));
+    fixture.close()
+}
+
+#[tokio::test]
 async fn deferred_review_recovers_original_complete_maintenance_packet_after_inputs_change()
 -> Result<()> {
     let f = Fixture::new(true).await?;

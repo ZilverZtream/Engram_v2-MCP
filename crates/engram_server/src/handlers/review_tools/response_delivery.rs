@@ -31,6 +31,7 @@ pub(super) fn finish(req: &PreCommitReviewRequest, data: &Path, body: String, re
         "gate_status":report["gate_status"],
         "instruction_maintenance_context":super::maintenance_context::summary(&report["instruction_maintenance_context"]),
         "coverage":{
+            "path_prefixes":coverage["path_prefixes"],
             "submitted_files":count("submitted_files"),"textual_diff_files":count("textual_diff_files"),
             "unexamined_files":count("unexamined_files"),"unindexed_files":count("unindexed_files"),
             "static_analysis":coverage["static_analysis"],"compilation":"not_run","test_execution":"not_run",

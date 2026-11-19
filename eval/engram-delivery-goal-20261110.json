@@ -2975,6 +2975,15 @@
     "pending_source_outcomes": 5,
     "next_action": "Use the verified cumulative package for one coordinated Windows cutover. A running MCP proxy was observed. Preserve the live service until the user chooses a cutover or clients close. Do not rebuild the verified artifact."
   },
+  "review_path_scope_progress": {
+    "original_requirement_id": "EG-19",
+    "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",
+    "observed_gap": "A native staged, unstaged or HEAD review cannot be restricted to a requested file or area without preparing a patch separately.",
+    "implementation_files": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/services/pre_commit_review_service.rs", "crates/engram_server/src/handlers/review_tools.rs", "crates/engram_server/src/handlers/review_tools/response_delivery.rs"],
+    "user_outcome": "Literal Git path scopes select input before the gates and stay visible on whole replies, bounded replies and alternate-scope actions.",
+    "acceptance": "A staged review scoped to Schema returns only its unstaged alternate when the selected staged diff is empty, and executing that action reviews only Schema/invoice.sql in a mixed SQL and TypeScript worktree.",
+    "verification": "Six focused checks ran the exact new diff/status functions against an owned VB and SQL Git repository. Package verification still needs to exercise the scoped empty result, native action, and visible reply coverage. No full build ran."
+  },
   "review_git_worker_progress": {
     "original_requirement_id": "EG-19",
     "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",

@@ -4765,6 +4765,10 @@ pub struct PreCommitReviewRequest {
     /// Default: `"staged"`.
     #[serde(default = "default_diff_source")]
     pub diff: String,
+    /// Literal Git paths or directory prefixes relative to the worktree root.
+    /// Applies to staged, unstaged and head reviews. Empty reviews all paths.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub path_prefixes: Vec<String>,
     /// Maximum findings to return. Default 30.
     #[serde(default = "default_max_findings")]
     pub max_findings: usize,
