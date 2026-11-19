@@ -3222,7 +3222,14 @@
       "source_outcomes": 1,
       "native_unit_cases_expected": 0,
       "current_release_excludes_this_item": true,
-      "verification": "The packaged cumulative candidate reproduced the missing disclosure. The owned Git fixture independently distinguishes the staged VB text, unstaged revision of the same file and another unstaged file. Source syntax and whitespace checks passed. Runtime verification of the new disclosure remains pending."
+      "focused_git_status_verification": {
+        "status": "PASS",
+        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-staged-worktree-evidence-20261119\\isolated-git-status-receipt.json",
+        "sha256": "3b297c5a931d6863ca8df69c717d34d8641877e33bb788b285008caf01379c94",
+        "checks": 3,
+        "scope": "The exact status helper linked against cached libgit2 identifies the partially staged VB file, keeps both diff scopes visible and preserves the existing full path inventory. No Engram build."
+      },
+      "verification": "The packaged cumulative candidate reproduced the missing disclosure. The focused libgit2 fixture verifies path selection. The public JSON and Markdown disclosure still requires packaged MCP verification."
     },
     {
       "original_requirement_id": "TODO-4",
