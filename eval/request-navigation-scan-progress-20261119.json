@@ -18,13 +18,16 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-navigation-scan-20261119\\baseline1\\receipt.json",
     "sha256": "db104eb9438798bfeca6888131f7e52e0c753869208c78cabb2f8d3e06650cd0"
   },
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "runtime_deployed": false,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "runtime_deployed": true,
   "original_requirement": "TODO-31 URL/route to WebForms handler and optional database source evidence.",
   "observed_gap": "Installed trace_user_request reads SQL/DBML files and charges both against its 64 MiB scan allowance even when include_db=false.",
   "behavior": "Exclude SQL and DBML before the route-only trace opens source files. Report the database source scan choice and preserve the default scan and database evidence when requested.",
   "legacy_validation_dbml_scope_evidence": "eval/legacy_validation-request-dbml-mapping-delivery-20261112.json",
-  "verification": "Installed baseline observed the same four source file reads with and without database evidence, while preserving the handler and default cited trigger. Changed Rust parses with rustfmt; candidate and installed acceptance remain queued. No production latency measured.",
+  "verification": "Installed baseline confirmed the source scan opened all four files even with database evidence disabled. Five focused public MCP checks passed on both the candidate and installed binary.",
   "temporary_resources": "Owned MCP server and reader closed before removing the owned runtime and WebForms fixture. Driver, receipt and wire data remain in the recorded case.",
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "delivery": "eval/webforms-navigation-triggers-batch-delivery-20261119.json",
+  "runtime_server_sha256": "555507b44dd79bed189786f36a7e0efb3f5207bd781ad13886b0d3293949b45a",
+  "public_checks_passed_per_artifact": 5
 }

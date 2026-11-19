@@ -632,6 +632,7 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  Installed: Navigation-only WebForms request traces skip SQL and DBML source reads when database evidence is disabled. [Delivery](eval/webforms-navigation-triggers-batch-delivery-20261119.json).
   Installed: Reached VB methods surface source-cited redirect calls independently of excerpt clipping and database tracing. Literal destinations are shown and expressions remain unresolved. [Delivery](eval/webforms-integrity-batch-delivery-20261119.json).
   Installed November19: reached SQL procedures follow exact qualified source views and nested view relation references, with source hashes and guarded recovery. Six public checks passed per candidate/installed binary; deployed database identity and execution remain unproven. [Delivery](eval/review-metadata-view-batch-delivery-20261119.json).
   Installed November18: registered literal VB RoutePrefix/Route paths select their declared collection/item action, retain route parameters and cite controller/registration source. Existing Roslyn companion required; hosting, precedence and execution remain unproven. [Delivery](eval/cache-guidance-attribute-batch-delivery-20261118.json).
@@ -1131,6 +1132,7 @@ value is accuracy, this is the biggest meta-gap.
 ## P7 — Debt & cleanup
 
 - [x] **59. Consolidate the 3 overlapping DB-analysis services** (M) ? source-recognition consolidation installed 2026-11-15. Shared SQL statement/body/identifier and procedure parsers now back the named services; schema declarations and supported DDL targets share the catalog. Report assembly reuses parsed inputs and preserves source citations. SQL interpretation, scaffold validation and original quality/usefulness gaps remain separate. [Delivery](eval/legacy_validation-database-source-consolidation-delivery-20261115.json).
+  Installed: SQL trigger inventory accepts exact qualified table targets and cites authored declarations. [Delivery](eval/webforms-navigation-triggers-batch-delivery-20261119.json).
   Installed: Procedure detail reports select exact qualified SQL declarations and return source locations for ambiguous basenames. Caller and dependency leads disclose basename matching. [Delivery](eval/freshness-recovery-procedure-batch-delivery-20261119.json).
   `database_intelligence_service`, `db_strategy_service`, parts of
   `full_project_migration_service` re-implement SQL parsing/table extraction.

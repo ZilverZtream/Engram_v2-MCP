@@ -1,0 +1,94 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-19T10:50:40.828596+00:00",
+  "original_requirement_ids": [
+    "EG-01",
+    "TODO-59",
+    "TODO-31"
+  ],
+  "delivered_behaviors": {
+    "EG-01": "WebForms page context reports literal local client-script targets and their applicable authored guidance.",
+    "TODO-59": "SQL trigger inventory accepts exact qualified table targets and cites authored declarations.",
+    "TODO-31": "Navigation-only WebForms request traces skip SQL and DBML source reads when database evidence is disabled."
+  },
+  "runtime": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-navigation-triggers-batch-20261119\\package1",
+    "server_sha256": "555507b44dd79bed189786f36a7e0efb3f5207bd781ad13886b0d3293949b45a",
+    "manifest_sha256": "617a5cfec859c8b6fc8171a3a0aba46a0088071c43fd6c474e22df555e841f06",
+    "old_server_sha256": "d1e8f9997833b5b9277dd0e9dbfc19d49113d5fe2b7b9bcb3fcb37dbd52eceaa",
+    "old_manifest_sha256": "3a68b224b8aa4fc1103502e85f939ddd6a7f29d89f62262d337711d75e638c08",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-navigation-triggers-batch-20261119\\release1.json",
+      "sha256": "4a0c52002077fee0bf58b6b765886d5be85c9bca8ca1b1bca7d874cc5c06e7ce"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "3a68b224b8aa4fc1103502e85f939ddd6a7f29d89f62262d337711d75e638c08"
+    },
+    "source_commit": "772b666c2cb66fbb6c47c51a6e6d6aeb91e25468"
+  },
+  "source_preparation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-navigation-triggers-batch-20261119\\source-preparation1.json",
+    "sha256": "29a73f927809aee87dce16c58e7e8d449a76ab12e36131b8404064c81ad40cd9"
+  },
+  "windows_bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-navigation-triggers-batch-20261119\\bundle1.json",
+    "sha256": "8899f78121d90022766d4a69b087af2a5201fa46173be3bf40b87ad6e32fd38f"
+  },
+  "public_receipts": {
+    "candidate1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-navigation-triggers-batch-20261119\\candidate1\\acceptance.json",
+      "sha256": "b9c5b86a1aa709bb3f6d012a5320f815ccbeccc5b257b3bdff8e30d8aca09fc9",
+      "checks": 15,
+      "seconds": 9.95670809999865
+    },
+    "installed1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-navigation-triggers-batch-20261119\\installed1\\acceptance.json",
+      "sha256": "c212eded0b755b5c982feb1bee84c3e4612a9087f0c2b5245bc8626e4e1a0767",
+      "checks": 15,
+      "seconds": 9.896036100006313
+    }
+  },
+  "installed_assets_verified": 215,
+  "build_accounting": {
+    "optimized_builds": 1,
+    "seconds": 2343.950571900001,
+    "unit_debug_or_full_suites": 0,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-navigation-triggers-batch-20261119\\release1.json",
+      "sha256": "4a0c52002077fee0bf58b6b765886d5be85c9bca8ca1b1bca7d874cc5c06e7ce"
+    }
+  },
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-navigation-triggers-batch-20261119\\restored-runtime\\receipt.json",
+    "sha256": "9632a9f708c074ff44b3bab568ba434499d13cefa10aadb2cdc4a64be308276c"
+  },
+  "selected_generation": 3178,
+  "previous_runtime_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\freshness-recovery-procedure-batch-delivery-20261119.json",
+    "sha256": "7b1c346616d399d96e12983f600832f3404234ed2ac3cb8f629e9cefb82562c2"
+  },
+  "full_original_goal_complete": false,
+  "temporary_resources": {
+    "owned_build_temp_removed": true,
+    "fixture_checks_closed": true,
+    "owned_config_removed": true,
+    "managed_rollback_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-ac8b890a5f4c419abf79723cebb59b30",
+      "cleanup_condition": "Retain for an explicit rollback or retirement decision."
+    }
+  },
+  "limitations": [
+    "Client script declarations do not establish browser loading or execution.",
+    "Trigger declarations and indexed table references do not establish deployed schema or activation.",
+    "The navigation-only saving applies to include_db=false; repository latency was not measured.",
+    "Original findings, storage gates, held work and task usefulness remain separately tracked."
+  ]
+}
