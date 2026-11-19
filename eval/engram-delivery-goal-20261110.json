@@ -2556,52 +2556,11 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "TODO-4",
-        "source_commit": "70b25f952fdbf55c336c902e0647f78db5c70cbb",
-        "progress": "eval/agent-integration-result-delivery-progress-20261119.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-integration-result-delivery-20261119\\contract.json",
-        "native_target": null,
-        "native_cases_expected": 0,
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-integration-result-delivery-20261119\\verify-public.py",
-        "public_assertions_expected": 6,
-        "counting_rule": "One original complete agent-integration response outcome. Preview/publication, ownership notes, exact restart recovery and budgets are acceptance aspects, not separate deliverables."
-      },
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "EG-19",
-        "source_commit": "f70dbc70eac1678e63b429ebe3b6c3b4a84e4692",
-        "progress": "eval/review-decision-cutoff-progress-20261119.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\contract.json",
-        "native_target": null,
-        "native_cases_expected": 0,
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\verify-public.py",
-        "public_assertions_expected": 14,
-        "counting_rule": "One original temporal review-evidence outcome across composed review and file discovery. Entry points and tests are not separate independent batch deliverables.",
-        "source_commits": [
-          "433cba2a8a80eb7bc4078c904a9ba04a1fea337f",
-          "f70dbc70eac1678e63b429ebe3b6c3b4a84e4692"
-        ]
-      },
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "EG-10",
-        "source_commit": "449acb9b39f8093531a5af239f3be56a01211017",
-        "progress": "eval/preferred-vb-override-progress-20261119.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119\\contract.json",
-        "native_target": null,
-        "native_cases_expected": 0,
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119\\verify-public.py",
-        "public_assertions_expected": 5,
-        "counting_rule": "One original preferred-companion failure outcome, reproduced as silent publication with a missing explicit override. Healthy selection, refusal, preserved old source, retry and cleanup are acceptance aspects, not separate deliverables."
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
-    "last_completed_batch": "eval/planning-contract-batch-delivery-20261119.json",
+    "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "incremental_codegen": {
       "enabled_for_future_runs": true,
       "source_commit": "48ec7f6cd9e93a43f90674ce4f7504ae98bd2e35",
@@ -2827,13 +2786,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SINGLE_OPTIMIZED_BUILD_RUNNING",
-    "record": "eval/review-bootstrap-parser-batch-progress-20261119.json",
+    "status": "FINITE_BATCH_DELIVERED_ADVANCE_ORIGINAL_BACKLOG",
+    "record": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 3,
+    "pending_source_outcomes": 0,
     "full_original_goal_complete": false,
-    "next_action": "Observe the same pinned release48944 and observer37960. On terminal PASS reuse that artifact for25candidate and25installed public checks and normal-runtime restoration. Do not restart for observation timeout, compile units/debug or replay passed cases.",
-    "last_completed_runtime_batch": "eval/planning-contract-batch-delivery-20261119.json"
+    "next_action": "Select next ready original LegacyValidation-priority improvement from retained research. No CodeMap/Blast, repeated comparisons or broad audit. Keep one implementation item active."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3553,7 +3511,7 @@
     "pending_source_outcomes": 1
   },
   "history_header_filter_progress_20261117": "eval/history-header-filter-progress-20261117.json",
-  "last_updated_at": "2026-11-19T01:01:10.292655+00:00",
+  "last_updated_at": "2026-11-19T01:39:29.894721+00:00",
   "maintenance_history_interaction_batch_delivery_20261117": {
     "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
     "original_requirement_ids": [
@@ -4158,8 +4116,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T01:01:10.292655+00:00",
-    "reason": "Three original source outcomes frozen at52be11e0; unchanged wrapper admission/preflight passed. One actual optimized driver48944 and exact observer37960 are live;25public assertions perartifact planned,0standalone unit/debug builds/full suites. No source change to shipping checkout while building."
+    "at_utc": "2026-11-19T01:39:29.894721+00:00",
+    "reason": "Three original source outcomes delivered with25candidate and25installed public native MCP assertions, one optimized build, zero standalone unit/debug builds and no full suite. Compound review entry points count once. Normal runtime/config/metadata preserved; full goal active."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4494,9 +4452,9 @@
     "historical_source_status": true
   },
   "latest_runtime_delivery": {
-    "record": "eval/planning-contract-batch-delivery-20261119.json",
-    "server_sha256": "595e75f7f42e38f516ba3f9c2e6444bd8a77bc69a2928f1b4ad245f5f2202c0a",
-    "manifest_sha256": "2387249cba9af4337073f79ef23e39d6f40f119b31c822f1b9f2fc95b09cad3d",
+    "record": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
+    "server_sha256": "532126d9b4d6301d76532ddd30024bef1166c676d64e0ea237e93d8c6cf137fc",
+    "manifest_sha256": "6771b7352859e223a788ed4f76a5f61401a61597aebfeb2a67d81b34c7f1b02e",
     "selected_generation": 3157
   },
   "cache_guidance_attribute_batch_delivery_20261118": {
@@ -4642,10 +4600,19 @@
   "review_decision_cutoff_source_progress_20261119": "eval/review-decision-cutoff-progress-20261119.json",
   "review_path_cutoff_source_progress_20261119": "eval/review-path-cutoff-progress-20261119.json",
   "preferred_vb_override_source_progress_20261119": "eval/preferred-vb-override-progress-20261119.json",
-  "review_bootstrap_parser_batch_progress_20261119": "eval/review-bootstrap-parser-batch-progress-20261119.json",
+  "review_bootstrap_parser_batch_progress_20261119": {
+    "record": "eval/review-bootstrap-parser-batch-progress-20261119.json",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "source_complete_outcomes": 3,
+    "release_builds": 1,
+    "runtime_deployed": true,
+    "full_original_goal_complete": false,
+    "delivery_record": "eval/review-bootstrap-parser-batch-delivery-20261119.json"
+  },
   "roadmap_status_reconciliation_20261119": {
     "record": "eval/roadmap-installed-status-delivery-20261119.json",
     "runtime_changes": 0,
     "original_eg26_complete": false
-  }
+  },
+  "review_bootstrap_parser_batch_delivery_20261119": "eval/review-bootstrap-parser-batch-delivery-20261119.json"
 }

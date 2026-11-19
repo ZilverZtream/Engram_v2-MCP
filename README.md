@@ -100,6 +100,13 @@ The [agent instruction delivery](eval/agent-instruction-batch-delivery-20261118.
 
 The [request and instruction delivery](eval/request-guidance-function-batch-delivery-20261118.json) traces explicit VB HTTP-handler entries, combines selective source refresh with separate instruction evidence, and supplies named SQL-function source declarations. Owned acceptance passed; incremental LegacyValidation task benefit remains unproven.
 
+The [November 19 integration, review and parser delivery](eval/review-bootstrap-parser-batch-delivery-20261119.json)
+adds complete budgeted `generate_agent_integration` preview/publication results,
+exclusive date cutoffs for prior review decisions, and visible failure for an
+explicit VB companion path that cannot start. Integration `response_delivery.next_call`
+recovers the original proposal/write/skip outcome after restart without generating
+or publishing again. These checks do not establish general task usefulness.
+
 Later installed deliveries include [direct method/source guidance and bounded
 recovery](eval/legacy_validation-method-read-batch-delivery-20261114.json), and [ordinary SQL
 keys, schema-bound views and source-cited route registrations](eval/legacy_validation-request-schema-batch-delivery-20261114.json).
@@ -173,9 +180,15 @@ Workflow status and LLM dismissal are not accepted policy decisions. Earlier
 `wontFix` patterns no longer reduce anti-pattern finding severity. Existing imported
 events remain intact, and a later explicit decision survives a rescan. Imported
 authors, URLs and external verification declarations are not authenticated; matching
-an attested commit to HEAD does not verify changed worktree code. This context is a
-current observation, not a historical replay; requested cutoff/revision binding
-remains unfinished. Ordinary review also discovers explicitly recorded decisions
+an attested commit to HEAD does not verify changed worktree code. Set
+`review_decisions_before: "YYYY-MM-DD"` to include only prior-decision source dates
+strictly before that date. Filtering occurs before latest-event and path selection;
+returned decision-history actions retain the cutoff. Current undated indexed
+summaries are withheld with a coverage gap. The gates still inspect the current
+worktree; imported dates do not authenticate event time or create a historical
+source review. Direct path discovery supports the same exclusive cutoff through
+`get_review_decisions` with `discover_for_paths` and `recorded_before`.
+Ordinary review also discovers explicitly recorded decisions
 whose current rationale or finding ID mentions a complete changed relative path,
 without requiring an indexed review thread. Discovery inspects at most 64 identity
 records, reads at most 64 KiB per event array and 256 KiB in total, and shares the
@@ -1179,12 +1192,16 @@ the archive before extraction and registration; no compiler is run.
 See [archive installation](docs/WINDOWS_BUNDLE.md).
 Public prebuilt releases and macOS/Linux installation are still unfinished.
 
-`ENGRAM_VB_SIDECAR_PATH` overrides discovery, including legacy adjacent executable
-locations. Trusted VB indexing requires a matching companion that attests
+A nonempty `ENGRAM_VB_SIDECAR_PATH` overrides discovery, including legacy adjacent
+executable locations. If that configured path cannot start, trusted VB ingestion
+fails with the requested path and a diagnostic to fix it or unset the override;
+it does not silently publish fallback source. Trusted VB indexing requires a
+matching companion that attests
 `vb-ingestion-parser-v6`; discovering an older binary does not establish
 compatibility. A present, unsupported companion makes trusted ingestion refuse
-before publishing source output. With no companion, Engram records the Rust
-fallback explicitly. Installing a companion does not certify earlier fallback
+before publishing source output. With no override configured and no companion
+discovered, Engram records the Rust fallback explicitly. Installing a companion
+does not certify earlier fallback
 output; extraction-identity changes can require reindexing. Follow the repair or
 reindex requirement reported by Engram.
 

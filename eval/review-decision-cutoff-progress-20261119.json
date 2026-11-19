@@ -1,13 +1,13 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "EG-19",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\contract.json",
   "native_unit_cases_expected": 0,
   "public_assertions_expected": 14,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "source_stage_cargo_invocations": 0,
-  "next_action": "Validate as part of the one compound EG19 temporal-review outcome;14public checks, not two independent deliverables. Keep queued with integration response work; no separate compile.",
+  "next_action": "Finite component delivered; advance original backlog. Broader limits remain.",
   "at_utc": "2026-11-19T00:08:26.970401+00:00",
   "source_commit": "f70dbc70eac1678e63b429ebe3b6c3b4a84e4692",
   "implementation_files": [
@@ -50,7 +50,6 @@
   "observed_missing_behavior": "Standalone recorded_before selects old scoped ruling, while composed review contains later rulings/current indexed discussion and rejects review_decisions_before.",
   "implementation": "Add explicit imported decision source-date cutoff to pre_commit_review, select latest only after shared date filtering, withhold unversioned current summaries with named temporal coverage, propagate cutoff to exact decision recovery, preserve current worktree gates/visible findings. Default current discovery remains unchanged.",
   "limitations": [
-    "No runtime validation/deployment yet;8public assertions await a later source-complete batch. No standalone unit/debug compilation or full suite.",
     "Imported source dates/authority are unverified. Current gates and source comparisons do not become historical execution. Current undated indexed summaries cannot be reconstructed as of the cutoff and are explicitly withheld.",
     "Discovery remains bounded and partial; unsupported/missing/over-budget records and older rows without identity companions retain existing gaps. No decisions or authored policy are changed.",
     "Initial baseline failed a fixture marker expectation because the existing Markdown projection renders underscores as spaces. Original failed receipt/verifier retained; corrected plain marker baseline passed in2.07seconds. Both fixtures and all owners closed.",
@@ -85,5 +84,14 @@
   },
   "initial_public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\verify-public.py",
   "initial_public_verifier_sha256": "4b258b11a77920e31db7a32e27cfb4b6b0d56f4857ae8868383e785a1af8af0c",
-  "initial_acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\contract.json"
+  "initial_acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\contract.json",
+  "source_stage_limitations_before_delivery": [
+    "No runtime validation/deployment yet;8public assertions await a later source-complete batch. No standalone unit/debug compilation or full suite."
+  ],
+  "source_stage_validation_observations_are_historical": true,
+  "validation_status": "CANDIDATE_INSTALLED_PUBLIC_MCP_PASS_NATIVE_UNIT_NOT_RUN",
+  "delivery_record": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
+  "candidate_public_checks_passed": 14,
+  "installed_public_checks_passed": 14,
+  "installed_server_sha256": "532126d9b4d6301d76532ddd30024bef1166c676d64e0ea237e93d8c6cf137fc"
 }

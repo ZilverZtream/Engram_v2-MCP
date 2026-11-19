@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "EG-19",
   "parent_outcome": "eval/review-decision-cutoff-progress-20261119.json",
   "independent_batch_outcome": false,
@@ -7,7 +7,7 @@
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-cutoff-20261119\\contract.json",
   "native_unit_cases_expected": 0,
   "public_assertions_expected": 6,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "source_stage_cargo_invocations": 0,
   "next_action": "Validate as part of the one compound EG19 temporal-review outcome;14public checks, not two independent deliverables. Keep queued with integration response work; no separate compile.",
   "at_utc": "2026-11-19T00:25:45.784004+00:00",
@@ -51,5 +51,10 @@
     "Natural-language ask_codebase date interpretation is not changed. The inspected review helper still requests current discovery; date-aware question routing is not claimed.",
     "Initial baseline fixture tried to parse a plain-text mutation acknowledgement as JSON. Original failed receipt/verifier retained; corrected baseline passed in1.85seconds. Both fixtures removed and owners/readers closed.",
     "No actual LegacyValidation source/Q/index operation, model request, target-language expansion, CodeMap/Blast improvement or preexisting deletion. Full goal/task usefulness remain unfinished."
-  ]
+  ],
+  "validation_status": "CANDIDATE_INSTALLED_PUBLIC_MCP_PASS_NATIVE_UNIT_NOT_RUN",
+  "delivery_record": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
+  "candidate_public_checks_passed": 6,
+  "installed_public_checks_passed": 6,
+  "installed_server_sha256": "532126d9b4d6301d76532ddd30024bef1166c676d64e0ea237e93d8c6cf137fc"
 }

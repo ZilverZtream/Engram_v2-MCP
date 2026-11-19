@@ -1,0 +1,229 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-19T01:39:29.894721+00:00",
+  "recording_script": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\record-delivery.py",
+    "sha256": "51e84f1cd8ae1bb2e3bca878862a414367ff9cc1b5d98ea391142c37ee648422"
+  },
+  "original_requirement_ids": [
+    "TODO-4",
+    "EG-19",
+    "EG-10"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119",
+  "source_preparation": {
+    "status": "THREE_ORIGINAL_SOURCE_OUTCOMES_FROZEN",
+    "source_commit": "52be11e05c5dc6d5078d7e6da74ad2157fccb481",
+    "source_baseline": "5cf93efd38812c007d5c7868e0bf7cbef3fab112",
+    "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "shared_target": "C:/ai-projects/Engram-MCP_v2/target",
+    "source_files": [
+      "crates/engram_index/src/vb_extractor.rs",
+      "crates/engram_server/src/handlers/review_decision_discovery.rs",
+      "crates/engram_server/src/handlers/review_decisions.rs",
+      "crates/engram_server/src/handlers/review_tools.rs",
+      "crates/engram_server/src/handlers/review_tools/prior_context.rs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/read_report_delivery.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/review_path_discovery_tests.rs"
+    ],
+    "root_sources_match_normalized": true,
+    "checkout_clean": true,
+    "source_commits": [
+      "70b25f952fdbf55c336c902e0647f78db5c70cbb",
+      "433cba2a8a80eb7bc4078c904a9ba04a1fea337f",
+      "f70dbc70eac1678e63b429ebe3b6c3b4a84e4692",
+      "449acb9b39f8093531a5af239f3be56a01211017"
+    ],
+    "original_requirement_ids": [
+      "TODO-4",
+      "EG-19",
+      "EG-10"
+    ],
+    "independent_source_outcomes": 3,
+    "new_worktrees_created": 0,
+    "protected_wip9": "UNCHANGED",
+    "public_assertions_expected": 25,
+    "native_unit_cases_expected": 0,
+    "separate_debug_builds": 0,
+    "build_driver_sha256": "8e421e20253370b35a64eba0c0d7bf2c2e3bcd854d0ce0b68c069cf1e2891c19",
+    "temporary_resources": "Owned BelowNormal build Job/temp only under this case; public component fixtures and native/companion owners close and remove their resources. Retain package/ZIP/receipts here. No preexisting deletion."
+  },
+  "delivered_behaviors": {
+    "TODO-4": "generate_agent_integration preview/publication replies support complete caller budgets and exact original proposal/write/skip recovery without generating or writing again.",
+    "EG-19": "pre_commit_review prior evidence and get_review_decisions file discovery support explicit exclusive source-date cutoffs applied before latest/relevance selection; returned history actions retain the cutoff and current unversioned summaries are withheld.",
+    "EG-10": "An explicitly configured nonempty VB companion path that cannot start refuses trusted parser authority with an actionable requested-path diagnostic instead of certifying fallback source publication; valid overrides and default discovery remain supported."
+  },
+  "runtime": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\package1",
+    "server_sha256": "532126d9b4d6301d76532ddd30024bef1166c676d64e0ea237e93d8c6cf137fc",
+    "manifest_sha256": "6771b7352859e223a788ed4f76a5f61401a61597aebfeb2a67d81b34c7f1b02e",
+    "old_server_sha256": "595e75f7f42e38f516ba3f9c2e6444bd8a77bc69a2928f1b4ad245f5f2202c0a",
+    "old_manifest_sha256": "2387249cba9af4337073f79ef23e39d6f40f119b31c822f1b9f2fc95b09cad3d",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\release1.json",
+      "sha256": "eda13a7bb6df40488126f388f5fd163c480932eb40ca8e33968ce6a4383bdb7a"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "2387249cba9af4337073f79ef23e39d6f40f119b31c822f1b9f2fc95b09cad3d"
+    },
+    "source_commit": "52be11e05c5dc6d5078d7e6da74ad2157fccb481"
+  },
+  "native_acceptance": {
+    "status": "NOT_RUN",
+    "native_unit_cases_expected": 0,
+    "native_unit_cases_executed": 0,
+    "reason": "No standalone unit/debug compile planned; the optimized native executable is verified through public MCP API."
+  },
+  "public_check_assertions_per_artifact": 25,
+  "public_receipts": {
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\candidate1\\acceptance.json",
+      "sha256": "df261e6181d64fdf6c83f5e40105c45426bd57d8c40dcebe4d5a48750e34b282"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\installed1\\acceptance.json",
+      "sha256": "1be9f86ede4afb11356e5456a5b23fce800b23d158f83ad1f1c2af0780cab283"
+    }
+  },
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\restored-runtime\\receipt.json",
+    "sha256": "1af3889a7dc7735c64a02075d23460f666aa83a621bef7a4bb62c92d6e820372"
+  },
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3157,
+  "source_format": 9,
+  "protected_wip9": "UNCHANGED",
+  "previous_delivery_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\planning-contract-batch-delivery-20261119.json",
+    "sha256": "6c826d94ce04c9ce659e0694cf5663bf442541aa1ab21a0fa293b784733c0bc9"
+  },
+  "full_original_goal_complete": false,
+  "build_accounting": {
+    "native_unit_invocations": 0,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "native_unique_cases": 0,
+    "native_test_executions": 0,
+    "release_seconds": 1936.5493924999973,
+    "public_candidate_seconds": 17.555577899998752,
+    "public_installed_seconds": 18.084323299997777,
+    "pure_coding_percentage": null,
+    "rebuilds_during_deployment": 0
+  },
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\Engram-win-x64-review-bootstrap-parser.zip",
+    "sha256": "de9699cbd3349e507bd3c617b377b4f18062dd6a6113e75a2c5b9a9995034c47",
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\bundle1.json",
+      "sha256": "12b6f925e730eecbb3d74bf9ada7037cdac2fa3b5b415c6fc2c3fff6bae04879"
+    }
+  },
+  "temporary_resources": {
+    "owned_jobs_build_temps_and_public_owners_closed": true,
+    "owned_private_config_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119",
+    "intentionally_retained_runtime": {
+      "pid": 67636,
+      "purpose": "Normal installed daemon; ordinary application lifecycle."
+    },
+    "managed_rollback_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-eca4cc63b4a74c2bb74e015700b3de4d",
+      "purpose": "Retained previous installed runtime pair; not disposable scratch.",
+      "cleanup_condition": "Preserve pending separate exact-path approval and rollback accounting."
+    },
+    "retention": "Retain receipts/package/ZIP and managed installer rollback. No preexisting deletion."
+  },
+  "limitations": [
+    "Integration recovery preserves the original returned outcome and existing ownership behavior; it is not source freshness, policy approval or retry safety for interrupted operations.",
+    "Date cutoffs filter imported prior-decision source dates, not authenticated event time or all review output. Gates/source comparisons still inspect the current worktree; unversioned current summaries are explicitly withheld. Discovery remains bounded/partial; natural-language question date routing is unchanged.",
+    "Explicit companion startup failure refuses trusted authority; this does not add broader protocol/identity/teardown coverage or remove the default optional fallback when no override is configured.",
+    "No standalone Rust unit tests or debug compile ran. The updated existing review-path unit assertion remains unexecuted. Candidate and installed public native API assertions are recorded separately.",
+    "No external CodeRabbit review is claimed. No actual LegacyValidation source/Q/index operation, real model request, source-format/storage-schema/sidecar change, target-language expansion or CodeMap/Blast improvement. MCP schemas intentionally change.",
+    "Original31findings/19gates, failed task comparisons and held work remain preserved. General readiness, productivity, coding-time percentage and spend justification remain unproved."
+  ],
+  "validation_attempt_accounting": {
+    "failed_deployment_attempts": [
+      {
+        "attempt": 1,
+        "state": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\deployment-attempt1-failed\\deployment1-state.json",
+          "sha256": "259258e6bc49a960c05bc827577a18d8a2664a028a9d699b6eec0e8652e8b869"
+        },
+        "stage": "pin-proxies",
+        "error": "AssertionError('pin-proxies exited 1; retained exact log')",
+        "all_started_children_closed": true,
+        "owned_config_removed": true,
+        "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\deployment-attempt1-failed"
+      },
+      {
+        "attempt": 2,
+        "state": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\deployment-attempt2-failed\\deployment1-state.json",
+          "sha256": "f831a4b51199eb091fb39c982f5494488190b7ed4ebd0278bb10298cef7e3106"
+        },
+        "stage": "candidate",
+        "error": "AssertionError('candidate exited 1; retained exact log')",
+        "all_started_children_closed": true,
+        "owned_config_removed": true,
+        "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\deployment-attempt2-failed"
+      },
+      {
+        "attempt": 3,
+        "state": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\deployment-attempt3-failed\\deployment1-state.json",
+          "sha256": "1c78acad207246eae421c6d5ffe6c755ef27ded331555f390608fad082835074"
+        },
+        "stage": "package-identity",
+        "error": "FileExistsError(17, 'File exists')",
+        "all_started_children_closed": true,
+        "owned_config_removed": true,
+        "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\deployment-attempt3-failed"
+      },
+      {
+        "attempt": 4,
+        "state": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\deployment-attempt4-failed\\deployment1-state.json",
+          "sha256": "e5579032862fe1c5cca57d38c1791ae3506eb1ffd27a56b6fccf8b7554edf095"
+        },
+        "stage": "candidate",
+        "error": "AssertionError('candidate exited 1; retained exact log')",
+        "all_started_children_closed": true,
+        "owned_config_removed": true,
+        "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\deployment-attempt4-failed"
+      }
+    ],
+    "failed_public_leaf": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-integration-result-delivery-20261119\\candidate1-verifier-path-failure\\receipt.json",
+      "sha256": "cbb0089321fdac85d65a930c987a35053ccfc83da98690d4f841889bd15686aa"
+    },
+    "failed_public_leaf_seconds": 1.5763219999935245,
+    "partial_checks_before_verifier_lookup_failure": [
+      "delivery_controls_preserve_original_arguments",
+      "preview_bounded_without_publication",
+      "complete_proposals_and_qualifications_recover"
+    ],
+    "helper_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\deployment-helper-correction1.json",
+      "sha256": "9be839dc4b787d2510e2f0ba9fc5b42385c62708ee807c80536ddfdd90cf1366"
+    },
+    "verifier_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-bootstrap-parser-batch-20261119\\public-verifier-path-correction1.json",
+      "sha256": "7d1aa824755f191778cf4f02880559b1c380ed1cf59d3109d13580f4e385d935"
+    },
+    "interpretation": "Initial copied helper constants, verifier Windows path keys, resume log initialization and retained read-only output names required corrections. Failed evidence retained; corrected failed/not-started acceptance reused the same optimized binary/package. No accepted component was replayed and no rebuild occurred.",
+    "acceptance_criteria_unchanged": true,
+    "product_source_changes_after_release": 0,
+    "all_failed_owners_closed_and_owned_configs_or_fixtures_removed": true
+  }
+}
