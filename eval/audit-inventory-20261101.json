@@ -1528,8 +1528,8 @@
     {
       "id": "EG-31",
       "finding": "Evidence-driven instruction maintenance after code changes",
-      "ledger_disposition": "Recovered original proposal; open",
-      "existing_evidence_and_next_gate": "Produce a reviewable guidance-update proposal after a representative OX change, with changed evidence, rationale, proposed diff and current source/evidence hashes. Preserve accepted exceptions and distinguish an implementation defect from a policy change. Reject stale proposal bases; report when no guidance change is warranted. Initial generation and valid links do not complete this behavior.",
+      "ledger_disposition": "Original bounded maintenance contract verified complete on November 18",
+      "existing_evidence_and_next_gate": "The closure record verifies a reviewable LegacyValidation proposal bound to the changed sources, an explained no-change outcome, stale-proposal refusal, and an installed code/policy conflict with authored guidance preserved. EG-24 and EG-25 retain task verification and comparative benefit separately.",
       "required_behavior": [
         "After a representative OX change, propose affected guidance updates with changed evidence, rationale and a source/evidence-bound diff.",
         "Reject stale bases; preserve exceptions and shared-rule references; explain no-guidance-change outcomes.",
