@@ -3035,6 +3035,13 @@
       "implementation": "crates/engram_index/src/hybrid.rs and crates/engram_server/src/handlers/git_tools.rs",
       "acceptance": "Reuse one searcher view for the displayed commit messages and metadata. Fetch a matching diff fallback once only when needed. Preserve ordinary stored-document entry points and publisher summaries. A focused test using the exact reader and a real Tantivy fixture retained one scoped view across an index commit and checked the fresh reader, primary key, author, date and project/namespace isolation. Existing packaged text-history evidence verification remains pending. No whole-request latency claim."
     },
+    "following_review_finding_identity": {
+      "status": "IMPLEMENTED_FOCUSED_ACTUAL_REPORT_CHECK_PASSED_AWAITING_PACKAGE_VERIFICATION",
+      "requirement": "EG-19 stable actionable findings in bounded decision-aware review replies",
+      "observed_gap": "The retained actual LegacyValidation review has a stable finding ID in its full report and only a positional index in the deferred ledger. The original 47369-byte review required six public recovery pages before a caller could get that ID.",
+      "implementation": "crates/engram_server/src/handlers/review_tools/response_delivery.rs",
+      "acceptance": "The deferred JSON and Markdown ledgers show the exact finding_id from the complete review without changing finding indices, severities, content identity or recovery. A focused module check verified this on the retained actual LegacyValidation report. The existing packaged integration fixture now verifies ID continuity across all forty findings. No gate rerun or full build."
+    },
     "next_action": "Advance the remaining original LegacyValidation items. The single-scan SQL comparison committed after the installed package was frozen remains queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
   },
   "windows_reconnect_release_interruption": {

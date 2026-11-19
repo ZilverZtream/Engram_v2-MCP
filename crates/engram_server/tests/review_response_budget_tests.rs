@@ -45,6 +45,7 @@ fn run(json_output: bool) -> Result<()> {
         ensure!(manifest["coverage"]["compilation"]=="not_run" && manifest["coverage"]["test_execution"]=="not_run");
         for f in manifest["finding_ledger"].as_array().unwrap() {
             ensure!(f["severity"]=="critical" && f["gate"]=="secret_leakage");
+            ensure!(f["finding_id"].as_str().is_some_and(|id| !id.is_empty()));
         }
         let id=manifest["response_delivery"]["response_id"].as_str().unwrap();
         let original=std::fs::read(engram.state.cfg.data_dir.join(format!("responses/review/{pid}/{id}.txt")))?;
@@ -73,6 +74,11 @@ fn run(json_output: bool) -> Result<()> {
             for row in manifest["finding_ledger"].as_array().unwrap() {
                 let f=&full["findings"][row["finding_index"].as_u64().unwrap() as usize];
                 ensure!(row["file_path"]==f["file_path"] && row["title"]==f["title"] && row["severity"]==f["severity"]);
+                ensure!(row["finding_id"]==f["finding_id"]);
+            }
+        } else {
+            for row in manifest["finding_ledger"].as_array().unwrap() {
+                ensure!(recovered.contains(row["finding_id"].as_str().unwrap()));
             }
         }
         let empty=text(&engram.handle_pre_commit_review(serde_json::from_value(json!({"project_id":pid,"diff":"","output_json":true}))?).await?);

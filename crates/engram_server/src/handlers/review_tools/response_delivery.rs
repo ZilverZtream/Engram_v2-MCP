@@ -17,7 +17,7 @@ pub(super) fn finish(req: &PreCommitReviewRequest, data: &Path, body: String, re
     }
     let id = blake3::hash(body.as_bytes()).to_hex().to_string();
     let ledger: Vec<_> = report["findings"].as_array().into_iter().flatten().enumerate().map(|(index, f)| {
-        let mut row = json!({"finding_index":index,"severity":f["severity"],"gate":f["gate"],
+        let mut row = json!({"finding_index":index,"finding_id":f["finding_id"],"severity":f["severity"],"gate":f["gate"],
             "file_path":f["file_path"],"lines":f.get("lines").cloned().unwrap_or(json!([])),"title":f["title"]});
         if let Some(annotations) = f["prior_review_annotations"].as_array() {
             row["prior_review_annotation_count"] = json!(annotations.len());
