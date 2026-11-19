@@ -3229,7 +3229,14 @@
       "source_outcomes": 1,
       "native_unit_cases_expected": 0,
       "current_release_excludes_this_item": true,
-      "verification": "Source syntax and whitespace checks passed. Reuse exact existing public mixed results and restart verifier after this source change. No measured latency or peak-memory result is claimed."
+      "focused_budget_verification": {
+        "status": "PASS",
+        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-read-result-ownership-20261119\\isolated-budget-receipt.json",
+        "sha256": "faf3e9ee4b91fef88e77921cba3b06f7a6bad0333fda057000aa4b7e3a22e530",
+        "comparisons": 7,
+        "scope": "Exact old/new budgeting and rendering functions with the cached serialization/hash libraries and owned fixture requests. Bounded replies, minimum-budget errors and saved originals match byte for byte. This does not exercise MCP routing or the durable on-disk store."
+      },
+      "verification": "Reuse the existing public mixed results and restart verifier for the packaged candidate. No full Engram build, latency or peak-memory result is claimed."
     },
     {
       "original_requirement_id": "TODO-38",
