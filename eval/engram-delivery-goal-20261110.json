@@ -2842,6 +2842,19 @@
       "native_unit_cases_expected": 0,
       "current_release_excludes_this_item": true,
       "verification": "Installed baseline reproduced the out-of-scope archive ruling against two independently authored TypeScript review records. Source syntax and whitespace checks passed. Candidate and installed verification of the fix remain pending."
+    },
+    {
+      "original_requirement_id": "TODO-33",
+      "source_commit": "7f0024a1e427c85d2ed9aebbd4ce478b37215a46",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "observed_gap": "Installed batch_read rejects get_review_decisions even when the ordinary dated decision reader returns scoped evidence. Agents have to request the read separately.",
+      "user_outcome": "Mixed read batches can retrieve recorded review decisions with the existing scope, date and discussion selectors. Each review read shares the outer budget and keeps its own result, error and ordinary readback action.",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-review-decisions-20261119\\contract.json",
+      "public_assertions_expected": 4,
+      "source_outcomes": 1,
+      "native_unit_cases_expected": 0,
+      "current_release_excludes_this_item": true,
+      "verification": "Installed baseline confirms typed batch rejection and working standalone review discovery on an owned TypeScript fixture. Source syntax and whitespace checks passed. Candidate and installed runtime verification remain pending; no latency or cost improvement measured."
     }
   ],
   "method_schema_area_batch_delivery": {
