@@ -1565,11 +1565,20 @@ pub fn apply_generated_exemption(
 /// attach diff snippets from the originating hunks, and emit a
 /// meta-finding when a single file is flagged by three or more gates.
 pub fn aggregate_findings(
-    mut findings: Vec<ReviewFinding>,
+    findings: Vec<ReviewFinding>,
     diff_files: &[DiffFile],
     min_severity: Severity,
     max_findings: usize,
 ) -> Vec<ReviewFinding> {
+    aggregate_findings_with_omissions(findings, diff_files, min_severity, max_findings).0
+}
+
+fn aggregate_findings_with_omissions(
+    mut findings: Vec<ReviewFinding>,
+    diff_files: &[DiffFile],
+    min_severity: Severity,
+    max_findings: usize,
+) -> (Vec<ReviewFinding>, HashMap<&'static str, usize>) {
     // Dedup by finding_id.
     let mut seen: HashSet<String> = HashSet::new();
     findings.retain(|f| seen.insert(f.finding_id.clone()));
@@ -1581,6 +1590,10 @@ pub fn aggregate_findings(
     // later stages see the already-hygienic set.
     findings = collapse_resx_family_findings(findings);
     findings = collapse_style_findings(findings);
+    let mut omitted_by_gate = HashMap::new();
+    for finding in findings.iter().filter(|finding| finding.severity <= min_severity) {
+        *omitted_by_gate.entry(finding.gate).or_insert(0usize) += 1;
+    }
     findings = apply_per_gate_budget(findings, max_findings);
 
     // Count per-file, per-gate.
@@ -1649,7 +1662,12 @@ pub fn aggregate_findings(
     });
 
     findings.truncate(max_findings);
-    findings
+    for finding in &findings {
+        if let Some(count) = omitted_by_gate.get_mut(finding.gate) {
+            *count -= 1;
+        }
+    }
+    (findings, omitted_by_gate)
 }
 
 // ─── Finding-budget hygiene ─────────────────────────────────────────────────
@@ -2871,12 +2889,19 @@ async fn run_pre_commit_review_selected(
             ));
         }
     }
-    let finalised = aggregate_findings(
+    let (finalised, omitted_by_gate) = aggregate_findings_with_omissions(
         findings,
         &diff_files,
         config.min_severity,
         config.max_findings,
     );
+    for outcome in &mut outcomes {
+        if let Some(count) = omitted_by_gate.get(outcome.name).filter(|&&count| count > 0) {
+            outcome.caps.push(format!(
+                "{count} eligible finding(s) omitted by the max_findings budget. Increase max_findings or review a narrower diff to inspect them."
+            ));
+        }
+    }
     Ok((finalised, gates_run, diff_files.len(), outcomes))
 }
 
