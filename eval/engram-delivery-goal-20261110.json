@@ -3123,9 +3123,12 @@
       "build_session": 82317,
       "build_driver_pid": 59040,
       "build_owner": "release1-owner.json",
+      "stage_session": 14505,
+      "prepare_cutover_sha256": "27b4e0defa01bcedef75ea6d3d6366e992d3464084fb31fce82917e6853d54a3",
+      "live_cutover_sha256": "2aea099dbae740b13930fe800219d1887298604cc1358e938e253a080bc35d20",
       "baseline": "The installed-equivalent binary reproduced both gaps in an owned selected-source checkout against actual pinned LegacyValidation Git objects. The explicit method trace retained the authored call; ordinary load omitted it. The exact recent-file question had no direct commit evidence. The owned runtime closed and its temporary project was removed."
     },
-    "next_action": "Verify completion of the existing build session 82317. If the exact build receipt passes, use stage-and-verify.py to check public maintenance, file history and task-management tracing on one artifact before deployment."
+    "next_action": "Monitor existing build session 82317 and dependent stage session 14505. The dependent session waits for the recorded build driver to exit, requires the exact passing build receipt, then runs the three public acceptance checks and pins cutover evidence. Deploy only the verified candidate."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
