@@ -1,0 +1,30 @@
+{
+  "original_requirement_id": "TODO-59",
+  "source_commit": "eaafe44cb6369dd5818a13be8e3121f093792958",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\trigger-qualified-filter-20261119\\verify-public.py",
+    "sha256": "b0ba3dfe18cddd214838ea4f10f4b33914b0c0359010c06e46b0e7af14f6753b"
+  },
+  "public_assertions_expected": 5,
+  "public_assertions": [
+    "bare_filter_lists_both_authored_targets",
+    "qualified_filter_and_source_citation",
+    "markdown_shows_exact_declaration_and_source",
+    "missing_schema_does_not_match_basename",
+    "source_files_unchanged"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\trigger-qualified-filter-20261119\\baseline1\\receipt.json",
+    "sha256": "8be77cda4b87da759320d55c1ff6949946bf490983e5a188851605b304cdb8d4"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "TODO-59 shared SQL declaration and source reference analysis for database tools.",
+  "observed_gap": "Installed list_triggers returns both declared Invoice tables for the basename and reports no match for a valid schema-qualified target.",
+  "behavior": "Resolve qualified trigger target filters with the shared SQL name parser and show authored identities and locations in Markdown. Keep basename filters and the existing JSON declaration array. Label indexed table references as unbound read/write leads and omit procedure-name substring matches.",
+  "legacy_validation_sql_scope_evidence": "eval/legacy_validation-procedure-analysis-batch-delivery-20261114.json",
+  "verification": "Installed baseline reproduced the qualified-filter failure on owned SQL. Changed Rust parses with rustfmt; candidate and installed acceptance remain queued.",
+  "temporary_resources": "Owned MCP server and reader closed before removing the owned runtime and SQL fixture. Driver, receipt and wire data remain in the recorded case.",
+  "full_original_goal_complete": false
+}
