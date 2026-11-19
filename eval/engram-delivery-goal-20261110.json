@@ -2855,6 +2855,20 @@
       "native_unit_cases_expected": 0,
       "current_release_excludes_this_item": true,
       "verification": "Installed baseline confirms typed batch rejection and working standalone review discovery on an owned TypeScript fixture. Source syntax and whitespace checks passed. Candidate and installed runtime verification remain pending; no latency or cost improvement measured."
+    },
+    {
+      "original_requirement_id": "TODO-5",
+      "related_requirement_id": "EG-24",
+      "source_commit": "ba8dfa7ee16fadaf0bd53456913f35f0a662de14",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "observed_gap": "get_index_freshness with expected_git_commit can report source_binding_check=pass even with a new untracked VB file absent from the pinned commit.",
+      "user_outcome": "The optional Git binding check reports non-ignored untracked entries separately and refuses clean binding when any exist. Existing clean and staged-change behavior is preserved. The check reports Git's own coverage and remains independent of disk-index verification.",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-untracked-source-20261119\\contract.json",
+      "public_assertions_expected": 3,
+      "source_outcomes": 1,
+      "native_unit_cases_expected": 0,
+      "current_release_excludes_this_item": true,
+      "verification": "Installed baseline reproduced the false clean result and confirmed the staged-change control on an owned Git/VB fixture. Source syntax and whitespace checks passed. The modified runtime is unverified."
     }
   ],
   "method_schema_area_batch_delivery": {
