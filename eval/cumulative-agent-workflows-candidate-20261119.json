@@ -39,6 +39,13 @@
     "observed_client_proxy_pids": [
       19684
     ],
+    "observed_client_owner": {
+      "process": "claude.exe",
+      "pid": 71592,
+      "proxy_parent_process": "cmd.exe",
+      "proxy_parent_pid": 46564,
+      "observation": "The live process ancestry confirms this is a Claude-owned proxy launched after the previous daemon restoration. Process identity does not confirm a successful Claude tool call."
+    },
     "installed_binary_sha256": "0f218770760226b4818d0cd71a72e3460792c4a1914f7ef55bc1aab2bd50d7d9",
     "reason": "A running client proxy holds the installed executable. No live process was stopped."
   },
