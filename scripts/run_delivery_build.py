@@ -18,7 +18,8 @@ def main():
     args = parser.parse_args()
     goal = json.loads((ROOT / "eval/engram-delivery-goal-20261110.json").read_text(encoding="utf-8-sig"))
     policy = goal["delivery_cadence_correction_20261115"]
-    queued = policy["next_batch_pending"]
+    active_case = policy.get("active_release_case")
+    queued = goal["next_source_batch_pending"] if active_case else policy["next_batch_pending"]
     minimum = policy["minimum_independent_deliverables_before_next_compile"]
     identifiers = [item.get("original_requirement_id", "") for item in queued]
     if len(queued) < minimum or len(set(identifiers)) != len(queued):
@@ -35,6 +36,20 @@ def main():
     case = args.case.resolve()
     if not case.is_relative_to(SCRATCH.resolve()) or not (case / "build.py").is_file():
         raise ValueError("Build blocked: use an existing owned runner in the recorded scratch directory")
+    if active_case:
+        if case != Path(active_case).resolve():
+            raise ValueError("Build blocked: requested case is outside the active source batch")
+        plan = json.loads((case / "release-plan.json").read_text(encoding="utf-8"))
+        worktree = Path(plan["source_worktree"])
+        head = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=worktree, text=True).strip()
+        dirty = subprocess.check_output(["git", "status", "--porcelain"], cwd=worktree)
+        if dirty or head != plan["source_commit"] or set(identifiers) != set(plan["original_requirement_ids"]):
+            raise ValueError("Build blocked: the worktree or batch does not match the release plan")
+        for item in queued:
+            subprocess.run(["git", "merge-base", "--is-ancestor", item["source_commit"], head],
+                           cwd=worktree, check=True, capture_output=True)
+        if (case / "release1-owner.json").exists():
+            raise ValueError("Build blocked: release1 was already started for this frozen batch")
     trailing = args.arguments[1:] if args.arguments[:1] == ["--"] else args.arguments
     command = [sys.executable, "-B", "-u", str(case / "build.py"), *trailing]
     if args.dry_run:
