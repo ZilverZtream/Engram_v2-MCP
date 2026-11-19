@@ -3011,6 +3011,9 @@
     "archive_sha256": "9a5e4be606d62af1c867d0383f31d89d4d2a359a6aef9d5dbcf2fbb887c6c496",
     "candidate_receipt": {"relative_path":"candidate2/receipt.json","sha256":"87c40fc702b7672f4fd57d389e03505c24b22c7f7571c3ab89b2264f61645a26"},
     "owned_install_receipt": {"relative_path":"owned-install1/acceptance.json","sha256":"16c053609745a47a107f447aaa0170ba60fe17f19f3ab36cab31c6ff0707589e"},
+    "cutover_pair_preflight": {"relative_path":"cutover-readonly-preflight.json","sha256":"38550f5bded5164b8e8ae8c3977b59d33bae13463e6a25ad3e760c4e10374d39"},
+    "owned_forward_transition": {"relative_path":"owned-forward-transition1/receipt.json","sha256":"7bb5f1e1ff511cc68c56fd64490cfd446cd33b7daad6ac4fc02403bb372a93d0","checks":4},
+    "transition_scope": "Both manifest file sets and installed wrappers were verified. The sole packaged difference is the server binary. The source delta in the underlying index crate is limited to history read filters. An owned FTS index reopened at the same generation with identical SQL evidence and searchable VB source. Exact quiescent production-data and vector compatibility remain outside this proof.",
     "fixture_correction": "The initial review fixture exceeded Windows Git path limits. Shorter owned fixture paths passed with the same binary. The first attempt is retained. All accepted test processes and temporary fixtures closed.",
     "source_scope": "Preserve the interrupted batch, include the DBML, planning, recent history and bounded review inputs added since. Reuse the existing release checkout and shared artifacts. No full suite.",
     "live_install": "Six same-install proxies and the normal daemon were present after verification. The installed binary remains 0f218770760226b4818d0cd71a72e3460792c4a1914f7ef55bc1aab2bd50d7d9."
