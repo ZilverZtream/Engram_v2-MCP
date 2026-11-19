@@ -25,8 +25,8 @@ def main():
     if len(queued) < minimum or len(set(identifiers)) != len(queued):
         raise ValueError(f"Build blocked: need {minimum} independent source-complete original requirements; queue has {len(queued)}. Continue source work.")
     for item in queued:
-        if not re.fullmatch(r"(?:EG-\d{2}|TODO-\d+[a-z]?)", item["original_requirement_id"]):
-            raise ValueError("Build blocked: each item needs an original EG/TODO requirement identity")
+        if not re.fullmatch(r"(?:EG-\d{2}|TODO-\d+[a-z]?|S(?:0[1-9]|1[0-9]))", item["original_requirement_id"]):
+            raise ValueError("Build blocked: each item needs an original EG, TODO or storage requirement identity")
         if item.get("status") != "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION" or not item.get("acceptance_contract"):
             raise ValueError("Build blocked: incomplete source or missing finite acceptance contract")
         commit = item.get("source_commit", "")
