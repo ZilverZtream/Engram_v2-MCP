@@ -11,16 +11,34 @@ pub const TRACE_TOKENS: usize = 16_384;
 const INTERPRETATION: &str = "Static request candidates from the ordinary request tracer using the ask-held selected source inventory. Per-member source hash/revision checks, omissions, authored guidance and saved trace recovery remain in the nested report. This is not an atomic graph/filesystem snapshot or proof of HTTP hosting, dispatch, authorization, database execution or runtime behavior. Single-tool recovery runs a new trace against then-current state; saved ask-report recovery retains the original answer.";
 static REQUESTS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r#"(?i)\b(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+((?:https?://|~/|/)[^\s"'`<>]+)"#,
+        r#"(?i)\b(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+((?:(?:https?://|~/|/)[^\s"'`<>]+|[a-z0-9_-][a-z0-9_./-]*\.(?:aspx|asmx|ashx)[^\s"'`<>]*))"#,
     )
     .expect("explicit HTTP request mentions")
 });
 static INTERACTIONS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r#"(?i)\b(?:(?:click|clicking|clicked)\s+`?(?P<click>[a-z_][a-z0-9_]*)`?|event\s+`?(?P<event>[a-z_][a-z0-9_]*(?:/[a-z_][a-z0-9_]*){0,7}\.[a-z_][a-z0-9_]*)`?)\s+(?:on|in)\s+`?(?P<page>(?:https?://|~/|/)[^\s"'`<>]+)"#,
+        r#"(?i)\b(?:(?:click|clicking|clicked)\s+`?(?P<click>[a-z_][a-z0-9_]*)`?|event\s+`?(?P<event>[a-z_][a-z0-9_]*(?:/[a-z_][a-z0-9_]*){0,7}\.[a-z_][a-z0-9_]*)`?)\s+(?:on|in)\s+`?(?P<page>(?:(?:https?://|~/|/)[^\s"'`<>]+|[a-z0-9_-][a-z0-9_./-]*\.(?:aspx|asmx|ashx)[^\s"'`<>]*))"#,
     )
     .expect("explicit page and control actions")
 });
+
+static RELATIVE_WEBFORMS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"(?i)^[a-z0-9_-][a-z0-9_./-]*\.(?:aspx|asmx|ashx)(?:/[a-z_][a-z0-9_]*)?(?:[?#].*)?$")
+        .expect("relative WebForms entry")
+});
+
+fn entry_path(mention: &str) -> Option<&str> {
+    let path = mention.trim_end_matches([',', ';', ')', ']', '}']);
+    if path.starts_with('/')
+        || path.starts_with("~/")
+        || path.get(..7).is_some_and(|prefix| prefix.eq_ignore_ascii_case("http://"))
+        || path.get(..8).is_some_and(|prefix| prefix.eq_ignore_ascii_case("https://"))
+    {
+        return Some(path);
+    }
+    let path = path.trim_end_matches('.');
+    RELATIVE_WEBFORMS.is_match(path).then_some(path)
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraceQuery {
@@ -33,7 +51,9 @@ pub struct TraceQuery {
 pub fn requests(question: &str) -> Vec<TraceQuery> {
     let mut mentions = Vec::new();
     for capture in REQUESTS.captures_iter(question) {
-        let url = capture[2].trim_end_matches([',', ';', ')', ']', '}']);
+        let Some(url) = capture.get(2).and_then(|value| entry_path(value.as_str())) else {
+            continue;
+        };
         let query = TraceQuery {
             entry_point: format!("{} {url}", capture[1].to_ascii_uppercase()),
             action: None,
@@ -56,8 +76,11 @@ pub fn requests(question: &str) -> Vec<TraceQuery> {
         {
             continue;
         }
+        let Some(page) = capture.name("page").and_then(|value| entry_path(value.as_str())) else {
+            continue;
+        };
         let query = TraceQuery {
-            entry_point: capture["page"].trim_end_matches([',', ';', ')', ']', '}']).into(),
+            entry_point: page.into(),
             action: Some(action),
         };
         if !interactions.iter().any(|(_, existing)| existing == &query) {
@@ -81,7 +104,9 @@ pub fn requests(question: &str) -> Vec<TraceQuery> {
 pub fn queries(question: &str) -> Vec<String> {
     let mut out = Vec::new();
     for capture in REQUESTS.captures_iter(question) {
-        let url = capture[2].trim_end_matches([',', ';', ')', ']', '}']);
+        let Some(url) = capture.get(2).and_then(|value| entry_path(value.as_str())) else {
+            continue;
+        };
         let request = format!("{} {url}", capture[1].to_ascii_uppercase());
         if !out.contains(&request) {
             out.push(request);
