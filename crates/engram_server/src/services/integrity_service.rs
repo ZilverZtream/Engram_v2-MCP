@@ -73,6 +73,9 @@ pub struct SourceGenerationIntegrity {
     pub vector_doc_count: Option<u64>,
     /// Counts alone do not establish per-row identity or vector quality.
     pub counts_match: Option<bool>,
+    /// Present only when an exact, bounded physical-key comparison completed.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub matching_vector_ids: Option<u64>,
 }
 
 /// Shared by observation and the serialized, owned repair recheck.
@@ -82,8 +85,8 @@ pub async fn observe_source_generation(
     generation: u64,
     embeddings_expected: bool,
 ) -> anyhow::Result<SourceGenerationIntegrity> {
-    let counts = if embeddings_expected {
-        search.count_source_generation(project_id, generation).await?
+    let rows = if embeddings_expected {
+        search.observe_source_generation(project_id, generation, true).await?
     } else {
         None
     };
@@ -92,14 +95,17 @@ pub async fn observe_source_generation(
         namespace: "memory".into(),
         coverage: if !embeddings_expected {
             "embeddings_disabled"
-        } else if counts.is_some() {
+        } else if rows.is_some_and(|rows| rows.matching_vector_ids.is_some()) {
+            "managed_source_snapshot_counts_and_physical_keys"
+        } else if rows.is_some() {
             "managed_source_snapshot_counts_only"
         } else {
             "unavailable_managed_source_or_vector_support"
         }.into(),
-        tantivy_doc_count: counts.map(|(lexical, _)| lexical as u64),
-        vector_doc_count: counts.map(|(_, vectors)| vectors as u64),
-        counts_match: counts.map(|(lexical, vectors)| lexical == vectors),
+        tantivy_doc_count: rows.map(|rows| rows.lexical_count as u64),
+        vector_doc_count: rows.map(|rows| rows.vector_count as u64),
+        counts_match: rows.map(|rows| rows.lexical_count == rows.vector_count),
+        matching_vector_ids: rows.and_then(|rows| rows.matching_vector_ids.map(|ids| ids as u64)),
     })
 }
 
@@ -112,7 +118,21 @@ pub fn include_source_mismatch(
     let (Some(expected), Some(actual)) = (source.tantivy_doc_count, source.vector_doc_count) else {
         return;
     };
-    if expected == actual { return; }
+    if expected == actual {
+        if let Some(matching) = source.matching_vector_ids.filter(|matching| *matching < expected) {
+            mismatches.retain(|existing| existing.kind != MismatchKind::VectorShortfall);
+            mismatches.push(IntegrityMismatch {
+                kind: MismatchKind::VectorShortfall,
+                description: format!(
+                    "Published memory source snapshot {} has equal row counts but only {matching} of {expected} selected Tantivy primary keys in the vector store",
+                    source.generation,
+                ),
+                expected,
+                actual: matching,
+            });
+        }
+        return;
+    }
     let kind = if actual < expected { MismatchKind::VectorShortfall } else { MismatchKind::VectorOrphan };
     mismatches.retain(|existing| existing.kind != kind);
     mismatches.push(IntegrityMismatch {

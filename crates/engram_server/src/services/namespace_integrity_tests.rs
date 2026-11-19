@@ -290,6 +290,7 @@ fn namespace_integrity_no_duplicate_repairs_and_unavailable_is_not_empty() {
         tantivy_doc_count: Some(2),
         vector_doc_count: Some(1),
         counts_match: Some(false),
+        matching_vector_ids: None,
     };
     let mut namespaces = namespace_integrity::NamespaceIntegrity {
         coverage: "retained_non_memory_namespace_counts_only".into(),

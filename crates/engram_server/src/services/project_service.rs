@@ -824,7 +824,7 @@ async fn run_scoped_repair(
                     let source = super::integrity_service::observe_source_generation(&ps.search, &project_id, generation, true).await?;
                     let mismatches = super::integrity_service::observed_mismatches(&source, &namespaces, true);
                     if mismatches.is_empty() {
-                        return Ok(ScopedRepairReport { message: "No current vector count mismatch; no documents were re-embedded.".into(), vector_outcome: Some(VectorRepairOutcome::NoCurrentCountMismatch) });
+                        return Ok(ScopedRepairReport { message: "No current vector mismatch observed; no documents were re-embedded.".into(), vector_outcome: Some(VectorRepairOutcome::NoCurrentCountMismatch) });
                     }
                 }
                 let registry = state.registry.clone();

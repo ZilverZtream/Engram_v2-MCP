@@ -37,6 +37,8 @@ mod embedding_failure_tests;
 mod selected_source_membership;
 mod namespace_counts;
 pub use namespace_counts::NamespaceVectorCounts;
+mod source_integrity;
+pub use source_integrity::SourceGenerationObservation;
 pub use selected_source_membership::{SelectedSourceNavigation, SelectedSourceRevisionLookup, SelectedSourceSummary};
 #[cfg(all(test, feature = "vector"))]
 mod retention_observation_tests;
@@ -2852,6 +2854,18 @@ impl HybridSearchEngine {
         project_id: &str,
         generation: u64,
     ) -> anyhow::Result<Option<(usize, usize)>> {
+        Ok(self.observe_source_generation(project_id, generation, false).await?
+            .map(|rows| (rows.lexical_count, rows.vector_count)))
+    }
+
+    /// Observe cardinality and, for bounded equal-count snapshots, primary-key
+    /// membership using the same lexical reader and pinned native epoch.
+    pub async fn observe_source_generation(
+        &self,
+        project_id: &str,
+        generation: u64,
+        compare_keys: bool,
+    ) -> anyhow::Result<Option<SourceGenerationObservation>> {
         #[cfg(feature = "vector")]
         {
             // Without a manifest scope there is no precise comparison to make.
@@ -2868,7 +2882,7 @@ impl HybridSearchEngine {
             let lexical_snapshot = snapshot.clone();
             let lexical = self.clone();
             let project = project_id.to_owned();
-            let lexical_count = tokio::task::spawn_blocking(move || -> anyhow::Result<usize> {
+            let (lexical_count, lexical_keys) = tokio::task::spawn_blocking(move || {
                 let reader = lexical.tantivy_index.reader()?;
                 let query = BooleanQuery::new(vec![
                     (Occur::Must, Box::new(TermQuery::new(
@@ -2881,27 +2895,34 @@ impl HybridSearchEngine {
                     ))),
                     (Occur::Must, lexical_snapshot.query(&lexical.fields)),
                 ]);
-                Ok(reader.searcher().search(&query, &tantivy::collector::Count)?)
+                source_integrity::lexical_rows(&reader.searcher(), &query, lexical.fields.pk, compare_keys)
             }).await??;
             let epoch = self.pin_vector_epoch(project_id)?;
             let worker = self.clone();
-            let vector_count = self.run_native_vector_query(epoch.clone(), &CancellationToken::new(), async move {
+            let (vector_count, matching_vector_ids) = self.run_native_vector_query(epoch.clone(), &CancellationToken::new(), async move {
                 // Native work owns the selection even if its requester exits.
                 let selection = format!("namespace = 'memory' AND ({})", snapshot.sql());
                 worker.ensure_managed_vector_table_present(&epoch)?;
                 if !worker.native_store.capture()?.connection.table_names().execute().await?.contains(&epoch.table) {
-                    return Ok(0);
+                    return Ok((0, None));
                 }
                 let table = worker.open_vector_epoch_table(&epoch).await?;
                 let count = table.count_rows(Some(selection)).await?;
+                let matching = match lexical_keys {
+                    Some(keys) if lexical_count == count => {
+                        let selection = format!("namespace = 'memory' AND ({})", snapshot.sql());
+                        Some(source_integrity::match_vector_keys(&table, selection, keys).await?)
+                    }
+                    _ => None,
+                };
                 drop(snapshot);
-                Ok(count)
+                Ok((count, matching))
             }).await?;
-            Ok(Some((lexical_count, vector_count)))
+            Ok(Some(SourceGenerationObservation { lexical_count, vector_count, matching_vector_ids }))
         }
         #[cfg(not(feature = "vector"))]
         {
-            let _ = (project_id, generation);
+            let _ = (project_id, generation, compare_keys);
             Ok(None)
         }
     }

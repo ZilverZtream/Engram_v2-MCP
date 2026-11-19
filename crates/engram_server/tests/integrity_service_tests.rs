@@ -206,6 +206,54 @@ async fn published_source_detects_masked_shortage_and_surplus_and_repairs_both()
 }
 
 #[tokio::test]
+async fn equal_counts_with_a_replaced_selected_vector_trigger_scoped_recovery() {
+    let fixture = Fixture::new(true, "local").await;
+    let runtime = project_service::ensure_project_runtime(&fixture.state, PID)
+        .await
+        .unwrap();
+    let search = &runtime.search;
+    search
+        .delete_vector_rows_for_paths(PID, "memory", &[RelPath::new("a.vb")])
+        .await
+        .unwrap();
+    search
+        .embed_and_upsert_vectors(
+            PID,
+            &[doc("memory", 1, "a.vb", "wrong-inherited-key")],
+            &CancellationToken::new(),
+        )
+        .await
+        .unwrap();
+
+    let observed = fixture.check(false).await;
+    let source = &observed["source_generation"];
+    assert_eq!(observed["tantivy_doc_count"], observed["vector_doc_count"]);
+    assert_eq!(source["counts_match"], true);
+    assert_eq!(source["tantivy_doc_count"], 3);
+    assert_eq!(source["matching_vector_ids"], 2);
+    assert_eq!(observed["overall_healthy"], false);
+    assert_eq!(observed["mismatches"].as_array().unwrap().len(), 1);
+    assert_eq!(observed["mismatches"][0]["kind"], "VectorShortfall");
+    assert_eq!(observed["mismatches"][0]["actual"], 2);
+    assert!(observed["repairs_attempted"].as_array().unwrap().is_empty());
+
+    let repaired = fixture.check(true).await;
+    assert_eq!(
+        repaired["repairs_attempted"][0]["action"],
+        "vector_recovery"
+    );
+    assert_eq!(repaired["repairs_attempted"][0]["success"], true);
+    assert_eq!(
+        repaired["post_repair"]["source_generation"]["matching_vector_ids"],
+        3
+    );
+    assert_eq!(repaired["post_repair"]["generation"], 2);
+    assert_eq!(repaired["overall_healthy"], true);
+    assert_eq!(search.count_docs(PID).unwrap(), 6);
+    assert_eq!(search.count_vectors(PID).await.unwrap(), 6);
+}
+
+#[tokio::test]
 async fn disabled_embeddings_and_legacy_source_are_explicitly_uncompared() {
     for (managed, backend, coverage) in [
         (true, "fts_only", "embeddings_disabled"),
@@ -234,6 +282,7 @@ fn source_evidence_retains_distinct_project_signal_without_duplicate_repairs() {
         tantivy_doc_count: Some(3),
         vector_doc_count: Some(2),
         counts_match: Some(false),
+        matching_vector_ids: None,
     };
     let mut same = integrity_service::build_integrity_mismatches(200, 0, true);
     integrity_service::include_source_mismatch(&mut same, &source);
