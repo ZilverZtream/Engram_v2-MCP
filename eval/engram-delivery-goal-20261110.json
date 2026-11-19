@@ -3050,14 +3050,15 @@
       "acceptance": "Admit exact current finding IDs only with path relevance, prioritize them through the existing discovery and report caps, and give admitted exact matches their own bounded context item. The annotation identifies a matching ID while retaining scope/conditions and the current verdict. The focused selection and annotation check passed. The extended actual review integration path remains queued for package verification. This extends the same EG-19 outcome as deferred finding IDs."
     },
     "following_combined_mcp_baseline": {
-      "status": "BASELINE_PASSED_ONE_OPTIMIZED_BUILD_AND_VERIFICATION_RUNNING",
+      "status": "BUILD_PASSED_CANDIDATE_WITHHELD_REVIEW_BUDGET_CORRECTED_IN_SOURCE",
       "case": "sql-history-review-20261119",
       "eligible_original_requirements": ["TODO-28", "EG-20", "EG-19"],
       "source_reviewed_through": "38949da2a11fee0275b731fb3163ecd345d29c99",
       "baseline_binary_sha256": "e31a6c084b1b8c5ed3ce4645c50c2a5eedc01292ea0ef1273db07de2567f0f10",
       "verifier": {"relative_path":"verify-public.py","sha256":"bdf33222ddb1ff166f411ae9269a6277d9bbd04ebe3815812fd68ca061198730"},
       "baseline": {"relative_path":"baseline/receipt.json","sha256":"609fe869fc9f46b34296aac1aaa35ce6ace59bb6409d8c195657fd1adeaea013","checks":6},
-      "build": {"session":4885,"driver_pid":39320,"optimized_builds":1,"full_test_suites":0,"verification":"The same session packages this artifact after all six affected public MCP checks pass."},
+      "build": {"session":4885,"driver_pid":39320,"optimized_builds":1,"full_test_suites":0,"seconds":1016.8666938,"binary_sha256":"743d73812edfbcc094d6ff98c71fc4fde69fece436c3151a5172b2205d51f2a2","verification":"Five of six candidate checks passed. The scoped exact review event was admitted in a single-event diagnostic on the same binary, but repeated recovery explanations crowded it out in the full test. The candidate was withheld before packaging or installation."},
+      "review_budget_correction": "Move repeated explanations into the shared recovery instructions. In a focused reconstruction from the failed candidate and its isolated exact-event output, the exact event and all 23 other events' recovery actions fit in 13,066 bytes. Every event ID, event hash and callable argument remained exact. End-to-end candidate verification of the source correction remains pending. No replacement build started.",
       "acceptance": "The public installed-binary baseline returned both SQL declarations after four examinations, the expected Git author/date/body, and the unchanged review severity and verdict. Its review omitted the exact prior event behind twenty-four same-file events and lacked the stable ID in the deferred ledger. Candidate acceptance requires two SQL examinations, unchanged Git evidence, both restored review identities with source restrictions, and exact recovery. The baseline runtime and fixture closed."
     },
     "next_vb_interface_implementers": {
@@ -3065,6 +3066,7 @@
       "requirement": "TODO-9 direct interface implementation navigation for LegacyValidation VB.NET and TODO-28 natural-language source questions",
       "observed_gap": "The installed ask_codebase baseline cited the actual IWebhookVetroService and VetroService files separately and reported answered without returning their implementation relationship. Ordinary query_graph_nodes and the existing incoming Implements edge verified both indexed endpoints.",
       "baseline": {"case":"legacy_validation-interface-question-baseline","relative_path":"receipt.json","sha256":"9cd351acb060116e3dd1401cf38379e49a2b95da1f3eff5c27c7ef7eb119105b"},
+      "packaged_verifier": {"case":"legacy_validation-interface-question-baseline","relative_path":"verify-public.py","sha256":"9394f988334702a3fe43327542d807ee435957d85c1d2465172b06ae6bdac32d","status":"PREPARED_NOT_RUN"},
       "implementation": "crates/engram_server/src/handlers/ask_interfaces.rs, ask_tools.rs and services/ask_engine/report.rs",
       "acceptance": "An explicit implementer question returns the current indexed VB class edge and cites the exact Implements line and both source identities. Reject stale, ambiguous and unselected endpoints with explicit coverage. Keep the direct declaration separate from runtime dispatch. A focused check used the actual LegacyValidation VB line and confirmed unrelated interface exclusion, and the exact provider type-checked against cached Engram core/index/graph libraries. Full handler and packaged MCP verification remain pending. This source is outside the currently frozen release."
     },
