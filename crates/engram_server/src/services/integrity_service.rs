@@ -34,6 +34,10 @@ pub struct IntegrityCheckResult {
     pub graph_edge_count: u64,
     pub mismatches: Vec<IntegrityMismatch>,
     pub repairs_attempted: Vec<RepairOutcome>,
+    /// Durable reasons still pending after any repair. Null means the
+    /// project was no longer registered when the status was read.
+    #[serde(default)]
+    pub recovery_requirements: Option<engram_core::registry::ReindexStatus>,
     pub overall_healthy: bool,
 }
 
@@ -292,13 +296,6 @@ pub async fn check_project_integrity_with_policy(
         }
     }
 
-    // Counts alone do not settle known source/vector/history uncertainty.
-    // Re-read after repairs: a newer failure may have arrived during recovery.
-    let registry = state.registry.clone();
-    let project = project_id.to_owned();
-    let recovery_pending = tokio::task::spawn_blocking(move || {
-        registry.get_project(&project).map(|record| record.is_none_or(|record| record.reindex_required_since_ms.is_some()))
-    }).await??;
     let post_repair = if repairs.iter().any(|repair| repair.success) {
         let generation = super::project_service::get_active_generation(state, project_id).await?;
         let source_generation = observe_source_generation(&search, project_id, generation, embeddings_expected).await?;
@@ -306,6 +303,12 @@ pub async fn check_project_integrity_with_policy(
         let mismatches = observed_mismatches(&source_generation, &retained_namespaces, embeddings_expected);
         Some(PostRepairIntegrity { generation, source_generation, retained_namespaces, mismatches })
     } else { None };
+    // Matching counts do not settle durable recovery requirements. Read the
+    // registry after any repair and its follow-up count observations.
+    let registry = state.registry.clone();
+    let project = project_id.to_owned();
+    let recovery_requirements = tokio::task::spawn_blocking(move || registry.reindex_status(&project)).await??;
+    let recovery_pending = recovery_requirements.as_ref().is_none_or(|status| !status.reasons.is_empty());
     let (current_source, current_namespaces, current_mismatches) = match &post_repair {
         Some(after) => (&after.source_generation, &after.retained_namespaces, &after.mismatches),
         None => (&source_generation, &retained_namespaces, &mismatches),
@@ -329,6 +332,7 @@ pub async fn check_project_integrity_with_policy(
         graph_edge_count: edge_count,
         mismatches,
         repairs_attempted: repairs,
+        recovery_requirements,
         overall_healthy,
     })
 }

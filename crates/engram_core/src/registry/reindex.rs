@@ -11,6 +11,13 @@ pub(super) const REVISION_SEQUENCE: &str = "\0reindex_revision_sequence_v1";
 #[serde(rename_all = "snake_case")]
 pub enum ReindexReason { Source, Vector, Unknown }
 
+/// The durable recovery warning and its reasons as of one registry snapshot.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReindexStatus {
+    pub since_ms: Option<u64>,
+    pub reasons: Vec<ReindexReason>,
+}
+
 /// Captured before repair. New failures, including those in the same millisecond,
 /// cannot be acknowledged by completing work for an older revision.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -110,15 +117,23 @@ fn write_requirements(wtx: &redb::WriteTransaction, project: &mut ProjectRecord,
 impl Registry {
     /// Current pending reasons, read in one snapshot without writing metadata.
     pub fn reindex_reasons(&self, project_id: &str) -> anyhow::Result<Vec<ReindexReason>> {
+        Ok(self.reindex_status(project_id)?.map(|status| status.reasons).unwrap_or_default())
+    }
+
+    /// Returns None when the project is no longer registered.
+    pub fn reindex_status(&self, project_id: &str) -> anyhow::Result<Option<ReindexStatus>> {
         vk("project_id", project_id)?;
         let rtx = self.db.begin_read()?;
         let project: Option<ProjectRecord> = rtx.open_table(PROJECTS)?.get(project_id)?
             .map(|v| serde_json::from_slice(v.value())).transpose()?;
-        let Some(project) = project else { return Ok(Vec::new()); };
+        let Some(project) = project else { return Ok(None); };
         let requirements = rtx.open_table(META)?.get(key(project_id).as_str())?
             .map(|v| serde_json::from_slice::<Requirements>(v.value())).transpose()?
             .unwrap_or_else(|| Requirements::legacy(project.reindex_required_since_ms));
-        Ok(requirements.pending.keys().copied().collect())
+        Ok(Some(ReindexStatus {
+            since_ms: requirements.since_ms(),
+            reasons: requirements.pending.keys().copied().collect(),
+        }))
     }
 
     /// No-op for a missing project, matching the legacy flag setter.

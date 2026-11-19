@@ -17,7 +17,7 @@ pub use review_discussion::{ReviewDiscussionRecord,ReviewDiscussionWrite,ReviewD
     REVIEW_DISCUSSION_PROJECT_ROWS,REVIEW_DISCUSSION_PROJECT_BYTES};
 pub use change_card_cache::{ChangeCardCacheWrite, CHANGE_CARD_CACHE_BATCH, CHANGE_CARD_CACHE_ROWS,
     CHANGE_CARD_CACHE_BYTES, CHANGE_CARD_CACHE_RECORD_BYTES};
-pub use reindex::{ReindexReason, ReindexRequirementToken};
+pub use reindex::{ReindexReason, ReindexRequirementToken, ReindexStatus};
 pub use rule_ownership::RuleOwnershipSnapshot;
 pub use rule_receipt::{LegacyRuleAlias, RuleSourceReceipt};
 pub use rule_adoption::{LegacyAdoptionBinding, LegacyAdoptionDecision, LegacyAdoptionOutcome, LegacyAdoptionPlan};
