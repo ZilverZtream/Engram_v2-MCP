@@ -1,0 +1,55 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-19",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\contract.json",
+  "native_unit_cases_expected": 0,
+  "public_assertions_expected": 8,
+  "runtime_deployed": false,
+  "source_stage_cargo_invocations": 0,
+  "next_action": "Keep this and the integration response outcome queued for a later combined batch. Select another ready original improvement; do not start a separate build for this item or replay passed task comparisons.",
+  "at_utc": "2026-11-19T00:08:26.970401+00:00",
+  "source_commit": "433cba2a8a80eb7bc4078c904a9ba04a1fea337f",
+  "implementation_files": [
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/handlers/review_decisions.rs",
+    "crates/engram_server/src/handlers/review_tools.rs",
+    "crates/engram_server/src/handlers/review_tools/prior_context.rs",
+    "crates/engram_server/src/tools.rs"
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/models/requests.rs": "f78adb16f1f545efe5cad2f6a8aede6dfa267442bf0695f624db0d4cd34a6bab",
+    "crates/engram_server/src/handlers/review_decisions.rs": "03541d3bfd5c2d1e05e00e4a7c55deb836dbe6bfd97d7b6373977a23eec9b350",
+    "crates/engram_server/src/handlers/review_tools.rs": "02e85379f781e8b5492f774bdc19743b4529903822bfe4188b7d6704d6ed18d7",
+    "crates/engram_server/src/handlers/review_tools/prior_context.rs": "9a44a9502e69ca6f2a54721a91189b90cd769134a0922492f9fcf51982fd6c47",
+    "crates/engram_server/src/tools.rs": "7c03e142cb2f46a2b176f39e0621feb3a7488852088a0489da91f7e2fc0ef559"
+  },
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\baseline2\\receipt.json",
+    "sha256": "d0601423e5363af619247c5e4f4db8cf0f481ff4d83344bc876f0777d5d6312e"
+  },
+  "retained_failed_fixture_baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\baseline1\\receipt.json",
+    "sha256": "23588d5f25285006bc8e7bbb241fa6e3b5ac6c4db900cabf3f11a4f86864ccb5"
+  },
+  "fixture_correction": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\summary-oracle-correction1.json",
+    "sha256": "434175b34f6421f5e552b6e348d91d8ff5ac7e0c21cb414718f33d3859829fa5"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\verify-public.py",
+  "public_verifier_sha256": "4b258b11a77920e31db7a32e27cfb4b6b0d56f4857ae8868383e785a1af8af0c",
+  "acceptance_contract_sha256": "cad6055d7ea1f71752291ab1be0c5fdcce3949e955cd75ef9794bf6780918fe8",
+  "public_checks_executed_after_change": 0,
+  "native_tests_executed": 0,
+  "source_syntax_validation": "RUSTFMT_PARSE_PASS_NOT_TYPECHECKED; Python verifier syntax and8prepared assertions inspected.",
+  "protected_wip9": "UNCHANGED",
+  "observed_missing_behavior": "Standalone recorded_before selects old scoped ruling, while composed review contains later rulings/current indexed discussion and rejects review_decisions_before.",
+  "implementation": "Add explicit imported decision source-date cutoff to pre_commit_review, select latest only after shared date filtering, withhold unversioned current summaries with named temporal coverage, propagate cutoff to exact decision recovery, preserve current worktree gates/visible findings. Default current discovery remains unchanged.",
+  "limitations": [
+    "No runtime validation/deployment yet;8public assertions await a later source-complete batch. No standalone unit/debug compilation or full suite.",
+    "Imported source dates/authority are unverified. Current gates and source comparisons do not become historical execution. Current undated indexed summaries cannot be reconstructed as of the cutoff and are explicitly withheld.",
+    "Discovery remains bounded and partial; unsupported/missing/over-budget records and older rows without identity companions retain existing gaps. No decisions or authored policy are changed.",
+    "Initial baseline failed a fixture marker expectation because the existing Markdown projection renders underscores as spaces. Original failed receipt/verifier retained; corrected plain marker baseline passed in2.07seconds. Both fixtures and all owners closed.",
+    "No actual LegacyValidation source/Q/index operation, real provider/model request, target-language expansion, CodeMap/Blast improvement, source-format/storage-schema/sidecar change or preexisting deletion. General task benefit and full original goal remain unproved."
+  ]
+}
