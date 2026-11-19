@@ -2572,14 +2572,18 @@
       {
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
         "original_requirement_id": "EG-19",
-        "source_commit": "433cba2a8a80eb7bc4078c904a9ba04a1fea337f",
+        "source_commit": "f70dbc70eac1678e63b429ebe3b6c3b4a84e4692",
         "progress": "eval/review-decision-cutoff-progress-20261119.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\contract.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\contract.json",
         "native_target": null,
         "native_cases_expected": 0,
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\verify-public.py",
-        "public_assertions_expected": 8,
-        "counting_rule": "One original decision-aware review temporal-scope outcome. Date filtering/latest selection, summary omission, default behavior, recovery and visible findings are acceptance aspects, not independent deliverables."
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\verify-public.py",
+        "public_assertions_expected": 14,
+        "counting_rule": "One original temporal review-evidence outcome across composed review and file discovery. Entry points and tests are not separate independent batch deliverables.",
+        "source_commits": [
+          "433cba2a8a80eb7bc4078c904a9ba04a1fea337f",
+          "f70dbc70eac1678e63b429ebe3b6c3b4a84e4692"
+        ]
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2816,7 +2820,7 @@
     "implementation_items_active": 0,
     "pending_source_outcomes": 2,
     "full_original_goal_complete": false,
-    "next_action": "Keep this and the integration response outcome queued for a later combined batch. Select another ready original improvement; do not start a separate build for this item or replay passed task comparisons.",
+    "next_action": "Select another ready original LegacyValidation-priority improvement. Keep integration response and the one compound temporal-review outcome queued. Both review entry points remain one deliverable; do not trigger Cargo or relabel variants to meet the three-outcome floor.",
     "last_completed_runtime_batch": "eval/planning-contract-batch-delivery-20261119.json"
   },
   "history_webmethod_business_batch_delivery": {
@@ -3542,7 +3546,7 @@
     "pending_source_outcomes": 1
   },
   "history_header_filter_progress_20261117": "eval/history-header-filter-progress-20261117.json",
-  "last_updated_at": "2026-11-19T00:08:26.970401+00:00",
+  "last_updated_at": "2026-11-19T00:25:45.784004+00:00",
   "maintenance_history_interaction_batch_delivery_20261117": {
     "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
     "original_requirement_ids": [
@@ -4147,8 +4151,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T00:08:26.970401+00:00",
-    "reason": "Original EG19 completion check found an actual composed-review cutoff gap. Reproduced against installed595e and committed explicit date-filtered prior context/recovery with8public checks queued; no per-item compile, test suite, real model or inspected-task replay."
+    "at_utc": "2026-11-19T00:25:45.784004+00:00",
+    "reason": "Reproduced installed path-discovery cutoff rejection in1.85seconds, committed shared date-filter composition/history links and prepared6additional public assertions. Combined with composed review as14assertions for one original EG19 outcome; pending independent count remains2. No compile/model/task replay."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4620,5 +4624,6 @@
   "planning_contract_batch_progress_20261119": "eval/planning-contract-batch-progress-20261119.json",
   "eg27_original_requirement_closure_20261119": "eval/eg27-original-requirement-closure-20261119.json",
   "planning_contract_batch_delivery_20261119": "eval/planning-contract-batch-delivery-20261119.json",
-  "review_decision_cutoff_source_progress_20261119": "eval/review-decision-cutoff-progress-20261119.json"
+  "review_decision_cutoff_source_progress_20261119": "eval/review-decision-cutoff-progress-20261119.json",
+  "review_path_cutoff_source_progress_20261119": "eval/review-path-cutoff-progress-20261119.json"
 }

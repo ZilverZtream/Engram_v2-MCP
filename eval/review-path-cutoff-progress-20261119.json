@@ -1,0 +1,55 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-19",
+  "parent_outcome": "eval/review-decision-cutoff-progress-20261119.json",
+  "independent_batch_outcome": false,
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-cutoff-20261119",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-cutoff-20261119\\contract.json",
+  "native_unit_cases_expected": 0,
+  "public_assertions_expected": 6,
+  "runtime_deployed": false,
+  "source_stage_cargo_invocations": 0,
+  "next_action": "Validate as part of the one compound EG19 temporal-review outcome;14public checks, not two independent deliverables. Keep queued with integration response work; no separate compile.",
+  "at_utc": "2026-11-19T00:25:45.784004+00:00",
+  "source_commit": "f70dbc70eac1678e63b429ebe3b6c3b4a84e4692",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/review_decisions.rs",
+    "crates/engram_server/src/handlers/review_decision_discovery.rs",
+    "crates/engram_server/tests/review_path_discovery_tests.rs"
+  ],
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-cutoff-20261119\\baseline2\\receipt.json",
+    "sha256": "6f1de3b7b9130ea94c1f8017fc2be31ebd9d54c25ce0458e177e2df95a45ec56"
+  },
+  "retained_failed_baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-cutoff-20261119\\baseline1\\receipt.json",
+    "sha256": "7223da517bad00cbed8c1150abf04b1bb7cd26f8245813bc4412d2555d8462eb"
+  },
+  "fixture_reader_correction": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-cutoff-20261119\\acknowledgement-correction1.json",
+    "sha256": "8bd32f2925b7a47e0907c3fcef2a9fc093fe29652ed26cf566cbd1436ccc6512"
+  },
+  "public_verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-cutoff-20261119\\verify-public.py",
+    "sha256": "8da3a24ff44131d3ffea855522f3334d2ed28d1f7f32209c9a1803a246b5ba8e"
+  },
+  "combined_contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\contract.json",
+    "sha256": "519567d9cb8f71c8246aead599336a458085ba4decf8f3ab7f7945421acd90c0"
+  },
+  "combined_verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-decision-cutoff-20261119\\combined\\verify-public.py",
+    "sha256": "9285842d064da8ea844128aed092d8c98e63ec1ac5ed2de3386b03f01d6c78af"
+  },
+  "source_syntax_validation": "RUSTFMT_PARSE_PASS_NOT_TYPECHECKED; Python verifiers parsed; no after API/unit execution.",
+  "public_after_checks_executed": 0,
+  "native_tests_executed": 0,
+  "protected_wip9": "UNCHANGED",
+  "limitations": [
+    "No runtime validation or deployment yet. Existing native malformed-selector assertion now rejects an invalid date rather than a newly supported valid cutoff; it remains unexecuted here.",
+    "Dates/authority are imported unverified claims; raw record hashes describe current persisted arrays, not historical projections. Current-head fix verification stays false; no automatic finding suppression.",
+    "Natural-language ask_codebase date interpretation is not changed. The inspected review helper still requests current discovery; date-aware question routing is not claimed.",
+    "Initial baseline fixture tried to parse a plain-text mutation acknowledgement as JSON. Original failed receipt/verifier retained; corrected baseline passed in1.85seconds. Both fixtures removed and owners/readers closed.",
+    "No actual LegacyValidation source/Q/index operation, model request, target-language expansion, CodeMap/Blast improvement or preexisting deletion. Full goal/task usefulness remain unfinished."
+  ]
+}
