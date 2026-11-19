@@ -2975,6 +2975,15 @@
     "pending_source_outcomes": 5,
     "next_action": "Use the verified cumulative package for one coordinated Windows cutover. A running MCP proxy was observed. Preserve the live service until the user chooses a cutover or clients close. Do not rebuild the verified artifact."
   },
+  "webforms_page_opening_question_progress": {
+    "original_requirement_id": "TODO-31",
+    "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",
+    "observed_gap": "A normal question about opening a named WebForms page does not select request tracing unless it supplies an explicit HTTP method or a control action.",
+    "user_outcome": "Explicit opening and visiting questions for relative and site-root ASPX pages reuse the existing static lifecycle trace and recovery action.",
+    "implementation": "crates/engram_server/src/services/ask_engine/request_trace.rs",
+    "acceptance": "An ask_codebase question about opening /Area/Entry.aspx selects the fixture's authored LoadPage handler and returns a callable trace_user_request action for that same entry. Existing HTTP and control event selection continue sharing the same cap.",
+    "verification": "Exact parser compiled against cached dependencies and passed eight focused checks. Packaged MCP verification and deployment remain pending. No Engram rebuild."
+  },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "record": {

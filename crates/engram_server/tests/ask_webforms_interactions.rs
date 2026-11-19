@@ -120,6 +120,8 @@ fn action_mentions_require_both_control_identity_and_page_and_share_one_cap() {
         "What happens when I click btnSave?",
         "Explain event ddlType on /Entry.aspx",
         "Explain btnSave on /Entry.aspx",
+        "Explain how to open /Entry.aspx/Save",
+        "What happens when I visit /api/entry?",
     ] {
         assert!(request_trace::requests(question).is_empty(), "{question}");
     }
@@ -211,6 +213,14 @@ async fn click_and_declared_event_questions_return_selected_handlers_sql_and_act
         facts(&compared).len() == 2,
         "Different actions on the same page must survive: {compared}"
     );
+    let opened = fixture.ask("What happens when I open /Area/Entry.aspx?", 65536).await?;
+    let rows = facts(&opened);
+    ensure!(rows.len() == 1, "{opened}");
+    let trace = &rows[0]["trace"];
+    ensure!(trace["entry_point"] == "/Area/Entry.aspx" && trace["action"].is_null());
+    ensure!(handlers(trace).iter().any(|name| name == "LoadPage"));
+    let args = &rows[0]["recovery"]["arguments"];
+    ensure!(args["entry_point"] == "/Area/Entry.aspx" && args["action"].is_null());
     fixture.close()
 }
 

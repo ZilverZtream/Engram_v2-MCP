@@ -1839,8 +1839,10 @@ physical store binding. Browser-key questions retain indexed access and separate
 store-wide clear candidates without proving shared origin, script inclusion, values
 or execution. Explicit HTTP/page/control questions compose at most two existing
 traces under the held source selection and retrieval deadline; path scopes constrain
-source reads. Examples include `POST /language.aspx/change`, `click btnSave on
-/Entry.aspx` and `event ddlType.SelectedIndexChanged in /Entry.aspx`.
+source reads. Examples include `POST /language.aspx/change`, `open /Entry.aspx`,
+`click btnSave on /Entry.aspx` and `event ddlType.SelectedIndexChanged in
+/Entry.aspx`. Opening a relative or site-root `.aspx` page selects its lifecycle
+trace without assuming an HTTP method or a control event.
 
 `route_with_model=true` makes one optional configured-model routing request. It may
 suggest retrieval intents and exact question mentions, while scope/answer constraints

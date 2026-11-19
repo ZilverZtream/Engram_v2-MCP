@@ -1,4 +1,4 @@
-//! Compose the existing request tracer for explicit HTTP and WebForms actions.
+//! Compose the existing request tracer for explicit HTTP and WebForms questions.
 use super::{
     evidence::{Authority, EvidenceItem, EvidenceKind},
     status::{AnswerStatus, ProviderReport, ProviderStatus},
@@ -11,9 +11,9 @@ pub const TRACE_TOKENS: usize = 16_384;
 const INTERPRETATION: &str = "Static request candidates from the ordinary request tracer using the ask-held selected source inventory. Per-member source hash/revision checks, omissions, authored guidance and saved trace recovery remain in the nested report. This is not an atomic graph/filesystem snapshot or proof of HTTP hosting, dispatch, authorization, database execution or runtime behavior. Single-tool recovery runs a new trace against then-current state; saved ask-report recovery retains the original answer.";
 static REQUESTS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r#"(?i)\b(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+((?:(?:https?://|~/|/)[^\s"'`<>]+|[a-z0-9_-][a-z0-9_./-]*\.(?:aspx|asmx|ashx)[^\s"'`<>]*))"#,
+        r#"(?i)\b(?:(?P<method>GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+|(?:open(?:ing)?|visit(?:ing)?)\s+`?)(?P<target>(?:(?:https?://|~/|/)[^\s"'`<>]+|[a-z0-9_-][a-z0-9_./-]*\.(?:aspx|asmx|ashx)[^\s"'`<>]*))"#,
     )
-    .expect("explicit HTTP request mentions")
+    .expect("explicit HTTP requests and WebForms page openings")
 });
 static INTERACTIONS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
@@ -40,6 +40,14 @@ fn entry_path(mention: &str) -> Option<&str> {
     RELATIVE_WEBFORMS.is_match(path).then_some(path)
 }
 
+fn page_opening(mention: &str) -> Option<&str> {
+    let path = mention.trim_end_matches([',', ';', ')', ']', '}', '.', '?']);
+    let relative = path.trim_start_matches('~').trim_start_matches('/');
+    let page = relative.split(['?', '#']).next()?;
+    (RELATIVE_WEBFORMS.is_match(page) && page.to_ascii_lowercase().ends_with(".aspx"))
+        .then_some(path)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TraceQuery {
     pub entry_point: String,
@@ -51,11 +59,17 @@ pub struct TraceQuery {
 pub fn requests(question: &str) -> Vec<TraceQuery> {
     let mut mentions = Vec::new();
     for capture in REQUESTS.captures_iter(question) {
-        let Some(url) = capture.get(2).and_then(|value| entry_path(value.as_str())) else {
+        let target = &capture["target"];
+        let entry_point = if let Some(method) = capture.name("method") {
+            entry_path(target).map(|url| format!("{} {url}", method.as_str().to_ascii_uppercase()))
+        } else {
+            page_opening(target).map(str::to_owned)
+        };
+        let Some(entry_point) = entry_point else {
             continue;
         };
         let query = TraceQuery {
-            entry_point: format!("{} {url}", capture[1].to_ascii_uppercase()),
+            entry_point,
             action: None,
         };
         if !mentions.iter().any(|(_, existing)| existing == &query) {
@@ -104,10 +118,10 @@ pub fn requests(question: &str) -> Vec<TraceQuery> {
 pub fn queries(question: &str) -> Vec<String> {
     let mut out = Vec::new();
     for capture in REQUESTS.captures_iter(question) {
-        let Some(url) = capture.get(2).and_then(|value| entry_path(value.as_str())) else {
+        let (Some(method), Some(url)) = (capture.name("method"), entry_path(&capture["target"])) else {
             continue;
         };
-        let request = format!("{} {url}", capture[1].to_ascii_uppercase());
+        let request = format!("{} {url}", method.as_str().to_ascii_uppercase());
         if !out.contains(&request) {
             out.push(request);
         }
