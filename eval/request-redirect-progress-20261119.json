@@ -1,0 +1,26 @@
+{
+  "original_requirement_id": "TODO-31",
+  "source_commit": "e7b39b0d9f984dcbbea3af73223e1a18e4f88a4e",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-redirect-20261119\\verify-public.py",
+    "sha256": "da581b034ac69a8655a350d765fd2ae9da152f3e71fc2748358d074fafe091bc"
+  },
+  "public_assertions_expected": 5,
+  "public_assertions": [
+    "verified_handler_excerpt_clips_redirect",
+    "exact_source_calls_with_no_decoys",
+    "runtime_execution_unproven",
+    "stale_source_never_supplies_redirects",
+    "authored_fixture_unchanged"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-redirect-20261119\\baseline1\\receipt.json",
+    "sha256": "fe9ca582d36d160d88cab2d9f68c98a9a9faf356bf6fd141d9e58381aa592c0a"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "verification": "Rust syntax formatting and Git whitespace checks passed. Installed MCP baseline confirmed the missing evidence and cleaned its fixture. Changed runtime awaits combined verification.",
+  "temporary_resources": "The retained verifier, fixture receipts and wire evidence live in this one case. The temporary project was removed after the server and reader closed.",
+  "full_original_goal_complete": false
+}

@@ -2564,7 +2564,18 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "TODO-31",
+        "source_commit": "e7b39b0d9f984dcbbea3af73223e1a18e4f88a4e",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "progress": "eval/request-redirect-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-redirect-20261119\\contract.json",
+        "public_assertions_expected": 5,
+        "native_unit_cases_expected": 0,
+        "source_outcomes": 1
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2794,11 +2805,18 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
+    "status": "SOURCE_OUTCOMES_QUEUED_FOR_LATER_COMBINED_VALIDATION",
     "implementation_items_active": 0,
-    "record": "eval/browser-sql-review-batch-delivery-20261119.json",
+    "original_requirement": "TODO-31 / spec 43-2: trace a request through its handler to the authored response action.",
+    "observed_gap": "Verified VB source excerpts may contain redirect calls, but the trace lacks structured destination evidence and the excerpt can clip the call.",
+    "implementation_files": [
+      "crates/engram_server/src/services/request_trace/execution.rs",
+      "crates/engram_server/src/services/request_trace/tests.rs"
+    ],
+    "acceptance": "A selected WebForms event trace includes source-cited literal and dynamic redirect candidates, independent of database tracing. Comments, quoted examples and stale method bodies supply no candidates.",
     "full_original_goal_complete": false,
-    "next_action": "Advance the remaining original LegacyValidation backlog from retained evidence; preserve all failures, unfinished acceptance and held work. Do not replay this passed batch or reopen closed CodeMap/Blast work."
+    "next_action": "Select the next ready original LegacyValidation item. Keep this source outcome queued for combined runtime verification.",
+    "record": "eval/request-redirect-progress-20261119.json"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4137,8 +4155,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T07:20:28.521717+00:00",
-    "reason": "Installed and verified the frozen three-outcome batch with17public checks on each candidate/installed executable, one optimized build, unchanged production metadata/configuration, closed owned fixtures and restored normal runtime."
+    "at_utc": "2026-11-19T07:26:17.116744+00:00",
+    "reason": "Implemented structured redirect evidence for TODO31 and confirmed the existing MCP gap on an owned fixture."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
