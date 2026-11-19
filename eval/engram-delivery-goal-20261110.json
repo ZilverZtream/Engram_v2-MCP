@@ -3172,9 +3172,13 @@
       "build_session": 33672,
       "build_driver_pid": 46320,
       "stage_session": 76939,
+      "stage_process_pid": 69164,
+      "cutover_and_installed_checks_session": 64404,
+      "prepare_cutover_sha256": "c9f0fa5b45130fb1f9f7fe2e25e7a184495b38c2eaf4ac4f78b64ad4a52dc08f",
+      "live_cutover_sha256": "022b5453b820a01cc12d972a3d9f4fbe7a2548be9531fcd58c3aba1a6b15af66",
       "baseline": "The previously installed binary reported healthy after one wrong physical vector key was substituted at an inherited source row in an owned database. It returned the two ordinary LegacyValidation control calls as unresolved external edges, and its existing budgeted planner recovery lacked the captured status summary. All owned processes and temporary projects closed. The native fixture helper must be used only with the disposable owner-marked project."
     },
-    "next_action": "Follow existing build session 33672 and dependent staging session 76939. The dependent session requires the passing build receipt, verifies the three public behaviors, and packages the exact artifact. Prepare cutover only after public acceptance."
+    "next_action": "Follow existing build session 33672, public stage session 76939 and gated cutover session 64404. Cutover requires a verified three-check package, validates its pins, verifies live MCP against LegacyValidation and reruns the owned checks with the installed binary. If a step fails, diagnose the exact failure without restarting unaffected work."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
