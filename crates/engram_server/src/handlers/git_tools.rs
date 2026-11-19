@@ -2253,35 +2253,44 @@ impl Engram {
         }
         let mut blocks=Vec::new();
         let mut rows=Vec::new();
+        let reader = if groups.is_empty() {
+            None
+        } else {
+            ps.search.stored_doc_reader().ok()
+        };
         for (i, group) in groups.iter().enumerate() {
             let mut out=String::new();
             out.push_str(&format!("\n--- #{} ---\n", i + 1));
             // The commit-message document carries author, date and message
             // even when only the commit's diffs matched.
-            let stored = match &group.commit {
-                Some(oid) => ps
-                    .search
-                    .stored_doc_at_path(&project_id, "history", &format!("commit:{oid}"))
-                    .ok()
-                    .flatten(),
-                None => ps.search.stored_doc_by_pk(&group.first_pk).ok().flatten(),
-            };
+            let stored = reader.as_ref().and_then(|reader| {
+                match &group.commit {
+                    Some(oid) => reader.at_path(&project_id, "history", &format!("commit:{oid}")),
+                    None => reader.by_pk(&group.first_pk),
+                }.ok().flatten()
+            });
             match &group.commit {
                 Some(oid) => out.push_str(&format!("commit: {oid}\n")),
                 None => out.push_str(&format!("path: {}\n", group.key)),
             }
-            let fallback = || ps.search.stored_doc_by_pk(&group.first_pk).ok().flatten();
+            let fallback = if group.commit.is_some()
+                && stored.as_ref().is_none_or(|doc| doc.author.is_none() || doc.timestamp.is_none())
+            {
+                reader.as_ref().and_then(|reader| reader.by_pk(&group.first_pk).ok().flatten())
+            } else {
+                None
+            };
             let author = stored
                 .as_ref()
                 .and_then(|d| d.author.clone())
-                .or_else(|| fallback().and_then(|d| d.author));
+                .or_else(|| fallback.as_ref().and_then(|d| d.author.clone()));
             if let Some(author) = &author {
                 out.push_str(&format!("author: {author}\n"));
             }
             let timestamp = stored
                 .as_ref()
                 .and_then(|d| d.timestamp)
-                .or_else(|| fallback().and_then(|d| d.timestamp));
+                .or_else(|| fallback.as_ref().and_then(|d| d.timestamp));
             if let Some(ts) = timestamp {
                 out.push_str(&format!(
                     "date: {}\n",

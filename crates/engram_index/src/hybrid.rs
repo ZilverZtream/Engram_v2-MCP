@@ -90,6 +90,68 @@ pub struct StoredDoc {
     pub timestamp: Option<u64>,
 }
 
+/// Read several stored documents from one Tantivy searcher snapshot.
+pub struct StoredDocReader<'a> {
+    searcher: tantivy::Searcher,
+    fields: &'a Fields,
+}
+
+impl StoredDocReader<'_> {
+    pub fn by_pk(&self, pk: &str) -> anyhow::Result<Option<StoredDoc>> {
+        let query = TermQuery::new(
+            Term::from_field_text(self.fields.pk, pk),
+            IndexRecordOption::Basic,
+        );
+        self.first(&query)
+    }
+
+    pub fn at_path(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        path: &str,
+    ) -> anyhow::Result<Option<StoredDoc>> {
+        let term = |field, text: &str| -> Box<dyn tantivy::query::Query> {
+            Box::new(TermQuery::new(
+                Term::from_field_text(field, text),
+                IndexRecordOption::Basic,
+            ))
+        };
+        let query = BooleanQuery::new(vec![
+            (Occur::Must, term(self.fields.path, path)),
+            (Occur::Must, term(self.fields.project_id, project_id)),
+            (Occur::Must, term(self.fields.namespace, namespace)),
+        ]);
+        self.first(&query)
+    }
+
+    fn first(&self, query: &dyn tantivy::query::Query) -> anyhow::Result<Option<StoredDoc>> {
+        let Some((_, addr)) = self.searcher
+            .search(query, &TopDocs::with_limit(1))?
+            .into_iter()
+            .next()
+        else {
+            return Ok(None);
+        };
+        let doc: tantivy::TantivyDocument = self.searcher.doc(addr)?;
+        let text = |field| {
+            doc.get_first(field)
+                .and_then(|v| v.as_str())
+                .unwrap_or("")
+                .to_string()
+        };
+        let author = text(self.fields.author);
+        Ok(Some(StoredDoc {
+            path: text(self.fields.path),
+            content: text(self.fields.content),
+            author: (!author.is_empty()).then_some(author),
+            timestamp: doc.get_first(self.fields.timestamp)
+                .and_then(|v| v.as_u64())
+                .filter(|ts| *ts > 0),
+        }))
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct HybridHit {
     pub pk: String,
@@ -4269,11 +4331,7 @@ impl HybridSearchEngine {
 
     /// The stored document behind a hit's primary key.
     pub fn stored_doc_by_pk(&self, pk: &str) -> anyhow::Result<Option<StoredDoc>> {
-        let query = TermQuery::new(
-            Term::from_field_text(self.fields.pk, pk),
-            IndexRecordOption::Basic,
-        );
-        self.first_stored_doc(&query)
+        self.stored_doc_reader()?.by_pk(pk)
     }
 
     /// The newest stored document at `path` in a namespace: how a history
@@ -4284,49 +4342,15 @@ impl HybridSearchEngine {
         namespace: &str,
         path: &str,
     ) -> anyhow::Result<Option<StoredDoc>> {
-        let term = |field, text: &str| -> Box<dyn tantivy::query::Query> {
-            Box::new(TermQuery::new(
-                Term::from_field_text(field, text),
-                IndexRecordOption::Basic,
-            ))
-        };
-        let query = BooleanQuery::new(vec![
-            (Occur::Must, term(self.fields.path, path)),
-            (Occur::Must, term(self.fields.project_id, project_id)),
-            (Occur::Must, term(self.fields.namespace, namespace)),
-        ]);
-        self.first_stored_doc(&query)
+        self.stored_doc_reader()?.at_path(project_id, namespace, path)
     }
 
-    fn first_stored_doc(
-        &self,
-        query: &dyn tantivy::query::Query,
-    ) -> anyhow::Result<Option<StoredDoc>> {
-        let searcher = self.tantivy_index.reader()?.searcher();
-        let Some((_, addr)) = searcher
-            .search(query, &TopDocs::with_limit(1))?
-            .into_iter()
-            .next()
-        else {
-            return Ok(None);
-        };
-        let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
-        let text = |field| {
-            doc.get_first(field)
-                .and_then(|v| v.as_str())
-                .unwrap_or("")
-                .to_string()
-        };
-        let author = text(self.fields.author);
-        Ok(Some(StoredDoc {
-            path: text(self.fields.path),
-            content: text(self.fields.content),
-            author: (!author.is_empty()).then_some(author),
-            timestamp: doc
-                .get_first(self.fields.timestamp)
-                .and_then(|v| v.as_u64())
-                .filter(|ts| *ts > 0),
-        }))
+    /// Acquire one immutable searcher view for a group of stored-document reads.
+    pub fn stored_doc_reader(&self) -> anyhow::Result<StoredDocReader<'_>> {
+        Ok(StoredDocReader {
+            searcher: self.tantivy_index.reader()?.searcher(),
+            fields: &self.fields,
+        })
     }
 
     /// Fill line range + snippet for hits that came from the vector store,

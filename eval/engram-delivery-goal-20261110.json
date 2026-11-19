@@ -3028,6 +3028,13 @@
       "implementation": "crates/engram_server/src/handlers/ask_schema.rs and schema_tools.rs",
       "acceptance": "Reuse one catalog scan and stream complete per-object reports in request order. Preserve an already returned result if a later lookup reaches the deadline. The exact worker dispatch and join passed a cached-dependency transport check. An existing schema integration fixture now checks both citations and one examination per SQL or DBML source. Its execution and packaged MCP verification remain pending. Carry this source change in a later batch."
     },
+    "following_history_text_reader": {
+      "status": "IMPLEMENTED_FOCUSED_INDEX_CHECK_PASSED_AWAITING_PACKAGE_VERIFICATION",
+      "requirement": "EG-20 usable indexed text history with commit evidence",
+      "observed_gap": "Rendering text-history results opens a new Tantivy reader for every commit-message or primary-key lookup. Missing author/date metadata can reread the same fallback document twice and can mix index views within a result.",
+      "implementation": "crates/engram_index/src/hybrid.rs and crates/engram_server/src/handlers/git_tools.rs",
+      "acceptance": "Reuse one searcher view for the displayed commit messages and metadata. Fetch a matching diff fallback once only when needed. Preserve ordinary stored-document entry points and publisher summaries. A focused test using the exact reader and a real Tantivy fixture retained one scoped view across an index commit and checked the fresh reader, primary key, author, date and project/namespace isolation. Existing packaged text-history evidence verification remains pending. No whole-request latency claim."
+    },
     "next_action": "Advance the remaining original LegacyValidation items. The single-scan SQL comparison committed after the installed package was frozen remains queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
   },
   "windows_reconnect_release_interruption": {
