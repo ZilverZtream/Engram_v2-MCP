@@ -2828,6 +2828,20 @@
       "native_unit_cases_expected": 0,
       "current_release_excludes_this_item": true,
       "verification": "Installed baseline confirms the old revision-only refusal directs callers to live credentials and that a supplied recorded task survives dossier generation. The owned public fixture uses no Azure DevOps remote or coordinates. Candidate verification must confirm the new diagnostic, preserved date-cutoff refusal and exact recorded text. The source guard and focused predicate case cover the fetch decision itself. This change does not finish regular evaluation."
+    },
+    {
+      "original_requirement_id": "TODO-28",
+      "related_requirement_id": "EG-19",
+      "source_commit": "6920837d356c28a9f6af4679c82ce5b8339c19aa",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "observed_gap": "Installed ask_codebase returned an archive-area review decision alongside the current-area decision even when the question asked for decisions under Site/Reports.",
+      "user_outcome": "Review discovery applies the question's recognized path scope before reading any of the named files' review evidence. It discloses scope exclusions, preserves complete admitted conditions and dated history actions, and keeps unscoped review questions working.",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-path-scope-20261119\\contract.json",
+      "public_assertions_expected": 5,
+      "source_outcomes": 1,
+      "native_unit_cases_expected": 0,
+      "current_release_excludes_this_item": true,
+      "verification": "Installed baseline reproduced the out-of-scope archive ruling against two independently authored TypeScript review records. Source syntax and whitespace checks passed. Candidate and installed verification of the fix remain pending."
     }
   ],
   "method_schema_area_batch_delivery": {
