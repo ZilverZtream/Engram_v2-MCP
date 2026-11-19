@@ -2653,7 +2653,7 @@
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
-    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-guidance-sql-20261119",
+    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-history-review-20261119",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "incremental_codegen": {
@@ -3050,14 +3050,15 @@
       "acceptance": "Admit exact current finding IDs only with path relevance, prioritize them through the existing discovery and report caps, and give admitted exact matches their own bounded context item. The annotation identifies a matching ID while retaining scope/conditions and the current verdict. The focused selection and annotation check passed. The extended actual review integration path remains queued for package verification. This extends the same EG-19 outcome as deferred finding IDs."
     },
     "following_combined_mcp_baseline": {
-      "status": "INSTALLED_BASELINE_OBSERVED_CANDIDATE_VALIDATION_PENDING",
+      "status": "BASELINE_PASSED_ONE_OPTIMIZED_BUILD_AND_VERIFICATION_RUNNING",
       "case": "sql-history-review-20261119",
       "eligible_original_requirements": ["TODO-28", "EG-20", "EG-19"],
       "source_reviewed_through": "38949da2a11fee0275b731fb3163ecd345d29c99",
       "baseline_binary_sha256": "e31a6c084b1b8c5ed3ce4645c50c2a5eedc01292ea0ef1273db07de2567f0f10",
       "verifier": {"relative_path":"verify-public.py","sha256":"bdf33222ddb1ff166f411ae9269a6277d9bbd04ebe3815812fd68ca061198730"},
       "baseline": {"relative_path":"baseline/receipt.json","sha256":"609fe869fc9f46b34296aac1aaa35ce6ace59bb6409d8c195657fd1adeaea013","checks":6},
-      "acceptance": "The public installed-binary baseline returned both SQL declarations after four examinations, the expected Git author/date/body, and the unchanged review severity and verdict. Its review omitted the exact prior event behind twenty-four same-file events and lacked the stable ID in the deferred ledger. Candidate acceptance requires two SQL examinations, unchanged Git evidence, both restored review identities with source restrictions, and exact recovery. Both runtime and scratch fixture closed. No build started."
+      "build": {"session":4885,"driver_pid":39320,"optimized_builds":1,"full_test_suites":0,"verification":"The same session packages this artifact after all six affected public MCP checks pass."},
+      "acceptance": "The public installed-binary baseline returned both SQL declarations after four examinations, the expected Git author/date/body, and the unchanged review severity and verdict. Its review omitted the exact prior event behind twenty-four same-file events and lacked the stable ID in the deferred ledger. Candidate acceptance requires two SQL examinations, unchanged Git evidence, both restored review identities with source restrictions, and exact recovery. The baseline runtime and fixture closed."
     },
     "next_action": "Advance the remaining original LegacyValidation items. The single-scan SQL comparison committed after the installed package was frozen remains queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
   },
@@ -3456,6 +3457,29 @@
     "retention": "Temporary Git index removed. Keep the receipt for the next combined validation after the staged release is resolved."
   },
   "next_source_batch_pending": [
+    {
+      "original_requirement_id": "TODO-28",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "84780d57cec3d70d1461c3dbe458578357852f6d",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-history-review-20261119\\verify-public.py",
+      "user_outcome": "Share one source declaration scan across a named SQL comparison and preserve its separately cited results."
+    },
+    {
+      "original_requirement_id": "EG-20",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "dca5a92c42aab1c0a7ab0bb510d62277ff547019",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-history-review-20261119\\verify-public.py",
+      "user_outcome": "Read text-history metadata from one pinned searcher view and preserve authored commit evidence."
+    },
+    {
+      "original_requirement_id": "EG-19",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "38949da2a11fee0275b731fb3163ecd345d29c99",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-history-review-20261119\\verify-public.py",
+      "user_outcome": "Prioritize an exact scoped prior finding without altering current findings, and retain finding identities in deferred previews."
+    }
+  ],
+  "webforms_guidance_sql_frozen_queue_20261119": [
     {
       "original_requirement_id": "EG-01",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
