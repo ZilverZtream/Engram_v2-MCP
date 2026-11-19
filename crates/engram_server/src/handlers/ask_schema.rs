@@ -99,9 +99,10 @@ static TRIGGER_NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(
     r#"(?i)\bsql\s+trigger\s+["`']?((?:\[(?:[^\]\r\n]|\]\])+\]|[a-z_][a-z0-9_$#@]*)(?:\s*\.\s*(?:\[(?:[^\]\r\n]|\]\])+\]|[a-z_][a-z0-9_$#@]*)){0,3})"#,
 ).expect("named SQL trigger syntax"));
 
-fn schema_request(project: &str, kind: SchemaQueryType) -> QuerySchemaRequest {
+fn schema_request(project: &str, scopes: &[String], kind: SchemaQueryType) -> QuerySchemaRequest {
     QuerySchemaRequest {
         project_id: project.into(),
+        path_prefixes: scopes.to_vec(),
         query_type: Some(kind),
         offset: Some(0),
         limit: Some(100),
@@ -147,7 +148,7 @@ pub(super) async fn gather(
         .map(|name| name.as_str());
     let mut requests = Vec::new();
     if let Some(name) = trigger_name {
-        let request = schema_request(project_id, SchemaQueryType::Trigger { name: name.into() });
+        let request = schema_request(project_id, &plan.qualifiers.path_prefixes, SchemaQueryType::Trigger { name: name.into() });
         if schema_query::validate(&request).is_ok() {
             requests.push((request, true));
         }
@@ -178,7 +179,7 @@ pub(super) async fn gather(
             continue;
         }
         // Preserve qualification from the question, never a basename graph identity.
-        let request = schema_request(project_id,
+        let request = schema_request(project_id, &plan.qualifiers.path_prefixes,
             if is_function { SchemaQueryType::Function { name: entity.text.clone() } }
                 else if is_view { SchemaQueryType::View { name: entity.text.clone() } }
                 else if is_procedure { SchemaQueryType::StoredProc { sp_name: entity.text.clone() } }
@@ -220,7 +221,6 @@ pub(super) async fn gather(
                     request.clone(),
                     generation,
                     view.clone(),
-                    plan.qualifiers.path_prefixes.clone(),
                 )
                 .await
                 .map_err(|e| e.to_string())?;
@@ -307,6 +307,7 @@ pub(super) async fn gather(
                     content: if ambiguous {
                         let recovery = if crate::tool_surface::includes(engram.state.cfg.effective_tool_preset(), "query_schema") {
                             json!({"tool":"query_schema","arguments":{"project_id":project_id,
+                                "path_prefixes":request.path_prefixes,
                                 "query_type":if is_trigger {json!({"kind":"trigger","name":row["name"]})}
                                     else if is_function {json!({"kind":"function","name":row["name"]})}
                                     else if is_view {json!({"kind":"view","name":row["name"]})}

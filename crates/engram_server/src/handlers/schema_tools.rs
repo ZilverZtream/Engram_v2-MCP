@@ -68,7 +68,7 @@ impl Engram {
         let (generation, view) = self
             .pin_active_source_generation(&req.project_id, &runtime.search)
             .await?;
-        self.query_schema_selected(req, generation, std::sync::Arc::new(view), vec![]).await
+        self.query_schema_selected(req, generation, std::sync::Arc::new(view)).await
     }
 
     /// Reuse the caller's exact source capability, including retired selections.
@@ -76,7 +76,6 @@ impl Engram {
     pub(super) async fn query_schema_selected(
         &self, req: QuerySchemaRequest, generation: u64,
         view: std::sync::Arc<engram_index::SourceSnapshotGuard>,
-        path_prefixes: Vec<String>,
     ) -> Result<CallToolResult, McpError> {
         schema_query::validate(&req).map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         super::search_tools::response_budget::token_bytes(req.max_tokens)?;
@@ -102,7 +101,7 @@ impl Engram {
             let (mut dbml_files, mut admitted_dbml) = (0usize, 0usize);
             let in_scope=|path:&str| {
                 let normalized=path.replace('\\',"/").to_lowercase();
-                path_prefixes.is_empty() || path_prefixes.iter().any(|prefix| {
+                req.path_prefixes.is_empty() || req.path_prefixes.iter().any(|prefix| {
                     let prefix=prefix.replace('\\',"/").to_lowercase();
                     normalized==prefix || normalized.starts_with(&format!("{prefix}/"))
                         || normalized.contains(&format!("/{prefix}/")) || normalized.ends_with(&format!("/{prefix}"))
@@ -173,6 +172,7 @@ impl Engram {
             result["project_id"]=json!(req.project_id);
             result["active_generation"]=json!(generation);
             result["coverage"]=json!({"selected_sql_files":sql_files,"admitted_sql_files":admitted,"source_bytes_read":bytes,"gaps":catalog.gaps,
+                "path_prefixes":req.path_prefixes,
                 "evidence":"Source declarations with selected physical revision and BLAKE3 checks; no atomic graph/disk snapshot.",
                 "schema_semantics":"SQL Server source inventory, not a live/deployed database schema. Supported ALTER TABLE ADD foreign-key declarations are reported separately with application_status=not_established; they do not modify the CREATE TABLE baseline. ALTER/DROP and execution order are not applied. Omitted nullability is unknown; nullable_columns returns explicit NULL only. Computed-column result types/nullability are unknown.",
                 "name_matching":"Case-insensitive source-name lookup; database collation/default schema unknown. Unqualified relationship candidates are labelled, not bound.",

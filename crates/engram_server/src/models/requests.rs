@@ -47,6 +47,10 @@ pub struct FindMissingIndexesRequest {
 #[serde(deny_unknown_fields)]
 pub struct QuerySchemaRequest {
     pub project_id: String,
+    /// Optional project-relative directory or file scopes, matched by whole
+    /// path components. Empty means the entire selected source inventory.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub path_prefixes: Vec<String>,
     /// Required for a fresh schema query; omit only for saved response_id recovery.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub query_type: Option<SchemaQueryType>,

@@ -640,7 +640,8 @@ impl Catalog {
                         _=>json!({"kind":"triggers_on_table","table":table.name}),
                     };
                     json!({"kind":o.kind,"name":o.name,"target_table":o.target_table,"references":o.references,"citation":o.citation,
-                        "declaration_included":false,"recovery":{"tool":"query_schema","arguments":{"project_id":request.project_id,"query_type":query_type}}})
+                        "declaration_included":false,"recovery":{"tool":"query_schema","arguments":{"project_id":request.project_id,
+                            "path_prefixes":request.path_prefixes,"query_type":query_type}}})
                 } else {json!(o)};
                 json!({"object":object,"binding":binding,"reference_semantics":"Lexical source reference; CTEs, aliases, dynamic SQL and execution are not resolved"})
             })
@@ -706,6 +707,13 @@ impl Catalog {
 
 pub fn validate(request: &QuerySchemaRequest) -> anyhow::Result<()> {
     use SchemaQueryType::*;
+    anyhow::ensure!(
+        request.path_prefixes.len() <= 32 && request.path_prefixes.iter().all(|scope| {
+            !scope.is_empty() && scope.len() <= 4096 && !scope.chars().any(char::is_control)
+                && !scope.replace('\\', "/").split('/').any(|part| part.is_empty() || part == "." || part == "..")
+        }),
+        "path_prefixes requires at most 32 nonempty project-relative file or directory scopes"
+    );
     anyhow::ensure!(
         (1..=100).contains(&request.limit.unwrap_or(25)),
         "limit must be 1..=100"

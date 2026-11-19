@@ -557,6 +557,7 @@ impl Engram {
             let result = self
                 .query_schema_for_planning(QuerySchemaRequest {
                     project_id: req.project_id.clone(),
+                    path_prefixes: Vec::new(),
                     query_type: Some(SchemaQueryType::Table { name: name.clone() }),
                     offset: None,
                     limit: Some(20),
