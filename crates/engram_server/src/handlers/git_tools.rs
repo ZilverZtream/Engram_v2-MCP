@@ -376,6 +376,7 @@ pub(crate) struct HistoryHits {
     pub hits: Vec<engram_index::HybridHit>,
     pub semantic: crate::services::change_card_service::SemanticOutcome,
     pub semantic_budget_ms: u64,
+    reachable: Option<std::sync::Arc<ReachableHistory>>,
 }
 
 /// Keep predicates and reachability identical in hybrid and lexical fallback.
@@ -2115,7 +2116,7 @@ impl Engram {
             }
         };
         let hits = hits.map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        Ok(HistoryHits { runtime: ps, generation: gen_, hits, semantic, semantic_budget_ms: budget_ms })
+        Ok(HistoryHits { runtime: ps, generation: gen_, hits, semantic, semantic_budget_ms: budget_ms, reachable })
     }
 
     pub async fn handle_search_history(
@@ -2142,14 +2143,6 @@ impl Engram {
         let response_req = req.clone();
         let content_limit = req.max_content_chars;
         let project_id = req.project_id.clone();
-        // Resolved again for its label and publishers: the walk is cached.
-        let reachable = self
-            .reachable_history(&req.project_id, req.as_of_rev.as_deref())
-            .await?;
-        let scope = reachable
-            .as_ref()
-            .map(|reachable| format!("; {}", reachable.label))
-            .unwrap_or_default();
         // One result per COMMIT: its message and each diff are separate
         // documents, so draw a wider pool and fold diffs into their commit.
         let limit = req.sanitized_limit();
@@ -2165,6 +2158,14 @@ impl Engram {
         let ps = retrieved.runtime;
         let gen_ = retrieved.generation;
         let hits = retrieved.hits;
+        // Use the same resolved Git view for filtering, publisher folding and
+        // reporting even if the caller supplied a branch ref that moves.
+        let reachable = retrieved.reachable;
+        let scope = reachable
+            .as_ref()
+            .map(|reachable| format!("; {}", reachable.label))
+            .unwrap_or_default();
+        let resolved_revision = reachable.as_ref().map(|history| history.revision.to_string());
 
         let mut groups: Vec<HistoryGroup> = Vec::new();
         for hit in &hits {
@@ -2231,6 +2232,9 @@ impl Engram {
             hits.len(),
         ) };
         header.push_str(&format!("Semantic retrieval: {semantic_status}; budget {} ms. Local lexical fallback, Git/metadata and formatting are outside this budget.\n", retrieved.semantic_budget_ms));
+        if let Some(revision) = &resolved_revision {
+            header.push_str(&format!("Resolved Git cutoff: as_of_rev={revision}. Use this value on later pages to keep the same Git scope.\n"));
+        }
         let mut blocks=Vec::new();
         let mut rows=Vec::new();
         for (i, group) in groups.iter().enumerate() {
@@ -2351,7 +2355,9 @@ impl Engram {
         }
 
         history_response::finish(&response_req,header,&blocks,&rows,json!({"mode":"text",
-            "scope":scope,"active_generation":gen_,"retrieval_capability":retrieval,
+            "scope":scope,"resolved_revision":resolved_revision,
+            "revision_paging":resolved_revision.as_ref().map(|_| "Use resolved_revision as as_of_rev on later pages to keep the same Git scope. The index and ranking can still change."),
+            "active_generation":gen_,"retrieval_capability":retrieval,
             "matching_documents_in_retrieved_pool":hits.len(),"semantic_retrieval":semantic_delivery,"rerank":null}))
     }
 
