@@ -450,6 +450,7 @@ strategic gap between "niche migration tool" and "every agent's first MCP server
   nonsense.
 
 - [~] **27. Generalize state tracking to modern equivalents** (L)
+  November19 source complete: standard JS/TS dot and literal-bracket browser-storage properties join existing shared key traces, including assignments, compound updates and delete. Older unchanged script indexes request extraction refresh. Six public checks await a later combined validation; this is not installed yet. [Progress](eval/browser-storage-properties-progress-20261119.json).
   Installed November16: browser key traces also return source-admitted store-wide
   clear candidates, including keys without literal accesses. Hashes, guidance,
   stale withholding, refresh preservation and saved recovery passed candidate/installed

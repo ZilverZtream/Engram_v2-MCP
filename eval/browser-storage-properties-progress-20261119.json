@@ -1,0 +1,62 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-19T04:44:16.535199+00:00",
+  "original_requirement_id": "TODO-27",
+  "original_requirement": "JS/TS modern state tracking through existing shared browser storage identities.",
+  "missing_behavior": "The existing browser storage extractor admits getItem/setItem/removeItem/clear, but explicitly excludes standard literal property reads and writes. Those uses cannot participate in the same key trace.",
+  "implementation_files": [
+    "crates/engram_index/src/parsing/modern_state/browser_storage.rs",
+    "crates/engram_index/src/parsing.rs",
+    "crates/engram_index/src/source_contract.rs",
+    "crates/engram_server/src/handlers/browser_state_tools.rs",
+    "crates/engram_server/src/tools.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "finite_acceptance": [
+    "Installed native baseline retains API-key positive controls but omits standard literal property reads/writes.",
+    "Direct and window/globalThis-qualified dot or literal-bracket storage access joins the same LocalStorage/SessionStorage key identities. Preserve read/write/delete directions, source spans, separate stores, shadow exclusions and existing API/clear behavior.",
+    "Expose a per-script property extraction marker so unchanged old indexes request refresh. Do not mutate actual LegacyValidation source or index. Dynamic keys, aliases, destructuring, runtime origin/tab and execution remain unresolved.",
+    "Owned public JS/TS fixture verifies shared key traces and source evidence. No native unit/debug/full suite; queue public checks for a later original source batch without changing current frozen build."
+  ],
+  "legacy_validation_applicability_basis": "Retained browser-store-clear-progress-20261116.json identifies ordinary indexed LegacyValidation JS auth files. This extends supported JS/TS workflows; no current LegacyValidation property syntax, refresh or benefit is claimed.",
+  "implementation_items_active": 0,
+  "current_build_untouched": true,
+  "runtime_deployed": false,
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage-properties-20261119",
+    "retention": "Keep source contract and baseline/future public evidence here until delivery. Owned fixtures close native/database handles before teardown; no preexisting deletion."
+  },
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage-properties-20261119\\baseline1\\receipt.json",
+    "sha256": "753d0c0bab52e69d1c503c959c48ea751b9ce19be15e4bc998058debb822687e"
+  },
+  "acceptance_contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage-properties-20261119\\contract.json",
+    "sha256": "e8eece279ffdc3ebb1a097343fce9f5079ff1ac9d44e25550f436c431cfc8821"
+  },
+  "future_public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage-properties-20261119\\verify-public.py",
+    "sha256": "3c80e64b6e466857b3a9695366928f5444fe08b5c00a6e553933bf0d0b83a612"
+  },
+  "implemented": "Literal dot/bracket browser storage properties use existing shared key identities and indexed access evidence. Assignments/delete write; compounds read/write. A script property contract forces older extraction refresh. Browser-specific wrapper updates coverage while preserving protected legacy handler work.",
+  "typechecked": false,
+  "verification": {
+    "baseline_checks": 4,
+    "baseline_seconds": 1.947965600003954,
+    "owned_fixture_removed": true,
+    "protected_wip9_raw_hashes_unchanged": true,
+    "rust_syntax_passed": true,
+    "public_after_assertions_executed": 0,
+    "new_cargo_or_full_suite_runs": 0
+  },
+  "limitations": [
+    "Only literal direct and window/globalThis property syntax; dynamic keys, aliases, destructuring and runtime context remain unresolved.",
+    "Source positions and hashes refer to indexed source; key traces are not current-disk or runtime execution proof.",
+    "Storage API methods and length are excluded from property keys; API method access remains available."
+  ],
+  "next_action": "Queue this one original outcome for a later combined batch. Preserve existing release1 build and observer, and do not compile this item alone. Three outcomes are a minimum, not an automatic build cadence.",
+  "source_commit": "16f3634633c8c4e595dc7015dea0ff74680ff3a7",
+  "source_outcomes": 1,
+  "public_assertions_expected": 6,
+  "native_unit_cases_expected": 0
+}
