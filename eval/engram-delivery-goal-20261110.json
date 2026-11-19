@@ -2590,6 +2590,17 @@
         "source_outcomes": 1,
         "native_unit_cases_expected": 0,
         "current_release_excludes_this_item": true
+      },
+      {
+        "original_requirement_id": "EG-20",
+        "source_commit": "5a0e77b967cdbf5f0676c99579f412533015b107",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "progress": "eval/history-diff-path-filter-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-diff-path-filter-20261119\\contract.json",
+        "public_assertions_expected": 5,
+        "source_outcomes": 1,
+        "native_unit_cases_expected": 0,
+        "current_release_excludes_this_item": true
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2823,10 +2834,14 @@
   "current_execution_focus": {
     "status": "SOURCE_OUTCOMES_QUEUED_FOR_LATER_COMBINED_VALIDATION",
     "implementation_items_active": 0,
-    "record": "eval/sql-review-navigation-batch-delivery-20261119.json",
+    "record": "eval/history-diff-path-filter-progress-20261119.json",
+    "original_requirement_id": "EG-20",
+    "observed_gap": "Text history compares repository file filters with encoded diff document keys, so ordinary file_filter and exclude_paths do not select the intended diff paths.",
+    "implementation_files": ["crates/engram_index/src/hybrid.rs", "crates/engram_server/src/models/requests.rs"],
+    "acceptance": "Public text history with ordinary LegacyValidation-style file paths returns matching diff-backed commit evidence and honors excluded diff paths. Unfiltered history and explicit indexed-key filters stay callable.",
     "full_original_goal_complete": false,
-    "next_action": "Preserve any other queued source outcomes and continue the original backlog.",
-    "pending_source_outcomes": 2
+    "next_action": "Prepare one combined release candidate for the three queued changes. Verify against owned MCP fixtures with the normal daemon left online.",
+    "pending_source_outcomes": 3
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

@@ -1,0 +1,23 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-20",
+  "source_commit": "5a0e77b967cdbf5f0676c99579f412533015b107",
+  "user_outcome": "Text-mode search_history applies repository-relative include and exclude prefixes to indexed Git diff filenames before ranking. Explicit indexed-key prefixes remain usable.",
+  "runtime_config": {
+    "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "advertise_all_tools": true,
+    "embedding_backend": "ollama"
+  },
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-diff-path-filter-20261119\\baseline1\\receipt.json",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-diff-path-filter-20261119\\verify-public.py",
+  "public_assertions_expected": 5,
+  "acceptance": [
+    "Both unfiltered VB and SQL commits are visible with the independently authored matching paths.",
+    "A Windows-style include returns the VB commit only.",
+    "A repository-relative exclusion removes the SQL diff.",
+    "Explicit indexed diff-key selection remains callable.",
+    "The owned repository stays clean and the fixture is removed after the MCP child exits."
+  ],
+  "validation": "Installed baseline reproduced both failures with private FTS-only Git history. rustfmt parsed the changed sources and git diff --check passed. Candidate and installed acceptance pending. Vector filter changed but has not been exercised in this fixture.",
+  "scratch_retention": "Retain the verifier and wire receipts until the combined candidate and installed acceptance are recorded. The baseline's owned server, reader and temporary repository closed and cleaned up."
+}
