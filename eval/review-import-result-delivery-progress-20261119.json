@@ -1,0 +1,53 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-19T03:42:30.138477+00:00",
+  "original_requirement_id": "TODO-4",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-import-result-delivery-20261119",
+  "source_commit": "40e430c4125fb6416aa8b2955b33a9f801aabe2a",
+  "source_files": [
+    "crates/engram_server/src/read_report_delivery.rs"
+  ],
+  "observed_missing_behavior": "The installed review-verdict importer returns an8533-byte64-author report but rejects an explicit max_tokens budget before importing. Other inspected ingestion tools return short summaries and were not changed.",
+  "implemented_behavior": "ingest_review_verdicts joins the existing complete-result delivery and returned-operation recovery contracts. Recovery reads the original saved result without fresh import arguments or another import. Import/provider/authority semantics are unchanged.",
+  "current_configuration_relevance": "Actual normal configuration advertises Full tools; this is decision-aware review ingestion used with the original LegacyValidation priority. Native baseline used an owned TypeScript project and64review JSONL records, FTS-only/llm-none. No actual LegacyValidation source/Q/index access, external Azure DevOps request or real model call.",
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-import-result-delivery-20261119\\baseline1\\receipt.json",
+    "sha256": "47c6baeec20da458ed422a6c5c243c292df0fa2c3080e0be17dfbc225d30e923",
+    "seconds": 1.5443350999994436,
+    "ordinary_reply_bytes": 8533,
+    "requested_budget_bytes": 4096,
+    "default_overflow_reproduced": false
+  },
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-import-result-delivery-20261119\\contract.json",
+  "acceptance_contract_sha256": "ab5f9d6e2350a231c38cf01adff80c4b217ef5b5b7961fe04526a6e99778b079",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-import-result-delivery-20261119\\verify-public.py",
+  "public_verifier_sha256": "744eb6c92157a2f033fe37f2d0cc9bf7fbfe6bbdadf67bb3bb5ac21b98db4ebe",
+  "public_assertions_expected": 6,
+  "public_after_assertions_executed": 0,
+  "native_unit_cases_expected": 0,
+  "native_target": null,
+  "typechecked": false,
+  "runtime_deployed": false,
+  "implementation_items_active": 0,
+  "verification": {
+    "rust_syntax": "PASS using rustfmt --emit stdout; parse only, not typechecking.",
+    "python_syntax": "PASS using Python AST.",
+    "protected_work": "All9prior raw hashes unchanged.",
+    "new_builds": 0,
+    "unit_debug_or_full_suites": 0
+  },
+  "counting_rule": "One original complete review-import outcome; schema, budgets, authors, restart, expiry and stored-data observations are acceptance aspects, not independent deliveries.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-import-result-delivery-20261119",
+    "native_owners": "Closed and readers joined.",
+    "fixture": "Owned native baseline removed on completion; after-verifier owns its future fixture.",
+    "retained": "Contract, verifier and exact baseline wire/reply/receipt retained here until queued delivery acceptance is resolved. No preexisting folders deleted."
+  },
+  "limitations": [
+    "Source-only: six public candidate/installed checks are not yet executed and no native typecheck is claimed.",
+    "Capture preserves the returned operation result, not interruption retry safety, current state, imported authority or source authenticity.",
+    "The reproduced8533-byte report fits the default40KiB ceiling; the concrete gap is unsupported caller budgets and immutable original recovery, not demonstrated default overflow."
+  ],
+  "next_action": "Continue substantive source work from the original backlog; one queued outcome does not permit Cargo. Consolidate later native/public acceptance without replaying delivered tasks.",
+  "full_original_goal_complete": false
+}

@@ -2556,7 +2556,20 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "TODO-4",
+        "source_commit": "40e430c4125fb6416aa8b2955b33a9f801aabe2a",
+        "progress": "eval/review-import-result-delivery-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-import-result-delivery-20261119\\contract.json",
+        "native_target": null,
+        "native_cases_expected": 0,
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-import-result-delivery-20261119\\verify-public.py",
+        "public_assertions_expected": 6,
+        "counting_rule": "One original complete review-import outcome; schema, budgets, authors, restart, expiry and stored-data observations are acceptance aspects, not independent deliveries."
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2786,11 +2799,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
+    "status": "ONE_SOURCE_OUTCOME_AWAITING_COMBINED_VALIDATION",
+    "progress": "eval/review-import-result-delivery-progress-20261119.json",
+    "pending_source_outcomes": 1,
     "implementation_items_active": 0,
-    "record": "eval/review-metadata-view-batch-delivery-20261119.json",
     "full_original_goal_complete": false,
-    "next_action": "Advance the remaining original LegacyValidation backlog from retained evidence; preserve all failures, unfinished acceptance and held work. Do not replay this passed batch or reopen closed CodeMap/Blast work."
+    "next_action": "Continue substantive source work from the original backlog; one queued outcome does not permit Cargo. Consolidate later native/public acceptance without replaying delivered tasks."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4129,8 +4143,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T03:32:30.208741+00:00",
-    "reason": "Installed and verified the frozen three-outcome batch with19public checks on each candidate/installed executable, one optimized build, unchanged production metadata/configuration, closed owned fixtures and restored normal runtime."
+    "at_utc": "2026-11-19T03:42:30.138477+00:00",
+    "reason": "Reproduced unsupported budgets for an8533-byte review-import report in1.544seconds and committed shared immutable returned-result delivery. One source outcome queued, six public assertions pending; no new build or full suite."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4677,5 +4691,10 @@
     "server_sha256": "532126d9b4d6301d76532ddd30024bef1166c676d64e0ea237e93d8c6cf137fc",
     "manifest_sha256": "6771b7352859e223a788ed4f76a5f61401a61597aebfeb2a67d81b34c7f1b02e",
     "selected_generation": 3157
+  },
+  "review_import_result_delivery_source_progress_20261119": {
+    "record": "eval/review-import-result-delivery-progress-20261119.json",
+    "source_commit": "40e430c4125fb6416aa8b2955b33a9f801aabe2a",
+    "runtime_deployed": false
   }
 }
