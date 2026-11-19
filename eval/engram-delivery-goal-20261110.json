@@ -2971,17 +2971,17 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "VERIFIED_CANDIDATE_AVAILABLE_NEWER_BUILD_INTERRUPTED",
+    "status": "CONSOLIDATED_CANDIDATE_VERIFIED_AWAITING_LIVE_CUTOVER",
     "implementation_items_active": 0,
     "verified_base_record": "eval/history-schema-review-candidate-20261119.json",
     "record": "eval/cumulative-agent-workflows-candidate-20261119.json",
     "full_original_goal_complete": false,
-    "candidate_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\follow-on-agent-workflows-20261119",
-    "candidate_source_commit": "1915f24cc7b9b0606ff016a0710f48d80912abc3",
-    "candidate_build_session": 72691,
-    "candidate_public_checks": 29,
-    "pending_source_outcomes": 5,
-    "next_action": "The cumulative ZIP is the latest verified artifact available for a coordinated cutover. After the boot, multiple installed proxies are running. Leave those sessions connected until clients close or the user chooses cutover. Account for the interrupted newer build before deciding when to resume compilation."
+    "candidate_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-workflows-reconnect-20261119-r2",
+    "candidate_source_commit": "693e8f0bb7cfdda9a5ea3f6ec99ae0b1faba59f6",
+    "candidate_build_session": 65456,
+    "candidate_public_checks": 37,
+    "candidate_owned_install_checks": 7,
+    "next_action": "Use this verified ZIP for the coordinated Windows cutover when clients close or the user authorizes their disconnection. Preserve the older installed pair for rollback. Source changes committed after this frozen build remain queued independently."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -2999,13 +2999,21 @@
     "replacement_builds_started": 0
   },
   "consolidated_windows_recovery_release": {
-    "status": "SOURCE_AND_VERIFICATION_INPUTS_READY",
+    "status": "PASS_PACKAGED_MCP_AND_OWNED_INSTALL_PENDING_LIVE_CUTOVER",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-workflows-reconnect-20261119-r2",
     "source_commit": "693e8f0bb7cfdda9a5ea3f6ec99ae0b1faba59f6",
     "release_plan_sha256": "c5bbbd7daf1e7a88ccb1ca6ec2c2f291c9cd131afdcd047663d1df63b7a12a76",
     "finite_public_checks": 37,
+    "owned_install_checks": 7,
+    "build_seconds": 852.7624377000002,
+    "builds_started_after_verifier_failure": 0,
+    "binary_sha256": "37e984a6d3f3451b1abcd1df0ed1561b26069ab0b66ff1ae62366873f2a9042c",
+    "archive_sha256": "9a5e4be606d62af1c867d0383f31d89d4d2a359a6aef9d5dbcf2fbb887c6c496",
+    "candidate_receipt": {"relative_path":"candidate2/receipt.json","sha256":"87c40fc702b7672f4fd57d389e03505c24b22c7f7571c3ab89b2264f61645a26"},
+    "owned_install_receipt": {"relative_path":"owned-install1/acceptance.json","sha256":"16c053609745a47a107f447aaa0170ba60fe17f19f3ab36cab31c6ff0707589e"},
+    "fixture_correction": "The initial review fixture exceeded Windows Git path limits. Shorter owned fixture paths passed with the same binary. The first attempt is retained. All accepted test processes and temporary fixtures closed.",
     "source_scope": "Preserve the interrupted batch, include the DBML, planning, recent history and bounded review inputs added since. Reuse the existing release checkout and shared artifacts. No full suite.",
-    "live_install": "The previous cumulative package remains available. Live deployment requires no active proxies or user-authorized cutover."
+    "live_install": "Six same-install proxies and the normal daemon were present after verification. The installed binary remains 0f218770760226b4818d0cd71a72e3460792c4a1914f7ef55bc1aab2bd50d7d9."
   },
   "dossier_explicit_schema_progress": {
     "original_requirement_id": "TODO-32",
