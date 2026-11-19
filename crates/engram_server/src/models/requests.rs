@@ -899,7 +899,8 @@ pub struct GetChangeSetRequest {
     /// from it (the revision and its ancestors) and merged-PR records whose
     /// merge commit is reachable. The leak-free cutoff for replays — dates
     /// admit branch commits dated before their merge. Pass the story's base
-    /// commit. Unresolvable revisions are an error.
+    /// commit. Unresolvable revisions are an error. For work-item stories,
+    /// provide the recorded work_item_text because live intake is disabled.
     #[serde(default)]
     pub as_of_rev: Option<String>,
     /// The user story, verbatim.
@@ -917,13 +918,14 @@ pub struct GetChangeSetRequest {
     /// extraction and included in the dossier. Supply only available evidence;
     /// missing requirements must not be invented.
     /// An explicit leading work-item reference (for example AB#847 or Bug #847)
-    /// requires nonblank supplied text or a successful automatic fetch. Otherwise
+    /// requires nonblank supplied text or a successful automatic fetch for a
+    /// current task. Historical cutoffs require the recorded text. Otherwise
     /// intake returns INCOMPLETE_INTAKE instead of generating a title-only dossier.
     #[serde(default)]
     pub work_item_text: Option<String>,
     /// Azure DevOps PAT for AUTO-FETCHING the work item when the story
     /// references an id (e.g. "Bug #847") and `work_item_text` is not
-    /// provided. Auto-fetch is disabled when `merged_before` is set because
+    /// provided. Auto-fetch is disabled with `merged_before` or `as_of_rev` because
     /// the live work-item revision is not valid point-in-time evidence.
     /// Per-call only and never persisted (same stance as
     /// refresh_corpora). When omitted, the server falls back to its own

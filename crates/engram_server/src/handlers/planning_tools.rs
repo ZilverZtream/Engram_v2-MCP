@@ -9760,10 +9760,11 @@ impl Engram {
         // holds credentials, the server host does), and refresh_corpora
         // saved the org/project coordinates. An ID-targeted request must
         // have work-item text before retrieval; failure blocks intake below.
-        if can_auto_fetch_work_item(req.work_item_text.as_deref(), req.merged_before.as_deref())
-            // A merged-work cutoff signals a point-in-time replay. Fetching the
-            // current ADO revision here silently mixes future requirements into
-            // otherwise historical evidence, so require sealed text instead.
+        if can_auto_fetch_work_item(
+            req.work_item_text.as_deref(),
+            req.merged_before.as_deref(),
+            req.as_of_rev.as_deref(),
+        )
             && let Some(wi_id) = extract_work_item_id(&req.story)
             && let Some(pat) = resolve_ado_pat(req.pat_token.take())
         {
@@ -14032,15 +14033,19 @@ fn story_with_work_item_text(story: &str, text: Option<String>) -> Result<String
     }
     if let Some(id) = extract_work_item_id(story) {
         return Err(McpError::invalid_params(
-            format!("INCOMPLETE_INTAKE: work item #{id} text is unavailable. Supply nonblank work_item_text containing the description/reproduction steps and acceptance criteria, or check the server ADO_PAT/per-call pat_token, Azure DevOps coordinates and work-item access. No change-set dossier was generated."),
+            format!("INCOMPLETE_INTAKE: work item #{id} text is unavailable. Supply nonblank work_item_text containing the description/reproduction steps and acceptance criteria. With merged_before or as_of_rev, supply the work-item text recorded for that historical task. For current intake, check Azure DevOps credentials, coordinates and work-item access. No change-set dossier was generated."),
             None,
         ));
     }
     Ok(story.to_string())
 }
 
-fn can_auto_fetch_work_item(work_item_text: Option<&str>, merged_before: Option<&str>) -> bool {
-    work_item_text.is_none() && merged_before.is_none()
+fn can_auto_fetch_work_item(
+    work_item_text: Option<&str>,
+    merged_before: Option<&str>,
+    as_of_rev: Option<&str>,
+) -> bool {
+    work_item_text.is_none() && merged_before.is_none() && as_of_rev.is_none()
 }
 
 fn retrieval_code_ranges(story: &str) -> Vec<std::ops::Range<usize>> {
@@ -15004,13 +15009,10 @@ mod work_item_tests {
 
     #[test]
     fn historical_cutoff_disables_live_work_item_fetch() {
-        assert!(can_auto_fetch_work_item(None, None));
-        assert!(!can_auto_fetch_work_item(None, Some("2026-08-01")));
-        assert!(!can_auto_fetch_work_item(Some("sealed revision"), None));
-        assert!(!can_auto_fetch_work_item(
-            Some("sealed revision"),
-            Some("2026-08-01")
-        ));
+        assert!(can_auto_fetch_work_item(None, None, None));
+        assert!(!can_auto_fetch_work_item(None, Some("2026-08-01"), None));
+        assert!(!can_auto_fetch_work_item(None, None, Some("HEAD~1")));
+        assert!(!can_auto_fetch_work_item(Some("recorded work item"), None, None));
     }
 
     fn feature_contract_checkpoint_fixture() -> serde_json::Value {
