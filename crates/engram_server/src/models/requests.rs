@@ -4125,10 +4125,12 @@ pub enum BatchReadOperation {
     MemorySection(ReadMemoryBankRequest),
     #[serde(rename = "get_page_context")]
     PageContext(GetPageContextRequest),
+    #[serde(rename = "trace_user_request")]
+    RequestTrace(TraceUserRequestRequest),
 }
 
 /// Navigate a URL/page and optional action through authored WebForms bindings.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct TraceUserRequestRequest {
     pub project_id: String,

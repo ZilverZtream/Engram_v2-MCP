@@ -230,6 +230,9 @@ impl Engram {
                     // context continuation before applying the shared budget.
                     self.handle_get_page_context(arguments).await
                 }
+                BatchReadOperation::RequestTrace(arguments) => {
+                    self.handle_trace_user_request(arguments).await
+                }
             };
             let (status, response) = match result {
                 Ok(result) => (
