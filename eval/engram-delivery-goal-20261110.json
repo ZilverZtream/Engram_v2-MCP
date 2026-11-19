@@ -2568,6 +2568,18 @@
         "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-date-20261119\\verify-public.py",
         "public_assertions_expected": 7,
         "counting_rule": "One original existing natural-language prior-review question outcome. Date forwarding, source scope, current defaults, JSON/Markdown and dated history recovery are acceptance aspects, not separate independent deliverables."
+      },
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "TODO-5",
+        "source_commit": "b2491b36384d7d5c015868908d280973a7bb472c",
+        "progress": "eval/method-metadata-freshness-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-metadata-freshness-20261119\\contract.json",
+        "native_target": null,
+        "native_cases_expected": 0,
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-metadata-freshness-20261119\\verify-public.py",
+        "public_assertions_expected": 6,
+        "counting_rule": "One original per-file method metadata timestamp observation outcome; formats and recovery are acceptance aspects."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2799,12 +2811,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "ORIGINAL_WATCHER_CACHE_CORRECTNESS_COMPLETE_RESOURCE_GATES_RETAINED",
-    "record": "eval/watcher-cache-original-requirements-closure-20261119.json",
+    "status": "TWO_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "progress": "eval/method-metadata-freshness-progress-20261119.json",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 1,
+    "pending_source_outcomes": 2,
     "full_original_goal_complete": false,
-    "next_action": "Advance the remaining original LegacyValidation backlog from actual missing requirements. Preserve queued TODO28 source, completed bounded behavior and outstanding original resource/storage/task-usefulness gates. No duplicate watcher/cache workload or compile for one queued outcome; do not add filler."
+    "next_action": "Continue a ready original LegacyValidation source improvement after checking retained delivery evidence once. Preserve TODO-28 and TODO-5 acceptance queue; no Cargo or release build with only two outcomes."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3114,12 +3126,8 @@
     "does_not_pause_or_replace_goal": true
   },
   "active_source_implementation": {
-    "status": "DOCUMENTED_CONTRACTS_RECONCILED_NO_RUNTIME_CHANGE",
-    "original_requirement_id": "EG-26",
-    "progress": "eval/tool-contract-reconciliation-progress-20261119.json",
-    "implementation_items_active": 0,
-    "compile_queue_outcomes": 0,
-    "delivery_record": "eval/tool-contract-reconciliation-delivery-20261119.json"
+    "status": "NONE_SOURCE_OUTCOMES_QUEUED",
+    "implementation_items_active": 0
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",

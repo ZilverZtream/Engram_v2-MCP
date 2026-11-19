@@ -1,0 +1,44 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-5",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-metadata-freshness-20261119",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-metadata-freshness-20261119\\contract.json",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-metadata-freshness-20261119\\verify-public.py",
+  "public_assertions_expected": 6,
+  "native_unit_cases_expected": 0,
+  "implementation_items_active": 0,
+  "runtime_deployed": false,
+  "source_files": [
+    "crates/engram_server/src/handlers/access_layer_tools.rs",
+    "crates/engram_server/src/tools.rs"
+  ],
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-metadata-freshness-20261119\\baseline1\\receipt.json",
+    "sha256": "73a82582512d8aba8bb46123d3cbc825adc4d12a0dafd92754cf2f53ebdbc5cb"
+  },
+  "observed_missing_behavior": "Installed single-result Markdown reports file_newer_than_last_project_update after a real source edit; equivalent JSON returns no freshness, while multi-result Markdown reports no_file_target despite named returned files. Baseline1.448seconds, all owners/readers closed and fixture removed.",
+  "current_configuration_relevance": "Actual normal Full advertises get_method_info. This applies to VB.NET/WebForms and JS/TS metadata reads; the isolated reproduction uses TypeScript with FTS-only/no generation, not the actual LegacyValidation source/index.",
+  "temporary_resources": "Contract/verifier and retained baseline in this one recorded case; owned fixture removed after native owner/readers closed. No actual LegacyValidation source/Q/index access, real provider call or preexisting deletion.",
+  "full_original_goal_complete": false,
+  "source_commit": "b2491b36384d7d5c015868908d280973a7bb472c",
+  "public_after_assertions_executed": 0,
+  "native_target": null,
+  "native_cases_expected": 0,
+  "new_builds": 0,
+  "source_file_sha256": {
+    "crates/engram_server/src/handlers/access_layer_tools.rs": "e4b2f54ba291660951730903a01b529389deb8b0dd295620828a59dd26e6ae02",
+    "crates/engram_server/src/tools.rs": "68963fc0c1a9a786362299a1f707f4808b1a053915c6d06435736bf4de18d724"
+  },
+  "contract_sha256": "9ec94c7d2a06a62c2370dd62dc148c82bba8ea78d6f2100a533ac69216a2cd24",
+  "verifier_sha256": "eaec702a9600632424350e56181af71895bd50cf787c9adbaf5f523263326261",
+  "syntax_validation": {
+    "rust": "Two changed files parsed with rustfmt emit stdout/skip children; no type check or compile.",
+    "python": "AST parsed; six after assertions and three retained baseline assertions."
+  },
+  "limitations": [
+    "Source-only: not compiled, behavior-validated or installed.",
+    "Project-update/file-mtime heuristic does not establish per-method indexed freshness; unavailable timestamps remain unknown.",
+    "One original TODO-5 outcome; result formats and recovery checks are not separate batch components."
+  ],
+  "next_action": "Include these six public assertions in future combined candidate/installed validation; two independent source outcomes queued, below three-outcome compile minimum."
+}
