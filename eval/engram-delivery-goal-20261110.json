@@ -3203,6 +3203,19 @@
       "native_unit_cases_expected": 0,
       "current_release_excludes_this_item": true,
       "verification": "Installed baseline shows one whole paged result with no callable continuation. Source syntax and whitespace checks passed. Candidate and installed verification remain pending."
+    },
+    {
+      "original_requirement_id": "TODO-34",
+      "source_commit": "3cc45f37b646317a7d561aeab4199fe5de6e3886",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "observed_gap": "The verified cumulative candidate reports a staged review and offers an unstaged followup, but it does not name the staged files whose current context also contains unstaged edits.",
+      "user_outcome": "Staged review JSON and Markdown identify submitted files with observed unstaged edits. The staged diff, existing gate results and alternate scope calls remain intact.",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-staged-worktree-evidence-20261119\\contract.json",
+      "public_assertions_expected": 4,
+      "source_outcomes": 1,
+      "native_unit_cases_expected": 0,
+      "current_release_excludes_this_item": true,
+      "verification": "The packaged cumulative candidate reproduced the missing disclosure. The owned Git fixture independently distinguishes the staged VB text, unstaged revision of the same file and another unstaged file. Source syntax and whitespace checks passed. Runtime verification of the new disclosure remains pending."
     }
   ],
   "browser_json_history_batch_delivery": {
