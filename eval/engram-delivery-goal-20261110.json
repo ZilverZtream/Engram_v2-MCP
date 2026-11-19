@@ -3242,7 +3242,14 @@
       "source_outcomes": 1,
       "native_unit_cases_expected": 0,
       "current_release_excludes_this_item": true,
-      "verification": "Reproduced the hanging proxy and successful initialization with an isolated daemon and fixture client. Only owned processes were stopped. Source syntax and whitespace checks passed; runtime validation of the fix remains pending. The change does not reconnect already-closed MCP sessions or change the active package."
+      "focused_windows_pipe_verification": {
+        "status": "PASS",
+        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-proxy-eof-20261119\\isolated-proxy-receipt.json",
+        "sha256": "1eb0a87a3c49614f546bf337a240acbadde290eef8a4ab93c61f2b0601a51c7a",
+        "checks": 4,
+        "scope": "The exact changed Windows forwarding function was compiled against existing Tokio and anyhow artifacts. A private named-pipe exchange passed both directions, exit with client stdin open, and stderr reconnect diagnostics. No Engram build or live-process changes."
+      },
+      "verification": "Reproduced the hanging proxy with an owned Engram daemon and fixture client. The focused Windows pipe fixture passes the changed function. Full packaged MCP verification remains pending. The change does not reconnect already-closed MCP sessions or change the active package."
     }
   ],
   "browser_json_history_batch_delivery": {
