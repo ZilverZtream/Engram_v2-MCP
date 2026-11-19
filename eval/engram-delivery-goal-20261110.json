@@ -2975,6 +2975,15 @@
     "pending_source_outcomes": 5,
     "next_action": "Use the verified cumulative package for one coordinated Windows cutover. A running MCP proxy was observed. Preserve the live service until the user chooses a cutover or clients close. Do not rebuild the verified artifact."
   },
+  "review_git_worker_progress": {
+    "original_requirement_id": "EG-19",
+    "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",
+    "observed_gap": "The ordinary pre-commit review runs Git diff resolution, Git status and two bounded current-file snapshots directly on asynchronous request workers.",
+    "implementation": "crates/engram_server/src/handlers/review_tools.rs",
+    "user_outcome": "Git and snapshot I/O run on the blocking pool. Review gates, scope and source-hash evidence keep their existing behavior.",
+    "acceptance": "Reuse the existing packaged mixed diff and empty diff fixtures. Verify preserved findings, source snapshots, and alternate scope calls in JSON and Markdown.",
+    "verification": "Exact changed worker blocks typechecked against cached Engram, RMCP, Git2 and Tokio dependencies. Packaged review behavior and production responsiveness are unmeasured."
+  },
   "webforms_page_opening_question_progress": {
     "original_requirement_id": "TODO-31",
     "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",

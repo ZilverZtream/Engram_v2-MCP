@@ -86,25 +86,36 @@ impl Engram {
             .await
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         let indexed_project_dir = PathBuf::from(rec.directory.clone());
-        let (project_dir, review_source) =
-            resolve_review_directory(&indexed_project_dir, req.working_directory.as_deref())
-                .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
-
         let start = std::time::Instant::now();
-
-        // Resolve the diff input into raw unified-diff text.
-        let diff_text = resolve_diff_source(&project_dir, &req.diff)
-            .map_err(|e| McpError::invalid_params(format!("diff resolution failed: {e}"), None))?;
-        let parsed = std::sync::Arc::new(
-            crate::services::pre_commit_review_service::parse_unified_diff(&diff_text),
-        );
-        let head_before = head_commit(&project_dir);
-        let source_before = source_snapshot(&project_dir, &parsed);
+        let root = indexed_project_dir.clone();
+        let (req, project_dir, review_source, diff_text, parsed, head_before, source_before) =
+            tokio::task::spawn_blocking(move || {
+                let (project_dir, review_source) =
+                    resolve_review_directory(&root, req.working_directory.as_deref())
+                        .map_err(|error| McpError::invalid_params(error.to_string(), None))?;
+                let diff_text = resolve_diff_source(&project_dir, &req.diff).map_err(|error| {
+                    McpError::invalid_params(format!("diff resolution failed: {error}"), None)
+                })?;
+                let parsed = std::sync::Arc::new(
+                    crate::services::pre_commit_review_service::parse_unified_diff(&diff_text),
+                );
+                let head = head_commit(&project_dir);
+                let source = source_snapshot(&project_dir, &parsed);
+                Ok::<_, McpError>((req, project_dir, review_source, diff_text, parsed, head, source))
+            })
+            .await
+            .map_err(|error| McpError::internal_error(error.to_string(), None))??;
         let mode = req.diff.trim();
+        let native_diff = matches!(mode, "staged" | "unstaged" | "head");
 
         if diff_text.trim().is_empty() {
-            let status = if matches!(mode, "staged" | "unstaged" | "head") {
-                crate::services::pre_commit_review_service::working_tree_changes(&project_dir, true)
+            let status = if native_diff {
+                tokio::task::spawn_blocking(move || {
+                    crate::services::pre_commit_review_service::working_tree_changes(&project_dir, true)
+                })
+                .await
+                .map_err(anyhow::Error::from)
+                .and_then(|status| status)
             } else {
                 Ok(Default::default())
             };
@@ -206,20 +217,20 @@ impl Engram {
             "authored_files_written":0}));
 
         let elapsed_ms = start.elapsed().as_millis();
-        let source_after = source_snapshot(&project_dir, &parsed);
-        let head_after = head_commit(&project_dir);
-        let native_diff = matches!(mode, "staged" | "unstaged" | "head");
-        let alternate_changes = if native_diff {
-            let root = project_dir.clone();
-            tokio::task::spawn_blocking(move || {
-                crate::services::pre_commit_review_service::working_tree_changes(&root, false)
-            })
-            .await
-            .ok()
-            .and_then(Result::ok)
-        } else {
-            None
-        };
+        let root = project_dir.clone();
+        let reviewed_files = parsed.clone();
+        let (source_after, head_after, alternate_changes) = tokio::task::spawn_blocking(move || {
+            let source = source_snapshot(&root, &reviewed_files);
+            let head = head_commit(&root);
+            let alternate = if native_diff {
+                crate::services::pre_commit_review_service::working_tree_changes(&root, false).ok()
+            } else {
+                None
+            };
+            (source, head, alternate)
+        })
+        .await
+        .map_err(|error| McpError::internal_error(error.to_string(), None))?;
         let review_next_calls = alternate_changes.as_ref()
             .map(|changes| alternate_review_calls(&req, changes))
             .unwrap_or_default();
