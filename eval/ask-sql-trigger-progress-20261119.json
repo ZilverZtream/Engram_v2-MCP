@@ -1,0 +1,37 @@
+{
+  "original_requirement_id": "TODO-28",
+  "source_commit": "e839b2ceb6e8fc0eb6f8fc6531b2d19d89e430cb",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-trigger-20261119\\verify-public.py",
+    "sha256": "3e0ec880b2da8c995bd09df006fd3ebcb2d265a4986f0ab7510e44d590bbd274"
+  },
+  "public_assertions_expected": 6,
+  "public_assertions": [
+    "qualified_trigger_keeps_target_event_body_and_hash",
+    "unqualified_trigger_reports_both_candidates",
+    "clarifications_are_callable_and_qualified",
+    "table_question_preserves_table_facts",
+    "changed_source_withholds_trigger_facts",
+    "source_files_unchanged"
+  ],
+  "core_control": {
+    "arguments": [
+      "--core"
+    ],
+    "purpose": "Verify the advertised ask_codebase clarification when query_schema is unavailable."
+  },
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-trigger-20261119\\baseline1\\receipt.json",
+    "sha256": "5a20e758371c3d79af63df6c3e8eba9d30156eb7e150358e6c08620f14fe759b"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "TODO-28 deterministic natural-language answers with cited selected SQL source.",
+  "observed_gap": "Installed ask_codebase returned no trigger evidence for an explicit qualified SQL trigger question even though the source catalog returned the declaration. The plan classified the dotted trigger name as a file.",
+  "behavior": "Route explicit named SQL trigger questions to the same selected SQL catalog used by query_schema. Retain authored target, events, declaration and source span/hash. Use qualified follow-ups for collisions and withhold stale source.",
+  "configuration_relevance": "LegacyValidation uses the Full tool surface and SQL source workflows. The behavior is verified initially on an owned SQL fixture; selected production trigger inventory is unverified.",
+  "verification": "Installed baseline reproduced the missing named facts. Changed Rust parses with rustfmt; candidate and installed public acceptance remain queued.",
+  "temporary_resources": "Owned MCP server and reader closed before removing the owned runtime and SQL fixture. Driver, receipt and wire evidence remain in the recorded case.",
+  "full_original_goal_complete": false
+}
