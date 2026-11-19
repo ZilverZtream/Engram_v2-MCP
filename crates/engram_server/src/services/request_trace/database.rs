@@ -5,6 +5,7 @@ use super::{
     routing::{self, Source},
 };
 use serde_json::{Value, json};
+use crate::services::schema_query::{self, Name, Object};
 use sqlparser::{
     dialect::MsSqlDialect,
     tokenizer::{Location, Token, Tokenizer, Whitespace},
@@ -13,6 +14,7 @@ use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 pub(super) struct Catalog {
     definitions: Vec<Definition>,
+    views: Vec<(Object, String)>,
     pub gaps: Vec<String>,
 }
 struct Definition {
@@ -28,6 +30,7 @@ struct Definition {
     dynamic: bool,
     calls: Vec<ProcedureCall>,
     calls_truncated: bool,
+    view_references: Vec<Name>,
 }
 
 struct ProcedureCall {
@@ -110,6 +113,7 @@ impl Catalog {
     pub fn new(sources: &[Source<'_>]) -> Self {
         let mut result = Self {
             definitions: Vec::new(),
+            views: Vec::new(),
             gaps: Vec::new(),
         };
         for source in sources
@@ -119,6 +123,22 @@ impl Catalog {
             let lines: Vec<_> = std::iter::once(0)
                 .chain(source.content.match_indices('\n').map(|(i, _)| i + 1))
                 .collect();
+            // Reuse the source declaration reader, including its full authored
+            // qualification and batch boundaries. Basename table summaries
+            // cannot establish which view a procedure references.
+            let mut schema = schema_query::Catalog::default();
+            if let Err(error) = schema.add_source(source.path, source.content) {
+                result.gaps.push(format!("{}: SQL view inventory unavailable: {error}", source.path));
+            }
+            for view in schema.objects.iter().filter(|object| object.kind == "view") {
+                if result.views.len() == 64 {
+                    result.gaps.push("SQL view inventory truncated at64declarations; uninspected dependencies remain unknown".into());
+                    break;
+                }
+                let start = lines.get(view.citation.start_line.saturating_sub(1) as usize).copied().unwrap_or(source.content.len());
+                let end = lines.get(view.citation.end_line as usize).copied().unwrap_or(source.content.len());
+                result.views.push((view.clone(), source.content[start..end].chars().take(2048).collect()));
+            }
             let tokens =
                 match Tokenizer::new(&MsSqlDialect {}, source.content).tokenize_with_location() {
                     Ok(tokens) => tokens,
@@ -246,6 +266,10 @@ impl Catalog {
                     dynamic: definition.has_dynamic_sql,
                     calls_truncated: calls.len() > 64,
                     calls: calls.into_iter().take(64).collect(),
+                    view_references: schema.objects.iter().find(|object|
+                        object.kind == "stored_proc" && object.citation.start_line == u64::from(*line)
+                            && object.key.matches(&Name(key.clone())))
+                        .map(|object| object.refs.clone()).unwrap_or_default(),
                 });
             }
         }
@@ -297,6 +321,7 @@ impl Catalog {
         members: &mut Vec<Value>, gaps: &mut Vec<String>, cap: usize) {
         let mut pending = VecDeque::from([root]);
         let mut expanded = BTreeSet::new();
+        let mut expanded_views = BTreeSet::new();
         while let Some(definition) = pending.pop_front() {
             let id = procedure_id(definition);
             if !expanded.insert(id.clone()) { continue; }
@@ -318,6 +343,7 @@ impl Catalog {
                         evidence:Some(json!({"origin":"existing_source_sp_analyzer","file":definition.path,"line":definition.line,"source_blake3":definition.hash,"interpretation":"Lexical table reference in the cited procedure. Database/schema binding, branch reachability and execution are not established."}))});
                 }
             }
+            self.append_views(project, &id, &definition.view_references, hops, members, gaps, cap, &mut expanded_views);
             if definition.dynamic {
                 gaps.push(format!(
                     "{}: dynamic SQL effects remain unresolved",
@@ -342,6 +368,45 @@ impl Catalog {
                 if let Some(target) = target { pending.push_back(target); }
                 else { gaps.push(format!("{}:{}: {} has {} exact qualified procedure declarations; no default schema or basename binding inferred", definition.path,call.line,call.name,matches.len())); }
             }
+        }
+    }
+
+    fn append_views(&self, project: &str, root: &str, references: &[Name], hops: &mut Vec<Hop>,
+        members: &mut Vec<Value>, gaps: &mut Vec<String>, cap: usize, expanded: &mut BTreeSet<String>) {
+        let mut pending: VecDeque<_> = references.iter().map(|name| (root.to_owned(), name, None::<&Object>)).collect();
+        while let Some((from, name, owner)) = pending.pop_front() {
+            if hops.len() >= cap {
+                gaps.push("SQL view dependency evidence truncated at complete path limit".into());
+                break;
+            }
+            let matches: Vec<_> = self.views.iter().filter(|(view, _)| view.key.matches(name)).collect();
+            if matches.len() > 1 {
+                gaps.push(format!("{}: {} exact qualified view declarations; ambiguous dependency not expanded", name.display(), matches.len()));
+                continue;
+            }
+            let Some((view, excerpt)) = matches.first().copied() else {
+                if let Some(owner) = owner {
+                    hops.push(Hop {table_mapping:None, from, to:format!("sql-relation-reference:{}",name.display()),
+                        kind:"sql_view_references_relation".into(), target_name:name.display(), target_file:None,
+                        target_line:None, target_source_verified:false,
+                        evidence:Some(json!({"origin":"source_view_lexical_relation_reference","citation":owner.citation,
+                            "interpretation":"Lexical relation reference in the cited view source, not a proven physical table. Database/schema binding, branch reachability and execution are not established."}))});
+                }
+                continue;
+            };
+            let id = format!("source-view:{}:{}:{}",view.citation.path,view.citation.start_line,view.name);
+            hops.push(Hop {table_mapping:None, from, to:id.clone(), kind:"references_sql_view".into(),
+                target_name:view.name.clone(), target_file:Some(view.citation.path.clone()),
+                target_line:Some(view.citation.start_line as u32), target_source_verified:true,
+                evidence:Some(json!({"origin":"exact_qualified_source_view_declaration","citation":view.citation,
+                    "interpretation":"Full authored relation name matches one source view declaration. Deployment, effective database/schema binding, branch reachability and execution are not established."}))});
+            if !expanded.insert(id.clone()) { continue; }
+            members.push(json!({"node_id":id,"file":view.citation.path,"line_start":view.citation.start_line,
+                "line_end":view.citation.end_line,"source_blake3":view.citation.source_hash,"excerpt":excerpt,
+                "interpretation":"Bounded original view source excerpt; follow hash-bound file recovery for complete source. No deployment or execution proof.",
+                "recovery":{"tool":"get_full_method_body","arguments":{"project_id":project,"file_path":view.citation.path,
+                    "line_start":1,"context_lines":0,"output_json":true,"expected_file_blake3":view.citation.source_hash}}}));
+            pending.extend(view.refs.iter().map(|name| (id.clone(), name, Some(view))));
         }
     }
 }
