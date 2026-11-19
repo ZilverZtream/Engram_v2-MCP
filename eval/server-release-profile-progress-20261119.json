@@ -1,10 +1,10 @@
 {
-  "status": "SOURCE_CONFIGURED_EFFECT_UNMEASURED",
+  "status": "INSTALLED_WITH_OBSERVED_TIMINGS",
   "original_requirement": "User instruction to reduce compilation time and deliver more implementation per build.",
   "implementation": "Cargo.toml: profile.release.package.engram_server.opt-level=1. Other manifest settings are unchanged.",
   "source_outcomes_for_runtime_build_floor": 0,
-  "runtime_deployed": false,
-  "current_release_excludes_this_change": true,
+  "runtime_deployed": true,
+  "current_release_excludes_this_change": false,
   "current_release_case": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/browser-sql-review-batch-20261119",
   "current_release_seconds": 2682.013813999991,
   "static_validation": {
@@ -26,5 +26,24 @@
     "Lower optimization can reduce runtime performance; non-server packages retain their existing release settings.",
     "The frozen current build was untouched. This change started no build or test suite."
   ],
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "delivery": "eval/webforms-integrity-batch-delivery-20261119.json",
+  "observed_profile": {
+    "server_opt_level": 1,
+    "compiler_observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\profile-compiler-observation1.json",
+      "sha256": "c5ebc4c88045c3955c9b26dcaeaf0b9af94314173746094ae7594b7c9f2ae8b0"
+    },
+    "previous_build_seconds": 2682.013813999991,
+    "previous_candidate_seconds": 12.648014000005787,
+    "build_delta_seconds": 71.8758516000089,
+    "compile_time_improvement_demonstrated": false,
+    "candidate_previous_contracts": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\profile-regression\\candidate1\\receipt.json",
+      "sha256": "2db973b599d661775bac0a5bfa309c56f71ab1812369a4d818800b4e69abd3e4",
+      "checks": 17,
+      "seconds": 12.050034600004437
+    },
+    "interpretation": "Observed durations across releases with different source and compiler settings. This is neither a controlled same-source comparison nor a production workload benchmark."
+  }
 }

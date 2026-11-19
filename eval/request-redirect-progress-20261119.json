@@ -18,9 +18,12 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-redirect-20261119\\baseline1\\receipt.json",
     "sha256": "fe9ca582d36d160d88cab2d9f68c98a9a9faf356bf6fd141d9e58381aa592c0a"
   },
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "runtime_deployed": false,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "runtime_deployed": true,
   "verification": "Rust syntax formatting and Git whitespace checks passed. Installed MCP baseline confirmed the missing evidence and cleaned its fixture. Changed runtime awaits combined verification.",
   "temporary_resources": "The retained verifier, fixture receipts and wire evidence live in this one case. The temporary project was removed after the server and reader closed.",
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "delivery": "eval/webforms-integrity-batch-delivery-20261119.json",
+  "runtime_server_sha256": "ff47184424ba8d2b75dfd7ef5eca6a262a3a4ab41ec4d52a4cf6ede721ab1bfb",
+  "public_checks_passed_per_artifact": 5
 }

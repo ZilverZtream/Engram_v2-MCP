@@ -25,10 +25,13 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\integrity-result-20261119\\baseline1\\receipt.json",
     "sha256": "e78899010841979be7bfbb81e987d098c11a9bd455989a3ce203727f34c8bc70"
   },
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "runtime_deployed": false,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "runtime_deployed": true,
   "verification": "Rust syntax and Git whitespace checks passed. Installed MCP baseline reproduced the missing recovery controls and confirmed actual repair. Candidate and installed verification remain pending.",
   "temporary_resources": "Both owned projects, providers and MCP processes were closed. Retained driver, wire and receipts are in this single case.",
   "baseline_setup_correction": "The first run expected the memory write to return isError; installed behavior returns a successful committed write with search_indexing failed and retry_write false. The corrected fixture asserts the committed result before checking the vector shortfall.",
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "delivery": "eval/webforms-integrity-batch-delivery-20261119.json",
+  "runtime_server_sha256": "ff47184424ba8d2b75dfd7ef5eca6a262a3a4ab41ec4d52a4cf6ede721ab1bfb",
+  "public_checks_passed_per_artifact": 7
 }

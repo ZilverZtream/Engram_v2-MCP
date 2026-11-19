@@ -1,0 +1,118 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-19T08:30:21.037400+00:00",
+  "original_requirement_ids": [
+    "TODO-31",
+    "TODO-4",
+    "TODO-28"
+  ],
+  "delivered_behaviors": {
+    "TODO-31": "Reached VB methods surface source-cited redirect calls independently of excerpt clipping and database tracing. Literal destinations are shown and expressions remain unresolved.",
+    "TODO-4": "Integrity results retain repair findings and outcomes under a caller budget, with exact restart recovery that does not repeat observation or repair.",
+    "TODO-28": "Relative WebForms page and HTTP questions invoke existing source tracing with the original action and callable follow-up. VB codebehind filenames remain source mentions."
+  },
+  "runtime": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\package1",
+    "server_sha256": "ff47184424ba8d2b75dfd7ef5eca6a262a3a4ab41ec4d52a4cf6ede721ab1bfb",
+    "manifest_sha256": "6811b436a1d205e146763e7297c28ec889dfe981afd5b3d801099b3a76207128",
+    "old_server_sha256": "47d70c6d36ccb9ae74707c9712f7865eeb1be9499e4aa691ffe6cd57991b09a2",
+    "old_manifest_sha256": "294b980c905fcd23eb215d2af71181cbd9800a75250bc76dd40044dffb2c5fac",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\release1.json",
+      "sha256": "eb9bcb4c816e9a0e68c13b04a36f093335e7b9fdac9d3323573fbad2f8b7b17b"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "294b980c905fcd23eb215d2af71181cbd9800a75250bc76dd40044dffb2c5fac"
+    },
+    "source_commit": "a3cb19412943a646ba907849d5fc53718231c4a3"
+  },
+  "source_preparation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\source-preparation1.json",
+    "sha256": "ee6de53c13ab3c8593cd2702e09793e6ef24e18cd48543008dafb7d2427babd2"
+  },
+  "windows_bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\bundle1.json",
+    "sha256": "41f2091d095aaefd67ae96d86af89813e6c9057d327563a6b849fb8a5a267235"
+  },
+  "public_receipts": {
+    "candidate1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\candidate1\\acceptance.json",
+      "sha256": "ee26c27a3949bd9b3cb5d998801bfda8a6b53e69ff79986e30b41fe431b608ef",
+      "checks": 17,
+      "seconds": 0.4918982999952277,
+      "component_execution_seconds": 13.074389300018083,
+      "seconds_scope": "Reconciliation time; passing component executions were retained."
+    },
+    "installed1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\installed1\\acceptance.json",
+      "sha256": "06b2d5f8f5cf14bec7027d24373b59bcfed4e37a65111461c2d419bb75aa58a0",
+      "checks": 17,
+      "seconds": 15.370364999995218
+    }
+  },
+  "installed_assets_verified": 215,
+  "build_accounting": {
+    "optimized_builds": 1,
+    "seconds": 2753.8896655999997,
+    "unit_debug_or_full_suites": 0,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\release1.json",
+      "sha256": "eb9bcb4c816e9a0e68c13b04a36f093335e7b9fdac9d3323573fbad2f8b7b17b"
+    }
+  },
+  "profile_observation": {
+    "server_opt_level": 1,
+    "compiler_observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\profile-compiler-observation1.json",
+      "sha256": "c5ebc4c88045c3955c9b26dcaeaf0b9af94314173746094ae7594b7c9f2ae8b0"
+    },
+    "previous_build_seconds": 2682.013813999991,
+    "previous_candidate_seconds": 12.648014000005787,
+    "build_delta_seconds": 71.8758516000089,
+    "compile_time_improvement_demonstrated": false,
+    "candidate_previous_contracts": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\profile-regression\\candidate1\\receipt.json",
+      "sha256": "2db973b599d661775bac0a5bfa309c56f71ab1812369a4d818800b4e69abd3e4",
+      "checks": 17,
+      "seconds": 12.050034600004437
+    },
+    "interpretation": "Observed durations across releases with different source and compiler settings. This is neither a controlled same-source comparison nor a production workload benchmark."
+  },
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\restored-runtime\\receipt.json",
+    "sha256": "26ec7dee5d77e7fff245e4943fea7da9ebc84b205b27091d0190aff8a33c8adc"
+  },
+  "selected_generation": 3169,
+  "previous_runtime_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\browser-sql-review-batch-delivery-20261119.json",
+    "sha256": "d4e4d5888edf4da67ef3cfd9f0a2905b96ebae955611c42a232e6fdf558e33b7"
+  },
+  "release_recovery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\acceptance-harness-correction1.json",
+    "sha256": "ed7015ec92cea8f57f8fcd50f5c37432c7012859da9902d2bfb217ceaa096492"
+  },
+  "full_original_goal_complete": false,
+  "temporary_resources": {
+    "owned_build_temp_removed": true,
+    "fixture_checks_closed": true,
+    "owned_config_removed": true,
+    "managed_rollback_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-903710ab01324c4582d01729523a3aed",
+      "cleanup_condition": "Retain for an explicit rollback or retirement decision."
+    }
+  },
+  "limitations": [
+    "Redirect candidates describe reached source spellings. Receiver binding, execution and status remain unverified.",
+    "Recovery preserves returned observations and repair outcomes. A captured report cannot establish current health.",
+    "Matched page names and actions describe source candidates. Dynamic routing and dispatch remain open.",
+    "Original findings, storage gates, held work and task usefulness remain separately tracked."
+  ]
+}

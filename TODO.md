@@ -485,6 +485,7 @@ proposals that duplicate the existing surface:
 `find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
+  Installed: Relative WebForms page and HTTP questions invoke existing source tracing with the original action and callable follow-up. VB codebehind filenames remain source mentions. [Delivery](eval/webforms-integrity-batch-delivery-20261119.json).
   Installed November18: explicit prospective-file instruction questions retain scoped authored guidance; explicit prior-review questions retain complete scoped decision events, conditions, provenance and callable history with advisory authority. Source appSettings changes select only dependent guidance. No effective-value, compliance or approval claim. [Delivery](eval/planned-config-review-batch-delivery-20261118.json).
   Installed November19: explicit prior-review questions containing before YYYY-MM-DD preserve the exclusive source-date cutoff and dated history actions. Seven public checks passed per candidate/installed binary. [Delivery](eval/review-metadata-view-batch-delivery-20261119.json).
   Installed November 18: named SQL-function questions retain complete declared signatures/bodies, lexical references and exact source hashes/spans, with qualified ambiguity and callable Full/Core clarification. These are source declarations; actual LegacyValidation use and database execution are unproven. [Delivery](eval/request-guidance-function-batch-delivery-20261118.json).
@@ -631,6 +632,7 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  Installed: Reached VB methods surface source-cited redirect calls independently of excerpt clipping and database tracing. Literal destinations are shown and expressions remain unresolved. [Delivery](eval/webforms-integrity-batch-delivery-20261119.json).
   Installed November19: reached SQL procedures follow exact qualified source views and nested view relation references, with source hashes and guarded recovery. Six public checks passed per candidate/installed binary; deployed database identity and execution remain unproven. [Delivery](eval/review-metadata-view-batch-delivery-20261119.json).
   Installed November18: registered literal VB RoutePrefix/Route paths select their declared collection/item action, retain route parameters and cite controller/registration source. Existing Roslyn companion required; hosting, precedence and execution remain unproven. [Delivery](eval/cache-guidance-attribute-batch-delivery-20261118.json).
   Installed November 18: explicit VB WebHandler directives select their instance IHttpHandler.ProcessRequest implementation and existing downstream source/SQL evidence. Other classes and page lifecycle methods are excluded; hosting and execution remain unproven. [Delivery](eval/request-guidance-function-batch-delivery-20261118.json).
@@ -897,8 +899,7 @@ specs already written.
   the config-driven path. CI test: named_pipe_transport_round_trips.*
 
 - [~] **39. Vector/Tantivy consistency repair after partial ingest failures** (M) -
-  Source ready for validation: `check_integrity` supports a reply budget and
-  exact saved-result recovery of the original findings and repair outcomes.
+  Installed: `check_integrity` supports bounded exact recovery of original findings and repair outcomes. [Delivery](eval/webforms-integrity-batch-delivery-20261119.json).
   Published-source remainder delivered 2026-11-12: compare the same managed
   source snapshot and memory namespace, including inherited revisions. Detect
   shortage and surplus even when project-wide totals cancel; recheck under the
