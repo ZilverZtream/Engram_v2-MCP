@@ -9,6 +9,7 @@ use rmcp::{
 };
 use serde_json::json;
 use std::{io::Read, path::Path};
+use tokio::sync::mpsc;
 
 #[path = "schema_policy.rs"]
 mod schema_policy;
@@ -53,7 +54,18 @@ impl Engram {
         &self, requests: Vec<QuerySchemaRequest>, generation: u64,
         view: std::sync::Arc<engram_index::SourceSnapshotGuard>,
     ) -> Result<Vec<Result<String, McpError>>, McpError> {
-        self.query_schema_outputs(requests, generation, view, true).await
+        self.query_schema_outputs(requests, generation, view, true, None).await
+    }
+
+    /// Share one declaration scan and deliver each result as soon as its
+    /// evidence is ready, so Ask can retain progress across its deadline.
+    pub(super) async fn stream_schema_for_ask(
+        &self, requests: Vec<QuerySchemaRequest>, generation: u64,
+        view: std::sync::Arc<engram_index::SourceSnapshotGuard>,
+        output: mpsc::Sender<Result<String, McpError>>,
+    ) -> Result<(), McpError> {
+        self.query_schema_outputs(requests, generation, view, true, Some(output)).await?;
+        Ok(())
     }
 
     async fn query_schema_evidence(
@@ -75,7 +87,7 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         schema_query::validate(&req).map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         super::search_tools::response_budget::token_bytes(req.max_tokens)?;
-        let mut results = self.query_schema_outputs(vec![req], generation, view, false).await?;
+        let mut results = self.query_schema_outputs(vec![req], generation, view, false, None).await?;
         let output = results.pop().expect("One schema request was submitted")?;
         Ok(CallToolResult::success(vec![Content::text(output)]))
     }
@@ -83,6 +95,7 @@ impl Engram {
     async fn query_schema_outputs(
         &self, requests: Vec<QuerySchemaRequest>, generation: u64,
         view: std::sync::Arc<engram_index::SourceSnapshotGuard>, enforce_budgets: bool,
+        output: Option<mpsc::Sender<Result<String, McpError>>>,
     ) -> Result<Vec<Result<String, McpError>>, McpError> {
         let Some(first) = requests.first() else { return Ok(Vec::new()); };
         if requests.iter().any(|req| req.project_id != first.project_id || req.path_prefixes != first.path_prefixes) {
@@ -145,7 +158,7 @@ impl Engram {
                     Err(error)=>catalog.gaps.push(format!("{path}: {error}")),
                 }
             }
-            Ok(requests.iter().map(|req| {
+            let render = |req: &QuerySchemaRequest| {
                 schema_query::validate(req).map_err(|e| McpError::invalid_params(e.to_string(), None))?;
                 let rendered = (|| -> anyhow::Result<String> {
                     let mut admitted_paths = std::borrow::Cow::Borrowed(&declaration_paths);
@@ -210,7 +223,17 @@ impl Engram {
                 } else {
                     Ok(rendered)
                 }
-            }).collect())
+            };
+            if let Some(output) = output {
+                for request in &requests {
+                    if output.is_closed() || output.blocking_send(render(request)).is_err() {
+                        break;
+                    }
+                }
+                Ok(Vec::new())
+            } else {
+                Ok(requests.iter().map(render).collect())
+            }
         }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?
             .map_err(|e|McpError::internal_error(e.to_string(),None))
     }

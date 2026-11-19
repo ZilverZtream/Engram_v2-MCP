@@ -3012,6 +3012,13 @@
       "implementation": "crates/engram_server/src/services/ask_engine/request_trace.rs",
       "acceptance": "The exact ask selector recognizes GET followed by the quoted LegacyValidation project-editor URL and passes it to the exact routing reader, which returns the authored pr_id=-1. Deduplication, existing control actions and method-free API mention behavior passed the same focused check. The existing integration test now asks with a quoted URL. No Engram package was built or deployed for this change."
     },
+    "following_ask_schema_scan": {
+      "status": "IMPLEMENTED_FOCUSED_STREAM_CHECK_PASSED_AWAITING_PACKAGE_VERIFICATION",
+      "requirement": "TODO-28 and TODO-35 source-backed answers across named SQL declarations",
+      "observed_gap": "The installed MCP baseline asked about two named tables. It returned two correct citations but counted four file examinations across two SQL sources. Both requests use the same source generation and path scope.",
+      "implementation": "crates/engram_server/src/handlers/ask_schema.rs and schema_tools.rs",
+      "acceptance": "Reuse one catalog scan and stream complete per-object reports in request order. Preserve an already returned result if a later lookup reaches the deadline. The exact worker dispatch and join passed a cached-dependency transport check. An existing schema integration fixture now checks both citations and one examination per SQL or DBML source. Its execution and packaged MCP verification remain pending. Carry this source change in a later batch."
+    },
     "next_action": "Advance the remaining original LegacyValidation items. Source changes committed after this package was frozen remain queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
   },
   "windows_reconnect_release_interruption": {

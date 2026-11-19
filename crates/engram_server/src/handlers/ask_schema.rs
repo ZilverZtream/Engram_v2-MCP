@@ -206,36 +206,31 @@ pub(super) async fn gather(
             proof: None,
         },
     };
-    let mut notes = vec!["Source declarations only; no live database, default-schema or collation binding. At most three named SQL object lookups; examined counts source-file examinations across lookups.".to_string()];
+    let mut notes = vec!["Source declarations only; no live database, default-schema or collation binding. At most three named SQL object lookups share one declaration scan; examined counts selected SQL and DBML files in that scan.".to_string()];
     let mut failed = false;
-    let work = async {
+    let (output, schema_results) = tokio::sync::mpsc::channel(1);
+    let selected: Vec<_> = requests.into_iter().take(3).collect();
+    let lookups = selected.iter().map(|(request, _)| request.clone()).collect();
+    let read = async {
         let view =
             view.ok_or_else(|| "Selected source unavailable for SQL schema evidence".to_string())?;
-        for (request, discover_procedure) in requests.into_iter().take(3) {
+        engram.stream_schema_for_ask(lookups, generation, view, output).await
+            .map_err(|error| error.to_string())
+    };
+    let retain = async {
+        let mut schema_results = schema_results;
+        for (request, discover_procedure) in selected {
             let is_procedure = matches!(&request.query_type, Some(SchemaQueryType::StoredProc { .. }));
             let is_view = matches!(&request.query_type, Some(SchemaQueryType::View { .. }));
             let is_function = matches!(&request.query_type, Some(SchemaQueryType::Function { .. }));
             let is_trigger = matches!(&request.query_type, Some(SchemaQueryType::Trigger { .. }));
-            let result = engram
-                .query_schema_selected(
-                    request.clone(),
-                    generation,
-                    view.clone(),
-                )
-                .await
-                .map_err(|e| e.to_string())?;
-            let text = result
-                .content
-                .first()
-                .and_then(|part| part.as_text())
-                .ok_or_else(|| "Schema reader returned no text".to_string())?;
-            // Never turn a clipped/deferred schema into an apparent table fact.
-            super::super::search_tools::response_budget::bounded_message(
-                text.text.clone(),
-                Some(65536),
-            )
-            .map_err(|e| e.to_string())?;
-            let report: Value = serde_json::from_str(&text.text).map_err(|e| e.to_string())?;
+            let text = schema_results.recv().await
+                .ok_or_else(|| "Schema reader ended before returning all selected object results".to_string())?
+                .map_err(|error| error.to_string())?;
+            let report: Value = serde_json::from_str(&text).map_err(|e| e.to_string())?;
+            out.provider.examined = report["coverage"]["selected_sql_files"]
+                .as_u64()
+                .unwrap_or(0) as usize + report["coverage"]["selected_dbml_files"].as_u64().unwrap_or(0) as usize;
             let total = report["total_matches"].as_u64().unwrap_or(0) as usize;
             if discover_procedure && total == 0
                 && report["coverage"]["gaps"].as_array().is_some_and(|gaps| gaps.is_empty()) {
@@ -243,9 +238,6 @@ pub(super) async fn gather(
             }
             out.ambiguous |= total > 1;
             *out.provider.available.as_mut().unwrap() += total;
-            out.provider.examined += report["coverage"]["selected_sql_files"]
-                .as_u64()
-                .unwrap_or(0) as usize + report["coverage"]["selected_dbml_files"].as_u64().unwrap_or(0) as usize;
             out.provider.truncated |= !report["next_offset"].is_null();
             if report["coverage"]["gaps"]
                 .as_array()
@@ -364,6 +356,7 @@ pub(super) async fn gather(
         }
         Ok::<_, String>(())
     };
+    let work = async { tokio::try_join!(biased; read, retain).map(|_| ()) };
     match tokio::time::timeout(deadline, work).await {
         Ok(Ok(())) => {
             out.provider.status = if failed {

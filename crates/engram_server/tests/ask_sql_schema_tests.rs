@@ -113,6 +113,19 @@ async fn sql_question_preserves_complete_columns_and_withholds_changed_declarati
                 .contains("do not establish deployed state"))
     );
 
+    let compared = fixture.server.handle_ask_codebase(serde_json::from_value(json!({
+        "project_id":project,"question":"Compare the columns of the sales.Orders table and the archive.Orders table.",
+        "output_format":"json","max_tokens":1000000
+    }))?).await?;
+    let compared: Value = serde_json::from_str(&compared.content[0].as_text().unwrap().text)?;
+    let paths: std::collections::BTreeSet<_> = compared["evidence"].as_array().unwrap().iter()
+        .filter(|item| item["provider"] == "schema")
+        .filter_map(|item| item["path"].as_str()).collect();
+    ensure!(paths == ["Archive.sql", "Orders.sql"].into_iter().collect());
+    let provider = compared["providers"].as_array().unwrap().iter()
+        .find(|row| row["provider"] == "schema").expect("schema provider");
+    ensure!(provider["examined"] == 3, "two SQL files and one DBML file are examined once each");
+
     let described = fixture.server.handle_ask_codebase(serde_json::from_value(json!({
         "project_id":project,"question":"Describe sales.Orders","output_format":"json","max_tokens":1000000
     }))?).await?;
