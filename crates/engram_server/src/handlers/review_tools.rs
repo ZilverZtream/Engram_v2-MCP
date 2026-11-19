@@ -24,6 +24,22 @@ mod response_delivery;
 mod finding_context;
 mod maintenance_context;
 
+fn alternate_review_calls(
+    request: &PreCommitReviewRequest,
+    changes: &crate::services::pre_commit_review_service::WorkingTreeChanges,
+) -> Vec<serde_json::Value> {
+    [("staged", changes.staged), ("unstaged", changes.unstaged)]
+        .into_iter()
+        .filter(|(mode, available)| *available && *mode != request.diff.trim())
+        .map(|(mode, _)| {
+            let mut args = request.clone();
+            args.diff = mode.to_owned();
+            serde_json::json!({"tool":"pre_commit_review","arguments":args,
+                "reason":"Inspect this observed Git diff scope if it has not already been reviewed."})
+        })
+        .collect()
+}
+
 impl Engram {
     pub async fn handle_pre_commit_review(
         &self,
@@ -84,25 +100,17 @@ impl Engram {
         );
         let head_before = head_commit(&project_dir);
         let source_before = source_snapshot(&project_dir, &parsed);
+        let mode = req.diff.trim();
 
         if diff_text.trim().is_empty() {
-            let mode = req.diff.trim();
             let status = if matches!(mode, "staged" | "unstaged" | "head") {
-                crate::services::pre_commit_review_service::working_tree_changes(&project_dir)
+                crate::services::pre_commit_review_service::working_tree_changes(&project_dir, true)
             } else {
                 Ok(Default::default())
             };
             let status_available = status.is_ok();
             let changes = status.unwrap_or_default();
-            let review_next_calls: Vec<_> = [("staged", changes.staged), ("unstaged", changes.unstaged)]
-                .into_iter()
-                .filter(|(other, available)| *available && *other != mode)
-                .map(|(other, _)| {
-                    let mut args = req.clone();
-                    args.diff = other.to_owned();
-                    serde_json::json!({"tool":"pre_commit_review","arguments":args})
-                })
-                .collect();
+            let review_next_calls = alternate_review_calls(&req, &changes);
             let unexamined = changes.paths;
             let note = if !status_available {
                 "The requested diff is empty and Git status is unavailable. No gates ran. Check the intended worktree and diff before treating it as reviewed.".to_owned()
@@ -200,6 +208,27 @@ impl Engram {
         let elapsed_ms = start.elapsed().as_millis();
         let source_after = source_snapshot(&project_dir, &parsed);
         let head_after = head_commit(&project_dir);
+        let native_diff = matches!(mode, "staged" | "unstaged" | "head");
+        let alternate_changes = if native_diff {
+            let root = project_dir.clone();
+            tokio::task::spawn_blocking(move || {
+                crate::services::pre_commit_review_service::working_tree_changes(&root, false)
+            })
+            .await
+            .ok()
+            .and_then(Result::ok)
+        } else {
+            None
+        };
+        let review_next_calls = alternate_changes.as_ref()
+            .map(|changes| alternate_review_calls(&req, changes))
+            .unwrap_or_default();
+        let alternate_scope_status = match &alternate_changes {
+            None if native_diff => "git_status_unavailable",
+            None => "not_assessed_for_supplied_diff",
+            Some(_) if review_next_calls.is_empty() => "no_alternate_changes_observed",
+            Some(_) => "alternate_changes_observed_after_review",
+        };
         let changed_during_review = head_before != head_after || source_before != source_after;
         let snapshot_unavailable = source_after
             .iter()
@@ -221,6 +250,7 @@ impl Engram {
             "compilation":"not_run","test_execution":"not_run",
             "head_before":head_before,"head_after":head_after,
             "changed_during_review":changed_during_review,
+            "alternate_diff_scope_status":alternate_scope_status,
             "source_snapshot_complete":!snapshot_unavailable,
             "diff_blake3":blake3::hash(diff_text.as_bytes()).to_hex().to_string(),
             "source_before":source_before,"source_after":source_after,
@@ -245,6 +275,9 @@ impl Engram {
             findings.clone(), files_analysed, gates_run, elapsed_ms, &outcomes,
         )).map_err(|e| McpError::internal_error(e.to_string(), None))?;
         payload["coverage"] = coverage.clone();
+        if !review_next_calls.is_empty() {
+            payload["review_next_calls"] = serde_json::json!(review_next_calls);
+        }
         payload["project_policy_sources"] = serde_json::to_value(&project_policy_sources)
             .map_err(|error| McpError::internal_error(error.to_string(), None))?;
         payload["prior_review_context"] = prior_review_context.clone();
@@ -284,6 +317,9 @@ impl Engram {
                     0,
                     "SOURCE CHANGED DURING REVIEW: results are not a current-source clearance.\n\n",
                 );
+            }
+            if !review_next_calls.is_empty() {
+                report.push_str(&format!("\nGit status observed additional diff scopes after this review. Inspect them separately before relying on coverage for the whole worktree.\n\nreview_next_calls: {}\n", payload["review_next_calls"]));
             }
             if compact {
                 report.push_str(&format!(

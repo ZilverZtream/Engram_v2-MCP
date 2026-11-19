@@ -853,7 +853,7 @@ fn diff_to_patch_text(diff: &git2::Diff<'_>) -> anyhow::Result<String> {
     Ok(text)
 }
 
-/// Scope of changed files when the requested review diff was empty.
+/// Worktree diff scopes observed for review handoffs.
 #[derive(Default)]
 pub(crate) struct WorkingTreeChanges {
     pub paths: Vec<String>,
@@ -861,11 +861,11 @@ pub(crate) struct WorkingTreeChanges {
     pub unstaged: bool,
 }
 
-pub(crate) fn working_tree_changes(project_dir: &Path) -> anyhow::Result<WorkingTreeChanges> {
+pub(crate) fn working_tree_changes(project_dir: &Path, include_paths: bool) -> anyhow::Result<WorkingTreeChanges> {
     let repo = git2::Repository::discover(project_dir)?;
     let mut opts = git2::StatusOptions::new();
     opts.include_untracked(true)
-        .recurse_untracked_dirs(true)
+        .recurse_untracked_dirs(include_paths)
         .include_ignored(false);
     use git2::Status;
     let index_changes = Status::INDEX_NEW | Status::INDEX_MODIFIED | Status::INDEX_DELETED
@@ -878,7 +878,7 @@ pub(crate) fn working_tree_changes(project_dir: &Path) -> anyhow::Result<Working
         if status.is_ignored() {
             continue;
         }
-        if let Some(path) = entry.path() {
+        if include_paths && let Some(path) = entry.path() {
             changes.paths.push(path.replace('\\', "/"));
         }
         changes.staged |= status.intersects(index_changes);
