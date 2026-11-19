@@ -1294,6 +1294,10 @@
         "record": "eval/planning-contract-batch-delivery-20261119.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
+      },
+      "roadmap_status_reconciliation_20261119": {
+        "record": "eval/roadmap-installed-status-delivery-20261119.json",
+        "full_original_requirement_complete": false
       }
     },
     {

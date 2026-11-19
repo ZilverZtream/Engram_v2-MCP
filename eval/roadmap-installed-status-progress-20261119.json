@@ -1,0 +1,23 @@
+{
+  "status": "DOCUMENTATION_CORRECTED_NO_RUNTIME_CHANGE",
+  "at_utc": "2026-11-19T01:28:26.789895+00:00",
+  "original_requirement_id": "EG-26",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\roadmap-installed-status-20261119",
+  "source_files": [
+    "docs/ROADMAP.md"
+  ],
+  "observed_missing_behavior": "The active audit ledger still labels installed EG14-18/20-23/27/28/31 outcomes as local/unreleased and lists the Core32historical count as current. Actual dated installed/closure receipts contradict those status claims.",
+  "acceptance": [
+    "Affected ledger rows link exact retained delivery or original-requirement closure records and preserve independent remaining limits.",
+    "No pending cutoff/VB override work is described as installed; no full31finding/19gate or productivity closure.",
+    "Affected relative links resolve; prior historical measurements/held investigations and current runtime/config/protected WIP remain unchanged."
+  ],
+  "runtime_change": false,
+  "builds_required": 0,
+  "source_outcomes_added_to_compile_queue": 0,
+  "baseline_document_sha256": "4db550cd72d4d38dbe135d2307b70dcc5af25d19fce7c8ebe60f48b1d8354e58",
+  "temporary_resources": "Only the saved document and correction evidence in this recorded directory. No fixtures, providers, new worktrees or preexisting deletion.",
+  "delivery_record": "eval/roadmap-installed-status-delivery-20261119.json",
+  "implementation_items_active": 0,
+  "next_action": "Finite documentation correction delivered; original broader EG26 and pending native batch remain open."
+}
