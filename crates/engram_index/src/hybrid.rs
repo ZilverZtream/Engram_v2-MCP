@@ -286,6 +286,25 @@ impl IngestStats {
 #[error("{0}")]
 struct EmbeddingProviderFailure(#[source] anyhow::Error);
 
+/// Ordinary history paths select the file portion of a diff document key.
+/// Keep explicitly supplied index keys usable for existing callers.
+fn history_file_prefix<'a>(namespace: &str, prefix: &'a str) -> Option<&'a str> {
+    (namespace == "history"
+        && !["diff:", "commit:", "pr:"].iter().any(|&key| prefix.starts_with(key)))
+    .then_some(prefix)
+}
+
+fn path_prefix_regex(namespace: &str, prefix: &str) -> String {
+    if let Some(file) = history_file_prefix(namespace, prefix) {
+        format!(
+            "diff:[0-9a-f]{{40}}:{}.*",
+            regex::escape(&file.replace('\\', "/"))
+        )
+    } else {
+        format!("{}.*", regex::escape(prefix))
+    }
+}
+
 /// Escape SQL LIKE wildcards (`%`, `_`) and single quotes in a string
 /// so it can be safely used in a `LIKE '...' ESCAPE '\'` clause.
 #[cfg(feature = "vector")]
@@ -301,6 +320,19 @@ fn escape_like(s: &str) -> String {
         }
     }
     out
+}
+
+#[cfg(feature = "vector")]
+fn path_prefix_like(namespace: &str, prefix: &str) -> String {
+    if let Some(file) = history_file_prefix(namespace, prefix) {
+        format!(
+            "diff:{}:{}%",
+            "_".repeat(40),
+            escape_like(&file.replace('\\', "/"))
+        )
+    } else {
+        format!("{}%", escape_like(prefix))
+    }
 }
 
 /// How long a writer-acquiring operation waits for a busy Tantivy lock
@@ -3561,7 +3593,7 @@ impl HybridSearchEngine {
             let mut prefix_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
             for p in prefixes {
                 if let Ok(rq) = tantivy::query::RegexQuery::from_pattern(
-                    &format!("{}.*", regex::escape(p)),
+                    &path_prefix_regex(&q.namespace, p),
                     self.fields.path,
                 ) {
                     prefix_queries.push((Occur::Should, Box::new(rq)));
@@ -3575,7 +3607,7 @@ impl HybridSearchEngine {
         if let Some(prefixes) = &q.exclude_path_prefixes {
             for p in prefixes {
                 if let Ok(rq) = tantivy::query::RegexQuery::from_pattern(
-                    &format!("{}.*", regex::escape(p)),
+                    &path_prefix_regex(&q.namespace, p),
                     self.fields.path,
                 ) {
                     must_clauses.push((Occur::MustNot, Box::new(rq)));
@@ -3920,7 +3952,7 @@ impl HybridSearchEngine {
             let mut prefix_queries: Vec<(Occur, Box<dyn tantivy::query::Query>)> = Vec::new();
             for p in prefixes {
                 if let Ok(rq) = tantivy::query::RegexQuery::from_pattern(
-                    &format!("{}.*", regex::escape(p)),
+                    &path_prefix_regex(&q.namespace, p),
                     self.fields.path,
                 ) {
                     prefix_queries.push((Occur::Should, Box::new(rq)));
@@ -4564,16 +4596,16 @@ impl HybridSearchEngine {
                         if i > 0 {
                             wc.push_str(" OR ");
                         }
-                        let safe_p = escape_like(p);
-                        let _ = write!(wc, "path LIKE '{}%' ESCAPE '\\'", safe_p);
+                        let pattern = path_prefix_like(&q.namespace, p);
+                        let _ = write!(wc, "path LIKE '{pattern}' ESCAPE '\\'");
                     }
                     wc.push(')');
                 }
 
                 if let Some(prefixes) = &q.exclude_path_prefixes {
                     for p in prefixes {
-                        let safe_p = escape_like(p);
-                        let _ = write!(wc, " AND path NOT LIKE '{}%' ESCAPE '\\'", safe_p);
+                        let pattern = path_prefix_like(&q.namespace, p);
+                        let _ = write!(wc, " AND path NOT LIKE '{pattern}' ESCAPE '\\'");
                     }
                 }
 

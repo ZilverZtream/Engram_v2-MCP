@@ -2249,8 +2249,14 @@ pub struct SearchHistoryRequest {
     /// optional LLM reranking can change ordering; this is not a snapshot cursor.
     #[serde(default)]
     pub offset: usize,
+    /// Repository-relative path prefix for text-mode diff evidence or precedent
+    /// changes. In text mode an inclusion selects diff documents, so commit
+    /// message and PR documents are not eligible as independent matches.
+    /// In patch mode this is one exact repository-relative file path.
     #[serde(default)]
     pub file_filter: Option<String>,
+    /// Repository-relative prefixes. In text mode only matching diff documents
+    /// are excluded. A commit can still match through an unexcluded document.
     #[serde(default)]
     pub exclude_paths: Option<Vec<String>>,
     /// Exact commit author name.
