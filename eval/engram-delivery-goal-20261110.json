@@ -2819,11 +2819,15 @@
     {
       "original_requirement_id": "EG-24",
       "source_commit": "93450b5fc5fa9bb8fe0a7063585c5fcafc77157a",
-      "status": "SOURCE_IMPLEMENTED_RUNTIME_VALIDATION_PENDING",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "observed_gap": "An as_of_rev-only change-set request could force Git evidence into the past while automatically retrieving the current Azure DevOps work item. The existing date cutoff already disabled that fetch.",
       "user_outcome": "Both revision and date cutoffs require recorded work_item_text for an ID-targeted story and give an explicit intake error when it is missing. Supplied text and normal live intake retain their existing paths.",
-      "finite_acceptance": "Cover both historical cutoffs, live intake and supplied work-item text in the existing focused predicate case. On an owned local Git fixture, verify revision-only missing-text intake identifies the historical requirement, and the same revision with recorded text generates a dossier containing that exact text. Use no live Azure DevOps credentials or data for acceptance.",
-      "verification": "Rust source parsed and the changed files passed git diff --check. This commit is outside the frozen history/schema/review candidate and has not been built. It does not finish regular evaluation or establish a leakage-free source/index fixture by itself."
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-work-item-intake-20261119\\contract.json",
+      "public_assertions_expected": 4,
+      "source_outcomes": 1,
+      "native_unit_cases_expected": 0,
+      "current_release_excludes_this_item": true,
+      "verification": "Installed baseline confirms the old revision-only refusal directs callers to live credentials and that a supplied recorded task survives dossier generation. The owned public fixture uses no Azure DevOps remote or coordinates. Candidate verification must confirm the new diagnostic, preserved date-cutoff refusal and exact recorded text. The source guard and focused predicate case cover the fetch decision itself. This change does not finish regular evaluation."
     }
   ],
   "method_schema_area_batch_delivery": {
