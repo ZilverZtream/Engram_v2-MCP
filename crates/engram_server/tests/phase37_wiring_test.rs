@@ -545,6 +545,7 @@ async fn w3_list_triggers_all() {
 
     let result = engram
         .list_triggers(Parameters(engram_server::ListTriggersRequest {
+            sql_file_path: None,
             project_id: pid.clone(),
             table_name: None,
             output_json: false,
@@ -571,6 +572,7 @@ async fn w3_list_triggers_filtered_by_table() {
 
     let result = engram
         .list_triggers(Parameters(engram_server::ListTriggersRequest {
+            sql_file_path: None,
             project_id: pid.clone(),
             table_name: Some("Orders".into()),
             output_json: false,
@@ -601,6 +603,7 @@ async fn w3_list_triggers_json() {
 
     let result = engram
         .list_triggers(Parameters(engram_server::ListTriggersRequest {
+            sql_file_path: None,
             project_id: pid.clone(),
             table_name: None,
             output_json: true,
@@ -621,6 +624,7 @@ async fn w3_list_triggers_no_match() {
 
     let result = engram
         .list_triggers(Parameters(engram_server::ListTriggersRequest {
+            sql_file_path: None,
             project_id: pid.clone(),
             table_name: Some("NonExistentTable".into()),
             output_json: false,

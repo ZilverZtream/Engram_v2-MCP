@@ -2518,30 +2518,10 @@ impl Engram {
         let table_filter = req.table_name.clone();
         let output_json = req.output_json;
 
-        // Discover SQL files
-        let sql_paths =
-            discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 2000).await;
-
-        let sql_files: Vec<(String, String)> = sql_paths
-            .into_iter()
-            .filter_map(|rel| {
-                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                match std::fs::read_to_string(&full) {
-                    Ok(c) => Some((rel, c)),
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-                    Err(e) => {
-                        tracing::warn!(
-                            "ENG-AUD-2026-S10-0003: failed to read SQL file {:?}: {}",
-                            full,
-                            e
-                        );
-                        None
-                    }
-                }
-            })
-            .collect();
-
-        if sql_files.is_empty() {
+        let sql_sources = migration_sql_sources::load(
+            &project_dir, req.sql_file_path.as_deref(), &self.state.memory_budget,
+        ).await?;
+        if sql_sources.files.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
                 "No .sql files found in project.",
             )]));
@@ -2550,7 +2530,7 @@ impl Engram {
         let result = tokio::task::spawn_blocking(move || {
             use crate::services::database_intelligence_service as dbi;
 
-            let mut triggers = dbi::detect_triggers(&sql_files);
+            let mut triggers = dbi::detect_triggers(sql_sources.as_slice());
 
             if let Some(ref table) = table_filter {
                 dbi::filter_triggers_by_table(&mut triggers, table);
@@ -2602,7 +2582,12 @@ impl Engram {
         }
 
         let mut out = format!("# Database Triggers ({})\n\n", triggers.len());
-        out.push_str("Declarations found in project SQL. Database deployment, enablement and execution remain unverified.\n\n");
+        if let Some(path) = &req.sql_file_path {
+            out.push_str(&format!("Declarations found in SQL source file `{path}`. "));
+        } else {
+            out.push_str("Declarations found in the bounded project SQL scan. ");
+        }
+        out.push_str("Database deployment, enablement and execution remain unverified.\n\n");
         out.push_str("| Trigger | Table | Event | Type | Body Summary | Source |\n");
         out.push_str("|---------|-------|-------|------|--------------|--------|\n");
         for t in &triggers {

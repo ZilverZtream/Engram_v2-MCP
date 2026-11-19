@@ -1521,7 +1521,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "List source-declared SQL triggers with their tables, events and source locations. Filter by a table basename or exact schema-qualified name. Indexed table references in Markdown are leads; trigger execution and deployment are unverified."
+        description = "List source-declared SQL triggers with their tables, events and source locations. Filter by a table basename or exact schema-qualified name. Use sql_file_path to inspect just one source file. Indexed table references in Markdown are leads; trigger execution and deployment are unverified."
     )]
     pub async fn list_triggers(
         &self,
