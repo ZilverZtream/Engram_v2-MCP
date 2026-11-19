@@ -3230,6 +3230,19 @@
       "native_unit_cases_expected": 0,
       "current_release_excludes_this_item": true,
       "verification": "Source syntax and whitespace checks passed. Reuse exact existing public mixed results and restart verifier after this source change. No measured latency or peak-memory result is claimed."
+    },
+    {
+      "original_requirement_id": "TODO-38",
+      "source_commit": "b656ff3957c923891abf0bf14fabe6a710c6bd4d",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "observed_gap": "A Windows proxy on the verified cumulative candidate remains alive after the daemon pipe closes when the MCP host keeps stdin open. The proxy's blocking Tokio stdin worker prevents runtime teardown.",
+      "user_outcome": "Windows proxy stdio remains byte-transparent. A bounded detached input reader allows the proxy to exit on daemon disconnect and writes a reconnect diagnostic to stderr.",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-proxy-eof-20261119\\contract.json",
+      "public_assertions_expected": 3,
+      "source_outcomes": 1,
+      "native_unit_cases_expected": 0,
+      "current_release_excludes_this_item": true,
+      "verification": "Reproduced the hanging proxy and successful initialization with an isolated daemon and fixture client. Only owned processes were stopped. Source syntax and whitespace checks passed; runtime validation of the fix remains pending. The change does not reconnect already-closed MCP sessions or change the active package."
     }
   ],
   "browser_json_history_batch_delivery": {
