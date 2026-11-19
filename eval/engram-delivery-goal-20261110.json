@@ -2829,20 +2829,11 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SOURCE_OUTCOMES_QUEUED_FOR_LATER_COMBINED_VALIDATION",
+    "status": "OPTIMIZED_BUILD_RUNNING",
     "implementation_items_active": 0,
-    "original_requirement": "TODO-59 remaining SQL report identity correctness: reuse shared parsing while preserving source identities across database analysis tools.",
-    "observed_gap": "get_sp_details selects the first basename match and refuses a qualified lookup. A procedure with the same name in a different schema can produce the wrong parameter and body report.",
-    "implementation_files": [
-      "crates/engram_index/src/sp_extractor.rs",
-      "crates/engram_server/src/services/database_intelligence_service.rs",
-      "crates/engram_server/src/handlers/migration_tools.rs"
-    ],
-    "acceptance": "Qualified and file-scoped calls select exact source and parameters; unqualified collisions list candidate source locations; existing code/SQL caller leads disclose basename-only binding.",
-    "full_original_goal_complete": false,
-    "record": "eval/procedure-qualified-details-progress-20261119.json",
-    "pending_source_outcomes": 3,
-    "next_action": "Prepare combined validation of the ready freshness, integrity and SQL identity outcomes with the restored release settings. Preserve additional original backlog and held findings."
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-recovery-procedure-batch-20261119",
+    "next_action": "Observe owned build session 7673 and release observer 9602. The frozen plan contains 14 checks per artifact and 7 candidate checks for integrity recovery. Record passing installed proof and normal runtime restoration before advancing.",
+    "full_original_goal_complete": false
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3038,20 +3029,20 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "INSTALLED_ACCEPTANCE_AND_NORMAL_RESTORATION_COMPLETE",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119",
-    "source_commit": "a3cb19412943a646ba907849d5fc53718231c4a3",
-    "build_session": 48350,
-    "observer_session": 76301,
+    "status": "OPTIMIZED_BUILD_RUNNING",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-recovery-procedure-batch-20261119",
+    "source_commit": "390ae4b53e4150c819dd9faa3307b0b0efb2b4a4",
+    "build_session": 7673,
+    "observer_session": 9602,
     "driver": {
       "role": "driver_pid",
-      "pid": 78332,
-      "created": 1795073731.7435465,
+      "pid": 47640,
+      "created": 1795077686.440804,
       "command": [
         "C:\\Python314\\python.exe",
         "-B",
         "-u",
-        "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\build.py",
+        "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-recovery-procedure-batch-20261119\\build.py",
         "--label",
         "release1",
         "--",
@@ -3067,25 +3058,21 @@
       ]
     },
     "observer": {
-      "pid": 56300,
-      "created": 1795076749.6394029,
+      "pid": 60384,
+      "created": 1795077705.9195468,
       "command": [
         "C:\\Python314\\python.exe",
         "-B",
         "-u",
-        "after-release3.py"
+        "after-release1.py"
       ],
-      "session": 76301
+      "session": 9602
     },
     "optimized_builds": 1,
     "unit_debug_or_full_suites": 0,
-    "checks_per_artifact": 17,
-    "additional_candidate_profile_checks": 17,
-    "profile_compiler_observation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\profile-compiler-observation1.json",
-    "preflight": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\release-helper-preflight1.json",
-    "full_original_goal_complete": false,
-    "recovery": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-integrity-batch-20261119\\acceptance-harness-correction1.json",
-    "record": "eval/webforms-integrity-batch-delivery-20261119.json"
+    "checks_per_artifact": 14,
+    "additional_candidate_integrity_checks": 7,
+    "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
@@ -4207,8 +4194,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T08:39:29.097643+00:00",
-    "reason": "Implemented exact qualified source selection for procedure details after reproducing ambiguous first-match behavior over MCP."
+    "at_utc": "2026-11-19T08:42:35.595766+00:00",
+    "reason": "Froze and started the combined freshness, integrity and qualified SQL procedure release with verified packaging inputs and one optimized Cargo build."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
