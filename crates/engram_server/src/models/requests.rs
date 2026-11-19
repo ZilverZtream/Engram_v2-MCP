@@ -666,7 +666,8 @@ pub struct GetIndexFreshnessRequest {
     /// Compare disk files against indexed metadata using the incremental
     /// change detector, including additions and deletions. Default true.
     /// Unchanged metadata is not exhaustive content verification. When false,
-    /// disk freshness is explicitly unknown even if generation coverage passes.
+    /// disk freshness is explicitly unknown. Generation coverage is checked
+    /// against published source membership when it is available.
     #[serde(default = "default_true")]
     pub check_disk: bool,
     /// Optional immutable Git revision expected by a historical replay or

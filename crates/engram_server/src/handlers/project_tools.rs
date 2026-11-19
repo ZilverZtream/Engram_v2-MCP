@@ -2947,7 +2947,7 @@ async fn generation_completeness_with_graph_observation(
     pid: &str,
     generation: u64,
     graph_observation: Option<&project_service::SourceFileMetadataObservation>,
-    observed_disk_paths: Option<&[engram_core::RelPath]>,
+    expected_paths: Option<std::collections::BTreeSet<String>>,
 ) -> anyhow::Result<GenerationCompleteness> {
     use std::collections::BTreeSet;
     // External audit round 2 (docs/audits/10) P0-2: chunks and files are
@@ -2971,8 +2971,8 @@ async fn generation_completeness_with_graph_observation(
         }
     };
 
-    let expected: BTreeSet<String> = if let Some(paths) = observed_disk_paths {
-        paths.iter().map(|path| completeness_path(path.as_str())).collect()
+    let expected: BTreeSet<String> = if let Some(paths) = expected_paths {
+        paths
     } else {
         let reg = state.registry.clone();
         let pid_r = pid.to_string();
@@ -3443,7 +3443,7 @@ impl Engram {
         let pid = req.project_id.clone();
         let rec = self.ensure_project_record(&pid).await?;
         let ps = self.ensure_project_runtime(&pid).await?;
-        let (generation, _source_view) = self.pin_active_source_generation(&pid, &ps.search).await?;
+        let (generation, source_view) = self.pin_active_source_generation(&pid, &ps.search).await?;
         #[cfg(test)]
         crate::handlers::search_tools::selected_source_tests::after_selection(&pid).await;
 
@@ -3644,12 +3644,24 @@ impl Engram {
         // External audit 2026-08-29 P0-2: timestamps and modified files say
         // nothing about whether the published generation still HOLDS the
         // corpus. Completeness is checked here and outranks every other advice.
-        if observed_disk_paths.is_some() {
-            out.push_str("generation_completeness_disk_basis: shared_disk_check_inventory\n");
-        }
-        let completeness = generation_completeness_with_graph_observation(
-            &self.state, &pid, generation, Some(&graph_observation), observed_disk_paths.as_deref(),
-        ).await;
+        let expected_paths = if req.check_disk {
+            observed_disk_paths.map(|paths| {
+                out.push_str("generation_completeness_disk_basis: shared_disk_check_inventory\n");
+                paths.iter().map(|path| completeness_path(path.as_str())).collect()
+            })
+        } else {
+            source_view.selected_file_revisions().map(|selected| {
+                out.push_str("generation_completeness_basis: published_source_selection; current disk coverage unknown\n");
+                selected.keys().map(|path| completeness_path(path)).collect()
+            })
+        };
+        let completeness = if !req.check_disk && expected_paths.is_none() {
+            Err(anyhow::anyhow!("published source selection unavailable and disk comparison was not requested"))
+        } else {
+            generation_completeness_with_graph_observation(
+                &self.state, &pid, generation, Some(&graph_observation), expected_paths,
+            ).await
+        };
         let completeness_unknown = match &completeness {
             Ok(c) => c.degraded,
             Err(_) => true,
@@ -3679,7 +3691,7 @@ impl Engram {
                 false
             }
         };
-        let unindexed_only = matches!(&completeness, Ok(c) if c.only_unindexed());
+        let unindexed_only = req.check_disk && matches!(&completeness, Ok(c) if c.only_unindexed());
         let advice = if source_binding_invalid {
             "source revision binding FAILED — do not trust indexed source; restore the expected clean Git worktree and run update_project"
         } else if source_binding_unknown {
