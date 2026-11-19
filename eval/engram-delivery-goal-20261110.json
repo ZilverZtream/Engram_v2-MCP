@@ -3216,6 +3216,20 @@
       "native_unit_cases_expected": 0,
       "current_release_excludes_this_item": true,
       "verification": "The packaged cumulative candidate reproduced the missing disclosure. The owned Git fixture independently distinguishes the staged VB text, unstaged revision of the same file and another unstaged file. Source syntax and whitespace checks passed. Runtime verification of the new disclosure remains pending."
+    },
+    {
+      "original_requirement_id": "TODO-4",
+      "related_requirement_id": "S14",
+      "source_commit": "12dda5692732f26cef44569d42f1fe1d21c7558d",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "observed_gap": "Batch budgeting deep-clones each serialized underlying result before finding out whether it fits, retaining two in-memory values for every included read.",
+      "user_outcome": "Batch delivery owns each full result once and borrows it when rendering the bounded reply and exact saved original. Existing byte accounting, independent errors, refresh actions and recovery identity remain part of acceptance.",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-read-result-ownership-20261119\\contract.json",
+      "public_assertions_expected": 12,
+      "source_outcomes": 1,
+      "native_unit_cases_expected": 0,
+      "current_release_excludes_this_item": true,
+      "verification": "Source syntax and whitespace checks passed. Reuse exact existing public mixed results and restart verifier after this source change. No measured latency or peak-memory result is claimed."
     }
   ],
   "browser_json_history_batch_delivery": {
