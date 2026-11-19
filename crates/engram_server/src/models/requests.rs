@@ -75,6 +75,9 @@ pub enum SchemaQueryType {
     /// Complete source-declared SQL function, including its declared signature
     /// and body. This does not establish return types or database execution.
     Function { name: String },
+    /// Source-declared SQL trigger by name. Scope, timing and events are
+    /// declaration evidence. Deployment and activation are unverified.
+    Trigger { name: String },
     Column { table: String, column: String },
     TablesThatReferenceForeignKey { table: String, column: String },
     /// Case-insensitive literal substring, not SQL LIKE or a regular expression.

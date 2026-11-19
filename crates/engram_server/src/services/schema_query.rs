@@ -659,6 +659,7 @@ impl Catalog {
             StoredProc{sp_name} => {let key=input_name(sp_name)?;self.objects.iter().filter(|o|o.kind=="stored_proc" && o.key.lookup(&key)).map(|o|json!(o)).collect()},
             View{name} => {let key=input_name(name)?;self.objects.iter().filter(|o|o.kind=="view" && o.key.lookup(&key)).map(|o|json!(o)).collect()},
             Function{name} => {let key=input_name(name)?;self.objects.iter().filter(|o|o.kind=="function" && o.key.lookup(&key)).map(|o|json!(o)).collect()},
+            Trigger{name} => {let key=input_name(name)?;self.objects.iter().filter(|o|o.kind=="trigger" && o.key.lookup(&key)).map(|o|json!(o)).collect()},
             _ => {
                 let t=selected.expect("table queries resolved above");
                 match q {
@@ -688,7 +689,7 @@ impl Catalog {
         let limit = request.limit.unwrap_or(25);
         let results: Vec<_> = rows.into_iter().skip(offset).take(limit).collect();
         let next = (offset.saturating_add(results.len()) < total).then_some(offset + results.len());
-        let status = if matches!(q, StoredProc { .. } | View { .. } | Function { .. }) && total > 1 {
+        let status = if matches!(q, StoredProc { .. } | View { .. } | Function { .. } | Trigger { .. }) && total > 1 {
             "ambiguous"
         } else if total == 0 {
             "not_found"
@@ -720,7 +721,7 @@ pub fn validate(request: &QuerySchemaRequest) -> anyhow::Result<()> {
     let query = request.query_type.as_ref().ok_or_else(||
         anyhow::anyhow!("query_type is required for a fresh schema query"))?;
     let names: Vec<&str> = match query {
-        Table { name } | View { name } | Function { name } => vec![name],
+        Table { name } | View { name } | Function { name } | Trigger { name } => vec![name],
         Column { table, column } | TablesThatReferenceForeignKey { table, column } => {
             anyhow::ensure!(
                 input_name(column)?.0.len() == 1,

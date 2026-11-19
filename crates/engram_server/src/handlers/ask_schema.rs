@@ -1,7 +1,11 @@
-//! Complete source-declared table/procedure evidence for the SQL question path.
-use std::{sync::Arc, time::Duration};
+//! Complete source-declared object evidence for the SQL question path.
+use std::{
+    sync::{Arc, LazyLock},
+    time::Duration,
+};
 
 use engram_index::SourceSnapshotGuard;
+use regex::Regex;
 use serde_json::{Value, json};
 
 use crate::{
@@ -89,6 +93,24 @@ fn table_facts(row: &Value, report: &Value, project: &str, schema_available: boo
     facts
 }
 
+// Dotted SQL names can be classified as filenames by the general planner.
+// Read the authored name from the explicit SQL trigger question instead.
+static TRIGGER_NAME: LazyLock<Regex> = LazyLock::new(|| Regex::new(
+    r#"(?i)\bsql\s+trigger\s+["`']?((?:\[(?:[^\]\r\n]|\]\])+\]|[a-z_][a-z0-9_$#@]*)(?:\s*\.\s*(?:\[(?:[^\]\r\n]|\]\])+\]|[a-z_][a-z0-9_$#@]*)){0,3})"#,
+).expect("named SQL trigger syntax"));
+
+fn schema_request(project: &str, kind: SchemaQueryType) -> QuerySchemaRequest {
+    QuerySchemaRequest {
+        project_id: project.into(),
+        query_type: Some(kind),
+        offset: Some(0),
+        limit: Some(100),
+        max_tokens: Some(65536),
+        response_id: None,
+        response_offset: 0,
+    }
+}
+
 pub(super) async fn gather(
     engram: &Engram,
     project_id: &str,
@@ -118,46 +140,51 @@ pub(super) async fn gather(
         && words.iter().any(|word| word == "view" || word == "views");
     let function_question = words.iter().any(|word| word == "sql")
         && words.iter().any(|word| word == "function" || word == "functions");
+    let trigger_name = (plan.contract.entity_type != ContractEntityType::Table)
+        .then(|| TRIGGER_NAME.captures(question))
+        .flatten()
+        .and_then(|matched| matched.get(1))
+        .map(|name| name.as_str());
     let mut requests = Vec::new();
-    for entity in &plan.entities {
+    if let Some(name) = trigger_name {
+        let request = schema_request(project_id, SchemaQueryType::Trigger { name: name.into() });
+        if schema_query::validate(&request).is_ok() {
+            requests.push((request, true));
+        }
+    }
+    for entity in plan.entities.iter().filter(|_| trigger_name.is_none()) {
         // Classification selects an existing reader, never proves binding.
         // That reader independently admits selected/current SQL source hashes.
         let is_function = function_question && entity.guessed_kind != EntityKind::File;
         let is_view = !is_function && view_question && entity.guessed_kind != EntityKind::File;
-        if (is_view || is_function) && matches!(entity.text.to_ascii_lowercase().as_str(), "sql" | "view" | "views" | "function" | "functions") {
+        let explicit_object = is_view || is_function;
+        if explicit_object && matches!(entity.text.to_ascii_lowercase().as_str(), "sql" | "view" | "views" | "function" | "functions") {
             continue;
         }
-        let discover_procedure = !is_function && !is_view && entity.guessed_kind == EntityKind::Symbol && entity.resolved.is_empty();
-        let is_procedure = !is_function && !is_view && (discover_procedure || entity.resolved.iter().filter_map(|resolved| resolved.node_id.as_deref())
+        let discover_procedure = !explicit_object && entity.guessed_kind == EntityKind::Symbol && entity.resolved.is_empty();
+        let is_procedure = !explicit_object && (discover_procedure || entity.resolved.iter().filter_map(|resolved| resolved.node_id.as_deref())
             .any(|id| engram.state.graph.get_node(project_id, id).is_ok_and(|node| node.is_some_and(|node|
                 matches!(node.node_type.as_str(), "stored_proc" | "stored_procedure") && node.file_path.as_str().to_ascii_lowercase().ends_with(".sql")))));
         let is_table = entity.resolved.iter().any(|r| r.kind == EntityKind::Table)
             || entity.guessed_kind == EntityKind::Table
             || (plan.contract.entity_type == ContractEntityType::Table
                 && entity.guessed_kind != EntityKind::File);
-        if (!is_table && !is_procedure && !is_view && !is_function) || requests.iter().any(|(r, _): &(QuerySchemaRequest, bool)| {
+        if (!is_table && !is_procedure && !explicit_object) || requests.iter().any(|(r, _): &(QuerySchemaRequest, bool)| {
             matches!(&r.query_type, Some(SchemaQueryType::Function { name }) if is_function && name == &entity.text)
                 || matches!(&r.query_type, Some(SchemaQueryType::View { name }) if is_view && name == &entity.text)
-                || matches!(&r.query_type, Some(SchemaQueryType::Table { name }) if !is_procedure && !is_view && !is_function && name == &entity.text)
+                || matches!(&r.query_type, Some(SchemaQueryType::Table { name }) if !is_procedure && !explicit_object && name == &entity.text)
                 || matches!(&r.query_type, Some(SchemaQueryType::StoredProc { sp_name }) if is_procedure && sp_name == &entity.text)
         }) {
             continue;
         }
-        let request = QuerySchemaRequest {
-            project_id: project_id.into(),
-            // Preserve qualification from the question, never a basename graph identity.
-            query_type: Some(if is_function { SchemaQueryType::Function { name: entity.text.clone() } }
+        // Preserve qualification from the question, never a basename graph identity.
+        let request = schema_request(project_id,
+            if is_function { SchemaQueryType::Function { name: entity.text.clone() } }
                 else if is_view { SchemaQueryType::View { name: entity.text.clone() } }
                 else if is_procedure { SchemaQueryType::StoredProc { sp_name: entity.text.clone() } }
-                else { SchemaQueryType::Table { name: entity.text.clone() } }),
-            offset: Some(0),
-            limit: Some(100),
-            max_tokens: Some(65536),
-            response_id: None,
-            response_offset: 0,
-        };
+                else { SchemaQueryType::Table { name: entity.text.clone() } });
         if schema_query::validate(&request).is_ok() {
-            requests.push((request, discover_procedure || is_view || is_function));
+            requests.push((request, discover_procedure || explicit_object));
         }
     }
     if requests.is_empty() {
@@ -178,7 +205,7 @@ pub(super) async fn gather(
             proof: None,
         },
     };
-    let mut notes = vec!["Source declarations only; no live database, default-schema or collation binding. At most3 named-table/procedure/view/function lookups; examined counts source-file examinations across lookups.".to_string()];
+    let mut notes = vec!["Source declarations only; no live database, default-schema or collation binding. At most three named SQL object lookups; examined counts source-file examinations across lookups.".to_string()];
     let mut failed = false;
     let work = async {
         let view =
@@ -187,6 +214,7 @@ pub(super) async fn gather(
             let is_procedure = matches!(&request.query_type, Some(SchemaQueryType::StoredProc { .. }));
             let is_view = matches!(&request.query_type, Some(SchemaQueryType::View { .. }));
             let is_function = matches!(&request.query_type, Some(SchemaQueryType::Function { .. }));
+            let is_trigger = matches!(&request.query_type, Some(SchemaQueryType::Trigger { .. }));
             let result = engram
                 .query_schema_selected(
                     request.clone(),
@@ -239,14 +267,14 @@ pub(super) async fn gather(
                 match &request.query_type {
                     Some(SchemaQueryType::StoredProc { sp_name }) => out.matched_names.push(sp_name.clone()),
                     Some(SchemaQueryType::Table { name }) => out.matched_names.push(name.clone()),
-                    Some(SchemaQueryType::View { name }) => out.matched_names.push(name.clone()),
-                    Some(SchemaQueryType::Function { name }) => out.matched_names.push(name.clone()),
+                    Some(SchemaQueryType::View { name } | SchemaQueryType::Function { name }
+                        | SchemaQueryType::Trigger { name }) => out.matched_names.push(name.clone()),
                     _ => {},
                 }
             }
             for row in report["results"].as_array().into_iter().flatten() {
                 let ambiguous = report["status"] == "ambiguous";
-                let table = if ambiguous || is_procedure || is_view || is_function { row } else { &row["table"] };
+                let table = if ambiguous || is_procedure || is_view || is_function || is_trigger { row } else { &row["table"] };
                 let citation = &table["citation"];
                 let path = citation["path"]
                     .as_str()
@@ -272,19 +300,22 @@ pub(super) async fn gather(
                         Some(SchemaQueryType::StoredProc { sp_name }) => format!("Source procedure {sp_name}: {}", table["name"]),
                         Some(SchemaQueryType::View { name }) => format!("Source view {name}: {}", table["name"]),
                         Some(SchemaQueryType::Function { name }) => format!("Source SQL function {name}: {}", table["name"]),
+                        Some(SchemaQueryType::Trigger { name }) => format!("Source SQL trigger {name}: {}", table["name"]),
                         _ if table["source_kind"] == "dbml_mapping" => format!("Source DBML table mapping {}", table["name"]),
                         _ => format!("Source table {}", table["name"]),
                     }),
                     content: if ambiguous {
                         let recovery = if crate::tool_surface::includes(engram.state.cfg.effective_tool_preset(), "query_schema") {
                             json!({"tool":"query_schema","arguments":{"project_id":project_id,
-                                "query_type":if is_function {json!({"kind":"function","name":row["name"]})}
+                                "query_type":if is_trigger {json!({"kind":"trigger","name":row["name"]})}
+                                    else if is_function {json!({"kind":"function","name":row["name"]})}
                                     else if is_view {json!({"kind":"view","name":row["name"]})}
                                     else if is_procedure {json!({"kind":"stored_proc","sp_name":row["name"]})}
                                     else {json!({"kind":"table","name":row["name"]})}}})
                         } else {
                             json!({"tool":"ask_codebase","arguments":{"project_id":project_id,
-                                "question":if is_function {format!("Describe SQL function \"{}\"",row["name"].as_str().unwrap_or_default())}
+                                "question":if is_trigger {format!("Describe SQL trigger \"{}\"",row["name"].as_str().unwrap_or_default())}
+                                    else if is_function {format!("Describe SQL function \"{}\"",row["name"].as_str().unwrap_or_default())}
                                     else if is_view {format!("Describe SQL view \"{}\"",row["name"].as_str().unwrap_or_default())}
                                     else if is_procedure {format!("Describe the stored procedure \"{}\"",row["name"].as_str().unwrap_or_default())}
                                     else {format!("What are the columns of the \"{}\" table?",row["name"].as_str().unwrap_or_default())},
@@ -294,6 +325,8 @@ pub(super) async fn gather(
                         "source_coverage":report["coverage"],
                         "clarification":"Choose a qualified source name; duplicate declarations may still require source inspection. No default schema or deployment binding is inferred.",
                         "recovery":recovery}).to_string()
+                    } else if is_trigger { json!({"trigger":table,"source_coverage":report["coverage"],
+                        "next_page":report["next_page"]}).to_string()
                     } else if is_function { json!({"function":table,"source_coverage":report["coverage"],
                         "next_page":report["next_page"]}).to_string()
                     } else if is_view { json!({"view":table,"source_coverage":report["coverage"],
@@ -309,7 +342,9 @@ pub(super) async fn gather(
                     },
                     generation: Some(generation), commit: None, timestamp: None,
                     confidence: 0.95, relevance: 1.0, extraction_method: "source_sql_schema".into(),
-                    warnings: vec![if is_function {
+                    warnings: vec![if is_trigger {
+                        "Source trigger declaration, including authored target, timing, events and lexical references. Deployment, enablement and execution are unverified."
+                    } else if is_function {
                         "Complete admitted token-normalized SQL function signature/body and lexical references. Return-type checking, referenced-object binding, dependency execution, effective ALTER/DROP order and deployed database behavior are not established."
                     } else if is_view {
                         "Source view declarations and lexical references only. Duplicate names remain candidates; projected column types, default-schema/collation binding, deployment, effective ALTER/DROP order and runtime execution are not established."
