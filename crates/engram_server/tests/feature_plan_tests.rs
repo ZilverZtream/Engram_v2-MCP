@@ -66,6 +66,7 @@ fn feature_plan_public_handler_reports_disabled_provider_without_generating_a_pl
                 target_stack: "webforms_vbnet".into(),
                 detail_level: PlanDetailLevel::ReadyToCode,
                 dossier_only: false,
+                history_semantic_timeout_ms: None,
             })
             .await
             .unwrap();
@@ -328,6 +329,7 @@ fn feature_plan_rejects_unbounded_or_unrelated_intake() {
         target_stack: "webforms_vbnet".into(),
         detail_level: PlanDetailLevel::Detailed,
         dossier_only: false,
+        history_semantic_timeout_ms: None,
     };
     assert!(validate_request(&req).is_ok());
     req.target_stack = "java".into();

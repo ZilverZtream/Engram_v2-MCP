@@ -380,8 +380,9 @@ impl Engram {
             &super::planning_tools::story_for_concepts(&req.feature_description),
         );
         output["retrieval_concepts"] = json!(retrieval_concepts);
-        let change_req = change_request(&req.project_id, &story, Some(retrieval_concepts.clone()));
-        let mut change_set = body(self.handle_get_change_set(change_req.clone()).await?)?;
+        let mut change_req = change_request(&req.project_id, &story, Some(retrieval_concepts.clone()));
+        change_req.history_semantic_timeout_ms = req.history_semantic_timeout_ms;
+        let mut change_set = body(self.handle_get_change_set(change_req).await?)?;
         // Reassemble an existing immutable response, never rerun ranking.
         if let Some(id) = change_set["response_delivery"]["response_id"]
             .as_str()

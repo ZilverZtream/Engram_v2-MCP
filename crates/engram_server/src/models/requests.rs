@@ -838,6 +838,12 @@ pub struct OneShotFeaturePlanRequest {
     /// safety verdict or generated implementation plan is produced. Default false.
     #[serde(default)]
     pub dossier_only: bool,
+    /// Budget for semantic retrieval in the change-set history arm only
+    /// (default 5000 ms). Zero keeps lexical history and skips its embeddings.
+    /// Other discovery, source reads and plan generation are outside this budget.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(range(min = 0, max = 90000))]
+    pub history_semantic_timeout_ms: Option<u64>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]

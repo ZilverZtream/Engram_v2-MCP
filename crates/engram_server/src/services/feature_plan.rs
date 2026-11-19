@@ -135,6 +135,7 @@ pub struct FeatureImplementationPlan {
 }
 
 pub fn validate_request(req: &OneShotFeaturePlanRequest) -> Result<()> {
+    super::change_card_service::checked_semantic_timeout_ms(req.history_semantic_timeout_ms)?;
     ensure!(
         !req.feature_description.trim().is_empty(),
         "feature_description must not be empty"
