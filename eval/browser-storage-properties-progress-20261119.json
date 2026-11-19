@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-19T04:44:16.535199+00:00",
   "original_requirement_id": "TODO-27",
   "original_requirement": "JS/TS modern state tracking through existing shared browser storage identities.",
@@ -21,7 +21,7 @@
   "legacy_validation_applicability_basis": "Retained browser-store-clear-progress-20261116.json identifies ordinary indexed LegacyValidation JS auth files. This extends supported JS/TS workflows; no current LegacyValidation property syntax, refresh or benefit is claimed.",
   "implementation_items_active": 0,
   "current_build_untouched": true,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage-properties-20261119",
     "retention": "Keep source contract and baseline/future public evidence here until delivery. Owned fixtures close native/database handles before teardown; no preexisting deletion."
@@ -39,22 +39,16 @@
     "sha256": "cf6a9113fb56b35814abae1aaf871c93bc59ac4cae4bd65a181c2df80f0dbae5"
   },
   "implemented": "Literal dot/bracket browser storage properties use existing shared key identities and indexed access evidence. Assignments/delete write; compounds read/write. A script property contract forces older extraction refresh. Browser-specific wrapper updates coverage while preserving protected legacy handler work.",
-  "typechecked": false,
+  "typechecked": true,
   "verification": {
-    "baseline_checks": 4,
-    "baseline_seconds": 1.947965600003954,
-    "owned_fixture_removed": true,
-    "protected_wip9_raw_hashes_unchanged": true,
-    "rust_syntax_passed": true,
-    "public_after_assertions_executed": 0,
-    "new_cargo_or_full_suite_runs": 0
+    "production_typechecked": true,
+    "candidate_and_installed_public_checks_per_artifact": 6,
+    "receipt": "eval/browser-sql-review-batch-delivery-20261119.json"
   },
   "limitations": [
-    "Only literal direct and window/globalThis property syntax; dynamic keys, aliases, destructuring and runtime context remain unresolved.",
-    "Source positions and hashes refer to indexed source; key traces are not current-disk or runtime execution proof.",
-    "Storage API methods and length are excluded from property keys; API method access remains available."
+    "Only the finite behavior described in the linked delivery is established; all original task-usefulness, broader tool and held requirements remain preserved."
   ],
-  "next_action": "Queue this one original outcome for a later combined batch. Preserve existing release1 build and observer, and do not compile this item alone. Three outcomes are a minimum, not an automatic build cadence.",
+  "next_action": "Finite behavior delivered; retain acceptance and advance the original backlog without replay.",
   "source_commit": "16f3634633c8c4e595dc7015dea0ff74680ff3a7",
   "source_outcomes": 1,
   "public_assertions_expected": 6,
@@ -63,5 +57,27 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage-properties-20261119\\verify-public-before-pre-refresh-control.py",
     "sha256": "3c80e64b6e466857b3a9695366928f5444fe08b5c00a6e553933bf0d0b83a612"
   },
-  "extra_acceptance_prepared": "Within the existing old-script refresh assertion, preserve known API readers/writers before refresh. This directly checks the new extraction marker upgrade boundary; no added source outcome, check count, execution or build."
+  "extra_acceptance_prepared": "Within the existing old-script refresh assertion, preserve known API readers/writers before refresh. This directly checks the new extraction marker upgrade boundary; no added source outcome, check count, execution or build.",
+  "historical_source_stage": {
+    "verification": {
+      "baseline_checks": 4,
+      "baseline_seconds": 1.947965600003954,
+      "owned_fixture_removed": true,
+      "protected_wip9_raw_hashes_unchanged": true,
+      "rust_syntax_passed": true,
+      "public_after_assertions_executed": 0,
+      "new_cargo_or_full_suite_runs": 0
+    },
+    "limitations": [
+      "Only literal direct and window/globalThis property syntax; dynamic keys, aliases, destructuring and runtime context remain unresolved.",
+      "Source positions and hashes refer to indexed source; key traces are not current-disk or runtime execution proof.",
+      "Storage API methods and length are excluded from property keys; API method access remains available."
+    ],
+    "next_action": "Queue this one original outcome for a later combined batch. Preserve existing release1 build and observer, and do not compile this item alone. Three outcomes are a minimum, not an automatic build cadence."
+  },
+  "runtime_source_commit": "c468bca6484c805fe65236eef03af14bab67b59b",
+  "runtime_server_sha256": "47d70c6d36ccb9ae74707c9712f7865eeb1be9499e4aa691ffe6cd57991b09a2",
+  "delivery": "eval/browser-sql-review-batch-delivery-20261119.json",
+  "public_after_assertions_executed_per_artifact": 6,
+  "public_after_assertions_executed": 12
 }

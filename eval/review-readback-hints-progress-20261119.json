@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-19T05:54:45.944043+00:00",
   "original_requirement_ids": [
     "TODO-34",
@@ -20,7 +20,7 @@
   ],
   "legacy_validation_applicability_basis": "Original EG19 scoped review decision workflow is part of the LegacyValidation shortlist; the behavior is provider-neutral and needs no target-language expansion or current LegacyValidation mutation.",
   "implementation_items_active": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-readback-hints-20261119",
     "retention": "Keep baseline/contract/public evidence here until delivery or supersession; every owned native reader/fixture closes before removal. No preexisting deletion."
@@ -29,8 +29,8 @@
   "source_outcomes": 1,
   "public_assertions_expected": 5,
   "native_unit_cases_expected": 0,
-  "public_after_assertions_executed": 0,
-  "typechecked": false,
+  "public_after_assertions_executed": 10,
+  "typechecked": true,
   "baseline": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-readback-hints-20261119\\baseline3\\receipt.json",
     "sha256": "9b1ab1be5171fae93affb423ab956b080248a10a08f25dd206bde7a9d6c17e5e"
@@ -57,19 +57,35 @@
     }
   ],
   "verification": {
-    "baseline_seconds": 2.1470591999968747,
-    "baseline_checks": 4,
-    "rust_syntax": "Both changed Rust files parsed using rustfmt --emit stdout; not typechecking.",
-    "python_syntax": "Future verifier parsed using AST; after assertions not executed.",
-    "protected_work": "All9raw hashes unchanged.",
-    "new_cargo_or_full_suite_runs": 0
+    "production_typechecked": true,
+    "candidate_and_installed_public_checks_per_artifact": 5,
+    "receipt": "eval/browser-sql-review-batch-delivery-20261119.json"
   },
   "limitations": [
-    "This fixes generic advisory routing, not the already-working recorded-decision readback. The initial hypothesis was disproved and retained.",
-    "Discovery remains bounded advisory evidence, not authenticated approval, current semantic applicability or automatic finding suppression. Unpreserved historical selectors require selection; no dates/IDs are inferred.",
-    "Source is not yet compiled, candidate/installed accepted or deployed. No actual LegacyValidation source/index/Q operation, new target language or CodeMap/Blast improvement."
+    "Only the finite behavior described in the linked delivery is established; all original task-usefulness, broader tool and held requirements remain preserved."
   ],
-  "next_action": "Preserve all three independent source outcomes. Deliberately prepare a combined17assertion candidate/installed contract with one optimized executable only after confirming no further ready original source item; three outcomes are a minimum, not an automatic release cadence.",
+  "next_action": "Finite behavior delivered; retain acceptance and advance the original backlog without replay.",
   "source_commit": "89233116d43b8f753a364f795d0fe2dad1d42fe2",
-  "unrelated_observation": "The optional Engram connector list_projects call returned Transport closed; no index/search/restart operation followed. Native isolated fixture transport remains usable; no cause or product fix is inferred."
+  "unrelated_observation": "The optional Engram connector list_projects call returned Transport closed; no index/search/restart operation followed. Native isolated fixture transport remains usable; no cause or product fix is inferred.",
+  "historical_source_stage": {
+    "verification": {
+      "baseline_seconds": 2.1470591999968747,
+      "baseline_checks": 4,
+      "rust_syntax": "Both changed Rust files parsed using rustfmt --emit stdout; not typechecking.",
+      "python_syntax": "Future verifier parsed using AST; after assertions not executed.",
+      "protected_work": "All9raw hashes unchanged.",
+      "new_cargo_or_full_suite_runs": 0
+    },
+    "limitations": [
+      "This fixes generic advisory routing, not the already-working recorded-decision readback. The initial hypothesis was disproved and retained.",
+      "Discovery remains bounded advisory evidence, not authenticated approval, current semantic applicability or automatic finding suppression. Unpreserved historical selectors require selection; no dates/IDs are inferred.",
+      "Source is not yet compiled, candidate/installed accepted or deployed. No actual LegacyValidation source/index/Q operation, new target language or CodeMap/Blast improvement."
+    ],
+    "next_action": "Preserve all three independent source outcomes. Deliberately prepare a combined17assertion candidate/installed contract with one optimized executable only after confirming no further ready original source item; three outcomes are a minimum, not an automatic release cadence.",
+    "public_after_assertions_executed": 0
+  },
+  "runtime_source_commit": "c468bca6484c805fe65236eef03af14bab67b59b",
+  "runtime_server_sha256": "47d70c6d36ccb9ae74707c9712f7865eeb1be9499e4aa691ffe6cd57991b09a2",
+  "delivery": "eval/browser-sql-review-batch-delivery-20261119.json",
+  "public_after_assertions_executed_per_artifact": 5
 }

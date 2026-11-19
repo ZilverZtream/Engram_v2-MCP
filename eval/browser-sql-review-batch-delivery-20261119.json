@@ -1,0 +1,133 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-19T07:20:28.521717+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119",
+  "recording_script": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\record-delivery.py",
+    "sha256": "b85d5f9f1db11e9b950b16168971c2030dcbdbedb784fc524f0f512a9c59b99b"
+  },
+  "original_requirement_ids": [
+    "TODO-27",
+    "TODO-4",
+    "TODO-34"
+  ],
+  "source_preparation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\source-preparation1.json",
+    "sha256": "6cb2f8665027adcfd19551dc7a6889079c6482a6f52415cba249451d2340044f"
+  },
+  "delivered_behaviors": {
+    "TODO-27": "Literal direct/window/globalThis JS/TS browser storage properties join existing shared keys with read/write/delete evidence. Unchanged old scripts refresh extraction; old method-API observations remain readable before refresh.",
+    "TODO-4": "N+1 and missing-index analyzers preserve complete original findings/suggestions under caller budgets, with exact immutable recovery after restart/source removal and unchanged source/page/default contracts.",
+    "TODO-34": "Generic current-file review hints invoke validated path discovery. Unscoped and unpreserved historical hints require explicit selection. Existing stored exact-ID readbacks remain unchanged."
+  },
+  "runtime": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\package1",
+    "server_sha256": "47d70c6d36ccb9ae74707c9712f7865eeb1be9499e4aa691ffe6cd57991b09a2",
+    "manifest_sha256": "294b980c905fcd23eb215d2af71181cbd9800a75250bc76dd40044dffb2c5fac",
+    "old_server_sha256": "40038b3322b93b83d0791a527e3cf4adde962d52765b53a91634ecaf2e81972c",
+    "old_manifest_sha256": "59b050c732d7883be958c5102c94f7cba3a41559a6d2365a80d76fb85dd9e8f4",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\release1.json",
+      "sha256": "52cd589d811ee348317e9ed1b6283817f9d4706e8946cd14f39914e49a36a7d2"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "59b050c732d7883be958c5102c94f7cba3a41559a6d2365a80d76fb85dd9e8f4"
+    },
+    "source_commit": "c468bca6484c805fe65236eef03af14bab67b59b"
+  },
+  "public_check_assertions_per_artifact": 17,
+  "public_receipts": {
+    "candidate1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\candidate1\\acceptance.json",
+      "sha256": "f57d82d2316eea9d58d178617e1650831ba90fe3ef28a56804e1944974dd98c3",
+      "checks": 17,
+      "seconds": 12.648014000005787,
+      "owners_closed": true,
+      "fixtures_removed": true
+    },
+    "installed1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\installed1\\acceptance.json",
+      "sha256": "b62a5fcaefb84543455f9fd25cdb3e2d7ede9fe9a844c753a5d89cb0033e9cad",
+      "checks": 17,
+      "seconds": 12.283556000009412,
+      "owners_closed": true,
+      "fixtures_removed": true
+    }
+  },
+  "native_acceptance": {
+    "status": "NOT_RUN",
+    "native_unit_cases_expected": 0,
+    "native_unit_cases_executed": 0,
+    "reason": "One optimized executable verifies production source and the frozen public MCP contracts; no separate unit/debug build or full suite."
+  },
+  "build_accounting": {
+    "optimized_builds": 1,
+    "seconds": 2682.013813999991,
+    "unit_debug_or_full_suites": 0,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\release1.json",
+      "sha256": "52cd589d811ee348317e9ed1b6283817f9d4706e8946cd14f39914e49a36a7d2"
+    }
+  },
+  "installed_assets_verified": 215,
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "normal_runtime_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\restored-runtime\\receipt.json",
+    "sha256": "10870905350c50b422c3b70ac379301eabe145b1393d319bb22f074f3ef5fd59"
+  },
+  "normal_runtime_restored": true,
+  "selected_generation": 3162,
+  "protected_wip9": "Raw hashes unchanged; excluded from the clean build checkout.",
+  "windows_bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\bundle1.json",
+    "sha256": "d88c39a4dddc2c60fbedabf7bd1bc258dca74288a2bb8b9b2adb50b319919b74"
+  },
+  "temporary_resources": {
+    "build": {
+      "owned_temp_removed": true,
+      "job_empty_and_closed": true
+    },
+    "public": {
+      "candidate1": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\candidate1\\acceptance.json",
+        "sha256": "f57d82d2316eea9d58d178617e1650831ba90fe3ef28a56804e1944974dd98c3",
+        "checks": 17,
+        "seconds": 12.648014000005787,
+        "owners_closed": true,
+        "fixtures_removed": true
+      },
+      "installed1": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\installed1\\acceptance.json",
+        "sha256": "b62a5fcaefb84543455f9fd25cdb3e2d7ede9fe9a844c753a5d89cb0033e9cad",
+        "checks": 17,
+        "seconds": 12.283556000009412,
+        "owners_closed": true,
+        "fixtures_removed": true
+      }
+    },
+    "deployment": {
+      "owned_config_removed": true,
+      "hold_closed": true
+    },
+    "retained": "Package, ZIP, build/transport evidence and scripts remain in this single recorded case. Normal runtime intentionally restored. No preexisting folders deleted.",
+    "managed_rollback_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-4a55ee7b62f64a6c9cbda7c7d13920f3",
+      "purpose": "Installer-managed previous runtime pair retained for rollback.",
+      "cleanup_condition": "Retain pending explicit rollback/retirement decision; no deletion performed by this task."
+    }
+  },
+  "limitations": [
+    "Browser state observations remain static project-local candidates, not shared origin/tab/session, values or execution. New property facts require refresh of older script extraction; no actual LegacyValidation refresh was performed.",
+    "SQL recovery preserves the selected existing source report and qualifications; it does not improve query detection, prove deployed database schema or establish runtime benefit.",
+    "Review discovery remains bounded advisory evidence; no review identity, authority, approval or unsupported historical cutoff is inferred. Existing stored readbacks were already correct; initial harness parsing failures remain retained in the component progress record.",
+    "All31original findings/19gates, S18current/oldb762edit failure, task-usefulness gaps and held work retain their separate unfinished states. No model/task replay, target-language expansion or CodeMap/Blast improvement.",
+    "Installed behavior uses fresh native MCP sessions; the optional in-session connector had returned TransportClosed earlier. No client-host reconnection or general v1 readiness claim."
+  ],
+  "full_original_goal_complete": false
+}

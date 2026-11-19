@@ -2564,41 +2564,7 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "TODO-27",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "16f3634633c8c4e595dc7015dea0ff74680ff3a7",
-        "progress": "eval/browser-storage-properties-progress-20261119.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage-properties-20261119\\contract.json",
-        "public_assertions_expected": 6,
-        "native_unit_cases_expected": 0,
-        "source_outcomes": 1,
-        "current_release_excludes_this_item": true
-      },
-      {
-        "original_requirement_id": "TODO-4",
-        "related_requirement_id": "TODO-35",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "72f0690de40f591734a0ebde37d94a32d4e58a04",
-        "progress": "eval/sql-analysis-result-delivery-progress-20261119.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-analysis-result-delivery-20261119\\contract.json",
-        "source_outcomes": 1,
-        "public_assertions_expected": 6,
-        "native_unit_cases_expected": 0
-      },
-      {
-        "original_requirement_id": "TODO-34",
-        "related_requirement_id": "EG-19",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "89233116d43b8f753a364f795d0fe2dad1d42fe2",
-        "progress": "eval/review-readback-hints-progress-20261119.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-readback-hints-20261119\\contract.json",
-        "source_outcomes": 1,
-        "public_assertions_expected": 5,
-        "native_unit_cases_expected": 0
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2828,11 +2794,11 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "OPTIMIZED_BUILD_RUNNING",
+    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
     "implementation_items_active": 0,
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119",
+    "record": "eval/browser-sql-review-batch-delivery-20261119.json",
     "full_original_goal_complete": false,
-    "next_action": "Observe existing release session81750 and observer12508. Do not restart after an observation timeout. The observer packages only after terminal PASS, runs17frozen public checks per candidate/installed executable, and restores normal runtime. No unit/debug/full suite or model/task replay. Retain all original failures and scope."
+    "next_action": "Advance the remaining original LegacyValidation backlog from retained evidence; preserve all failures, unfinished acceptance and held work. Do not replay this passed batch or reopen closed CodeMap/Blast work."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3028,7 +2994,7 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "OPTIMIZED_BUILD_RUNNING",
+    "status": "INSTALLED_ACCEPTANCE_AND_NORMAL_RESTORATION_COMPLETE",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119",
     "source_commit": "c468bca6484c805fe65236eef03af14bab67b59b",
     "original_requirement_ids": [
@@ -3048,7 +3014,8 @@
     "postrelease_observer_pid": 85544,
     "postrelease_observer_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\postrelease-observer-pin1.json",
     "helper_preflight": "Source/contracts/installed identity, current hashes, driver syntax and PowerShell syntax PASS.",
-    "full_original_goal_complete": false
+    "full_original_goal_complete": false,
+    "record": "eval/browser-sql-review-batch-delivery-20261119.json"
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
@@ -4170,8 +4137,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T06:33:07.380173+00:00",
-    "reason": "Implemented scoped generic review hints with the existing path contract, retained corrected baseline/harness failures, consolidated three distinct original source outcomes in the existing clean checkout, froze17public checks and launched exactly one optimized build with its pinned delivery observer."
+    "at_utc": "2026-11-19T07:20:28.521717+00:00",
+    "reason": "Installed and verified the frozen three-outcome batch with17public checks on each candidate/installed executable, one optimized build, unchanged production metadata/configuration, closed owned fixtures and restored normal runtime."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4534,11 +4501,11 @@
     "historical_source_status": true
   },
   "latest_runtime_delivery": {
-    "record": "eval/review-project-dbml-batch-delivery-20261119.json",
+    "record": "eval/browser-sql-review-batch-delivery-20261119.json",
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "server_sha256": "40038b3322b93b83d0791a527e3cf4adde962d52765b53a91634ecaf2e81972c",
-    "manifest_sha256": "59b050c732d7883be958c5102c94f7cba3a41559a6d2365a80d76fb85dd9e8f4",
-    "source_commit": "eca74f21162edec8226a396506d87662d10f4dc2"
+    "server_sha256": "47d70c6d36ccb9ae74707c9712f7865eeb1be9499e4aa691ffe6cd57991b09a2",
+    "manifest_sha256": "294b980c905fcd23eb215d2af71181cbd9800a75250bc76dd40044dffb2c5fac",
+    "source_commit": "c468bca6484c805fe65236eef03af14bab67b59b"
   },
   "cache_guidance_attribute_batch_delivery_20261118": {
     "record": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
@@ -4761,7 +4728,8 @@
   "browser_storage_properties_source_progress_20261119": {
     "record": "eval/browser-storage-properties-progress-20261119.json",
     "source_commit": "16f3634633c8c4e595dc7015dea0ff74680ff3a7",
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "delivery_record": "eval/browser-sql-review-batch-delivery-20261119.json"
   },
   "previous_runtime_before_review_project_dbml_batch_20261119": {
     "record": "eval/review-metadata-view-batch-delivery-20261119.json",
@@ -4779,12 +4747,14 @@
   "sql_analysis_result_delivery_source_progress_20261119": {
     "record": "eval/sql-analysis-result-delivery-progress-20261119.json",
     "source_commit": "72f0690de40f591734a0ebde37d94a32d4e58a04",
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "delivery_record": "eval/browser-sql-review-batch-delivery-20261119.json"
   },
   "review_readback_hints_source_progress_20261119": {
     "record": "eval/review-readback-hints-progress-20261119.json",
     "source_commit": "89233116d43b8f753a364f795d0fe2dad1d42fe2",
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "delivery_record": "eval/browser-sql-review-batch-delivery-20261119.json"
   },
   "retained_release_validation_before_browser_sql_review_20261119": {
     "status": "INSTALLED_ACCEPTANCE_AND_NORMAL_RESTORATION_COMPLETE",
@@ -4808,5 +4778,12 @@
     "postrelease_observer_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\postrelease-observer-pin1.json",
     "helper_preflight": "PASS: source/contracts/baselines/current installed identity and PowerShell syntax; no additional build.",
     "record": "eval/review-project-dbml-batch-delivery-20261119.json"
+  },
+  "previous_runtime_before_browser_sql_review_batch_20261119": {
+    "record": "eval/review-project-dbml-batch-delivery-20261119.json",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "server_sha256": "40038b3322b93b83d0791a527e3cf4adde962d52765b53a91634ecaf2e81972c",
+    "manifest_sha256": "59b050c732d7883be958c5102c94f7cba3a41559a6d2365a80d76fb85dd9e8f4",
+    "source_commit": "eca74f21162edec8226a396506d87662d10f4dc2"
   }
 }

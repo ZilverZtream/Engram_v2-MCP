@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-19T05:27:59.837267+00:00",
   "original_requirement_ids": [
     "TODO-4",
@@ -22,7 +22,7 @@
   ],
   "legacy_validation_applicability_basis": "Retained legacy_validation-n-plus-one-delivery-20261112.json proves the current VB.NET workflow on an LegacyValidation method. The current schema/index tools support SQL source; this item concerns delivery, not a claim of actual LegacyValidation overflow or measured query speedup.",
   "implementation_items_active": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-analysis-result-delivery-20261119",
     "retention": "Retain contract and public evidence here until delivered/superseded. Each owned source fixture closes native/readers before removing itself; no preexisting deletion."
@@ -30,8 +30,8 @@
   "source_outcomes": 1,
   "public_assertions_expected": 6,
   "native_unit_cases_expected": 0,
-  "public_after_assertions_executed": 0,
-  "typechecked": false,
+  "public_after_assertions_executed": 12,
+  "typechecked": true,
   "baseline": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-analysis-result-delivery-20261119\\baseline1\\receipt.json",
     "sha256": "dd9af996f36a08c0b1ed04193179403268d39f51afb2051511cc0ad41018c973"
@@ -46,18 +46,34 @@
   },
   "implemented": "The two existing analyzers use handler-owned immutable complete-result delivery. Preserve their default64KiB and maximum65536token budgets, source analysis, selectors, paging and qualifications. Capture advisory actions with the original report; suppress re-annotation of recovery/manifests. Recovery runs before fresh source/selector lookup.",
   "verification": {
-    "rust_syntax": "PASS: four selected Rust files parsed using rustfmt --emit stdout; parsing is not typechecking.",
-    "python_syntax": "PASS using AST; no after-driver execution.",
-    "protected_work": "All9raw hashes unchanged.",
-    "baseline_seconds": 3.8620023999974364,
-    "baseline_checks": 4,
-    "new_cargo_or_full_suites": 0
+    "production_typechecked": true,
+    "candidate_and_installed_public_checks_per_artifact": 6,
+    "receipt": "eval/browser-sql-review-batch-delivery-20261119.json"
   },
   "limitations": [
-    "Baseline generated16N+1findings and16index suggestions, serialized47811B/28023B. Both fit their original default64KiB; the reproduced failure is the requested4KiB budget, not default overflow.",
-    "No change to query detection, source evidence completeness, deployed database schema or measured application/database performance. Source limits and existing snapshot8MiB/24hour/32capture retention still apply.",
-    "Source is not yet compiled, publicly accepted or installed. No actual LegacyValidation source/index/Q access, model generation, target-language expansion, CodeMap/Blast improvement or task-usefulness claim."
+    "Only the finite behavior described in the linked delivery is established; all original task-usefulness, broader tool and held requirements remain preserved."
   ],
-  "next_action": "Keep this as one independent SQL-delivery outcome alongside the browser-property outcome. Select further original work before deliberately freezing a later batch; two outcomes do not permit Cargo and three is not an automatic release cadence.",
-  "source_commit": "72f0690de40f591734a0ebde37d94a32d4e58a04"
+  "next_action": "Finite behavior delivered; retain acceptance and advance the original backlog without replay.",
+  "source_commit": "72f0690de40f591734a0ebde37d94a32d4e58a04",
+  "historical_source_stage": {
+    "verification": {
+      "rust_syntax": "PASS: four selected Rust files parsed using rustfmt --emit stdout; parsing is not typechecking.",
+      "python_syntax": "PASS using AST; no after-driver execution.",
+      "protected_work": "All9raw hashes unchanged.",
+      "baseline_seconds": 3.8620023999974364,
+      "baseline_checks": 4,
+      "new_cargo_or_full_suites": 0
+    },
+    "limitations": [
+      "Baseline generated16N+1findings and16index suggestions, serialized47811B/28023B. Both fit their original default64KiB; the reproduced failure is the requested4KiB budget, not default overflow.",
+      "No change to query detection, source evidence completeness, deployed database schema or measured application/database performance. Source limits and existing snapshot8MiB/24hour/32capture retention still apply.",
+      "Source is not yet compiled, publicly accepted or installed. No actual LegacyValidation source/index/Q access, model generation, target-language expansion, CodeMap/Blast improvement or task-usefulness claim."
+    ],
+    "next_action": "Keep this as one independent SQL-delivery outcome alongside the browser-property outcome. Select further original work before deliberately freezing a later batch; two outcomes do not permit Cargo and three is not an automatic release cadence.",
+    "public_after_assertions_executed": 0
+  },
+  "runtime_source_commit": "c468bca6484c805fe65236eef03af14bab67b59b",
+  "runtime_server_sha256": "47d70c6d36ccb9ae74707c9712f7865eeb1be9499e4aa691ffe6cd57991b09a2",
+  "delivery": "eval/browser-sql-review-batch-delivery-20261119.json",
+  "public_after_assertions_executed_per_artifact": 6
 }
