@@ -536,9 +536,11 @@ and receiver type, physical database binding and execution are not inferred.
 
 Database identity, dynamic commands and ORM translation remain unresolved.
 
-The result is static navigation, not an observed execution trace. Dynamic routes,
-optional route defaults, rewrites, inherited/dynamic event bindings and missing
-database-trigger bindings remain explicit coverage limits. `include_db: false`
+The result describes static source candidates. When a WebForms URL omits a
+trailing route parameter, the trace can show simple defaults authored in an
+inline VB `RouteValueDictionary` under `defaulted_parameters`. Dynamic routes,
+other default expressions, rewrites, inherited/dynamic event bindings and
+missing database-trigger bindings remain explicit coverage limits. `include_db: false`
 omits database relationships; `include_triggers: false` skips trigger coverage.
 The complete JSON response defaults to a 16,384-token byte-estimate budget;
 smaller budgets that cannot contain it fail with the required size.

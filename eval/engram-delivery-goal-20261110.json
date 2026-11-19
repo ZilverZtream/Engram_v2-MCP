@@ -2988,6 +2988,13 @@
       "implementation": "crates/engram_server/src/handlers/database_report_delivery.rs and migration_tools.rs",
       "acceptance": "The existing focused checks passed for exact JSON and Markdown pagination, reply budgets, and rejection of invalid controls. The recovery path now uses Tokio's blocking pool. No Engram package was built or deployed for this change."
     },
+    "queued_webforms_route_defaults": {
+      "status": "IMPLEMENTED_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGE_VERIFICATION",
+      "requirement": "TODO-31 route to handler source navigation for LegacyValidation",
+      "observed_gap": "LegacyValidation registers an inline VB default for the project editor route. Tracing /dashboard/system/project found no match for that registration because the URL omits pr_id.",
+      "implementation": "crates/engram_server/src/services/request_trace/routing.rs and api.rs",
+      "acceptance": "The exact routing module resolved the actual LegacyValidation registration and page with the authored pr_id=-1, and preserved /dashboard/system/project/42 as an explicit path value. Its focused fixture retains null defaults and rejects dynamic default expressions or omitted literal segments. Eight checks passed against cached dependencies. Packaged MCP verification and deployment are pending."
+    },
     "next_action": "Advance the remaining original LegacyValidation items. Source changes committed after this package was frozen remain queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
   },
   "windows_reconnect_release_interruption": {

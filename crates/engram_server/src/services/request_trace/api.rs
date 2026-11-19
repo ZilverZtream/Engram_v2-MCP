@@ -45,32 +45,6 @@ fn word(token: &Token, value: &str) -> bool {
     !token.string && token.text.eq_ignore_ascii_case(value)
 }
 
-// Split only the outer invocation; a defaults object's commas are not arguments.
-fn arguments(tokens: &[Token]) -> Option<Vec<&[Token]>> {
-    let mut depth = 0usize;
-    let mut start = 0;
-    let mut parts = Vec::new();
-    for (i, token) in tokens.iter().enumerate().take(512) {
-        if token.string {
-            continue;
-        }
-        match token.text.as_str() {
-            "(" | "{" => depth += 1,
-            ")" if depth == 0 => {
-                parts.push(&tokens[start..i]);
-                return Some(parts);
-            }
-            ")" | "}" => depth = depth.checked_sub(1)?,
-            "," if depth == 0 => {
-                parts.push(&tokens[start..i]);
-                start = i + 1;
-            }
-            _ => {}
-        }
-    }
-    None
-}
-
 pub(super) fn routes(source: &Source<'_>, path: &str) -> Vec<Route> {
     if !source.path.to_ascii_lowercase().ends_with(".vb") {
         return Vec::new();
@@ -84,7 +58,7 @@ pub(super) fn routes(source: &Source<'_>, path: &str) -> Vec<Route> {
         {
             continue;
         }
-        let Some(parts) = arguments(&tokens[i + 2..]) else {
+        let Some(parts) = routing::arguments(&tokens[i + 2..]) else {
             continue;
         };
         let mut name = None;

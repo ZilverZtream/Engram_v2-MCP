@@ -18,6 +18,8 @@ pub struct RouteCandidate {
     pub route_name: Option<String>,
     pub pattern: String,
     pub parameters: BTreeMap<String, String>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub defaulted_parameters: BTreeMap<String, Option<String>>,
     pub source_path: String,
     pub source_line: usize,
     pub source_blake3: String,
@@ -54,6 +56,32 @@ pub(crate) struct Token {
     pub text: String,
     pub string: bool,
     pub line: usize,
+}
+
+// Split the invocation at outer commas only.
+pub(super) fn arguments(tokens: &[Token]) -> Option<Vec<&[Token]>> {
+    let mut depth = 0usize;
+    let mut start = 0;
+    let mut parts = Vec::new();
+    for (i, token) in tokens.iter().enumerate().take(512) {
+        if token.string {
+            continue;
+        }
+        match token.text.as_str() {
+            "(" | "{" => depth += 1,
+            ")" if depth == 0 => {
+                parts.push(&tokens[start..i]);
+                return Some(parts);
+            }
+            ")" | "}" => depth = depth.checked_sub(1)?,
+            "," if depth == 0 => {
+                parts.push(&tokens[start..i]);
+                start = i + 1;
+            }
+            _ => {}
+        }
+    }
+    None
 }
 
 /// A deliberately small lexical reader: quoted examples and commented calls cannot
@@ -216,10 +244,21 @@ fn request(raw: &str) -> anyhow::Result<(Option<String>, String)> {
     Ok((method, clean_path(target)?))
 }
 
+type RouteDefaults = BTreeMap<String, Option<String>>;
+
 pub(super) fn parameters(pattern: &str, request: &str) -> Option<BTreeMap<String, String>> {
+    match_parameters(pattern, request, None).map(|(supplied, _)| supplied)
+}
+
+fn match_parameters(
+    pattern: &str,
+    request: &str,
+    defaults: Option<&RouteDefaults>,
+) -> Option<(BTreeMap<String, String>, RouteDefaults)> {
     let pattern: Vec<_> = pattern.trim_matches('/').split('/').collect();
     let parts: Vec<_> = request.trim_matches('/').split('/').collect();
     let mut values = BTreeMap::new();
+    let mut applied = BTreeMap::new();
     let mut i = 0;
     for (position, segment) in pattern.iter().enumerate() {
         if let Some(key) = segment.strip_prefix("{*").and_then(|s| s.strip_suffix('}')) {
@@ -227,20 +266,64 @@ pub(super) fn parameters(pattern: &str, request: &str) -> Option<BTreeMap<String
                 return None;
             }
             values.insert(key.into(), parts[i..].join("/"));
-            return Some(values);
+            return Some((values, applied));
         }
-        let part = *parts.get(i)?;
         if let Some(key) = segment.strip_prefix('{').and_then(|s| s.strip_suffix('}')) {
-            if key.is_empty() || part.is_empty() || key.contains(['{', '}', ':', '?']) {
+            if key.is_empty() || key.contains(['{', '}', ':', '?']) {
                 return None;
             }
-            values.insert(key.into(), part.into());
-        } else if !segment.eq_ignore_ascii_case(part) {
+            match parts.get(i) {
+                Some(part) if !part.is_empty() => {
+                    values.insert(key.into(), (*part).into());
+                }
+                Some(_) => return None,
+                None => {
+                    applied.insert(key.into(), defaults?.get(&key.to_ascii_lowercase())?.clone());
+                    continue;
+                }
+            }
+        } else if !segment.eq_ignore_ascii_case(parts.get(i)?) {
             return None;
         }
         i += 1;
     }
-    (i == parts.len()).then_some(values)
+    (i == parts.len()).then_some((values, applied))
+}
+
+fn page_route_defaults(invocation: &[Token]) -> Option<RouteDefaults> {
+    let args = arguments(invocation)?;
+    let word = |token: &Token, text: &str| !token.string && token.text.eq_ignore_ascii_case(text);
+    let [new_dict, dictionary, open, new_object, with, left, fields @ .., right, close] = *args.get(4)? else {
+        return None;
+    };
+    for (token, expected) in [
+        (new_dict, "New"), (dictionary, "RouteValueDictionary"), (open, "("),
+        (new_object, "New"), (with, "With"), (left, "{"), (right, "}"), (close, ")"),
+    ] {
+        if !word(token, expected) {
+            return None;
+        }
+    }
+    let mut defaults = BTreeMap::new();
+    for field in fields.split(|token| word(token, ",")) {
+        let [dot, name, equals, value @ ..] = field else {
+            return None;
+        };
+        if !word(dot, ".") || name.string || !word(equals, "=") {
+            return None;
+        }
+        let decimal = |token: &Token| !token.string && token.text.bytes().all(|b| b.is_ascii_digit());
+        let value = match value {
+            [value] if word(value, "Nothing") => None,
+            [value] if value.string || decimal(value) => Some(value.text.clone()),
+            [sign, value] if word(sign, "-") && decimal(value) => Some(format!("-{}", value.text)),
+            _ => return None,
+        };
+        if defaults.insert(name.text.to_ascii_lowercase(), value).is_some() {
+            return None;
+        }
+    }
+    Some(defaults)
 }
 
 pub(super) fn app_root<'a>(file: &str, sources: &'a [Source<'_>]) -> Option<&'a str> {
@@ -303,6 +386,7 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
                     route_name: None,
                     pattern: path.clone(),
                     parameters: BTreeMap::new(),
+                    defaulted_parameters: BTreeMap::new(),
                     source_path: source.path.into(),
                     source_line: 1,
                     source_blake3: blake3::hash(source.content.as_bytes()).to_hex().to_string(),
@@ -330,7 +414,7 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
             .api_candidates
             .extend(api.into_iter().take(available));
         let tokens = tokens(source.content, lower.ends_with(".vb"));
-        for window in tokens.windows(8) {
+        for (index, window) in tokens.windows(8).enumerate() {
             if result.capped() {
                 return Ok(result);
             }
@@ -356,7 +440,14 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
                 ));
                 continue;
             }
-            let Some(values) = parameters(&window[5].text, &path) else {
+            let pattern = &window[5].text;
+            let mut matched = match_parameters(pattern, &path, None);
+            if matched.is_none() && lower.ends_with(".vb") {
+                if let Some(defaults) = page_route_defaults(&tokens[index + 3..]) {
+                    matched = match_parameters(pattern, &path, Some(&defaults));
+                }
+            }
+            let Some((values, defaulted_parameters)) = matched else {
                 continue;
             };
             let Some(root) = app_root(source.path, sources) else {
@@ -402,6 +493,7 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
                 route_name: Some(window[3].text.clone()),
                 pattern: window[5].text.clone(),
                 parameters: values,
+                defaulted_parameters,
                 source_path: source.path.into(),
                 source_line: window[1].line,
                 source_blake3: blake3::hash(source.content.as_bytes()).to_hex().to_string(),
@@ -421,7 +513,7 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
         return Ok(result);
     }
     if result.candidates.is_empty() && result.api_candidates.is_empty() {
-        result.gaps.push("No route/page candidate in selected sources. Dynamic routes, optional defaults, composite segments and URL rewrites are not resolved.".into());
+        result.gaps.push("No route/page candidate in selected sources. Default matching covers simple literals in inline VB RouteValueDictionary initializers. Dynamic routes, other default expressions, composite segments and URL rewrites are unresolved.".into());
     }
     if result.candidates.len() > 1 {
         result
@@ -483,6 +575,32 @@ mod tests {
             resolve("/admin/project.aspx", &files).unwrap().candidates[0].basis,
             "physical_page_candidate"
         );
+    }
+
+    #[test]
+    fn admits_omitted_vb_route_parameters_only_when_supported_defaults_are_authored() {
+        let files = sources(concat!(
+            "routes.MapPageRoute(\"project\", \"project/{pr_id}/{view}\", \"~/admin/project.aspx\", True, ",
+            "New RouteValueDictionary(New With {.PR_ID = -1, .View = Nothing}))\n",
+            "routes.MapPageRoute(\"dynamic\", \"dynamic/{pr_id}\", \"~/admin/project.aspx\", True, ",
+            "New RouteValueDictionary(New With {.pr_id = GetDefault()}))\n",
+            "routes.MapPageRoute(\"required\", \"required/{pr_id}/edit\", \"~/admin/project.aspx\", True, ",
+            "New RouteValueDictionary(New With {.pr_id = -1}))",
+        ));
+        let omitted = resolve("project", &files).unwrap();
+        assert_eq!(omitted.candidates.len(), 1);
+        let route = &omitted.candidates[0];
+        assert_eq!(route.page, "Site/admin/project.aspx");
+        assert!(route.parameters.is_empty());
+        assert_eq!(route.defaulted_parameters["pr_id"].as_deref(), Some("-1"));
+        assert_eq!(route.defaulted_parameters["view"], None);
+        assert_eq!(route.source_line, 1);
+
+        let supplied = resolve("project/42/detail", &files).unwrap();
+        assert_eq!(supplied.candidates[0].parameters["pr_id"], "42");
+        assert!(supplied.candidates[0].defaulted_parameters.is_empty());
+        assert!(resolve("dynamic", &files).unwrap().candidates.is_empty());
+        assert!(resolve("required", &files).unwrap().candidates.is_empty());
     }
     #[test]
     fn commented_and_string_example_routes_do_not_dispatch() {
