@@ -1289,16 +1289,39 @@ async fn run_proxy(metadata_path: PathBuf, socket_path: PathBuf) -> anyhow::Resu
 async fn forward_stdio_to_pipe(
     pipe: tokio::net::windows::named_pipe::NamedPipeClient,
 ) -> anyhow::Result<()> {
+    use std::io::{self, Read};
     use tokio::io::AsyncWriteExt;
-    // Byte-transparent passthrough between our stdio and the primary's
-    // named pipe — mirror of forward_stdio_to_socket.
+    // Tokio's blocking stdin read can keep the main runtime alive after the
+    // daemon disconnects. The proxy owns no database state. Keep the blocking
+    // read on a bounded, detached input thread so this process can exit on EOF.
+    let (input, mut chunks) = tokio::sync::mpsc::channel(2);
+    let stdin_thread = std::thread::Builder::new()
+        .name("engram-proxy-stdin".into())
+        .spawn(move || {
+            let mut stdin = io::stdin().lock();
+            let mut buffer = [0; 8192];
+            loop {
+                let chunk = match stdin.read(&mut buffer) {
+                    Ok(0) => break,
+                    Ok(count) => Ok(buffer[..count].to_vec()),
+                    Err(error) if error.kind() == io::ErrorKind::Interrupted => continue,
+                    Err(error) => Err(error),
+                };
+                let failed = chunk.is_err();
+                if input.blocking_send(chunk).is_err() || failed {
+                    break;
+                }
+            }
+        })?;
+    drop(stdin_thread);
     let (mut pipe_read, mut pipe_write) = tokio::io::split(pipe);
-    let mut stdin = tokio::io::stdin();
     let mut stdout = tokio::io::stdout();
     let up = async {
-        let res = tokio::io::copy(&mut stdin, &mut pipe_write).await;
+        while let Some(chunk) = chunks.recv().await {
+            pipe_write.write_all(&chunk?).await?;
+        }
         pipe_write.shutdown().await.ok();
-        res.map(|_| ()).map_err(anyhow::Error::from)
+        Ok::<(), io::Error>(())
     };
     let down = async {
         tokio::io::copy(&mut pipe_read, &mut stdout)
@@ -1307,8 +1330,16 @@ async fn forward_stdio_to_pipe(
             .map_err(anyhow::Error::from)
     };
     tokio::select! {
-        r = up => { r.ok(); }
-        r = down => { r.ok(); }
+        biased;
+        r = up => {
+            if let Err(error) = r {
+                eprintln!("Engram proxy input closed: {error}. Restart the MCP client to reconnect.");
+            }
+        }
+        r = down => match r {
+            Ok(()) => eprintln!("Engram daemon closed the connection. Restart the MCP client to reconnect."),
+            Err(error) => eprintln!("Engram proxy output closed: {error}. Restart the MCP client to reconnect."),
+        }
     }
     Ok(())
 }
