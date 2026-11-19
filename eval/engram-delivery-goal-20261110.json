@@ -2971,7 +2971,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "MAINTENANCE_HISTORY_LIFECYCLE_RELEASE_INSTALLED_AND_MCP_VERIFIED",
+    "status": "SOURCE_IDENTITY_DOSSIER_CONTROL_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "verified_base_record": "eval/history-schema-review-candidate-20261119.json",
     "record": "eval/cumulative-agent-workflows-candidate-20261119.json",
@@ -3136,7 +3136,7 @@
       "acceptance": "Actual pinned LegacyValidation Git supplied three recent commits plus the exact patch, and the installed live MCP returned the expected latest commit. The LegacyValidation task-management load trace retained the authored LoadComplete handler at line 603. The candidate proof recovered the oversized trace exactly by byte count and BLAKE3 before examining the call at line 604. Scoped maintenance passed on both the staged and installed binary using exact LegacyValidation before/after bytes with 130 unrelated sibling paths. The runtime pair was swapped with no connected clients, and the source generation stayed at 3222. Fixture-only corrections reused the same binary. Broader effect, storage and task-level limits remain."
     },
     "selected_source_row_identity": {
-      "status": "IMPLEMENTED_FOCUSED_NATIVE_STORE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_PUBLIC_MCP_REPAIR_VERIFIED_IN_OWNED_PROJECT",
       "requirement": "TODO-39 detect and repair vector/Tantivy inconsistency after partial ingest",
       "observed_gap": "Published managed-source integrity compares cardinalities only. A missing selected vector and replacement at the same path and revision leave all existing project, namespace and generation counts equal.",
       "implementation": "The selected-source count reader in engram_index and check_integrity comparison in engram_server, reusing the same serialized scoped vector repair.",
@@ -3144,7 +3144,7 @@
       "verification": "The exact new reader helpers passed a focused executable with a real Tantivy index and two owned Lance tables using the cached dependencies. Counts were three throughout. It measured two matching keys with a substituted key and three with the correct keys. The fixture and native handles closed. The actual public handler and locked repair regression is added to integrity_service_tests.rs and remains queued for the next package. Exact key coverage is capped at 4,096 selected rows and 4 MiB of lexical key text, in the managed memory namespace. Larger snapshots keep counts-only coverage. This is row identity evidence, with history identities and embedding content or quality outside the check. No Cargo build or live storage mutation."
     },
     "feature_plan_response_budget": {
-      "status": "IMPLEMENTED_FOCUSED_ACTUAL_DOSSIER_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_PUBLIC_MCP_EXACT_RECOVERY_VERIFIED",
       "requirement": "TODO-32 usable complete pre-edit dossier for the calling AI",
       "observed_gap": "The current installed baseline already captures complete oversized plans and dossiers with its shared public read-report wrapper. The deferred reply concealed whether the original was a ready source dossier, an incomplete result or a draft, and concealed the generation and provider-call count.",
       "implementation": "The existing shared read-report delivery for one_shot_feature_plan. Supersedes the handler-local implementation in 57dd75d4 after public baseline verification.",
@@ -3152,7 +3152,7 @@
       "verification": "The installed-equivalent public baseline used DEFERRED_READ_REPORT and exact generic recovery but had no plan_summary. The focused test used the exact shared delivery modules and the historical 302,377-byte LegacyValidation dossier to verify the three summary fields and exact MCP CallToolResult recovery under the same format and BLAKE3 identity. The newer public candidate check is queued; no semantic tuning or Cargo build."
     },
     "webforms_registered_control_calls": {
-      "status": "IMPLEMENTED_FOCUSED_ACTUAL_SOURCE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_LEGACY_VALIDATION_MCP_VERIFIED",
       "requirement": "TODO-31 trace ordinary WebForms page actions through authored source dependencies",
       "observed_gap": "The installed LegacyValidation task-management report shows unresolved ctrlBulkEditTasks.PageLoadComplete and FirstPageLoad edges although the page declares one literal registration and instance. It provides no target file or line.",
       "implementation": "Existing request-trace control registration resolver and selected-source traversal, with qualification for direct literal calls.",
@@ -3160,7 +3160,7 @@
       "verification": "A focused executable used the exact resolver, existing control registration traversal and source-admission code against actual LegacyValidation Git blobs and an owned graph. Both calls at lines 25 and 604 reached the selected control declarations at lines 22 and 15 respectively. It verified the actual registration at line 4, instance at line 106 and target markup hash. The installed graph returned matching target declaration identities independently. Added a request-trace integration case for the qualified path and stale or ambiguous source withholding. Packaged MCP verification remains pending; no Cargo build."
     },
     "identity_dossier_control_batch": {
-      "status": "ONE_SHARED_TARGET_RELEASE_RUNNING",
+      "status": "INSTALLED_WITH_THREE_PUBLIC_MCP_CHECKS",
       "case": "identity-dossier-controls-20261120",
       "source_commit": "e3f3b0983f9a6b24533c9b40c67f923ac34cded3",
       "requirements": ["TODO-39", "TODO-32", "TODO-31"],
@@ -3176,9 +3176,14 @@
       "cutover_and_installed_checks_session": 64404,
       "prepare_cutover_sha256": "c9f0fa5b45130fb1f9f7fe2e25e7a184495b38c2eaf4ac4f78b64ad4a52dc08f",
       "live_cutover_sha256": "022b5453b820a01cc12d972a3d9f4fbe7a2548be9531fcd58c3aba1a6b15af66",
-      "baseline": "The previously installed binary reported healthy after one wrong physical vector key was substituted at an inherited source row in an owned database. It returned the two ordinary LegacyValidation control calls as unresolved external edges, and its existing budgeted planner recovery lacked the captured status summary. All owned processes and temporary projects closed. The native fixture helper must be used only with the disposable owner-marked project."
+      "baseline": "The previously installed binary reported healthy after one wrong physical vector key was substituted at an inherited source row in an owned database. It returned the two ordinary LegacyValidation control calls as unresolved external edges, and its existing budgeted planner recovery lacked the captured status summary. All owned processes and temporary projects closed. The native fixture helper must be used only with the disposable owner-marked project.",
+      "build": {"seconds":914.8414055,"optimized_builds":1,"full_test_suites":0,"receipt_sha256":"a957078ae5b6fd013be0c6cc8a292b4372a645ea71acc88ada117a7d65a152a9"},
+      "package": {"binary_sha256":"2a7ce6efd8afdb0dca853db0a6616dfce2d3aa94599a9c888c88a4eca148d295","manifest_sha256":"8d4d0a717aff9329140d4a955f42b6930fc29bebc7d40222a6e415d0fa4bd65d","archive_sha256":"979170b4a574314bbd832dded20b0b01b894dbba4a462ddb6cfd7a9201d4b636","receipt_sha256":"119b590bcb43fab08085d1f3d7760b8f796acc64f459c626d9c1bd933bcf10fd"},
+      "candidate_public_receipt_sha256": "782e95d7c29df65ad10429a63fafe329eab2e63b203e001184282038754183e6",
+      "installed": {"generation":3222,"owned_public_receipt_sha256":"b85576afcb3c00c810a43fa1c156b9a9cad9a9011bde4660d7e8ba08addc72d3","status_sha256":"1af52abef37af66d320d63776b7e1ed00b68df742f25112ba7c8d36baadce482","forward_transition_sha256":"874717dd63bf7b3766331655d4c6c1fdd12e1f318d5d66e525b90ad77bfc184b","retained_pair":"engram-pair-backup-c74d598813f24537a7a4e1fc2b6cc51a"},
+      "acceptance": "Candidate and installed public MCP each found both exact registered control-call targets on selected LegacyValidation source copies, returned captured dossier status and generation without text generation, and recovered the original MCP dossier with byte identity after editing owned guidance. Both public integrity checks measured the substituted key under equal counts, invoked the existing authorized fixture repair and verified it restored every selected identity without changing generation or project totals. Fresh production MCP connected after cutover and found the bulk-edit target at line 15 on actual LegacyValidation, preserving source generation 3222. No live corruption or repair was injected. Both owned fixtures and cutover workspace closed; the original aggregate gate, wide-corpus vector identity, semantic planning, actual task usefulness and runtime-dispatch limits remain open."
     },
-    "next_action": "Follow existing build session 33672, public stage session 76939 and gated cutover session 64404. Cutover requires a verified three-check package, validates its pins, verifies live MCP against LegacyValidation and reruns the owned checks with the installed binary. If a step fails, diagnose the exact failure without restarting unaffected work."
+    "next_action": "Advance the next ready original LegacyValidation backlog item. The selected-source identity, planning preview and registered-control package is installed and publicly verified."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",

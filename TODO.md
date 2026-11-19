@@ -640,6 +640,7 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  Installed: Source-cited direct calls from the LegacyValidation task-management page to its registered bulk-edit control identify the declaration with guarded source. Live MCP verified `PageLoadComplete`. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Explicit `LoadComplete` bindings appear in ordinary page traces. The live LegacyValidation task-management trace identifies the handler whose source calls the bulk-edit control. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Authored VB WebForms route defaults and route data appear in the trace. Three live LegacyValidation checks verified the project editor's `pr_id` default and the two `MasterPage` values for the shared myaccount page. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Navigation-only WebForms request traces skip SQL and DBML source reads when database evidence is disabled. [Delivery](eval/webforms-navigation-triggers-batch-delivery-20261119.json).
@@ -760,6 +761,7 @@ proposals that duplicate the existing surface:
   selection. [Delivery](eval/instruction-update-source-batch-delivery-20261117.json).
 
 - [~] **32. `one_shot_feature_plan` (spec 42-1)** (L)
+  Installed: Deferred previews retain captured plan status, source generation and provider-call count. The existing exact MCP recovery preserved the original dossier after an owned source-guidance edit. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: WebForms feature planning passes the caller's semantic history budget through to change-set retrieval. [Delivery](eval/agent-history-trace-planning-batch-delivery-20261119.json).
   Compiles a full pre-edit dossier for a feature request (relevant files, patterns,
   safety, test plan). Build after #28/#30 exist to compose them.
@@ -913,6 +915,7 @@ specs already written.
   the config-driven path. CI test: named_pipe_transport_round_trips.*
 
 - [~] **39. Vector/Tantivy consistency repair after partial ingest failures** (M) -
+  Installed: Managed source snapshots with up to 4,096 rows and 4 MiB of key text detect substituted vector keys despite equal counts. Candidate and installed MCP each verified the existing scoped repair in a disposable project. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Integrity checks expose still-pending durable recovery reasons and earliest timestamp even when lexical and vector counts match. [Delivery](eval/freshness-recovery-procedure-batch-delivery-20261119.json).
   Installed: `check_integrity` supports bounded exact recovery of original findings and repair outcomes. [Delivery](eval/webforms-integrity-batch-delivery-20261119.json).
   Published-source remainder delivered 2026-11-12: compare the same managed
@@ -926,7 +929,7 @@ specs already written.
   reobserved before healthy output. Four focused native checks plus candidate
   and installed public failed-knowledge-ingest/recovery checks passed, with one
   native build and one release and no full-suite execution. Historical generation
-  completeness and equal-count wrong-row corruption remain unverified.
+  completeness and identity comparison beyond the bounded managed source check remain unverified.
   Evidence: [namespace count recovery](eval/legacy_validation-namespace-integrity-delivery-20261115.json).
   Evidence: [installed source consistency](eval/legacy_validation-source-integrity-delivery-20261112.json).
 
