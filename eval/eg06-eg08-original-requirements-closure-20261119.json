@@ -1,0 +1,120 @@
+{
+  "status": "ORIGINAL_BOUNDED_POLICY_LIFECYCLE_VERIFIED_COMPLETE",
+  "at_utc": "2026-11-19T10:27:38.663026+00:00",
+  "original_requirements": {
+    "EG-06": [
+      "Same-basename authored sources remain distinct; explicit JSON scopes survive promotion and source replacement.",
+      "Malformed replacements preserve existing rows; scope dialect compatibility and legacy ambiguities remain explicit."
+    ],
+    "EG-07": [
+      "Authored prose is not generalized by model distillation; full qualifications and existing raw-output/Markdown contracts survive."
+    ],
+    "EG-08": [
+      "Removed/reordered source-owned mandates retire; another source identical-text mandate survives.",
+      "Changed/missing authored policy degrades coverage before reimport; deleted historical exports do not invalidate history.",
+      "Concurrent manual edits and source replacements are protected; interrupted publication converges.",
+      "Whole-corpus clear invalidates other sources searchable completeness; generation does not promote stale managed rules."
+    ]
+  },
+  "observed_acceptance": {
+    "EG-06": {
+      "authored_scope_and_identity": [
+        "same_basename_scopes",
+        "narrowing_retires_global_scope"
+      ],
+      "invalid_replacement_preserves_published_rows": [
+        "invalid_missing_preserve_publication"
+      ]
+    },
+    "EG-07": {
+      "complete_authored_qualification_and_distillation_refusal": [
+        "qualified_context_and_no_distillation"
+      ]
+    },
+    "EG-08": {
+      "reconciles_scoped_ownership": [
+        "source_owner_protects_manual_write",
+        "reorder_remove_preserves_other_source"
+      ],
+      "withholds_changed_or_missing_live_policy": [
+        "changed_source_withholds_authority",
+        "deleted_source_refusal_and_refresh"
+      ],
+      "preserves_historical_authority_and_discloses_missing_search_coverage": [
+        "historical_export_deletion",
+        "corpus_clear_discloses_missing_search",
+        "search_coverage_restored"
+      ],
+      "conflicting_owner_and_interrupted_publication": "Controlled native/no-vector tests named in the retained publication logs."
+    }
+  },
+  "installed_acceptance_record": "eval/eg06-eg08-installed-policy-lifecycle-20261111.json",
+  "historical_checked_receipts": [
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg06-eg08-publication-boundaries-source-errors-final.json",
+        "sha256": "9ad4d8e9c19b1e41474bf9529ddadaf2fce100c5b3c5ec8b776c5f45af251ecb"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg06-eg08-publication-boundaries-source-errors-final.log",
+        "sha256": "ea7a9a80af7cb2879593dd0806cbea2a4ce5c6ca5efd8e7ab89db3518316f538"
+      },
+      "passed": 30,
+      "scope": "Retained prior native/no-vector deterministic publication, ownership and parser checks; not rerun or represented as a current power-loss test."
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg06-eg08-publication-boundaries-source-errors-final.json",
+        "sha256": "d9d5c2ab22976c5376845662f9903f2dfb95565a491de80cd372b1b8c9d032e6"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg06-eg08-publication-boundaries-source-errors-final.log",
+        "sha256": "8ca62efed3ebc7078aa036618b82af423b93d49947549d66a6c1f28ba72c175a"
+      },
+      "passed": 30,
+      "scope": "Retained prior native/no-vector deterministic publication, ownership and parser checks; not rerun or represented as a current power-loss test."
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg06-eg08-real-rule-transactions-and-parser-contracts.json",
+        "sha256": "d9043740344d7e560dae191711c286aba3042b3751f28b2683a913ce41f9fb0d"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg06-eg08-real-rule-transactions-and-parser-contracts.log",
+        "sha256": "cc4fee4ec428977399b727b6c2ff4731e9fc44aeb6e3c7f6a4a9e2913bee11ee"
+      },
+      "passed": 33,
+      "scope": "Retained prior native/no-vector deterministic publication, ownership and parser checks; not rerun or represented as a current power-loss test."
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg06-eg08-real-rule-transactions-and-parser-contracts.json",
+        "sha256": "886a1ab74d691524a89bb498f20314d31ae47825fdfa7b1070bdc56c25df107e"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg06-eg08-real-rule-transactions-and-parser-contracts.log",
+        "sha256": "368be9644f70ebd39d899a6983d7d837a88314183a34e09caf7306effcc3da97"
+      },
+      "passed": 33,
+      "scope": "Retained prior native/no-vector deterministic publication, ownership and parser checks; not rerun or represented as a current power-loss test."
+    }
+  ],
+  "verified_installed_identity": {
+    "server_sha256": "d1e8f9997833b5b9277dd0e9dbfc19d49113d5fe2b7b9bcb3fcb37dbd52eceaa",
+    "manifest_sha256": "3a68b224b8aa4fc1103502e85f939ddd6a7f29d89f62262d337711d75e638c08",
+    "source_commit": "390ae4b53e4150c819dd9faa3307b0b0efb2b4a4"
+  },
+  "tested_policy_source_commit": "a9b357d60406ab737c24d318625d6fdf6e543ba1",
+  "identical_source_path_sha256": {
+    "crates/engram_index/src/quality_gates.rs": "dfb279cfb97c2e3de2e440b26d7b957e8b54f5b90c3551aa6b56ac48efe07b69",
+    "crates/engram_server/src/services/quality_source.rs": "ba6f8d5b939d0986bbd0bb25f5db4a4c4150602b9618640682d5e9178d6c53b0",
+    "crates/engram_core/src/registry/rule_adoption.rs": "6a9fcc0aaa32ab6d0c0cb0c742df5080320e5aba63218fdd7ff150db617cc313",
+    "crates/engram_core/src/registry/rule_receipt.rs": "ce5d1144b1ab65bb582fb35696a83d7ec55655c8e56439745273d3d444b0ddec"
+  },
+  "related_source_changes_reviewed": "Subsequent quality-gate handler edits concern pre-push retrieval and advisory history. Registry changes concern service/job, metadata and durable reindex status. Later pre-commit output and gate orchestration changes retain the scoped effective-rule reader.",
+  "scope": "Original authored-policy contract with serial public observations and retained controlled conflict/interruption tests. Live adoption, abrupt crash/power-loss testing, entire review execution, task productivity and storage release gates remain separate.",
+  "runtime_changed": false,
+  "builds_started": 0,
+  "tests_repeated": 0,
+  "full_original_goal_complete": false
+}

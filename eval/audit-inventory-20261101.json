@@ -450,7 +450,8 @@
       "current_evidence": "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
       "closure_state_before_installed_acceptance_20261111": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Implementation included in later published/deployed lineage; feature-specific deployed acceptance and full-audit gates remain open.",
-      "current_installed_delivery": "eval\\eg06-eg08-installed-policy-lifecycle-20261111.json"
+      "current_installed_delivery": "eval\\eg06-eg08-installed-policy-lifecycle-20261111.json",
+      "original_requirement_closure_20261119": "eval/eg06-eg08-original-requirements-closure-20261119.json"
     },
     {
       "id": "EG-07",
@@ -484,7 +485,8 @@
         "finite_component_installed": true,
         "full_original_requirement_complete": false,
         "behavior": "New review finding promotions retain complete messages and distinct full-text identities; conditions/exceptions are preserved in source injection. Existing promotion eligibility/opt-out and legacy rows remain; no adoption or automatic detection claim."
-      }
+      },
+      "original_requirement_closure_20261119": "eval/eg06-eg08-original-requirements-closure-20261119.json"
     },
     {
       "id": "EG-08",
@@ -502,7 +504,8 @@
       "current_evidence": "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
       "closure_state_before_installed_acceptance_20261111": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Implementation included in later published/deployed lineage; feature-specific deployed acceptance and full-audit gates remain open.",
-      "current_installed_delivery": "eval\\eg06-eg08-installed-policy-lifecycle-20261111.json"
+      "current_installed_delivery": "eval\\eg06-eg08-installed-policy-lifecycle-20261111.json",
+      "original_requirement_closure_20261119": "eval/eg06-eg08-original-requirements-closure-20261119.json"
     },
     {
       "id": "EG-09",

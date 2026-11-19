@@ -4401,6 +4401,18 @@
     "EG-02": {
       "record": "eval/guidance-changeset-original-requirements-closure-20261119.json",
       "status": "ORIGINAL_BOUNDED_DELIVERY_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
+    },
+    "EG-06": {
+      "record": "eval/eg06-eg08-original-requirements-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_POLICY_LIFECYCLE_VERIFIED_COMPLETE"
+    },
+    "EG-07": {
+      "record": "eval/eg06-eg08-original-requirements-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_POLICY_LIFECYCLE_VERIFIED_COMPLETE"
+    },
+    "EG-08": {
+      "record": "eval/eg06-eg08-original-requirements-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_POLICY_LIFECYCLE_VERIFIED_COMPLETE"
     }
   },
   "corpus_refresh_results_source_progress_20261118": {
