@@ -800,6 +800,7 @@ proposals that duplicate the existing surface:
   [Delivery](eval/page-request-guidance-batch-delivery-20261117.json).
 
 - [x] **34. Next-tool hints in every response** (S?M) ? *remaining applicable specialty tier delivered 2026-11-13.*
+  November19 source complete: generic current-file review hints use validated path discovery; unscoped/historical hints require explicit selection instead of offering invalid project-only reads. Existing exact-ID decision-record readbacks remain unchanged. Five public checks await combined validation; this is not installed yet. [Progress](eval/review-readback-hints-progress-20261119.json).
   Bounded `next_tools` with reasons and complete arguments where source identity
   permits; LegacyValidation repeated-query findings lead to their actual VB method context.
   Profile filtering and empty/ambiguous/stale-source guidance are verified.

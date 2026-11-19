@@ -1,0 +1,75 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-19T05:54:45.944043+00:00",
+  "original_requirement_ids": [
+    "TODO-34",
+    "EG-19"
+  ],
+  "original_requirement": "Usable review-decision readback and honest advisory next-tool actions for agent workflows.",
+  "missing_behavior": "Generic rule/history suggestions offer get_review_decisions arguments containing only project_id. A scoped history request can instead use existing path discovery; unscoped or historical requests must not invent a current event selector.",
+  "implementation_files": [
+    "crates/engram_server/src/tool_guidance.rs",
+    "crates/engram_server/src/handlers/review_decisions.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "finite_acceptance": [
+    "Native existing identity-bound record readbacks remain a positive control; reproduce the separate generic scoped/unscoped action failure.",
+    "Use existing validated current-file path discovery for generic review suggestions with a concrete file. Omit executable arguments when scope is absent or historical selectors cannot be preserved.",
+    "Preserve complete declared rationale/scope and open status; no inferred approval, suppression or authority. Keep actual record readbacks unchanged.",
+    "Five public after checks cover record readbacks, current-file discovery, unscoped and historical hint withholding, and source/event preservation. Queue without compilation."
+  ],
+  "legacy_validation_applicability_basis": "Original EG19 scoped review decision workflow is part of the LegacyValidation shortlist; the behavior is provider-neutral and needs no target-language expansion or current LegacyValidation mutation.",
+  "implementation_items_active": 0,
+  "runtime_deployed": false,
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-readback-hints-20261119",
+    "retention": "Keep baseline/contract/public evidence here until delivery or supersession; every owned native reader/fixture closes before removal. No preexisting deletion."
+  },
+  "historical_initial_hypothesis": "Recording readbacks were initially suspected of losing review_id. Disproved by baseline1 raw MCP response: stored_readback already provides the exact identity in a second text part. Both initial harness attempts misparsed that content; their failures and successful teardown remain retained.",
+  "source_outcomes": 1,
+  "public_assertions_expected": 5,
+  "native_unit_cases_expected": 0,
+  "public_after_assertions_executed": 0,
+  "typechecked": false,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-readback-hints-20261119\\baseline3\\receipt.json",
+    "sha256": "9b1ab1be5171fae93affb423ab956b080248a10a08f25dd206bde7a9d6c17e5e"
+  },
+  "acceptance_contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-readback-hints-20261119\\contract.json",
+    "sha256": "7e89266d4c555d4e7bdb573c5c0a4596c172750546a307c2795e9b72d76869b9"
+  },
+  "future_public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-readback-hints-20261119\\verify-public.py",
+    "sha256": "247aae4fec4929d20461933172282f9fce2cf070ec2f8cbd97ec8f502c586da8"
+  },
+  "implemented": "Generic review hints construct current-file discovery with the existing reader validator; without a file or with unpreserved historical selectors they omit arguments and state the selection requirement. Existing stored exact-ID readbacks are unchanged. Adjacent outdated docs now reflect already-supported dated discovery.",
+  "retained_harness_failures": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-readback-hints-20261119\\baseline1\\receipt.json",
+      "sha256": "da19f8069af69656d35c16b0c4a46d033816ec63034903d7596b58cf082cf8ab",
+      "reason": "Harness incorrectly treated a multipart text acknowledgement as JSON."
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-readback-hints-20261119\\baseline2\\receipt.json",
+      "sha256": "7bb4bd907972e8fdbe94476638001438aba154e2941adad57dd37c0de6c7c8ed",
+      "reason": "Harness expected appended text hints rather than the existing separate JSON hint part."
+    }
+  ],
+  "verification": {
+    "baseline_seconds": 2.1470591999968747,
+    "baseline_checks": 4,
+    "rust_syntax": "Both changed Rust files parsed using rustfmt --emit stdout; not typechecking.",
+    "python_syntax": "Future verifier parsed using AST; after assertions not executed.",
+    "protected_work": "All9raw hashes unchanged.",
+    "new_cargo_or_full_suite_runs": 0
+  },
+  "limitations": [
+    "This fixes generic advisory routing, not the already-working recorded-decision readback. The initial hypothesis was disproved and retained.",
+    "Discovery remains bounded advisory evidence, not authenticated approval, current semantic applicability or automatic finding suppression. Unpreserved historical selectors require selection; no dates/IDs are inferred.",
+    "Source is not yet compiled, candidate/installed accepted or deployed. No actual LegacyValidation source/index/Q operation, new target language or CodeMap/Blast improvement."
+  ],
+  "next_action": "Preserve all three independent source outcomes. Deliberately prepare a combined17assertion candidate/installed contract with one optimized executable only after confirming no further ready original source item; three outcomes are a minimum, not an automatic release cadence.",
+  "source_commit": "89233116d43b8f753a364f795d0fe2dad1d42fe2",
+  "unrelated_observation": "The optional Engram connector list_projects call returned Transport closed; no index/search/restart operation followed. Native isolated fixture transport remains usable; no cause or product fix is inferred."
+}

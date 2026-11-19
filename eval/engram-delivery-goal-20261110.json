@@ -2578,6 +2578,17 @@
         "source_outcomes": 1,
         "public_assertions_expected": 6,
         "native_unit_cases_expected": 0
+      },
+      {
+        "original_requirement_id": "TODO-34",
+        "related_requirement_id": "EG-19",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "89233116d43b8f753a364f795d0fe2dad1d42fe2",
+        "progress": "eval/review-readback-hints-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-readback-hints-20261119\\contract.json",
+        "source_outcomes": 1,
+        "public_assertions_expected": 5,
+        "native_unit_cases_expected": 0
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2809,12 +2820,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "TWO_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "status": "THREE_SOURCE_OUTCOMES_AWAITING_DELIBERATE_BATCH_FREEZE",
     "implementation_items_active": 0,
-    "progress": "eval/sql-analysis-result-delivery-progress-20261119.json",
-    "pending_source_outcomes": 2,
+    "progress": "eval/review-readback-hints-progress-20261119.json",
+    "pending_source_outcomes": 3,
     "full_original_goal_complete": false,
-    "next_action": "Keep this as one independent SQL-delivery outcome alongside the browser-property outcome. Select further original work before deliberately freezing a later batch; two outcomes do not permit Cargo and three is not an automatic release cadence."
+    "next_action": "Preserve all three independent source outcomes. Deliberately prepare a combined17assertion candidate/installed contract with one optimized executable only after confirming no further ready original source item; three outcomes are a minimum, not an automatic release cadence."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4152,8 +4163,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T05:40:13.787360+00:00",
-    "reason": "Reproduced completed SQL-analysis reports lost to a requested4KiB budget in3.86s; added handler-owned immutable result recovery for both analyzers and queued6public checks without Cargo. Preserve browser-property source, installed delivery and unresolved S18 failure."
+    "at_utc": "2026-11-19T06:09:41.529357+00:00",
+    "reason": "Confirmed existing record readbacks were correct and retained two harness parser failures; native2.15s baseline proved separate generic review hints omit required selectors. Added validated current-path navigation and historical/unscoped selection withholding;5public assertions queued, no compilation."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4761,6 +4772,11 @@
   "sql_analysis_result_delivery_source_progress_20261119": {
     "record": "eval/sql-analysis-result-delivery-progress-20261119.json",
     "source_commit": "72f0690de40f591734a0ebde37d94a32d4e58a04",
+    "runtime_deployed": false
+  },
+  "review_readback_hints_source_progress_20261119": {
+    "record": "eval/review-readback-hints-progress-20261119.json",
+    "source_commit": "89233116d43b8f753a364f795d0fe2dad1d42fe2",
     "runtime_deployed": false
   }
 }
