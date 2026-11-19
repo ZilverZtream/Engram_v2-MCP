@@ -2585,6 +2585,16 @@
         "public_assertions_expected": 7,
         "native_unit_cases_expected": 0,
         "source_outcomes": 1
+      },
+      {
+        "original_requirement_id": "TODO-28",
+        "source_commit": "fb64aa6792f2a3e04d8514119b5cfa43c866345f",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "progress": "eval/ask-relative-webforms-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-relative-webforms-20261119\\contract.json",
+        "public_assertions_expected": 5,
+        "native_unit_cases_expected": 0,
+        "source_outcomes": 1
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2818,15 +2828,15 @@
   "current_execution_focus": {
     "status": "SOURCE_OUTCOMES_QUEUED_FOR_LATER_COMBINED_VALIDATION",
     "implementation_items_active": 0,
-    "original_requirement": "TODO-4 / TODO-39: complete budgeted delivery of integrity findings and returned repair outcomes.",
-    "observed_gap": "check_integrity can run repairs but cannot recover a captured result through public MCP.",
+    "original_requirement": "TODO-28: route ordinary WebForms page/action questions to existing request evidence.",
+    "observed_gap": "Explicit HTTP and control questions reject relative page names accepted by trace_user_request.",
     "implementation_files": [
-      "crates/engram_server/src/read_report_delivery.rs"
+      "crates/engram_server/src/services/ask_engine/request_trace.rs"
     ],
-    "acceptance": "Preserve the default integrity report, enforce caller budgets before invoking it and recover a bounded original result without repeating the integrity operation.",
+    "acceptance": "Relative page HTTP and control questions select the same source and handlers as the direct tracer, with callable recovery. VB codebehind mentions do not trigger request tracing.",
     "full_original_goal_complete": false,
-    "next_action": "Select the next original LegacyValidation item. Two runtime outcomes now await combined public MCP validation.",
-    "record": "eval/integrity-result-progress-20261119.json"
+    "record": "eval/ask-relative-webforms-progress-20261119.json",
+    "next_action": "Prepare one combined release for redirect evidence, integrity result recovery and relative WebForms questions. Include the server-only profile change with the recorded validation. Do not launch a separate profile build."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4165,8 +4175,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T07:31:08.110124+00:00",
-    "reason": "Implemented bounded integrity result recovery and confirmed the installed MCP gap on an owned partial-ingest and repair fixture."
+    "at_utc": "2026-11-19T07:34:29.481443+00:00",
+    "reason": "Implemented relative routing for ordinary WebForms questions and confirmed the gap with the installed service on retained LegacyValidation source evidence."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",

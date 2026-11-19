@@ -1,0 +1,26 @@
+{
+  "original_requirement_id": "TODO-28",
+  "source_commit": "fb64aa6792f2a3e04d8514119b5cfa43c866345f",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-relative-webforms-20261119\\verify-public.py",
+    "sha256": "d361b901387caab6847f4fc76fe7769332ead16fe38e79af0a0e860f1b9070b4"
+  },
+  "public_assertions_expected": 5,
+  "public_assertions": [
+    "direct_relative_page_resolves_authored_handler",
+    "relative_click_matches_direct_and_preserves_recovery",
+    "relative_http_preserves_method_and_page",
+    "absolute_page_and_codebehind_controls",
+    "source_bytes_preserved"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-relative-webforms-20261119\\baseline1\\receipt.json",
+    "sha256": "74a8557ff30533ac0b6d2f9a85d0c3f19b746479b83bf1fd0471296491b2d0ba"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "verification": "Rust syntax and Git whitespace checks passed. The installed service traced the retained page directly but returned no request evidence for either relative question.",
+  "temporary_resources": "The retained driver, wire and receipts are in the single recorded case. The process closed and the authored source fixture was removed.",
+  "full_original_goal_complete": false
+}
