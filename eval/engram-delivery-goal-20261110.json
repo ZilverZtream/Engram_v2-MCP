@@ -2869,6 +2869,19 @@
       "native_unit_cases_expected": 0,
       "current_release_excludes_this_item": true,
       "verification": "Installed baseline reproduced the false clean result and confirmed the staged-change control on an owned Git/VB fixture. Source syntax and whitespace checks passed. The modified runtime is unverified."
+    },
+    {
+      "original_requirement_id": "TODO-34",
+      "source_commit": "1f40335c0b0211383d93e623aaf325dc11c4421b",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "observed_gap": "A nonempty staged pre_commit_review reports its selected file but offers no action for another observed unstaged file.",
+      "user_outcome": "A native Git review of a nonempty diff discloses observed alternate staged or unstaged scopes and provides callable review arguments. Existing diff scope, findings and review controls are preserved.",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-mixed-diff-scope-20261119\\contract.json",
+      "public_assertions_expected": 5,
+      "source_outcomes": 1,
+      "native_unit_cases_expected": 0,
+      "current_release_excludes_this_item": true,
+      "verification": "Installed baseline reproduced the missing handoff for two independently authored VB edits with one staged and one unstaged. Source syntax and whitespace checks passed. Runtime acceptance of the new behavior is pending."
     }
   ],
   "method_schema_area_batch_delivery": {
