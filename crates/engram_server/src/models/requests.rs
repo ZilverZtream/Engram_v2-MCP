@@ -4150,7 +4150,8 @@ pub struct TraceUserRequestRequest {
     /// postback, client wiring and runtime execution remain unproven.
     #[serde(default)]
     pub action: Option<String>,
-    /// Include indexed SQL/procedure/table relationships. Default true.
+    /// Include SQL/procedure/table relationships. Default true. Set false
+    /// for code and route navigation without reading SQL or DBML source.
     #[serde(default = "default_true")]
     pub include_db: bool,
     /// Include source-declared DML trigger candidates for reached qualified literal writes.

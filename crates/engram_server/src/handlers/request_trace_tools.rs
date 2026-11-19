@@ -95,7 +95,16 @@ impl Engram {
             let mut bytes = 0usize;
             for path in selected.keys() {
                 let lower = path.to_ascii_lowercase();
-                if ![".vb", ".cs", ".aspx", ".ascx", ".master", ".ashx", ".asmx", ".asax", ".sql", ".dbml"].iter().any(|extension| lower.ends_with(extension)) { continue; }
+                let database_source = lower.ends_with(".sql") || lower.ends_with(".dbml");
+                let should_read = if database_source {
+                    req.include_db
+                } else {
+                    [".vb", ".cs", ".aspx", ".ascx", ".master", ".ashx", ".asmx", ".asax"]
+                        .iter().any(|extension| lower.ends_with(extension))
+                };
+                if !should_read {
+                    continue;
+                }
                 let target = match engram_core::safe_join(Path::new(&record.directory), path) {
                     Ok(target) => target, Err(error) => { gaps.push(format!("{path}: {error}")); continue; }
                 };
@@ -140,6 +149,7 @@ impl Engram {
                 "coverage":{"source_files_read":owned.len(),"source_bytes_read":bytes,"source_inventory":"selected managed paths matching path_prefixes; current disk contents","path_prefixes":req.path_prefixes,"selected_paths_in_scope":selected.len(),
                 "application_root_path_markers":root_markers,"scope_interpretation":"Only scoped code bodies are read. Selected Global.asax path markers establish application-root metadata without reading excluded bodies. Excluded registrations, dependencies and callers are unknown, not absent. Applicable authored guidance is resolved separately.","gaps":gaps,
                 "graph_consistency":"Per-expanded-member source hash and selected physical revision checks; no atomic graph/disk snapshot or complete call-binding proof.",
+                "database_source_scan":if req.include_db {"included_in_selected_source_scan"} else {"skipped_include_db_false"},
                 "runtime_execution_proven":false,"include_db":req.include_db,"include_triggers":req.include_triggers}});
             crate::services::request_trace::triggers::attach(&mut report, &sources);
             crate::services::request_trace::value_lineage::attach(&graph, &req.project_id, &mut report, &sources, selected);
