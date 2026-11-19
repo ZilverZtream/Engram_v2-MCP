@@ -37,6 +37,46 @@ pub(super) fn append_recovery(out: &mut String, recovery: &Value, truncated: boo
     out.push_str(&format!("recovery: {recovery}\n"));
 }
 
+pub(super) fn recent(
+    req: &SearchHistoryRequest,
+    scope: &str,
+    revision: git2::Oid,
+    max_commits: usize,
+    window: crate::services::change_card_service::MetadataWindow,
+) -> Result<CallToolResult, McpError> {
+    let limit = req.sanitized_limit();
+    let matches = window.cards.len();
+    let older = window.cards.iter().rev().nth(limit).map(|card| card.oid.clone())
+        .or_else(|| window.next_revision.map(|oid| oid.to_string()));
+    let next_window = older.map(|oid| -> Result<_, McpError> {
+        let mut arguments = serde_json::to_value(req)
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        arguments["as_of_rev"] = json!(oid);
+        arguments["offset"] = json!(0);
+        Ok(json!({"tool":"search_history","arguments":arguments}))
+    }).transpose()?;
+    let mut blocks = Vec::new();
+    let mut rows = Vec::new();
+    for card in window.cards.iter().rev().take(limit) {
+        let files = card.files.iter().take(12).collect::<Vec<_>>();
+        let recovery = recovery(&req.project_id, Some(&card.oid), None);
+        let date = crate::utils::ymd_utc(card.timestamp.saturating_mul(1000));
+        blocks.push(format!("\ncommit: {}\ndate: {date}\nauthor: {}\nmessage: {}\nfiles: {}\nrecovery: {recovery}\n",
+            card.oid, card.author, card.title, json!(files)));
+        rows.push(json!({"commit":card.oid,"author":card.author,"timestamp":card.timestamp,
+            "message":card.title,"files":files,"file_count":card.file_count,
+            "files_truncated":card.file_count>files.len(),"recovery":recovery}));
+    }
+    let scan = json!({"max_commits":max_commits,"commits_scanned":window.commits_scanned,
+        "older_history_not_scanned":window.next_revision.is_some()});
+    let header = format!("Recent changes ({scope}), newest on the first-parent line first. No model calls.\n\
+        File previews use capped non-generated change cards. Follow commit recovery for the full cohort.\n\
+        History acquisition: {scan}\nnext_history_window: {}\n", json!(next_window));
+    finish(req, header, &blocks, &rows, json!({"mode":"recent", "scope":scope,
+        "resolved_revision":revision.to_string(),"history_scan":scan,"next_history_window":next_window,
+        "semantic_retrieval":"not_run","rerank":"not_run","ranked_matches_before_limit":matches}))
+}
+
 pub(super) fn finish(req: &SearchHistoryRequest, header: String, blocks: &[String], rows: &[Value], mut metadata: Value) -> Result<CallToolResult, McpError> {
     debug_assert_eq!(blocks.len(),rows.len());
     let window=rows.len();
@@ -51,7 +91,7 @@ pub(super) fn finish(req: &SearchHistoryRequest, header: String, blocks: &[Strin
     let mut next_request = None;
     if rows.len() > 1
         && let Some(revision) = metadata["resolved_revision"].as_str()
-        && let Some(mode @ ("text" | "precedent")) = metadata["mode"].as_str()
+        && let Some(mode @ ("text" | "precedent" | "recent")) = metadata["mode"].as_str()
     {
         let mut arguments = serde_json::to_value(req)
             .map_err(|error| McpError::internal_error(error.to_string(), None))?;
@@ -84,6 +124,8 @@ pub(super) fn finish(req: &SearchHistoryRequest, header: String, blocks: &[Strin
             "One exact file's first-parent Git patch in the selected revision scope, with full object IDs and original UTF-8 patch/hash. Binary entries supply no text patch. No indexed search, embedding, LLM, external diff or text conversion. Existing complete_capture/retain_response preserves the original result; historical evidence does not prove current policy or runtime behavior."
         } else if metadata["mode"]=="commit" {
             "One exact Git commit in the selected revision scope. Complete original UTF-8 message and first-parent changed-file cohort, including generated paths; no patch body or rename inference. No indexed search, embedding or LLM call. Use complete_capture or retain_response=true with output_json=true for immutable full-result recovery when the complete row exceeds a reply budget."
+        } else if metadata["mode"]=="recent" {
+            "Newest-first first-parent change cards in the scanned window. Path predicates use capped non-generated card paths. Recover any commit for its complete Git changed-file cohort. Older windows may contain more matches. No model calls."
         } else {
             "Selected ranking window only. Text matched-file lists are drawn from retrieved documents, not the complete commit. Precedent descriptions and non-generated file lists are capped at 1500 characters and 40 paths before previews. Git recovery includes generated paths. No corpus completeness or snapshot guarantee; LLM reranking and mutable inputs can reorder pages."
         });

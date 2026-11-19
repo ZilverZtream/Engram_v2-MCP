@@ -2227,11 +2227,11 @@ pub struct IndexGitHistoryRequest {
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SearchHistoryRequest {
-    /// Precedent acquisition: scan at most this many recent first-parent commits
+    /// Precedent or recent acquisition: scan at most this many first-parent commits
     /// (1..10000, default1000), before author/date/path filtering. Older history
     /// remains unsearched until next_history_window is followed. Each window
     /// ranks independently; this is a work bound, not a wall-clock deadline.
-    /// Valid only for precedent or auto when it selects precedent.
+    /// Valid for recent, precedent or auto when it selects precedent.
     #[serde(default)]
     #[schemars(range(min = 1, max = 10000))]
     pub max_commits: Option<usize>,
@@ -2252,7 +2252,7 @@ pub struct SearchHistoryRequest {
     /// optional LLM reranking can change ordering; this is not a snapshot cursor.
     #[serde(default)]
     pub offset: usize,
-    /// Repository-relative path prefix for text-mode diff evidence or precedent
+    /// Repository-relative path prefix for text-mode diff evidence or recent/precedent
     /// changes. In text mode an inclusion selects diff documents, so commit
     /// message and PR documents are not eligible as independent matches.
     /// In patch mode this is one exact repository-relative file path.
@@ -2288,6 +2288,10 @@ pub struct SearchHistoryRequest {
     /// words, text otherwise.
     /// Without vectors, precedent mode uses a disclosed lexical baseline.
     /// Projection providers are disclosed as degraded trigram ranking.
+    /// `recent`: pass an empty query. Lists matching first-parent changes from
+    /// newest to oldest without embeddings or reranking. Uses the same bounded
+    /// change cards and author/date/path filters as precedent. Follow the returned
+    /// older-window action or recover an individual complete commit.
     /// `commit`: query is an exact40hex Git commit ID. Returns the complete
     /// UTF-8 message and first-parent changed-file cohort, including generated
     /// files, inside as_of_rev or the origin default history scope. No index,

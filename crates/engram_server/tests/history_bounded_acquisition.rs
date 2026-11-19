@@ -124,6 +124,23 @@ impl Fixture {
 }
 
 #[tokio::test]
+async fn recent_lists_matching_history_in_order_and_keeps_older_matches_reachable() -> Result<()> {
+    let fixture = Fixture::new().await?;
+    let first = fixture.search(json!({"project_id":fixture.pid,"query":"","mode":"recent",
+        "as_of_rev":fixture.commits[5],"file_filter":"invoice.sql", "date_after":1_700_000_004u64,
+        "max_commits":3,"limit":1,"output_json":true})).await?;
+    ensure!(first["results"][0]["commit"] == fixture.commits[5]);
+    ensure!(first["semantic_retrieval"] == "not_run" && first["rerank"] == "not_run");
+    let next = &first["next_history_window"]["arguments"];
+    ensure!(next["as_of_rev"] == fixture.commits[4] && next["file_filter"] == "invoice.sql");
+    let newest = commit(&fixture.root, 6)?;
+    let older = fixture.search(next.clone()).await?;
+    ensure!(older["results"][0]["commit"] == fixture.commits[4]);
+    ensure!(older["results"][0]["commit"] != newest);
+    fixture.close()
+}
+
+#[tokio::test]
 async fn bounded_windows_recover_older_changes_without_duplicates_or_new_head_leaks() -> Result<()>
 {
     let fixture = Fixture::new().await?;

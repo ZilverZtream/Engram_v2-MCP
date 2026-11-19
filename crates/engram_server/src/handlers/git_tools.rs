@@ -413,6 +413,7 @@ async fn collect_text_history(
 #[derive(Debug, PartialEq, Eq)]
 enum HistoryMode {
     Precedent,
+    Recent,
     Text,
     Commit,
     Patch,
@@ -423,6 +424,8 @@ enum HistoryMode {
 fn history_mode(mode: Option<&str>, query: &str) -> Result<HistoryMode, McpError> {
     match mode.unwrap_or("auto") {
         "precedent" => Ok(HistoryMode::Precedent),
+        "recent" if query.trim().is_empty() => Ok(HistoryMode::Recent),
+        "recent" => Err(McpError::invalid_params("recent mode uses Git filters and requires an empty query", None)),
         "text" => Ok(HistoryMode::Text),
         "commit" => Ok(HistoryMode::Commit),
         "patch" => Ok(HistoryMode::Patch),
@@ -446,7 +449,7 @@ fn history_mode(mode: Option<&str>, query: &str) -> Result<HistoryMode, McpError
             })
         }
         other => Err(McpError::invalid_params(
-            format!("mode must be auto, precedent, text, commit or patch, got '{other}'"),
+            format!("mode must be auto, precedent, recent, text, commit or patch, got '{other}'"),
             None,
         )),
     }
@@ -1861,7 +1864,7 @@ impl Engram {
     /// Precedent mode: whole published changes most like the story, from one
     /// semantic card per first-parent change, the top candidates reranked by
     /// an LLM judge. See `services::change_card_service`.
-    async fn handle_precedents(
+    async fn handle_first_parent_history(
         &self,
         req: SearchHistoryRequest,
     ) -> Result<CallToolResult, McpError> {
@@ -1876,7 +1879,7 @@ impl Engram {
             ));
         }
         let limit = req.sanitized_limit();
-        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let recent = req.mode.as_deref() == Some("recent");
         let dir = PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
         let rev = req.as_of_rev.clone();
         let git_dir = dir.clone();
@@ -1910,7 +1913,6 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::invalid_params(e, None))?;
 
-        let prefixes = cards::EmbedPrefixes::for_model(self.state.cfg.embedding_model.as_deref());
         let file_filter = req.file_filter.as_deref().map(|f| f.replace('\\', "/"));
         let excluded: Vec<String> = req
             .exclude_paths
@@ -1924,10 +1926,6 @@ impl Engram {
                 author: req.author_filter.clone(), date_after: req.date_after,
                 date_before: req.date_before,
             };
-        let canonical_dir = dir.clone();
-        let canonical_dir = tokio::task::spawn_blocking(move || std::fs::canonicalize(canonical_dir))
-            .await.map_err(|e| McpError::internal_error(e.to_string(), None))?
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         // Load/filter metadata independently of optional provider work. A timed
         // out embedder must not turn known matching history into an empty success.
         let max_commits = req.validated_max_commits()
@@ -1935,6 +1933,14 @@ impl Engram {
         let window = cards::metadata_for_line_window_cached(
             &dir, tip, &self.state.registry, filter.clone(), max_commits,
         ).await.map_err(|e| McpError::internal_error(format!("change metadata: {e}"), None))?;
+        if recent {
+            return history_response::recent(&req, &label, tip, max_commits, window);
+        }
+        let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let prefixes = cards::EmbedPrefixes::for_model(self.state.cfg.embedding_model.as_deref());
+        let canonical_dir = tokio::task::spawn_blocking(move || std::fs::canonicalize(dir))
+            .await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let history_scan = json!({"basis":"recent_first_parent_commit_window",
             "resolved_revision":tip.to_string(),"max_commits":max_commits,
             "commits_scanned":window.commits_scanned,
@@ -2131,11 +2137,11 @@ impl Engram {
         req.validated_max_commits()
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         let mode = history_mode(req.mode.as_deref(), &req.query)?;
-        if req.max_commits.is_some() && !matches!(mode, HistoryMode::Precedent) {
-            return Err(McpError::invalid_params("max_commits is only supported for precedent history acquisition", None));
+        if req.max_commits.is_some() && !matches!(mode, HistoryMode::Precedent | HistoryMode::Recent) {
+            return Err(McpError::invalid_params("max_commits is only supported for precedent or recent history acquisition", None));
         }
         match mode {
-            HistoryMode::Precedent => return self.handle_precedents(req).await,
+            HistoryMode::Precedent | HistoryMode::Recent => return self.handle_first_parent_history(req).await,
             HistoryMode::Commit => return self.handle_history_commit(req).await,
             HistoryMode::Patch => return self.handle_history_patch(req).await,
             HistoryMode::Text => (),

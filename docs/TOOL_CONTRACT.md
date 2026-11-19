@@ -1821,6 +1821,12 @@ MCP tool schemas before using them with an existing installation.
 - A DBML table lookup includes declared `model_associations` with literal
   member/type names, keys and the declaration's source span. This describes the
   LINQ-to-SQL model. SQL foreign keys retain their separate DDL evidence.
+- For a date-and-path history listing, call `search_history` with
+  `mode="recent"`, `query=""`, and filters such as
+  `file_filter="Site/App_Code/"`. This walks the selected first-parent history
+  from newest to oldest without model calls. Follow `next_history_window`
+  after reading the current page. Commit recovery provides the full Git diff
+  cohort when the capped change-card path preview is insufficient.
 - Add `get_review_decisions` to `batch_read` with its usual path, date or discussion
   selector. Each read keeps its own result or error and a callable refresh action.
 - Follow `pre_commit_review.review_next_calls` when the report identifies an
