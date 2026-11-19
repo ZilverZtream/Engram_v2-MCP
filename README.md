@@ -555,9 +555,29 @@ returns bounded source excerpts with hashes and line ranges, existing change-set
 guidance and pattern context, and coverage/recovery information as
 `SOURCE_DOSSIER_READY`. It preserves the feature request verbatim and makes zero
 server text-generation calls, including when the generation backend is disabled.
-Retrieval and embeddings still follow the project configuration. This mode
-returns no generated requirements, plan, inferred schema or edit-safety verdict.
-Omit the flag to use the generated-proposal workflow below.
+Retrieval and embeddings still follow the project configuration. When the
+task names database tables, pass up to eight names in `schema_tables`, using
+schema-qualified names such as `dbo.Invoice` where possible. The dossier
+looks them up in the same selected source generation and puts the findings
+in `planning_context.schema`. Use those findings as indexed source evidence.
+An empty list skips schema lookup in dossier mode. An exact project-relative
+`model_after` file path prioritizes that source example in the dossier.
+
+```json
+{
+  "project_id": "your-project-id",
+  "feature_description": "Prepare source evidence for an invoice filter on the WebForms page.",
+  "target_stack": "webforms_vbnet",
+  "detail_level": "Detailed",
+  "dossier_only": true,
+  "model_after": "Site/Invoices.aspx.vb",
+  "schema_tables": ["dbo.Invoice"]
+}
+```
+
+Omit `dossier_only` to request generated requirements, a proposal and edit
+safety checks. In that mode, an empty `schema_tables` list uses the tables
+selected by the model.
 
 The configured model proposes requirements, reconciles them with admitted source,
 and returns proposed files, DDL, ordered steps, validation checks and explicit
