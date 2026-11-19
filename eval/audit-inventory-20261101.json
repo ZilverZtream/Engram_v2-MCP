@@ -989,7 +989,7 @@
     {
       "id": "EG-20",
       "finding": "Automatic history routing without vectors",
-      "ledger_disposition": "Finite installed routing/cutoff/budget and capability-label delivery verified; original broader gate limits retained",
+      "ledger_disposition": "Original bounded history required behavior verified complete; broader product/storage/task limits retained",
       "existing_evidence_and_next_gate": "Exercise long natural-language queries in a no-vector build; require supported fallback or a clear capability response, preserving historical cutoffs.",
       "required_behavior": [
         "A long natural-language history query works in a no-vector build through a supported fallback or clear capability result.",
@@ -1009,12 +1009,17 @@
         "actual_legacy_validation": "Original matching request returned expected Git-verified change in4.3188s atgeneration3149. Earlier40.49s observation retained; not a controlled speedup.",
         "limits": "Metadata traversal and unfiltered embedding work remain; rerank budget still not a whole-request deadline. No ranking-quality/productivity or full original gate closure."
       },
-      "provider_outage_delivery_20261113": "eval/legacy_validation-history-provider-fallback-delivery-20261113.json"
+      "provider_outage_delivery_20261113": "eval/legacy_validation-history-provider-fallback-delivery-20261113.json",
+      "original_requirement_closure_20261119": {
+        "record": "eval/eg20-eg21-original-requirement-closure-20261119.json",
+        "original_required_behavior_complete": true,
+        "general_task_usefulness_established": false
+      }
     },
     {
       "id": "EG-21",
       "finding": "Caller-controlled history reranking latency",
-      "ledger_disposition": "Finite installed routing/cutoff/budget and capability-label delivery verified; original broader gate limits retained",
+      "ledger_disposition": "Original bounded history required behavior verified complete; broader product/storage/task limits retained",
       "existing_evidence_and_next_gate": "A slow/unavailable reranker must permit bounded-latency useful fallback with an accurate ranking-tier disclosure.",
       "required_behavior": [
         "Caller controls rerank latency; slow/unavailable ranking returns useful fallback inside the chosen budget.",
@@ -1046,20 +1051,27 @@
         "source_commit": "094d048f535d749b86230ace8b644f560c72a4a4",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\contract.json",
         "behavior": "Bound precedent acquisition to a recent first-parent commit window and supply an exact older-window continuation rather than reconstructing all history for each request.",
-        "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
-        "runtime_deployed": false,
+        "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+        "runtime_deployed": true,
         "native_target": "history_bounded_acquisition",
         "native_environment": {
           "ENGRAM_GIT_FIXTURE_ROOT": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
         },
         "counting_rule": "One bounded precedent-acquisition workflow outcome. Window traversal, filter preservation, JSON/Markdown and continuation are not separate outcomes.",
         "progress": "eval/history-bounded-acquisition-progress-20261118.json",
-        "full_original_requirement_complete": false
+        "full_original_requirement_complete": false,
+        "historical_source_status": true,
+        "delivery_record": "eval/review-memory-history-delivery-20261118.json"
       },
       "bounded_history_acquisition_delivery_20261118": {
         "record": "eval/review-memory-history-delivery-20261118.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
+      },
+      "original_requirement_closure_20261119": {
+        "record": "eval/eg20-eg21-original-requirement-closure-20261119.json",
+        "original_required_behavior_complete": true,
+        "general_task_usefulness_established": false
       }
     },
     {

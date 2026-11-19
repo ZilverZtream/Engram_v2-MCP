@@ -4298,6 +4298,14 @@
     "EG-27": {
       "record": "eval/eg27-original-requirement-closure-20261119.json",
       "status": "ORIGINAL_BOUNDED_FRESHNESS_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
+    },
+    "EG-20": {
+      "record": "eval/eg20-eg21-original-requirement-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_HISTORY_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
+    },
+    "EG-21": {
+      "record": "eval/eg20-eg21-original-requirement-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_HISTORY_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
     }
   },
   "corpus_refresh_results_source_progress_20261118": {

@@ -1,0 +1,316 @@
+{
+  "status": "ORIGINAL_FOUR_HISTORY_REQUIREMENTS_VERIFIED_COMPLETE",
+  "at_utc": "2026-11-19T01:25:43.851011+00:00",
+  "original_requirement_ids": [
+    "EG-20",
+    "EG-21"
+  ],
+  "required_behavior": {
+    "EG-20": [
+      "A long natural-language history query works in a no-vector build through a supported fallback or clear capability result.",
+      "Automatic routing preserves historical reachability/cutoffs; static suspicion is not a reproduced defect."
+    ],
+    "EG-21": [
+      "Caller controls rerank latency; slow/unavailable ranking returns useful fallback inside the chosen budget.",
+      "Results disclose the ranking tier actually used and preserve historical cutoffs."
+    ]
+  },
+  "original_required_behavior_complete": true,
+  "recorder": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\eg20-eg21-original-requirement-closure-20261119\\record-closure.py",
+    "sha256": "f16b4e92dc3c95c39659062a9d75853c64914046d819b6ac48f02452edabe8a8"
+  },
+  "requirement_evidence": {
+    "EG-20.1": {
+      "actual_no_vector_public_native_cases": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\history-public-no-vector-routing-budget-and-cutoff.json",
+          "sha256": "60a59d9a79dc07774bfcbe371c4166907a2f71c4e41b759694fde726009bd8fb"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\history-public-no-vector-routing-budget-and-cutoff.log",
+          "sha256": "566246dad13dd1f31bd02611550aca1327c5bbb14c4a7defd1679159eb0da822"
+        },
+        "passed_cases": [
+          "test branch_fragments_fold_into_the_merge_that_published_them ... ok",
+          "test default_search_is_limited_to_published_history ... ok",
+          "test find_merged_work_rejects_an_unresolvable_revision ... ok",
+          "test history_indexing_walks_the_published_branch_not_the_checkout ... ok",
+          "test invalid_rerank_budget_refuses_before_project_lookup_or_runtime_creation ... ok",
+          "test lexical_precedents_preserve_scope_filters_empty_matches_and_zero_budget ... ok",
+          "test precedent_mode_ranks_whole_published_changes_within_the_cutoff ... ok",
+          "test search_history_is_crash_free_and_leak_free_on_story_text ... ok"
+        ],
+        "actual_no_vector_build": true,
+        "reexecuted": false
+      },
+      "installed_provider_outage_fallback": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\installed1\\acceptance.json",
+        "sha256": "0c9efe381e510f92e530a854bdc00b25fbf24c61c59ac4e361033a7b3c34aad2"
+      }
+    },
+    "EG-20.2": {
+      "automatic_routing_and_cutoff_native_cases": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\history-public-native-budget-fixture-lifetime-corrected.json",
+          "sha256": "f1f20999313191d8b29800829bb0b5288c4766f369e5a4631eee38b3a1512eae"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\history-public-native-budget-fixture-lifetime-corrected.log",
+          "sha256": "778030a2af1ac7fbc5c6cd61ec5d4f5e4835f81164057e443d6325c4bb2a15a2"
+        },
+        "passed_cases": [
+          "test branch_fragments_fold_into_the_merge_that_published_them ... ok",
+          "test default_search_is_limited_to_published_history ... ok",
+          "test find_merged_work_rejects_an_unresolvable_revision ... ok",
+          "test history_indexing_walks_the_published_branch_not_the_checkout ... ok",
+          "test invalid_rerank_budget_refuses_before_project_lookup_or_runtime_creation ... ok",
+          "test lexical_precedents_preserve_scope_filters_empty_matches_and_zero_budget ... ok",
+          "test precedent_mode_ranks_whole_published_changes_within_the_cutoff ... ok",
+          "test search_history_is_crash_free_and_leak_free_on_story_text ... ok"
+        ],
+        "actual_no_vector_build": false,
+        "reexecuted": false
+      },
+      "installed_git_oracle": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\included\\git-oracle.json",
+        "sha256": "c607665a3570846b91c9d25f08839c9545f2ec0142fc31f9037901f4b46f6a37"
+      },
+      "installed_observations": {
+        "included": {
+          "result": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\included\\result.json",
+            "sha256": "4c824fb7d518a67ce8552c2a110a623c0477d15b012868781f9f8dc6581841e9"
+          },
+          "request": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\included\\02-request.json",
+            "sha256": "839d6f87910f7d2c6642cef06750e00ccd7beba91ce92cc4ac113e8c72aabd3e"
+          },
+          "observation": {
+            "seconds": 40.49030020000646,
+            "bytes": 1533,
+            "mode": "included"
+          }
+        },
+        "before": {
+          "result": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\before\\result.json",
+            "sha256": "178c1e7d1ade9ae580e2c2d877af1b3528f8b7a0ba9e9482ab1fbb4e746f93a5"
+          },
+          "request": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\before\\02-request.json",
+            "sha256": "4e327caa5311a0c6bad2cd0dc7a89dbe430c44fcc51025d1cec5695d1c17406a"
+          },
+          "observation": {
+            "seconds": 0.10408379998989403,
+            "bytes": 234,
+            "mode": "before"
+          }
+        },
+        "excluded": {
+          "result": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\excluded\\result.json",
+            "sha256": "99b17b5d90e2e73b51c766236be70bb19bc24313ebd82670a1c6bba383eb14be"
+          },
+          "request": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\excluded\\02-request.json",
+            "sha256": "bb252417d28dbe216e1aa01105c72eca468d0e0aac983326d9b02e0ee9aaf4d5"
+          },
+          "observation": {
+            "seconds": 0.05187820002902299,
+            "bytes": 234,
+            "mode": "excluded"
+          }
+        },
+        "date-before": {
+          "result": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\date-before\\result.json",
+            "sha256": "99b17b5d90e2e73b51c766236be70bb19bc24313ebd82670a1c6bba383eb14be"
+          },
+          "request": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\date-before\\02-request.json",
+            "sha256": "510f9fcb945f9b7d5c6781772e32c5e4559db0b00a25166174d0ef07a1ef5efa"
+          },
+          "observation": {
+            "seconds": 0.10918670002138242,
+            "bytes": 234,
+            "mode": "date-before"
+          }
+        },
+        "text-indexed": {
+          "result": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\text-indexed\\result.json",
+            "sha256": "ffbe5bc77807cb5fea4b9fff700583c9695bffe16741a5266ace238fbe9451f6"
+          },
+          "request": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\text-indexed\\02-request.json",
+            "sha256": "5b606d8c855c0a983d7348921f4c8da449484ac2d0cf95d55e90357420f55cdc"
+          },
+          "observation": {
+            "seconds": 3.0293805000255816,
+            "bytes": 2737,
+            "mode": "text-indexed"
+          }
+        }
+      },
+      "later_installed_older_window_continuation": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\review-memory-history-20261118-installed1-history\\receipt.json",
+        "sha256": "0f633293bae310a960fe48a6ba2fee33256c072cfceb7712ca4f5c84bf157c35"
+      }
+    },
+    "EG-21.1": {
+      "lazy_skip_timeout_failure_and_full_baseline_retention": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\history-rerank-budget-fallback-and-cancellation.json",
+          "sha256": "72748a7eee6cfc0ef5d890db81468c3c26843be4840a5b3991335fdd59a014b2"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\history-rerank-budget-fallback-and-cancellation.log",
+          "sha256": "eda8e44b99a202048065079b27a0ee4987be8f9757a02be1a14cb29e3aa01d36"
+        },
+        "passed_cases": [
+          "test services::change_card_service::tests::cosine_prefers_aligned_vectors ... ok",
+          "test services::change_card_service::tests::deadline_retains_baseline_and_drops_pending_provider_future ... ok",
+          "test services::change_card_service::tests::generated_files_are_not_part_of_a_card ... ok",
+          "test services::change_card_service::tests::invalid_picks_keep_baseline_but_valid_partial_order_keeps_tail ... ok",
+          "test services::change_card_service::tests::skipped_or_invalid_budget_never_constructs_provider ... ok"
+        ],
+        "actual_no_vector_build": false,
+        "reexecuted": false
+      },
+      "same_budget_behavior_in_actual_no_vector_build": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\history-rerank-and-cache-retention-no-vector.json",
+          "sha256": "9103fcb6c1a814e9938624eab6f3289d48f70cfd03e175c8972e05ac117d042c"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\history-rerank-and-cache-retention-no-vector.log",
+          "sha256": "ab4773c8edfccae86dd25255875c0cfe40a22c42364cb78d0d50cf6a1bc19066"
+        },
+        "passed_cases": [
+          "test services::change_card_service::cache::tests::cache_pressure_cannot_change_a_requests_retained_history_or_vectors ... ok",
+          "test services::change_card_service::cache::tests::metadata_and_vector_retention_obeys_byte_limit_and_keeps_oversized_results_usable ... ok",
+          "test services::change_card_service::tests::cosine_prefers_aligned_vectors ... ok",
+          "test services::change_card_service::tests::deadline_retains_baseline_and_drops_pending_provider_future ... ok",
+          "test services::change_card_service::tests::generated_files_are_not_part_of_a_card ... ok",
+          "test services::change_card_service::tests::invalid_picks_keep_baseline_but_valid_partial_order_keeps_tail ... ok",
+          "test services::change_card_service::tests::skipped_or_invalid_budget_never_constructs_provider ... ok"
+        ],
+        "actual_no_vector_build": true,
+        "reexecuted": false
+      },
+      "installed_zero_budget": {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\included\\result.json",
+          "sha256": "4c824fb7d518a67ce8552c2a110a623c0477d15b012868781f9f8dc6581841e9"
+        },
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\included\\02-request.json",
+          "sha256": "839d6f87910f7d2c6642cef06750e00ccd7beba91ce92cc4ac113e8c72aabd3e"
+        },
+        "observation": {
+          "seconds": 40.49030020000646,
+          "bytes": 1533,
+          "mode": "included"
+        }
+      }
+    },
+    "EG-21.2": {
+      "native_current_history_cases": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\green-serial-result.json",
+        "sha256": "5ef84a2c74e91d3c6940f7ccce20b3780df51fb5b040b9a07651e8c6379f36c4"
+      },
+      "native_log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\green-serial.log",
+        "sha256": "93d51405d993569ba3a4a444914643ad114bd9fa0e6d04d76b44c7bc990f734e"
+      },
+      "installed_truthful_capability_label": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\normal\\acceptance.json",
+        "sha256": "1308442027dd00b1425302c354a32cecb6048dcf82afc1c6259c581cfc50e64b"
+      },
+      "installed_outage_labels_and_cutoffs": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\installed1\\acceptance.json",
+        "sha256": "0c9efe381e510f92e530a854bdc00b25fbf24c61c59ac4e361033a7b3c34aad2"
+      },
+      "installed_continuation_filter_cutoff_preservation": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-bounded-acquisition-20261118\\review-memory-history-20261118-installed1-history\\receipt.json",
+        "sha256": "0f633293bae310a960fe48a6ba2fee33256c072cfceb7712ca4f5c84bf157c35"
+      }
+    }
+  },
+  "retained_delivery_records": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\eg20-history-capability-delivery-20261111.json",
+      "sha256": "5583b7afa885fda299160aa88a3226b60def4f14c80ab408ed6132109e0d2948"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-history-provider-fallback-delivery-20261113.json",
+      "sha256": "ededd28a3b0d55a595de32dedb7771109fc0b3bb2134c3dc2b28957c58bbbde5"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\review-memory-history-delivery-20261118.json",
+      "sha256": "5a34e574482ada2b11e61eda516c03f9d0234183020c73248bafd4601d52c438"
+    }
+  ],
+  "current_source_binding": {
+    "crates/engram_server/src/handlers/git_tools.rs": {
+      "current_normalized_sha256": "ab8c53ed1f9c34a4fc233539ff20541deff0a51a2c8838076730795de68a8004",
+      "unchanged_since_installed_source": "5cf93efd38812c007d5c7868e0bf7cbef3fab112",
+      "matches_frozen_shipping_checkout": true,
+      "earlier_auto_precedent_text_routing_preserved": true,
+      "later_ranking_disclosure_reviewed": "Current handler maps actual semantic and rerank outcomes to separate labels; budgets explicitly exclude Git metadata/rendering. No live slow-provider replay."
+    },
+    "crates/engram_server/src/services/change_card_service.rs": {
+      "current_normalized_sha256": "23d209f782d6af5763cbeac7bfba705750138d4aa2ac04f8d35b3381ecbe9bca",
+      "unchanged_since_installed_source": "5cf93efd38812c007d5c7868e0bf7cbef3fab112",
+      "matches_frozen_shipping_checkout": true,
+      "unchanged_functions_since_earlier_source": {
+        "pub fn lexical_rank": "bc5185864045d737931f81721288a2204e059a85c38bb607566805568da2048c",
+        "pub async fn rerank_with_budget": "bbf4034d856064256d9e4f3e22ea3590e9d3df59c44ed5d1ef9b5438095f0d23",
+        "pub async fn rerank(": "59b3c88a61f596ebba15d65650e7f7fa56dc4da8ca0d17a9e93765697a4bd2c7"
+      }
+    }
+  },
+  "no_new_builds_or_fixture_or_model_runs": true,
+  "authored_files_written": 0,
+  "general_task_usefulness_established": false,
+  "full_original_goal_complete": false,
+  "limitations": [
+    "This reconciles the four original history requirements; it adds no runtime change or new acceptance run.",
+    "Actual no-vector and slow-provider fault behavior was established by retained local native cases. No installed no-vector configuration swap or live external slow-provider fault was performed.",
+    "The rerank budget bounds optional reranking after baseline retrieval, not the whole query. The retained 40.49-second LegacyValidation baseline and later unpaired 4.3188-second observation are not a controlled speedup.",
+    "Dropping a provider future does not prove remote computation stopped. Ranking quality, general task usefulness and full31finding/19gate readiness remain unproved.",
+    "Recent history windows rank independently; exact older-window continuation preserves reachability but does not establish whole-history global ranking.",
+    "Original failed fixture setup and parallel parser-busy attempts remain recorded; their passing corrected runs do not erase those failures or authorize old fixture removal."
+  ],
+  "temporary_resources": {
+    "new_fixtures_created": 0,
+    "retained_reconciliation_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\eg20-eg21-original-requirement-closure-20261119",
+    "retention": "Keep this script and referenced evidence for delivery provenance; no preexisting deletion.",
+    "historical_fixture_hold": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\history-fixture-drop-order-cleanup-hold.json",
+      "sha256": "e518d3aa0d07cc88b820da6c4145d345ca5e1043ebdec6182e10413eb01defc2"
+    },
+    "historical_fixture_hold_unchanged": {
+      "at": "2026-11-02T15:01:15.116989+01:00",
+      "original_receipt": "instruction-update-and-history-public-contracts-native.json",
+      "created_by_run": [
+        ".tmp7AN6w2",
+        ".tmpCcCKng",
+        ".tmpRYTk4j",
+        ".tmpYyM2ZC",
+        ".tmpmqh5Dj"
+      ],
+      "deletion_attempt": "rejected before execution: blocked by policy",
+      "equivalent_retry": false,
+      "retained": true,
+      "new_bytes": 18746020,
+      "all_retained_bytes": 158144524,
+      "all_retained_files": 729,
+      "held_count": 12,
+      "original_seven_entries_preserved": true
+    },
+    "later_installed_owned_fixtures_removed_and_owners_closed": true,
+    "new_product_owners_or_providers_started": 0
+  }
+}
