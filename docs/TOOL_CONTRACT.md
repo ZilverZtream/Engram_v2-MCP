@@ -140,6 +140,8 @@ Supply `schema_tables` on `one_shot_feature_plan` to attach source-backed table
 lookups to the planning context. Dossier mode reads those explicit names without
 calling a model. The lookups use the dossier's selected source generation, with
 ordinary schema coverage and source citations.
+Multiple named tables share one declaration scan. Each lookup keeps its own
+result, coverage and budget.
 
 An exact selected project-relative `model_after` file gets a source-dossier slot
 before ranked discovery candidates. It passes the same current-source and

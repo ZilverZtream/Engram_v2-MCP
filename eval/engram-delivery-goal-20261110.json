@@ -3014,6 +3014,14 @@
     "acceptance": "An exact selected WebForms exemplar occupies the first source slot and uses normal source admission. Ranked candidates retain their order and the example appears once. A prose hint still uses ordinary discovery.",
     "verification": "Focused source-candidate selection passed against cached dependencies. Packaged dossier verification remains pending."
   },
+  "dossier_shared_schema_scan": {
+    "original_requirement_id": "TODO-32",
+    "status": "SOURCE_COMPLETE_AWAITING_PACKAGED_MCP",
+    "observed_gap": "Planning requests for several schema tables separately reopen and parse the same selected declarations for each table.",
+    "implementation_files": ["crates/engram_server/src/handlers/schema_tools.rs", "crates/engram_server/src/handlers/feature_plan_tools.rs"],
+    "acceptance": "A model-free dossier with two named tables and one missing table does one declaration scan and preserves exact individual results, citations, scope, and budget behavior. Preserve the existing single-query public and ask_codebase paths.",
+    "verification": "Scoped Rust parser and diff checks passed. The updated fixture awaits packaged MCP execution. No latency measurement or additional Engram build."
+  },
   "recent_filtered_history_progress": {
     "original_requirement_id": "EG-20",
     "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",

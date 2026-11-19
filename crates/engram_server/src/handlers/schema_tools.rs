@@ -47,18 +47,13 @@ impl Engram {
         delivery.finish(&self.state.cfg.data_dir, original)
     }
 
-    /// Preserve the planner's existing complete-context size gate. A deferred
-    /// public report is not a schema fact and must not enter its evidence slot.
+    /// Read the selected declaration catalog once. Keep each table's complete
+    /// budget and error independent so one failed lookup cannot erase another.
     pub(super) async fn query_schema_for_planning(
-        &self, req: QuerySchemaRequest, generation: u64,
+        &self, requests: Vec<QuerySchemaRequest>, generation: u64,
         view: std::sync::Arc<engram_index::SourceSnapshotGuard>,
-    ) -> Result<CallToolResult, McpError> {
-        let budget = req.max_tokens.or(Some(16_384));
-        let original = self.query_schema_selected(req, generation, view).await?;
-        let text = original.content.first().and_then(|part| part.as_text())
-            .ok_or_else(|| McpError::internal_error("Schema evidence returned no text", None))?;
-        super::search_tools::response_budget::bounded_message(text.text.clone(), budget)?;
-        Ok(original)
+    ) -> Result<Vec<Result<String, McpError>>, McpError> {
+        self.query_schema_outputs(requests, generation, view, true).await
     }
 
     async fn query_schema_evidence(
@@ -80,9 +75,22 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         schema_query::validate(&req).map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         super::search_tools::response_budget::token_bytes(req.max_tokens)?;
-        let record = self.ensure_project_record(&req.project_id).await?;
-        let runtime = self.ensure_project_runtime(&req.project_id).await?;
-        runtime.search.validate_source_snapshot_guard(&req.project_id, generation, &view)
+        let mut results = self.query_schema_outputs(vec![req], generation, view, false).await?;
+        let output = results.pop().expect("One schema request was submitted")?;
+        Ok(CallToolResult::success(vec![Content::text(output)]))
+    }
+
+    async fn query_schema_outputs(
+        &self, requests: Vec<QuerySchemaRequest>, generation: u64,
+        view: std::sync::Arc<engram_index::SourceSnapshotGuard>, enforce_budgets: bool,
+    ) -> Result<Vec<Result<String, McpError>>, McpError> {
+        let Some(first) = requests.first() else { return Ok(Vec::new()); };
+        if requests.iter().any(|req| req.project_id != first.project_id || req.path_prefixes != first.path_prefixes) {
+            return Err(McpError::invalid_params("Schema lookups must share a project and path scope", None));
+        }
+        let record = self.ensure_project_record(&first.project_id).await?;
+        let runtime = self.ensure_project_runtime(&first.project_id).await?;
+        runtime.search.validate_source_snapshot_guard(&first.project_id, generation, &view)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let graph = self.state.graph.clone();
         let reservation = engram_core::memory::AllocationGuard::try_new(
@@ -92,17 +100,18 @@ impl Engram {
             "SQL schema source evidence",
         )
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let output=tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
+        tokio::task::spawn_blocking(move || -> anyhow::Result<Vec<Result<String, McpError>>> {
             let _reservation=reservation;
+            let first = &requests[0];
             let selected=view.selected_file_revisions().ok_or_else(||anyhow::anyhow!("Schema queries require a managed source inventory; update_project first"))?;
             anyhow::ensure!(selected.len()<=50_000,"Selected inventory exceeds 50000 paths");
             let mut catalog=Catalog::default();
-            let mut admitted_paths=std::collections::BTreeSet::new();
+            let mut declaration_paths=std::collections::BTreeSet::new();
             let (mut bytes,mut admitted,mut sql_files)=(0usize,0usize,0usize);
             let (mut dbml_files, mut admitted_dbml) = (0usize, 0usize);
             let in_scope=|path:&str| {
                 let normalized=path.replace('\\',"/").to_lowercase();
-                req.path_prefixes.is_empty() || req.path_prefixes.iter().any(|prefix| {
+                first.path_prefixes.is_empty() || first.path_prefixes.iter().any(|prefix| {
                     let prefix=prefix.replace('\\',"/").to_lowercase();
                     normalized==prefix || normalized.starts_with(&format!("{prefix}/"))
                         || normalized.contains(&format!("/{prefix}/")) || normalized.ends_with(&format!("/{prefix}"))
@@ -120,7 +129,7 @@ impl Engram {
                     let mut content=String::new();
                     std::fs::File::open(target)?.take(2*1024*1024+1).read_to_string(&mut content)?;
                     anyhow::ensure!(content.len()<=2*1024*1024,"{source_type} file exceeds 2 MiB source limit");
-                    let file=graph.get_node(&req.project_id,&format!("file:{path}"))?.ok_or_else(||anyhow::anyhow!("Indexed file fingerprint unavailable"))?;
+                    let file=graph.get_node(&first.project_id,&format!("file:{path}"))?.ok_or_else(||anyhow::anyhow!("Indexed file fingerprint unavailable"))?;
                     anyhow::ensure!(file.generation==*revision,"File graph revision differs from selected source revision");
                     let hash=blake3::hash(content.as_bytes()).to_hex().to_string();
                     anyhow::ensure!(file.metadata.as_ref().and_then(|m|m.get("file_hash")).and_then(|v|v.as_str())==Some(hash.as_str()),"{source_type} source differs from indexed fingerprint; update_project before relying on schema");
@@ -131,68 +140,78 @@ impl Engram {
                         bytes+=source.len();anyhow::ensure!(bytes<=64*1024*1024,"Schema source scan exceeds 64 MiB");
                         catalog.add_source(path,&source)?;
                         if is_dbml { admitted_dbml += 1; } else { admitted += 1; }
-                        admitted_paths.insert(path.clone());
+                        declaration_paths.insert(path.clone());
                     },
                     Err(error)=>catalog.gaps.push(format!("{path}: {error}")),
                 }
             }
-            let mut result=catalog.query(&req)?;
-            if let Some(name)=catalog.code_reference_name(&req) {
-                let id=engram_core::ids::NodeId::table(&name).0;
-                let edges=graph.find_incoming_edges(&req.project_id,Some(engram_graph::EdgeKind::QueriesTable),&id,51)?;
-                let mut leads=Vec::new();let mut withheld=0;
-                for (node_id,_) in edges.iter().take(50) {
-                    let Some(node)=graph.get_node(&req.project_id,node_id)? else {withheld+=1;continue;};
-                    let path=node.file_path.as_str();
-                    if !in_scope(path) {withheld+=1;continue;}
-                    let verified=(|| -> anyhow::Result<String> {
-                        let revision=selected.get(path).ok_or_else(||anyhow::anyhow!("Source no longer selected"))?;
-                        anyhow::ensure!(node.generation==*revision,"Reference revision changed");
-                        let file=graph.get_node(&req.project_id,&format!("file:{path}"))?.ok_or_else(||anyhow::anyhow!("File fingerprint unavailable"))?;
-                        anyhow::ensure!(file.generation==*revision,"File revision changed");
-                        let target=engram_core::safe_join(Path::new(&record.directory),path)?;
-                        let mut source=String::new();std::fs::File::open(target)?.take(2*1024*1024+1).read_to_string(&mut source)?;
-                        anyhow::ensure!(source.len()<=2*1024*1024,"Code source exceeds 2 MiB");
-                        let hash=blake3::hash(source.as_bytes()).to_hex().to_string();
-                        anyhow::ensure!(file.metadata.as_ref().and_then(|m|m.get("file_hash")).and_then(|v|v.as_str())==Some(hash.as_str()),"Code source changed");
-                        anyhow::ensure!(node.start_line>0 && node.end_line>=node.start_line && node.end_line as usize<=source.lines().count(),"Reference source span unavailable");
-                        Ok(hash)
-                    })();
-                    match verified {
-                        Ok(hash)=>{
-                            admitted_paths.insert(path.to_owned());
-                            leads.push(json!({"node_id":node.node_id,"file":path,"start_line":node.start_line,"end_line":node.end_line,"source_hash":hash}));
-                        },
-                        Err(_)=>withheld+=1,
+            Ok(requests.iter().map(|req| {
+                schema_query::validate(req).map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+                let rendered = (|| -> anyhow::Result<String> {
+                    let mut admitted_paths = std::borrow::Cow::Borrowed(&declaration_paths);
+                    let mut result=catalog.query(req)?;
+                    if let Some(name)=catalog.code_reference_name(req) {
+                        let id=engram_core::ids::NodeId::table(&name).0;
+                        let edges=graph.find_incoming_edges(&req.project_id,Some(engram_graph::EdgeKind::QueriesTable),&id,51)?;
+                        let mut leads=Vec::new();let mut withheld=0;
+                        for (node_id,_) in edges.iter().take(50) {
+                            let Some(node)=graph.get_node(&req.project_id,node_id)? else {withheld+=1;continue;};
+                            let path=node.file_path.as_str();
+                            if !in_scope(path) {withheld+=1;continue;}
+                            let verified=(|| -> anyhow::Result<String> {
+                                let revision=selected.get(path).ok_or_else(||anyhow::anyhow!("Source no longer selected"))?;
+                                anyhow::ensure!(node.generation==*revision,"Reference revision changed");
+                                let file=graph.get_node(&req.project_id,&format!("file:{path}"))?.ok_or_else(||anyhow::anyhow!("File fingerprint unavailable"))?;
+                                anyhow::ensure!(file.generation==*revision,"File revision changed");
+                                let target=engram_core::safe_join(Path::new(&record.directory),path)?;
+                                let mut source=String::new();std::fs::File::open(target)?.take(2*1024*1024+1).read_to_string(&mut source)?;
+                                anyhow::ensure!(source.len()<=2*1024*1024,"Code source exceeds 2 MiB");
+                                let hash=blake3::hash(source.as_bytes()).to_hex().to_string();
+                                anyhow::ensure!(file.metadata.as_ref().and_then(|m|m.get("file_hash")).and_then(|v|v.as_str())==Some(hash.as_str()),"Code source changed");
+                                anyhow::ensure!(node.start_line>0 && node.end_line>=node.start_line && node.end_line as usize<=source.lines().count(),"Reference source span unavailable");
+                                Ok(hash)
+                            })();
+                            match verified {
+                                Ok(hash)=>{
+                                    admitted_paths.to_mut().insert(path.to_owned());
+                                    leads.push(json!({"node_id":node.node_id,"file":path,"start_line":node.start_line,"end_line":node.end_line,"source_hash":hash}));
+                                },
+                                Err(_)=>withheld+=1,
+                            }
+                        }
+                        result["code_reference_leads"]=json!({"results":leads,"withheld_stale_or_unavailable":withheld,"truncated":edges.len()>50,
+                            "binding":"Indexed QueriesTable basename candidates only; qualified SQL target binding is not proved. Each returned code source fingerprint and physical revision was verified.",
+                            "recovery":{"tool":"get_table_schema","arguments":{"project_id":req.project_id,"table_name":name}}});
                     }
+                    result["project_id"]=json!(req.project_id);
+                    result["active_generation"]=json!(generation);
+                    result["coverage"]=json!({"selected_sql_files":sql_files,"admitted_sql_files":admitted,"source_bytes_read":bytes,"gaps":catalog.gaps,
+                        "path_prefixes":req.path_prefixes,
+                        "evidence":"Source declarations with selected physical revision and BLAKE3 checks; no atomic graph/disk snapshot.",
+                        "schema_semantics":"SQL Server source inventory, not a live/deployed database schema. Supported ALTER TABLE ADD foreign-key declarations are reported separately with application_status=not_established; they do not modify the CREATE TABLE baseline. ALTER/DROP and execution order are not applied. Omitted nullability is unknown; nullable_columns returns explicit NULL only. Computed-column result types/nullability are unknown.",
+                        "name_matching":"Case-insensitive source-name lookup; database collation/default schema unknown. Unqualified relationship candidates are labelled, not bound.",
+                        "reference_semantics":"Procedure/view references are lexical source candidates; aliases, CTEs, dynamic SQL, trigger execution and code-to-database binding are not proved.",
+                        "code_references":"Table queries include at most 50 verified indexed code-reference leads; basename graph identities do not establish qualified database binding.",
+                        "database_execution":false});
+                    if dbml_files > 0 {
+                        result["coverage"]["selected_dbml_files"] = json!(dbml_files);
+                        result["coverage"]["admitted_dbml_files"] = json!(admitted_dbml);
+                        result["coverage"]["dbml_semantics"] = json!("DBML tables are labelled source_kind=dbml_mapping. Literal column attributes and model_associations describe the mapping; missing flags and keys remain unknown. Model associations carry their own source citations. Named table lookups prefer SQL DDL for an identical qualified name. Deployed schema and database binding are unverified.");
+                    }
+                    if let Some(next)=result["next_offset"].as_u64() {
+                        let mut recovery=req.clone();recovery.offset=Some(next as usize);
+                        result["next_page"]=json!({"tool":"query_schema","arguments":recovery,"consistency":"Repeat only while source generation and fingerprints remain unchanged"});
+                    }
+                    schema_policy::attach(Path::new(&record.directory), &mut result, &admitted_paths)?;
+                    Ok(serde_json::to_string(&result)?)
+                })().map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                if enforce_budgets {
+                    super::search_tools::response_budget::bounded_message(rendered, req.max_tokens.or(Some(16_384)))
+                } else {
+                    Ok(rendered)
                 }
-                result["code_reference_leads"]=json!({"results":leads,"withheld_stale_or_unavailable":withheld,"truncated":edges.len()>50,
-                    "binding":"Indexed QueriesTable basename candidates only; qualified SQL target binding is not proved. Each returned code source fingerprint and physical revision was verified.",
-                    "recovery":{"tool":"get_table_schema","arguments":{"project_id":req.project_id,"table_name":name}}});
-            }
-            result["project_id"]=json!(req.project_id);
-            result["active_generation"]=json!(generation);
-            result["coverage"]=json!({"selected_sql_files":sql_files,"admitted_sql_files":admitted,"source_bytes_read":bytes,"gaps":catalog.gaps,
-                "path_prefixes":req.path_prefixes,
-                "evidence":"Source declarations with selected physical revision and BLAKE3 checks; no atomic graph/disk snapshot.",
-                "schema_semantics":"SQL Server source inventory, not a live/deployed database schema. Supported ALTER TABLE ADD foreign-key declarations are reported separately with application_status=not_established; they do not modify the CREATE TABLE baseline. ALTER/DROP and execution order are not applied. Omitted nullability is unknown; nullable_columns returns explicit NULL only. Computed-column result types/nullability are unknown.",
-                "name_matching":"Case-insensitive source-name lookup; database collation/default schema unknown. Unqualified relationship candidates are labelled, not bound.",
-                "reference_semantics":"Procedure/view references are lexical source candidates; aliases, CTEs, dynamic SQL, trigger execution and code-to-database binding are not proved.",
-                "code_references":"Table queries include at most 50 verified indexed code-reference leads; basename graph identities do not establish qualified database binding.",
-                "database_execution":false});
-            if dbml_files > 0 {
-                result["coverage"]["selected_dbml_files"] = json!(dbml_files);
-                result["coverage"]["admitted_dbml_files"] = json!(admitted_dbml);
-                result["coverage"]["dbml_semantics"] = json!("DBML tables are labelled source_kind=dbml_mapping. Literal column attributes and model_associations describe the mapping; missing flags and keys remain unknown. Model associations carry their own source citations. Named table lookups prefer SQL DDL for an identical qualified name. Deployed schema and database binding are unverified.");
-            }
-            if let Some(next)=result["next_offset"].as_u64() {
-                let mut recovery=req.clone();recovery.offset=Some(next as usize);
-                result["next_page"]=json!({"tool":"query_schema","arguments":recovery,"consistency":"Repeat only while source generation and fingerprints remain unchanged"});
-            }
-            schema_policy::attach(Path::new(&record.directory), &mut result, &admitted_paths)?;
-            Ok(serde_json::to_string(&result)?)
+            }).collect())
         }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?
-            .map_err(|e|McpError::internal_error(e.to_string(),None))?;
-        Ok(CallToolResult::success(vec![Content::text(output)]))
+            .map_err(|e|McpError::internal_error(e.to_string(),None))
     }
 }

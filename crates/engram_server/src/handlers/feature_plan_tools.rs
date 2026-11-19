@@ -555,35 +555,31 @@ impl Engram {
             "explicit_model_after_file":model_file,
             "excerpt_limit":"One lexical window of at most 100 lines / 12 KiB per file; at most 192 KiB total; unshown lines are unexamined",
             "recovery":{"tool":"get_change_set","arguments":{"project_id":req.project_id,"story":story,"output_json":true,"detail":"full","concepts":retrieval_concepts,"history_semantic_timeout_ms":req.history_semantic_timeout_ms}}});
-        let mut schema = Vec::new();
         let schema_names = if req.schema_tables.is_empty() {
             intent.as_ref().map_or(&[][..], |intent| intent.schema_names.as_slice())
         } else {
             req.schema_tables.as_slice()
         };
         let mut seen = BTreeSet::new();
-        for name in schema_names {
-            if !seen.insert(name) {
-                continue;
+        let schema_names: Vec<_> = schema_names.iter().filter(|name| seen.insert(*name)).collect();
+        let schema_requests = schema_names.iter().map(|name| QuerySchemaRequest {
+            project_id: req.project_id.clone(),
+            path_prefixes: Vec::new(),
+            query_type: Some(SchemaQueryType::Table { name: name.as_str().to_owned() }),
+            offset: None,
+            limit: Some(20),
+            max_tokens: Some(4096),
+            response_id: None,
+            response_offset: 0,
+        }).collect();
+        let mut results = self.query_schema_for_planning(schema_requests, generation, view.clone())
+            .await.unwrap_or_default().into_iter();
+        let schema: Vec<_> = schema_names.into_iter().map(|name| {
+            match results.next().and_then(Result::ok).and_then(|text| serde_json::from_str::<Value>(&text).ok()) {
+                Some(value) => json!({"name":name,"result":value}),
+                None => json!({"name":name,"status":"UNAVAILABLE","recovery":{"tool":"query_schema","arguments":{"project_id":req.project_id,"query_type":{"kind":"table","name":name}}}}),
             }
-            let result = self
-                .query_schema_for_planning(QuerySchemaRequest {
-                    project_id: req.project_id.clone(),
-                    path_prefixes: Vec::new(),
-                    query_type: Some(SchemaQueryType::Table { name: name.clone() }),
-                    offset: None,
-                    limit: Some(20),
-                    max_tokens: Some(4096),
-                    response_id: None,
-                    response_offset: 0,
-                }, generation, view.clone())
-                .await
-                .and_then(body);
-            schema.push(match result {
-                Ok(value) => json!({"name":name,"result":value}),
-                Err(_) => json!({"name":name,"status":"UNAVAILABLE","recovery":{"tool":"query_schema","arguments":{"project_id":req.project_id,"query_type":{"kind":"table","name":name}}}}),
-            });
-        }
+        }).collect();
         output["planning_context"] = json!({"change_set":change_set, "patterns":patterns, "schema":schema, "source_coverage":output["source_coverage"]});
         if evidence.is_empty() {
             output["reason"] = json!("no_current_source_evidence");
