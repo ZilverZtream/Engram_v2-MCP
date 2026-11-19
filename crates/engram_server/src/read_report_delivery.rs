@@ -16,6 +16,7 @@ const TOOLS: &[&str] = &[
     "update_project",
     "index_project",
     "repair_project",
+    "check_integrity",
     "index_git_history",
     "ingest_zip_history",
     "ingest_quality_gates",
@@ -116,13 +117,18 @@ fn returned_operation(tool: &str) -> bool {
 }
 
 fn maintenance_operation(tool: &str) -> bool {
-    matches!(tool, "repair_project" | "index_git_history" | "ingest_zip_history" | "ingest_quality_gates" | "ingest_review_verdicts")
+    matches!(tool, "repair_project" | "check_integrity" | "index_git_history" | "ingest_zip_history" | "ingest_quality_gates" | "ingest_review_verdicts")
 }
 
 const MAINTENANCE_DELIVERY_INSTRUCTION: &str = "Recover the original returned outcome; do not repeat this repair, history import or ownership operation to recover its response. A queued acknowledgement is not completion; poll its returned job_id separately. Delivery does not establish rollback, current freshness or policy approval.";
 
-fn maintenance_outcome() -> Value {
-    json!({"handler_returned":true,"instruction":MAINTENANCE_DELIVERY_INSTRUCTION})
+fn maintenance_outcome(tool: &str) -> Value {
+    let instruction = if tool == "check_integrity" {
+        "Recover the original integrity findings and any repair outcomes. Recovery never repeats the check or repair. The captured report describes the original observation."
+    } else {
+        MAINTENANCE_DELIVERY_INSTRUCTION
+    };
+    json!({"handler_returned":true,"instruction":instruction})
 }
 
 /// Save a job's separate instruction observation under the existing global job
@@ -268,7 +274,9 @@ pub fn advertise(mut tool: Tool) -> Tool {
     if tool.name == "index_project" {
         tool.description = Some(format!("{} Delivery recovery never repeats indexing or registration and requires no directory/project_name. JSON and deferred results expose returned project/job IDs when present. Queued acknowledgements are not completed jobs. If result retention fails after indexing, the complete original outcome is returned with an explicit budget warning.", tool.description.as_deref().unwrap_or("")).into());
     }
-    if maintenance_operation(tool.name.as_ref()) {
+    if tool.name == "check_integrity" {
+        tool.description = Some(format!("{} Recovery never repeats integrity observation or repair. Retention failure preserves the original returned outcome with a budget warning.", tool.description.as_deref().unwrap_or("")).into());
+    } else if maintenance_operation(tool.name.as_ref()) {
         tool.description = Some(format!("{} Recovery never repeats this operation; queued acknowledgements still require job polling.", tool.description.as_deref().unwrap_or("")).into());
     }
     tool
@@ -442,7 +450,7 @@ impl Report {
             if let Some(operation) = operation { value["operation"] = operation.clone(); }
         }
         if maintenance_operation(self.tool) {
-            value["operation"] = maintenance_outcome();
+            value["operation"] = maintenance_outcome(self.tool);
         }
         value.to_string()
     }
@@ -542,12 +550,12 @@ impl Report {
                 if maintenance_operation(self.tool) {
                     fallback.content.push(Content::text(json!({
                         "tool":self.tool,"project_id":self.project,
-                        "operation":maintenance_outcome(),
+                        "operation":maintenance_outcome(self.tool),
                         "response_delivery":{
                             "status":"ORIGINAL_OUTCOME_PRESERVED_DELIVERY_FAILED",
                             "budget_honored":false,"response_budget_bytes":self.budget,
                             "recovery_available":false,"reason":error.message,
-                            "instruction":"The operation already returned. Its complete original outcome remains above and exceeds this delivery budget. Do not repeat the operation to recover the report; delivery failure does not imply rollback. Queued jobs still require polling."
+                            "instruction":"The operation already returned. Its complete original outcome remains above and exceeds this delivery budget. Do not repeat the operation to recover the report; delivery failure does not imply rollback."
                         }
                     }).to_string()));
                     return Ok(fallback);
@@ -582,7 +590,7 @@ impl Report {
         }
         let stage_error = (self.tool == "refresh_corpora" || maintenance_operation(self.tool)) && original.is_error == Some(true);
         let operation = if self.tool == "index_project" { Some(index_operation(&original)) }
-            else if maintenance_operation(self.tool) { Some(maintenance_outcome()) }
+            else if maintenance_operation(self.tool) { Some(maintenance_outcome(self.tool)) }
             else { None };
         let original = if self.json_envelope {
             let result = serde_json::to_value(&original)

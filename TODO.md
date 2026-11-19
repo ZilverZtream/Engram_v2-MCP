@@ -897,6 +897,8 @@ specs already written.
   the config-driven path. CI test: named_pipe_transport_round_trips.*
 
 - [~] **39. Vector/Tantivy consistency repair after partial ingest failures** (M) -
+  Source ready for validation: `check_integrity` supports a reply budget and
+  exact saved-result recovery of the original findings and repair outcomes.
   Published-source remainder delivered 2026-11-12: compare the same managed
   source snapshot and memory namespace, including inherited revisions. Detect
   shortage and surplus even when project-wide totals cancel; recheck under the
