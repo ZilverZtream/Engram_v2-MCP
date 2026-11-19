@@ -10,6 +10,49 @@ const MAX_METHODS: usize = 256;
 const MAX_NODES: usize = 64;
 const MAX_DEPTH: usize = 6;
 const MAX_EDGES: usize = 128;
+const MAX_REDIRECTS_PER_METHOD: usize = 8;
+
+pub(super) fn response_redirects(body: &str, start_line: u32) -> Option<serde_json::Value> {
+    use serde_json::json;
+
+    let tokens = super::routing::tokens(body, true);
+    let mut candidates = Vec::new();
+    let mut truncated = false;
+    for call in tokens.windows(6) {
+        if call[..4].iter().any(|token| token.string)
+            || !call[0].text.eq_ignore_ascii_case("Response")
+            || call[1].text != "."
+            || !matches!(
+                call[2].text.to_ascii_lowercase().as_str(),
+                "redirect" | "redirectpermanent"
+            )
+            || call[3].text != "("
+        {
+            continue;
+        }
+        if candidates.len() == MAX_REDIRECTS_PER_METHOD {
+            truncated = true;
+            break;
+        }
+        let literal = (call[4].string && !call[5].string && matches!(call[5].text.as_str(), ")" | ","))
+            .then_some(call[4].text.as_str());
+        candidates.push(json!({
+            "line": start_line as usize + call[0].line - 1,
+            "operation": call[2].text,
+            "destination": literal.filter(|value| value.len() <= 512),
+            "destination_status": match literal {
+                Some(value) if value.len() <= 512 => "literal",
+                Some(_) => "literal_omitted",
+                None => "unresolved_expression",
+            },
+        }));
+    }
+    (!candidates.is_empty()).then(|| json!({
+        "candidates": candidates,
+        "truncated": truncated,
+        "interpretation": "VB source call spellings. Receiver binding, execution and HTTP status are unverified.",
+    }))
+}
 
 #[derive(Serialize)]
 pub struct Handler {
@@ -547,31 +590,39 @@ pub(super) fn trace_selected(
                 excerpt.push('\n');
                 shown += 1;
             }
-            result.source_members.push(serde_json::json!({"node_id":node.node_id,"file":source.path,"line_start":node.start_line,
+            let mut member = serde_json::json!({"node_id":node.node_id,"file":source.path,"line_start":node.start_line,
                 "line_end":node.end_line,"source_blake3":blake3::hash(source.content.as_bytes()).to_hex().to_string(),
                 "excerpt":excerpt,"shown_lines":shown,"excerpt_truncated":shown<lines,
                 "interpretation":"Authored code, including guards and response expressions. Source order does not prove an operation executes or completes.",
-                "recovery":{"tool":"get_full_method_body","arguments":{"project_id":project,"file_path":source.path,"line_start":node.start_line,"context_lines":0}}}));
-            if node.node_type == "function"
-                && let Some(database) = &database
-            {
-                let body = source
+                "recovery":{"tool":"get_full_method_body","arguments":{"project_id":project,"file_path":source.path,"line_start":node.start_line,"context_lines":0}}});
+            let vb = source.path.to_ascii_lowercase().ends_with(".vb");
+            let body = (node.node_type == "function" && (vb || database.is_some())).then(|| {
+                source
                     .content
                     .lines()
-                    .skip(node.start_line as usize - 1)
+                    .skip(node.start_line.saturating_sub(1) as usize)
                     .take(lines)
                     .collect::<Vec<_>>()
-                    .join("\n");
+                    .join("\n")
+            });
+            if vb
+                && let Some(body) = body.as_deref()
+                && let Some(redirects) = response_redirects(body, node.start_line)
+            {
+                member["response_redirects"] = redirects;
+            }
+            result.source_members.push(member);
+            if let (Some(database), Some(body)) = (&database, body.as_deref()) {
                 super::inline_sql::append(
-                    &node, source, &body, &mut result.paths, &mut result.gaps, MAX_EDGES,
+                    &node, source, body, &mut result.paths, &mut result.gaps, MAX_EDGES,
                 );
                 super::sql_commands::append(
-                    &node, source, &body, &mut result.paths, &mut result.gaps, MAX_EDGES,
+                    &node, source, body, &mut result.paths, &mut result.gaps, MAX_EDGES,
                 );
                 database.append(
                     project,
                     &node,
-                    &body,
+                    body,
                     &mut result.paths,
                     &mut result.source_members,
                     &mut result.gaps,

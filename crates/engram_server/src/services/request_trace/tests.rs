@@ -277,11 +277,31 @@ fn click_trace_includes_authored_load_handler_and_cross_file_database_path() {
             .as_str()
             .unwrap()
             .contains("Response.Redirect")
+            && member["response_redirects"]["candidates"][0]["destination"] == "done.aspx"
+            && member["response_redirects"]["candidates"][0]["line"] == 7
     }));
     assert_eq!(
         trace.trigger_coverage,
         "unknown_no_trigger_binding_in_existing_graph"
     );
+}
+
+#[test]
+fn redirect_evidence_keeps_dynamic_targets_unresolved_and_skips_examples() {
+    let body = r#"Sub Purchase()
+' Response.Redirect("comment.aspx")
+Dim example = "Response.Redirect(""example.aspx"")"
+Response.Redirect("done.aspx?id=" & orderId)
+Me.Response.RedirectPermanent("~/done.aspx", False)
+End Sub"#;
+    let evidence = execution::response_redirects(body, 10).unwrap();
+    let candidates = evidence["candidates"].as_array().unwrap();
+    assert_eq!(candidates.len(), 2);
+    assert_eq!(candidates[0]["line"], 13);
+    assert!(candidates[0]["destination"].is_null());
+    assert_eq!(candidates[0]["destination_status"], "unresolved_expression");
+    assert_eq!(candidates[1]["line"], 14);
+    assert_eq!(candidates[1]["destination"], "~/done.aspx");
 }
 
 #[test]
