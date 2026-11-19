@@ -1818,6 +1818,9 @@ MCP tool schemas before using them with an existing installation.
   another diff or through a commit message when the search includes messages.
 - Set `query_schema.path_prefixes` to narrow SQL or DBML source declarations to
   the selected paths. Follow the returned actions to keep that scope on later reads.
+- A DBML table lookup includes declared `model_associations` with literal
+  member/type names, keys and the declaration's source span. This describes the
+  LINQ-to-SQL model. SQL foreign keys retain their separate DDL evidence.
 - Add `get_review_decisions` to `batch_read` with its usual path, date or discussion
   selector. Each read keeps its own result or error and a callable refresh action.
 - Follow `pre_commit_review.review_next_calls` when the report identifies an

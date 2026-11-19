@@ -1,9 +1,21 @@
 //! Literal LINQ-to-SQL mapping attributes, not deployed database definitions.
 use super::{Citation, Column, Table, input_name};
 use quick_xml::{events::Event, name::ResolveResult, reader::NsReader};
+use serde::Serialize;
 use std::collections::BTreeMap;
 
 const NS: &[u8] = b"http://schemas.microsoft.com/linqtosql/dbml/2007";
+
+#[derive(Clone, Serialize)]
+pub(super) struct Association {
+    name: Option<String>,
+    member: Option<String>,
+    target_type: Option<String>,
+    this_key: Option<String>,
+    other_key: Option<String>,
+    is_foreign_key: Option<bool>,
+    citation: Citation,
+}
 
 fn boolean(attributes: &BTreeMap<String, String>, name: &str) -> anyhow::Result<Option<bool>> {
     match attributes.get(name).map(String::as_str) {
@@ -58,11 +70,11 @@ pub(super) fn tables(path: &str, source: &str) -> anyhow::Result<Vec<Table>> {
                     let key = input_name(name)?;
                     current = Some(Table {
                         name: key.display(), source_kind: Some("dbml_mapping"), key,
-                        columns: vec![], primary_key: vec![], foreign_keys: vec![],
+                        columns: vec![], primary_key: vec![], foreign_keys: vec![], model_associations: vec![],
                         constraints: vec![], constraint_indexes: vec![],
                         citation: Citation {path:path.into(),start_line:line(position),
                             end_line:line(position),source_hash:hash.clone()},
-                        gaps: vec!["Direct table/type Column mapping attributes only: DbType is retained literally; CanBeNull and IsPrimaryKey describe the model. Missing CanBeNull remains unknown. Derived-type columns, deployed types/nullability/keys, associations, defaults, computed/generated semantics, indexes and triggers are not established by this mapping.".into()],
+                        gaps: vec!["Direct table/type Column and Association mapping attributes describe the model. Missing flags and keys remain unknown. Association Type and keys are literal model member names. Database bindings, deployed constraints, derived types, defaults, indexes and triggers are unverified.".into()],
                     });
                 } else if depth == 2
                     && dbml
@@ -99,6 +111,24 @@ pub(super) fn tables(path: &str, source: &str) -> anyhow::Result<Vec<Table>> {
                         computed_expression: None,
                         identity: None,
                         declaration: xml[position..reader.buffer_position() as usize].to_owned(),
+                    });
+                } else if depth == 3 && dbml && element.local_name().as_ref() == b"Association" && in_type {
+                    let table = current
+                        .as_mut()
+                        .ok_or_else(|| anyhow::anyhow!("DBML association outside table"))?;
+                    table.model_associations.push(Association {
+                        name: attributes.get("Name").cloned(),
+                        member: attributes.get("Member").cloned(),
+                        target_type: attributes.get("Type").cloned(),
+                        this_key: attributes.get("ThisKey").cloned(),
+                        other_key: attributes.get("OtherKey").cloned(),
+                        is_foreign_key: boolean(&attributes, "IsForeignKey")?,
+                        citation: Citation {
+                            path: path.into(),
+                            start_line: line(position),
+                            end_line: line((reader.buffer_position() as usize).saturating_sub(1)),
+                            source_hash: hash.clone(),
+                        },
                     });
                 }
                 depth += 1;

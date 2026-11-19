@@ -36,6 +36,38 @@ fn query(c: &Catalog, q: Value) -> Value {
 }
 
 #[test]
+fn dbml_table_reports_cited_associations_as_model_evidence() {
+    let source = r#"<Database Name="Owned" xmlns="http://schemas.microsoft.com/linqtosql/dbml/2007">
+<Table Name="dbo.Invoices" Member="Invoices"><Type Name="Invoice">
+<Column Name="CustomerID" Member="CustomerID" Type="System.Int32" />
+<Association Name="Invoice_Customer" Member="Customer" Type="Customer" ThisKey="TenantID,CustomerID"
+    OtherKey="TenantID,ID" IsForeignKey="true" />
+<Association Name="Invoice_Lines" Member="Lines" Type="Line" />
+</Type></Table></Database>"#;
+    let mut catalog = Catalog::default();
+    catalog.add_source("Integration.dbml", source).unwrap();
+    let table_query = json!({"kind":"table","name":"dbo.Invoices"});
+    let report = query(&catalog, table_query.clone());
+    let table = &report["results"][0]["table"];
+    let rows = table["model_associations"].as_array().unwrap();
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0]["target_type"], "Customer");
+    assert_eq!(rows[0]["this_key"], "TenantID,CustomerID");
+    assert_eq!(rows[0]["other_key"], "TenantID,ID");
+    assert_eq!(rows[0]["is_foreign_key"], true);
+    assert_eq!(rows[0]["citation"], json!({"path":"Integration.dbml","start_line":4,"end_line":5,
+        "source_hash":blake3::hash(source.as_bytes()).to_hex().to_string()}));
+    assert!(rows[1]["is_foreign_key"].is_null() && rows[1]["this_key"].is_null());
+    assert_eq!(table["foreign_keys"], json!([]));
+
+    catalog.add_source("schema.sql", "CREATE TABLE dbo.Invoices (ID int NOT NULL);").unwrap();
+    let sql = query(&catalog, table_query);
+    let sql_table = &sql["results"][0]["table"];
+    assert_eq!(sql_table["citation"]["path"], "schema.sql");
+    assert!(sql_table.get("model_associations").is_none());
+}
+
+#[test]
 fn schema_queries_preserve_sql_server_columns_keys_defaults_and_relations() {
     let mut c = Catalog::default();
     c.add_source("schema.sql", SQL).unwrap();

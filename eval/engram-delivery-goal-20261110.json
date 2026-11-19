@@ -2976,6 +2976,15 @@
     "pending_source_outcomes": 5,
     "next_action": "Use the verified cumulative package for one coordinated Windows cutover. A running MCP proxy was observed. Preserve the live service until the user chooses a cutover or clients close. Do not rebuild the verified artifact."
   },
+  "dbml_model_associations_progress": {
+    "original_requirement_id": "TODO-35",
+    "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",
+    "observed_gap": "DBML table lookups ignore declared model relationships, requiring a separate source lookup to see relationship names and key members.",
+    "legacy_validation_relevance": "The normal configuration hash matches the verified DBML delivery. Retained actual LegacyValidation evidence shows selected iFalt.dbml mappings. See eval/dbml-schema-source-progress-20261119.json.",
+    "implementation_files": ["crates/engram_server/src/services/schema_query.rs", "crates/engram_server/src/services/schema_query/dbml.rs", "crates/engram_server/src/handlers/schema_tools.rs"],
+    "acceptance": "A DBML table query returns the declared relationship keys and exact citation, keeps missing flags unknown, and leaves SQL foreign key evidence separate. A same-qualified SQL declaration still takes precedence.",
+    "verification": "The exact catalog and focused test passed against cached dependencies. The current release is already frozen and excludes this change. Public MCP verification remains pending."
+  },
   "review_path_scope_progress": {
     "original_requirement_id": "EG-19",
     "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",

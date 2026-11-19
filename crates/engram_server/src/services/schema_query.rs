@@ -167,6 +167,8 @@ pub(super) struct Table {
     pub(super) columns: Vec<Column>,
     pub(super) primary_key: Vec<String>,
     pub(super) foreign_keys: Vec<ForeignKey>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    model_associations: Vec<dbml::Association>,
     pub(super) constraints: Vec<String>,
     pub(super) constraint_indexes: Vec<Value>,
     pub(super) citation: Citation,
@@ -442,6 +444,7 @@ impl Catalog {
                     columns: vec![],
                     primary_key: vec![],
                     foreign_keys: vec![],
+                    model_associations: vec![],
                     constraints: vec![],
                     constraint_indexes: vec![],
                     citation: citation(start, end + 1),

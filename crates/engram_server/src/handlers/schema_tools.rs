@@ -182,7 +182,7 @@ impl Engram {
             if dbml_files > 0 {
                 result["coverage"]["selected_dbml_files"] = json!(dbml_files);
                 result["coverage"]["admitted_dbml_files"] = json!(admitted_dbml);
-                result["coverage"]["dbml_semantics"] = json!("DBML table/column mappings are labelled source_kind=dbml_mapping. Literal DbType and explicit CanBeNull/IsPrimaryKey flags describe the model; missing flags remain unknown. Named table lookups prefer SQL DDL for an identical qualified name. Other model metadata, deployed schema and code-to-database binding are not established.");
+                result["coverage"]["dbml_semantics"] = json!("DBML tables are labelled source_kind=dbml_mapping. Literal column attributes and model_associations describe the mapping; missing flags and keys remain unknown. Model associations carry their own source citations. Named table lookups prefer SQL DDL for an identical qualified name. Deployed schema and database binding are unverified.");
             }
             if let Some(next)=result["next_offset"].as_u64() {
                 let mut recovery=req.clone();recovery.offset=Some(next as usize);
