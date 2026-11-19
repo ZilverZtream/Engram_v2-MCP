@@ -1,0 +1,30 @@
+{
+  "original_requirement_id": "TODO-35",
+  "source_commit": "65f159be02daac5c4d63456b90d913c214d08c37",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-schema-path-scope-20261119\\verify-public.py",
+    "sha256": "19d382b7351051647f46b39276d0462bf41345355846f5d3db4a04ae16c38354"
+  },
+  "public_assertions_expected": 5,
+  "public_assertions": [
+    "unscoped_lookup_keeps_both_source_candidates",
+    "whole_component_scope_admits_only_the_selected_sql",
+    "related_declaration_followup_preserves_scope",
+    "pagination_preserves_the_selected_directory",
+    "source_unchanged"
+  ],
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-schema-path-scope-20261119\\baseline1\\receipt.json",
+    "sha256": "2b5acfcd6f2aeab5afc57e2e78b06674734f63a439b1bb2db4dd3dce8ee24a6c"
+  },
+  "native_unit_cases_expected": 0,
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "TODO-35 selected-source database evidence for ordinary SQL schema queries.",
+  "observed_gap": "Installed query_schema rejects directory/file selection and reports multiple definitions when separate source areas declare the same qualified table.",
+  "behavior": "Accept explicit path_prefixes using the existing component-aware schema source filter and preserve it in paging and related source declaration calls.",
+  "configuration_relevance": "LegacyValidation uses the Full query_schema SQL/DBML surface. The owned fixture uses two independently written SQL areas; runtime database schemas are unverified.",
+  "verification": "Installed baseline confirmed the two qualified source candidates and rejected path_prefixes. Rust syntax parsed. Candidate/installed public proof remains queued.",
+  "temporary_resources": "Owned server and reader closed; source and data removed. Retain driver and wire evidence at the recorded location.",
+  "full_original_goal_complete": false
+}
