@@ -485,15 +485,6 @@ impl Engram {
         project_service::generate_indexing_report(stats)
     }
 
-    pub(crate) async fn get_incremental_changes(
-        &self,
-        project_id: &str,
-        root: &Path,
-        exts: &[&str],
-    ) -> anyhow::Result<(Vec<PathBuf>, Vec<engram_core::RelPath>)> {
-        project_service::get_incremental_changes(&self.state, project_id, root, exts).await
-    }
-
     pub(crate) async fn process_ingest_stats(
         &self,
         project_id: &str,
@@ -1848,7 +1839,7 @@ impl Engram {
                     .unwrap_or_else(|| exts_for_project_type(&ps.info.project_type));
 
                 phase.phase("scanning", None, None);
-                let project_service::SourceChangeScan { mut changed, deleted, extraction, vb_source_files } = project_service::get_incremental_changes_for_update(
+                let project_service::SourceChangeScan { mut changed, deleted, extraction, vb_source_files, .. } = project_service::get_incremental_changes_for_update(
                     &state, &ps.search, &source_head, &dir, &exts)
                     .await?;
                 project_service::include_reindex_paths(&state, &dir, &exts, &reindex_paths, &mut changed).await?;
@@ -2479,7 +2470,7 @@ impl Engram {
             .checked_add(1)
             .ok_or_else(|| anyhow::anyhow!("source generation exhausted"))?;
 
-        let project_service::SourceChangeScan { changed, deleted, extraction, vb_source_files } =
+        let project_service::SourceChangeScan { changed, deleted, extraction, vb_source_files, .. } =
             if let Some(paths) = only_paths {
                 project_service::exclusive_source_changes(&self.state, &ps.search, &source_head, &dir, &exts, paths).await?
             } else {
@@ -2948,7 +2939,7 @@ pub(crate) async fn generation_completeness_for(
     pid: &str,
     generation: u64,
 ) -> anyhow::Result<GenerationCompleteness> {
-    generation_completeness_with_graph_observation(state, pid, generation, None).await
+    generation_completeness_with_graph_observation(state, pid, generation, None, None).await
 }
 
 async fn generation_completeness_with_graph_observation(
@@ -2956,6 +2947,7 @@ async fn generation_completeness_with_graph_observation(
     pid: &str,
     generation: u64,
     graph_observation: Option<&project_service::SourceFileMetadataObservation>,
+    observed_disk_paths: Option<&[engram_core::RelPath]>,
 ) -> anyhow::Result<GenerationCompleteness> {
     use std::collections::BTreeSet;
     // External audit round 2 (docs/audits/10) P0-2: chunks and files are
@@ -2979,30 +2971,31 @@ async fn generation_completeness_with_graph_observation(
         }
     };
 
-    let reg = state.registry.clone();
-    let pid_r = pid.to_string();
-    let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid_r))
-        .await??
-        .ok_or_else(|| anyhow::anyhow!("project {pid} is not registered"))?;
-    let dir = std::path::PathBuf::from(&rec.directory);
-    let exts = crate::models::ProjectType::from_registry_str(&rec.project_type)
-        .map(crate::utils::files::exts_for_project_type_enum)
-        .unwrap_or_else(|| crate::utils::files::exts_for_project_type(&rec.project_type));
-    let files = project_service::scan_source_files(state, &dir, &exts).await?;
-    let dir2 = dir.clone();
-    let expected: BTreeSet<String> = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
-        let mut expected = BTreeSet::new();
-        for file in files {
-            // A disappearing or unreadable file makes this live observation
-            // incomplete. Do not silently shrink the expected source set.
-            if std::fs::metadata(&file)?.len() > 0 {
-                let relative = file.strip_prefix(&dir2)?;
-                expected.insert(completeness_path(&relative.to_string_lossy()));
+    let expected: BTreeSet<String> = if let Some(paths) = observed_disk_paths {
+        paths.iter().map(|path| completeness_path(path.as_str())).collect()
+    } else {
+        let reg = state.registry.clone();
+        let pid_r = pid.to_string();
+        let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid_r))
+            .await??
+            .ok_or_else(|| anyhow::anyhow!("project {pid} is not registered"))?;
+        let dir = PathBuf::from(&rec.directory);
+        let exts = ProjectType::from_registry_str(&rec.project_type)
+            .map(exts_for_project_type_enum)
+            .unwrap_or_else(|| exts_for_project_type(&rec.project_type));
+        let files = project_service::scan_source_files(state, &dir, &exts).await?;
+        tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+            let mut expected = BTreeSet::new();
+            for file in files {
+                // Preserve failures from an unreadable or disappearing file.
+                if std::fs::metadata(&file)?.len() > 0 {
+                    let relative = file.strip_prefix(&dir)?;
+                    expected.insert(completeness_path(&relative.to_string_lossy()));
+                }
             }
-        }
-        Ok(expected)
-    })
-    .await??;
+            Ok(expected)
+        }).await??
+    };
 
     let tantivy: BTreeSet<String> = ps
         .search
@@ -3608,6 +3601,7 @@ impl Engram {
         // This is the incremental indexer's change detector, not proof that all
         // content bytes match (unchanged stat tuples may avoid hashing).
         let mut disk_changes: Option<(usize, usize)> = None;
+        let mut observed_disk_paths = None;
         if req.check_disk {
             let exts = ProjectType::from_registry_str(&rec.project_type)
                 .map(exts_for_project_type_enum)
@@ -3618,13 +3612,15 @@ impl Engram {
                     "disk_check: unavailable (project directory is missing or inaccessible)\n",
                 );
             } else {
-                match self.get_incremental_changes(&pid, &dir, &exts).await {
-                    Ok((changed, deleted)) => {
-                        disk_changes = Some((changed.len(), deleted.len()));
+                match project_service::observe_freshness_disk(&self.state, &pid, &dir, &exts).await {
+                    Ok(scan) => {
+                        let (changed, deleted) = (scan.changed.len(), scan.deleted.len());
+                        observed_disk_paths = scan.nonempty_disk_paths;
+                        disk_changes = Some((changed, deleted));
                         out.push_str(&format!(
                             "disk_check: {}\nfiles_changed_or_added_since_index: {}\nfiles_deleted_since_index: {}\n",
-                            if changed.is_empty() && deleted.is_empty() { "no_changes_detected" } else { "stale" },
-                            changed.len(), deleted.len()
+                            if changed == 0 && deleted == 0 { "no_changes_detected" } else { "stale" },
+                            changed, deleted
                         ));
                     }
                     Err(e) => out.push_str(&format!("disk_check: unavailable ({e})\n")),
@@ -3638,8 +3634,11 @@ impl Engram {
         // External audit 2026-08-29 P0-2: timestamps and modified files say
         // nothing about whether the published generation still HOLDS the
         // corpus. Completeness is checked here and outranks every other advice.
+        if observed_disk_paths.is_some() {
+            out.push_str("generation_completeness_disk_basis: shared_disk_check_inventory\n");
+        }
         let completeness = generation_completeness_with_graph_observation(
-            &self.state, &pid, generation, Some(&graph_observation),
+            &self.state, &pid, generation, Some(&graph_observation), observed_disk_paths.as_deref(),
         ).await;
         let completeness_unknown = match &completeness {
             Ok(c) => c.degraded,

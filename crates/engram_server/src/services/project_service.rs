@@ -473,8 +473,17 @@ pub async fn get_incremental_changes(
     root: &Path,
     exts: &[&str],
 ) -> anyhow::Result<(Vec<PathBuf>, Vec<engram_core::RelPath>)> {
-    let scan = scan_incremental_changes(state, project_id, root, exts, None).await?;
+    let scan = scan_incremental_changes(state, project_id, root, exts, None, false).await?;
     Ok((scan.changed, scan.deleted))
+}
+
+pub(crate) async fn observe_freshness_disk(
+    state: &AppState,
+    project_id: &str,
+    root: &Path,
+    exts: &[&str],
+) -> anyhow::Result<SourceChangeScan> {
+    scan_incremental_changes(state, project_id, root, exts, None, true).await
 }
 
 pub(crate) struct SourceChangeScan {
@@ -482,6 +491,7 @@ pub(crate) struct SourceChangeScan {
     pub deleted: Vec<engram_core::RelPath>,
     pub extraction: engram_index::SourceExtractionExpectation,
     pub vb_source_files: std::sync::Arc<Vec<PathBuf>>,
+    pub nonempty_disk_paths: Option<Vec<engram_core::RelPath>>,
 }
 
 /// Preserve the source walk's admitted VB inventory without another walk or
@@ -528,7 +538,7 @@ pub(crate) async fn get_incremental_changes_for_update(
         base: base.clone(), registry: state.registry.clone(), graph: state.graph.clone(),
         _operation: scoped.begin_operation()?,
     };
-    scan_incremental_changes(state, base.project_id(), root, exts, Some(writer)).await
+    scan_incremental_changes(state, base.project_id(), root, exts, Some(writer), false).await
 }
 
 struct StatRefreshWriter {
@@ -624,6 +634,7 @@ async fn scan_incremental_changes(
     root: &Path,
     exts: &[&str],
     writer: Option<StatRefreshWriter>,
+    retain_disk_inventory: bool,
 ) -> anyhow::Result<SourceChangeScan> {
     let active_generation = get_active_generation(state, project_id).await?;
     let opt_in_hash_verification = state.cfg.verify_unchanged_hashes;
@@ -650,6 +661,7 @@ async fn scan_incremental_changes(
         if let Some(writer) = &writer { writer.flush(&mut patches)?; }
         let mut changed = Vec::new();
         let mut deleted = Vec::new();
+        let mut nonempty_disk_paths = retain_disk_inventory.then(Vec::new);
         let mut db_map = std::collections::HashMap::<
             engram_core::RelPath, (Option<serde_json::Value>, u64)>::new();
         let mut unpublished_paths = std::collections::HashSet::new();
@@ -670,11 +682,15 @@ async fn scan_incremental_changes(
             let metadata = match std::fs::metadata(&path) {
                 Ok(metadata) => metadata,
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    nonempty_disk_paths = None;
                     db_map.remove(&relative); deleted.push(relative); continue;
                 }
                 Err(e) => anyhow::bail!("Cannot inspect source file {}: {e}", path.display()),
             };
             let size = metadata.len();
+            if size > 0 && let Some(paths) = &mut nonempty_disk_paths {
+                paths.push(relative.clone());
+            }
             let stamp = modified_ns(&metadata);
             let mut is_changed = true;
             if let Some((Some(meta), generation)) = db_map.remove(&relative) {
@@ -729,7 +745,7 @@ async fn scan_incremental_changes(
         if !changed.is_empty() || !deleted.is_empty() {
             tracing::info!(changed = changed.len(), deleted = deleted.len(), "incremental change scan");
         }
-        Ok::<_, anyhow::Error>(SourceChangeScan { changed, deleted, extraction: expected, vb_source_files })
+        Ok::<_, anyhow::Error>(SourceChangeScan { changed, deleted, extraction: expected, vb_source_files, nonempty_disk_paths })
     }).await?
 }
 
@@ -1065,7 +1081,7 @@ pub(crate) async fn exclusive_source_changes(
     }).await??;
     let vb_source_files = admitted_vb_source_files(root, &allowed);
     drop(source);
-    Ok(SourceChangeScan { changed, deleted:Vec::new(), extraction, vb_source_files })
+    Ok(SourceChangeScan { changed, deleted:Vec::new(), extraction, vb_source_files, nonempty_disk_paths:None })
 }
 
 #[cfg(test)]
