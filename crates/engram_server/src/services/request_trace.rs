@@ -12,6 +12,7 @@ mod web_methods;
 mod http_handlers;
 pub mod execution;
 pub mod control_events;
+mod control_calls;
 pub mod control_routes;
 pub mod master_pages;
 pub mod base_pages;

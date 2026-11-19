@@ -1,6 +1,6 @@
 //! Literal instance navigation keeps page context and independently cited control source.
 use engram_core::RelPath;
-use engram_graph::{GraphStore, Node};
+use engram_graph::{Edge, EdgeKind, GraphStore, Node};
 use engram_server::services::request_trace::{
     execution,
     routing::{self, Source},
@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use std::{collections::BTreeMap, sync::Arc};
 
 const PAGE: &str = "<%@ Page CodeFile='Host.aspx.vb' %>\n<%@ Register TagPrefix='demo' TagName='Outer' Src='Controls/Outer.ascx' %>\n<demo:Outer ID='outer' runat='server' Visible='false' />\n<!-- <demo:Outer ID='ghost' runat='server' /> -->\n";
-const OUTER: &str = "<%@ Control CodeFile='Outer.ascx.vb' %>\n<%@ Register TagPrefix='demo' TagName='Inner' Src='Inner.ascx' %>\n<demo:Inner ID='inner' runat='server' />\n";
+const OUTER: &str = "<%@ Control CodeFile='Outer.ascx.vb' Inherits='Outer' %>\n<%@ Register TagPrefix='demo' TagName='Inner' Src='Inner.ascx' %>\n<demo:Inner ID='inner' runat='server' />\n";
 const INNER: &str = "<%@ Control CodeFile='Inner.ascx.vb' %>\n<asp:DropDownList ID='pick' runat='server' OnSelectedIndexChanged='SelectPlan' />\n";
 struct Fixture {
     graph: Arc<GraphStore>,
@@ -24,9 +24,9 @@ impl Fixture {
         let mut files: Vec<(String, String)> = vec![
             ("Site/Global.asax".into(),"<%@ Application %>\n".into()),
             ("Site/Host.aspx".into(),PAGE.into()),
-            ("Site/Host.aspx.vb".into(),"Public Class Host\nPublic Sub RootLoad() Handles Me.Load\nEnd Sub\nEnd Class\n".into()),
+            ("Site/Host.aspx.vb".into(),"Public Class Host\nPublic Sub RootLoad() Handles Me.Load\nouter.RefreshSummary()\nEnd Sub\nEnd Class\n".into()),
             ("Site/Controls/Outer.ascx".into(),OUTER.into()),
-            ("Site/Controls/Outer.ascx.vb".into(),"Public Class Outer\nPublic Sub OuterLoad() Handles Me.Load\nEnd Sub\nEnd Class\n".into()),
+            ("Site/Controls/Outer.ascx.vb".into(),"Public Class Outer\nPublic Sub OuterLoad() Handles Me.Load\nEnd Sub\nPublic Sub RefreshSummary()\nDim done = True\nEnd Sub\nEnd Class\n".into()),
             ("Site/Controls/Inner.ascx".into(),INNER.into()),
             ("Site/Controls/Inner.ascx.vb".into(),"Public Class Inner\nPublic Sub InnerLoad() Handles Me.Load\nEnd Sub\nPublic Sub SelectPlan()\nDim db As New DataContext()\ndb.ExecuteCommand(\"UPDATE dbo.Preferences SET Plan=1\")\nEnd Sub\nEnd Class\n".into()),
         ];
@@ -78,7 +78,11 @@ impl Fixture {
                     nodes.push(make(
                         &format!("{path}:{name}"),
                         "function",
-                        name,
+                        if name == "RefreshSummary" {
+                            "Outer.RefreshSummary"
+                        } else {
+                            name
+                        },
                         path,
                         start as u32 + 1,
                         end as u32 + 1,
@@ -87,6 +91,22 @@ impl Fixture {
             }
         }
         graph.upsert_nodes("owned", &nodes).unwrap();
+        graph
+            .upsert_edges(
+                "owned",
+                &[Edge {
+                    source_id: "Site/Host.aspx.vb:RootLoad".into(),
+                    target_id: "::outer.RefreshSummary".into(),
+                    namespace: "memory".into(),
+                    language: "vbnet".into(),
+                    edge_kind: EdgeKind::Calls,
+                    weight: 1,
+                    generation: 1,
+                    metadata: None,
+                    updated_at_ms: 0,
+                }],
+            )
+            .unwrap();
         Self {
             graph,
             _owned: owned,
@@ -121,6 +141,50 @@ impl Fixture {
             .unwrap(),
         )
         .unwrap()
+    }
+}
+
+#[test]
+fn direct_registered_control_call_traverses_verified_child_source() {
+    let mut fixture = Fixture::new(false);
+    let trace = fixture.trace("load page");
+    let path = trace["paths"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|row| row["kind"] == "webforms_registered_control_call")
+        .expect("registered direct call");
+    assert_eq!(path["target_file"], "Site/Controls/Outer.ascx.vb");
+    assert_eq!(path["target_line"], 4);
+    assert_eq!(path["evidence"]["call_line"], 3);
+    assert_eq!(path["evidence"]["registration"]["registration_line"], 2);
+    assert_eq!(path["evidence"]["registration"]["instance_line"], 3);
+    assert!(
+        trace["source_members"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| row["file"] == "Site/Controls/Outer.ascx.vb" && row["line_start"] == 4)
+    );
+
+    fixture
+        .files
+        .iter_mut()
+        .find(|(file, _)| file == "Site/Controls/Outer.ascx.vb")
+        .unwrap()
+        .1
+        .push_str("' changed after indexing\n");
+    for withheld in [
+        fixture.trace("load page"),
+        Fixture::new(true).trace("load page"),
+    ] {
+        assert!(
+            !withheld["paths"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|row| row["kind"] == "webforms_registered_control_call")
+        );
     }
 }
 

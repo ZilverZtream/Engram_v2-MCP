@@ -3151,7 +3151,15 @@
       "acceptance": "Complete inline replies fit the selected byte budget. An oversized dossier or plan returns a bounded preview with truthful status and an executable continuation. Recovery reconstructs the full original byte-for-byte via its BLAKE3 identity without rerunning retrieval or generation, even after source edits. Preserve original evidence authority and the existing 1 MiB capture bound.",
       "verification": "The exact feature-plan delivery and snapshot modules used cached dependencies to process the retained actual LegacyValidation wire reply. The complete 302,377 bytes matched after 15 default-budget pages, including 16 source records and complete nested context. Each page stayed within 40 KiB, the identity matched BLAKE3, a larger budget returned the original inline, and cross-project recovery refused. The existing dossier public-handler fixture now follows its recovery action after a working-tree guidance edit. Combined package and MCP checks remain pending. No Cargo build or semantic planner tuning."
     },
-    "next_action": "Advance the next ready independent original item. Source identity checking and complete feature-plan response recovery are queued for the next combined release."
+    "webforms_registered_control_calls": {
+      "status": "IMPLEMENTED_FOCUSED_ACTUAL_SOURCE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-31 trace ordinary WebForms page actions through authored source dependencies",
+      "observed_gap": "The installed LegacyValidation task-management report shows unresolved ctrlBulkEditTasks.PageLoadComplete and FirstPageLoad edges although the page declares one literal registration and instance. It provides no target file or line.",
+      "implementation": "Existing request-trace control registration resolver and selected-source traversal, with qualification for direct literal calls.",
+      "acceptance": "Resolve the two actual LegacyValidation parameterless calls to the single selected bulk-edit control's public declarations, cite the call and registration, and retain guarded target source. Clearly preserve source-candidate authority and withhold ambiguous or stale targets. No general compiler or runtime-dispatch inference.",
+      "verification": "A focused executable used the exact resolver, existing control registration traversal and source-admission code against actual LegacyValidation Git blobs and an owned graph. Both calls at lines 25 and 604 reached the selected control declarations at lines 22 and 15 respectively. It verified the actual registration at line 4, instance at line 106 and target markup hash. The installed graph returned matching target declaration identities independently. Added a request-trace integration case for the qualified path and stale or ambiguous source withholding. Packaged MCP verification remains pending; no Cargo build."
+    },
+    "next_action": "Prepare public acceptance and one combined package for TODO-39 selected-source identity, TODO-32 feature-plan recovery and TODO-31 registered-control calls."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",

@@ -111,6 +111,31 @@ pub(super) fn resolve(
     sources: &[Source<'_>],
     selected: &BTreeMap<String, u64>,
 ) -> anyhow::Result<Resolution> {
+    let parts: Vec<_> = control_path.split('/').collect();
+    anyhow::ensure!(
+        (2..=8).contains(&parts.len()),
+        "User-control selection requires an instance/child path of2..8components"
+    );
+    resolve_instances(
+        graph,
+        project,
+        page,
+        control_path,
+        &parts[..parts.len() - 1],
+        sources,
+        selected,
+    )
+}
+
+pub(super) fn resolve_instances(
+    graph: &GraphStore,
+    project: &str,
+    page: &Source<'_>,
+    control_path: &str,
+    instances: &[&str],
+    sources: &[Source<'_>],
+    selected: &BTreeMap<String, u64>,
+) -> anyhow::Result<Resolution> {
     let mut result = Resolution {
         requested_control_path: control_path.into(),
         bindings: vec![],
@@ -122,11 +147,6 @@ pub(super) fn resolve(
         retained_bytes: 0,
         interpretation: "Literal same-application Register/Src and server-instance source candidates. Source hashes and selected physical revisions are checked; no atomic graph/disk snapshot, markup compilation, dynamic control creation, master-page composition, effective visibility, lifecycle order, browser postback or runtime execution is proven. Visibility/enabled values are source declarations, not proof an event is reachable. At most8path components,8candidates per level,128register directives,1024instance tags per source and64KiB retained route evidence.",
     };
-    let parts: Vec<_> = control_path.split('/').collect();
-    anyhow::ensure!(
-        (2..=8).contains(&parts.len()),
-        "User-control selection requires an instance/child path of2..8components"
-    );
     static REGISTER: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"(?is)<%@\s*Register\b").expect("Register directive"));
     static INSTANCE: LazyLock<Regex> = LazyLock::new(|| {
@@ -134,7 +154,7 @@ pub(super) fn resolve(
     });
     let mut current = vec![(page.path.to_owned(), String::new())];
     let mut contexts = BTreeSet::new();
-    for wanted in &parts[..parts.len() - 1] {
+    for wanted in instances {
         let mut next = Vec::new();
         let mut next_seen = BTreeSet::new();
         'parents: for (parent_path, parent_instance_path) in current {

@@ -416,7 +416,7 @@ fn add_master_context<'a>(graph:&Arc<GraphStore>,project:&str,result:&mut PageTr
     result.master_pages=Some(plan);Ok(())
 }
 
-fn control_codebehind<'a>(markup_source: Source<'a>, sources: &[Source<'a>], gaps: &mut Vec<String>) -> Option<Source<'a>> {
+pub(super) fn control_codebehind<'a>(markup_source: Source<'a>, sources: &[Source<'a>], gaps: &mut Vec<String>) -> Option<Source<'a>> {
     let markup=without_markup_comments(markup_source.content);
     let directive=Regex::new(r"(?is)<%@\s*(?:Page|Control|Master)\b.*?%>").expect("page/control/master directive");
     let Some(directive)=directive.find(&markup) else {
@@ -548,6 +548,9 @@ pub(super) fn trace_selected(
         result.gaps.push("Database coverage is partial: source fallback covers local literal SqlCommand stored-procedure candidates, bounded literal EXEC/EXECUTE procedure references, literal VB ExecuteCommand/ExecuteQuery SQL, source SqlCommand text candidates with stable Const/Static initializers, and explicit local VB context/member DBML mappings. Dynamic commands, generated SQL/ORM translation, aliases, deployed database identity and runtime or recursive procedure execution are not resolved.".into());
     }
     let mut visited = BTreeSet::new();
+    let mut control_calls = super::control_calls::Resolver::new(
+        graph, project, &result.page, result.codebehind.as_deref(), sources, selected,
+    );
     while let Some((node, depth)) = queue.pop_front() {
         if !visited.insert(node.node_id.clone()) {
             continue;
@@ -679,6 +682,25 @@ pub(super) fn trace_selected(
                     Some(target) => verified_node(graph, project, target, sources, selected)?,
                     None => false,
                 };
+                if kind == EdgeKind::Calls
+                    && !target_verified
+                    && let Some(resolver) = &mut control_calls
+                    && let Some((target, evidence)) = resolver.resolve(&node, &edge.target_id)?
+                {
+                    result.paths.push(Hop {
+                        from: node.node_id.clone(),
+                        to: target.node_id.clone(),
+                        kind: "webforms_registered_control_call".into(),
+                        target_name: target.name.clone(),
+                        target_file: Some(target.file_path.to_string()),
+                        target_line: Some(target.start_line),
+                        target_source_verified: true,
+                        evidence: Some(evidence),
+                        table_mapping: None,
+                    });
+                    queue.push_back((target, depth + 1));
+                    continue;
+                }
                 if kind == EdgeKind::Calls && target_verified
                     && target.as_ref().and_then(|n| n.metadata.as_ref())
                         .and_then(|m| m.get("interface_member_declaration"))
