@@ -481,6 +481,7 @@ proposals that duplicate the existing surface:
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
   Installed November18: explicit prospective-file instruction questions retain scoped authored guidance; explicit prior-review questions retain complete scoped decision events, conditions, provenance and callable history with advisory authority. Source appSettings changes select only dependent guidance. No effective-value, compliance or approval claim. [Delivery](eval/planned-config-review-batch-delivery-20261118.json).
+  November19 source complete: explicit prior-review questions containing before YYYY-MM-DD forward that exclusive source-date cutoff instead of silently using later rulings. Seven public checks await combined validation/deployment; this is not an installed fix yet. [Progress](eval/ask-review-date-progress-20261119.json).
   Installed November 18: named SQL-function questions retain complete declared signatures/bodies, lexical references and exact source hashes/spans, with qualified ambiguity and callable Full/Core clarification. These are source declarations; actual LegacyValidation use and database execution are unproven. [Delivery](eval/request-guidance-function-batch-delivery-20261118.json).
   Installed November18: named SQL-view lookup and explicit SQL-view questions retain
   complete source declarations, qualified ambiguity, Full/Core clarification, scoped

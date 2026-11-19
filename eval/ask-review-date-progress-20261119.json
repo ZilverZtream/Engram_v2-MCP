@@ -1,0 +1,44 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-19T01:49:22.394384+00:00",
+  "original_requirement_id": "TODO-28",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-date-20261119",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-date-20261119\\contract.json",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-date-20261119\\verify-public.py",
+  "public_assertions_expected": 7,
+  "native_unit_cases_expected": 0,
+  "implementation_items_active": 0,
+  "runtime_deployed": false,
+  "source_files": [
+    "crates/engram_server/src/handlers/ask_review_decisions.rs",
+    "crates/engram_server/src/tools.rs"
+  ],
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-date-20261119\\baseline1\\receipt.json",
+    "sha256": "267d13efc4d0e91ec42c992201726b19d05584efa20ff4706b8c6dc6202d8fb5"
+  },
+  "observed_missing_behavior": "Installed direct dated discovery returns earlier-exception, but explicit ask_codebase before2026-11-18 returns later-ruling from2026-11-19. Baseline1.406seconds, all owners/readers closed and fixture removed.",
+  "current_configuration_relevance": "Normal Full advertises ask_codebase; scoped VB/WebForms/JS/TS/SQL question paths already use this explicit recorded-review branch. Normal configuration SHA3f9668 remains unchanged; baseline uses isolated FTS-only/no-generation TypeScript fixture.",
+  "boundaries": "Do not reopen deployed direct review cutoff acceptance, alter ranking or add general natural-language date routing/pilots. One literal qualifier forwarded in an existing branch.",
+  "temporary_resources": "Contract/verifier/baseline wire retained in this recorded case. Owned baseline fixture removed after native owner/readers closed; no actual LegacyValidation source/Q/index access or preexisting deletion.",
+  "full_original_goal_complete": false,
+  "source_commit": "ff90d3cb646adfa3c0839d5d0b5a5d2ae9294725",
+  "public_checks_executed_after_change": 0,
+  "source_stage_builds_started": 0,
+  "source_syntax_validation": "Rust sources parsed with rustfmt emit stdout/skip_children; Python verifier AST parsed. No Rust type-check, after API checks, standalone unit/debug build or Cargo invocation.",
+  "source_sha256": {
+    "crates/engram_server/src/handlers/ask_review_decisions.rs": "d7b19e85acad5000a3582aea46220a0fab03a5b550016d00324ecc1fc874a267",
+    "crates/engram_server/src/tools.rs": "a345c624ef45c2e4270d085bce038a11b0bac2b7048d204dd2d182a3fbc71967"
+  },
+  "public_verifier_sha256": "03261541280b057b0d5c69799b92b6cb5042a04406fc9d674e553152a32e2d67",
+  "acceptance_contract_sha256": "d82884444a0c5669f01290bfaa3d6537d61646160fb80866f1715e7a87ed5dc9",
+  "native_target": null,
+  "native_cases_expected": 0,
+  "next_action": "Keep this single source outcome queued. Select another ready original LegacyValidation improvement from a different original requirement; no compile until at least3independent source outcomes. Do not replay the baseline or delivered direct review checks.",
+  "limitations": [
+    "Not runtime validated or deployed. Seven candidate/installed public checks await a later source-complete combined batch.",
+    "Only an explicit before YYYY-MM-DD qualifier in the existing named-file prior-review branch is recognized; no general temporal-language parser, new router or model call.",
+    "Imported dates, authors and scope remain unverified; current source facts do not become historical code. Structured direct dated discovery remains separately delivered.",
+    "No actual LegacyValidation source/Q/index mutation, language expansion, CodeMap/Blast work or new unit/debug build. General task usefulness/full original goal remain unfinished."
+  ]
+}
