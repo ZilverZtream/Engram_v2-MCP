@@ -297,7 +297,16 @@ separate costs; the small-sample timing is not an estimate for either.
 | Observation | Check |
 | --- | --- |
 | No tools appear | Executable path, client process stderr and `ENGRAM_CONFIG_PATH`; the configuration must exist and have an explicit allowed root. |
+| Several clients report `CONNECTION_CLOSED` or `Transport closed` after a Windows Engram upgrade | Restart each affected client so it starts a fresh Engram process. Call `list_projects` from the restarted client to confirm the connection. |
 | Directory outside allowed roots | Use the absolute sample path written into `engram.json`; allow the intended repository explicitly for a different project. |
 | Background job still running | Poll the same job ID; do not restart indexing because the client stopped waiting. |
 | Empty search or wrong file | Confirm project ID, freshness, query spelling and the actual copied source; do not accept an empty result as success. |
 | VB fallback or parser mismatch | Use the matching full Windows package, inspect the reported parser state and follow its reindex requirement. The client-side smoke test does not validate semantic VB extraction. |
+
+Windows upgrades that stop the shared daemon and its stdio proxies close existing
+MCP sessions. Restarting the daemon alone leaves those clients with closed pipes.
+Stage the package while Engram is in use and schedule the cutover after affected
+clients close. After cutover, reopen the clients and verify their connections
+using `list_projects`. If a fresh connection also fails, check the client's
+Engram stderr and configured executable and configuration paths. Connection
+recovery does not require a Windows reboot or a project reindex.
