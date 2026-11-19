@@ -99,6 +99,7 @@ impl Engram {
             let mut catalog=Catalog::default();
             let mut admitted_paths=std::collections::BTreeSet::new();
             let (mut bytes,mut admitted,mut sql_files)=(0usize,0usize,0usize);
+            let (mut dbml_files, mut admitted_dbml) = (0usize, 0usize);
             let in_scope=|path:&str| {
                 let normalized=path.replace('\\',"/").to_lowercase();
                 path_prefixes.is_empty() || path_prefixes.iter().any(|prefix| {
@@ -108,24 +109,28 @@ impl Engram {
                 })
             };
             for (path,revision) in selected {
-                if !path.to_ascii_lowercase().ends_with(".sql") {continue;}
+                let lower = path.to_ascii_lowercase();
+                let is_dbml = lower.ends_with(".dbml");
+                if !lower.ends_with(".sql") && !is_dbml {continue;}
                 if !in_scope(path) {continue;}
-                sql_files+=1;
+                if is_dbml { dbml_files += 1; } else { sql_files += 1; }
+                let source_type = if is_dbml { "DBML" } else { "SQL" };
                 let source=(|| -> anyhow::Result<String> {
                     let target=engram_core::safe_join(Path::new(&record.directory),path)?;
                     let mut content=String::new();
                     std::fs::File::open(target)?.take(2*1024*1024+1).read_to_string(&mut content)?;
-                    anyhow::ensure!(content.len()<=2*1024*1024,"SQL file exceeds 2 MiB source limit");
+                    anyhow::ensure!(content.len()<=2*1024*1024,"{source_type} file exceeds 2 MiB source limit");
                     let file=graph.get_node(&req.project_id,&format!("file:{path}"))?.ok_or_else(||anyhow::anyhow!("Indexed file fingerprint unavailable"))?;
                     anyhow::ensure!(file.generation==*revision,"File graph revision differs from selected source revision");
                     let hash=blake3::hash(content.as_bytes()).to_hex().to_string();
-                    anyhow::ensure!(file.metadata.as_ref().and_then(|m|m.get("file_hash")).and_then(|v|v.as_str())==Some(hash.as_str()),"SQL source differs from indexed fingerprint; update_project before relying on schema");
+                    anyhow::ensure!(file.metadata.as_ref().and_then(|m|m.get("file_hash")).and_then(|v|v.as_str())==Some(hash.as_str()),"{source_type} source differs from indexed fingerprint; update_project before relying on schema");
                     Ok(content)
                 })();
                 match source {
                     Ok(source)=>{
                         bytes+=source.len();anyhow::ensure!(bytes<=64*1024*1024,"Schema source scan exceeds 64 MiB");
-                        catalog.add_source(path,&source)?;admitted+=1;
+                        catalog.add_source(path,&source)?;
+                        if is_dbml { admitted_dbml += 1; } else { admitted += 1; }
                         admitted_paths.insert(path.clone());
                     },
                     Err(error)=>catalog.gaps.push(format!("{path}: {error}")),
@@ -174,6 +179,11 @@ impl Engram {
                 "reference_semantics":"Procedure/view references are lexical source candidates; aliases, CTEs, dynamic SQL, trigger execution and code-to-database binding are not proved.",
                 "code_references":"Table queries include at most 50 verified indexed code-reference leads; basename graph identities do not establish qualified database binding.",
                 "database_execution":false});
+            if dbml_files > 0 {
+                result["coverage"]["selected_dbml_files"] = json!(dbml_files);
+                result["coverage"]["admitted_dbml_files"] = json!(admitted_dbml);
+                result["coverage"]["dbml_semantics"] = json!("DBML table/column mappings are labelled source_kind=dbml_mapping. Literal DbType and explicit CanBeNull/IsPrimaryKey flags describe the model; missing flags remain unknown. Named table lookups prefer SQL DDL for an identical qualified name. Other model metadata, deployed schema and code-to-database binding are not established.");
+            }
             if let Some(next)=result["next_offset"].as_u64() {
                 let mut recovery=req.clone();recovery.offset=Some(next as usize);
                 result["next_page"]=json!({"tool":"query_schema","arguments":recovery,"consistency":"Repeat only while source generation and fingerprints remain unchanged"});

@@ -102,7 +102,12 @@ pub(super) async fn gather(
     // not have graph symbols, unlike methods supplied by language extractors.
     let selected_sql = view.as_ref().and_then(|view| view.selected_file_revisions())
         .is_some_and(|files| files.keys().any(|path| path.to_ascii_lowercase().ends_with(".sql")));
-    if !selected_sql && !plan.modalities.iter().any(|m| matches!(m, Modality::Sql)) {
+    let table_question = plan.contract.entity_type == ContractEntityType::Table
+        || plan.entities.iter().any(|entity| entity.guessed_kind == EntityKind::Table
+            || entity.resolved.iter().any(|resolved| resolved.kind == EntityKind::Table));
+    let selected_dbml_table = table_question && view.as_ref().and_then(|view| view.selected_file_revisions())
+        .is_some_and(|files| files.keys().any(|path| path.to_ascii_lowercase().ends_with(".dbml")));
+    if !selected_sql && !selected_dbml_table && !plan.modalities.iter().any(|m| matches!(m, Modality::Sql)) {
         return None;
     }
     // Explicit SQL-view wording selects an existing source-object reader.
@@ -212,7 +217,7 @@ pub(super) async fn gather(
             *out.provider.available.as_mut().unwrap() += total;
             out.provider.examined += report["coverage"]["selected_sql_files"]
                 .as_u64()
-                .unwrap_or(0) as usize;
+                .unwrap_or(0) as usize + report["coverage"]["selected_dbml_files"].as_u64().unwrap_or(0) as usize;
             out.provider.truncated |= !report["next_offset"].is_null();
             if report["coverage"]["gaps"]
                 .as_array()
@@ -267,6 +272,7 @@ pub(super) async fn gather(
                         Some(SchemaQueryType::StoredProc { sp_name }) => format!("Source procedure {sp_name}: {}", table["name"]),
                         Some(SchemaQueryType::View { name }) => format!("Source view {name}: {}", table["name"]),
                         Some(SchemaQueryType::Function { name }) => format!("Source SQL function {name}: {}", table["name"]),
+                        _ if table["source_kind"] == "dbml_mapping" => format!("Source DBML table mapping {}", table["name"]),
                         _ => format!("Source table {}", table["name"]),
                     }),
                     content: if ambiguous {

@@ -28,7 +28,7 @@ pub struct FindMissingIndexesRequest {
     pub max_tokens: Option<usize>,
 }
 
-/// Query source-declared SQL schema, never a live database.
+/// Query source-declared SQL schema or DBML model mappings, never a live database.
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct QuerySchemaRequest {

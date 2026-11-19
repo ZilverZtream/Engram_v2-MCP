@@ -11,6 +11,7 @@ use sqlparser::{
 
 mod alter_foreign_keys;
 mod alter_columns;
+mod dbml;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Name(pub(super) Vec<String>);
@@ -161,6 +162,8 @@ pub(super) struct ForeignKey {
 #[derive(Clone, Serialize)]
 pub(super) struct Table {
     pub(super) name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) source_kind: Option<&'static str>,
     pub(super) columns: Vec<Column>,
     pub(super) primary_key: Vec<String>,
     pub(super) foreign_keys: Vec<ForeignKey>,
@@ -328,20 +331,44 @@ fn references(t: &[TokenWithSpan]) -> Vec<Name> {
     names
 }
 
+fn label_mapping(row: &mut Value) {
+    let mapping = row["citation"]["path"].as_str()
+        .is_some_and(|path| path.to_ascii_lowercase().ends_with(".dbml"))
+        || row["table"]["source_kind"] == "dbml_mapping";
+    if mapping { row["source_kind"] = json!("dbml_mapping"); }
+}
+
 impl Catalog {
+    fn matching_tables(&self, key: &Name) -> Vec<&Table> {
+        let mut matches: Vec<_> = self.tables.iter().filter(|table| table.key.lookup(key)).collect();
+        let sql_names: std::collections::BTreeSet<Vec<String>> = matches.iter()
+            .filter(|table| table.source_kind.is_none())
+            .map(|table| table.key.0.iter().map(|part| part.to_ascii_lowercase()).collect()).collect();
+        matches.retain(|table| table.source_kind.is_none()
+            || !sql_names.contains(&table.key.0.iter().map(|part| part.to_ascii_lowercase()).collect::<Vec<_>>()));
+        matches
+    }
+
     pub fn code_reference_name(&self, request: &QuerySchemaRequest) -> Option<String> {
         let Some(SchemaQueryType::Table { name }) = request.query_type.as_ref() else {
             return None;
         };
         let key = input_name(name).ok()?;
-        let tables: Vec<_> = self.tables.iter().filter(|t| t.key.lookup(&key)).collect();
-        if tables.len() != 1 {
+        let tables = self.matching_tables(&key);
+        if tables.len() != 1 || tables[0].source_kind == Some("dbml_mapping") {
             return None;
         }
         tables[0].key.0.last().cloned()
     }
 
     pub fn add_source(&mut self, path: &str, source: &str) -> anyhow::Result<()> {
+        if path.to_ascii_lowercase().ends_with(".dbml") {
+            match dbml::tables(path, source) {
+                Ok(tables) => self.tables.extend(tables),
+                Err(error) => self.gaps.push(format!("{path}: DBML mappings withheld: {error}")),
+            }
+            return Ok(());
+        }
         let t = match tokens(source) {
             Ok(t) => t,
             Err(e) => {
@@ -410,6 +437,7 @@ impl Catalog {
                 };
                 let mut table = Table {
                     name: key.display(),
+                    source_kind: None,
                     key,
                     columns: vec![],
                     primary_key: vec![],
@@ -570,23 +598,21 @@ impl Catalog {
         };
         let matches = if let Some(name) = table_name {
             let key = input_name(name)?;
-            self.tables
-                .iter()
-                .filter(|t| t.key.lookup(&key))
-                .collect::<Vec<_>>()
+            self.matching_tables(&key)
         } else {
             vec![]
         };
         if table_name.is_some() && matches.len() != 1 {
             let offset = request.offset.unwrap_or(0);
             let limit = request.limit.unwrap_or(25);
-            let rows: Vec<_> = matches
+            let mut rows: Vec<_> = matches
                 .iter()
                 .skip(offset)
                 .take(limit)
                 .map(|t| json!({"name":t.name,"citation":t.citation}))
                 .collect();
             let next = (offset + rows.len() < matches.len()).then_some(offset + rows.len());
+            rows.iter_mut().for_each(label_mapping);
             return Ok(
                 json!({"status":if matches.is_empty(){"not_found"}else{"ambiguous"},"summary":format!("{} matching table declarations; qualify the name or reconcile duplicate source definitions",matches.len()),
                 "results":rows,"total_matches":matches.len(),"next_offset":next}),
@@ -624,7 +650,7 @@ impl Catalog {
             }
             rows
         };
-        let rows:Vec<Value>=match q {
+        let mut rows:Vec<Value>=match q {
             AllTables => self.tables.iter().map(|t|json!({"name":t.name,"citation":t.citation,"columns":t.columns.len(),"gaps":t.gaps})).collect(),
             TablesWithColumn{column_name_pattern} => { let pattern=column_name_pattern.to_lowercase(); self.tables.iter().filter_map(|t| {
                 let cols:Vec<_>=t.columns.iter().filter(|c|c.name.to_lowercase().contains(&pattern)).collect();
@@ -656,6 +682,7 @@ impl Catalog {
                 }
             }
         };
+        rows.iter_mut().for_each(label_mapping);
         let total = rows.len();
         let offset = request.offset.unwrap_or(0);
         let limit = request.limit.unwrap_or(25);
