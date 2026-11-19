@@ -1,0 +1,30 @@
+{
+  "original_requirement_id": "TODO-32",
+  "source_commit": "54d9531919511917600252039a739eaf55c0e583",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-history-budget-20261119\\verify-public.py",
+    "sha256": "23b46c7356261e385a5091eef999ce5287502eddf4503e6f59128aef678f6534"
+  },
+  "public_assertions_expected": 5,
+  "public_assertions": [
+    "default_dossier_and_history_budget_preserved",
+    "explicit_zero_reaches_history_arm",
+    "source_evidence_and_guidance_preserved",
+    "invalid_budget_rejected_before_project_lookup",
+    "source_files_unchanged"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-history-budget-20261119\\baseline1\\receipt.json",
+    "sha256": "cb282072eaf91fe64e0e0890129671c7f265815b87ed98a815cbd81f6b44f201"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "TODO-32 pre-edit WebForms feature evidence and bounded agent retrieval; failed planner semantic acceptance remains open.",
+  "observed_gap": "The installed feature dossier uses a fixed change-set history semantic budget and refuses the caller control supported by the underlying retrieval tool.",
+  "behavior": "Pass history_semantic_timeout_ms through to the existing change-set history arm. Zero keeps lexical history and skips that arm's embeddings. Validate before project lookup or generation and preserve the existing default and source evidence.",
+  "configuration_relevance": "Normal LegacyValidation configuration advertises all tools and enables Ollama embeddings and OpenAI generation. The public owned fixture is fts_only and verifies budget propagation rather than a provider speedup.",
+  "verification": "Installed baseline returned the usual dossier at 5000 ms for this arm and refused the new control. Changed Rust parsed with rustfmt; candidate and installed acceptance remain queued.",
+  "temporary_resources": "Owned MCP server and reader closed before removing the source and runtime fixture. Driver, receipt and wire data remain in the recorded case.",
+  "full_original_goal_complete": false
+}
