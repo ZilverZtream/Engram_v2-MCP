@@ -1183,13 +1183,14 @@ evidence; they do not restrict the source refresh. Changed-path observations
 report `change_context` selection, omissions and the dependency manifest, rather
 than running the separate whole-worktree routing inventory described above.
 
-Discovery uses current conventional guidance locations and existing scope rules.
-It does not enumerate removed or formerly applicable instructions at the base
-commit; select those explicitly with `instruction_paths`. An empty candidate set
-is not a semantic conclusion that no guidance change is needed. Complete selected
-guidance preserves exceptions and shared references. Existing source-size and
-packet limits remain, omissions are explicit, new matching guidance invalidates
-the old proposal packet, and no authored policy or ownership is changed.
+Discovery uses conventional guidance locations and scope rules in the current
+worktree and at `base_commit`. A surviving formerly applicable guide can enter
+the review as a maintenance candidate. A removed guide appears as bounded
+historical evidence in `change_context.prior_guidance`. The reviewer decides
+whether guidance needs maintenance, including when discovery returns no
+candidates. Complete selected guidance preserves exceptions and shared references. Source-size and
+packet limits apply, omissions are explicit, and new matching guidance invalidates
+the old proposal packet. The tool makes no authored policy or ownership changes.
 
 ### VB SQL parameter evidence
 
