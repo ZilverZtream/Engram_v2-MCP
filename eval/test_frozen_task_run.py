@@ -169,6 +169,12 @@ class FrozenTaskRunTests(unittest.TestCase):
         self.assertEqual(checked['status'], 'saved_assisted_quality_failed')
         self.assertEqual(len(checked['failed_cases']), 1)
         self.assertEqual(len(checked['metrics']), 8)
+        expected = {} if criterion == 'satisfied' else {'correct': criterion}
+        failure = checked['failed_cases'][0]
+        self.assertEqual(failure.get('unmet_criteria', {}), expected)
+        failed_metrics = next(row for row in checked['metrics']
+                              if row['case_id'] == failure['case_id'] and row['arm'] == 'assisted')
+        self.assertEqual(failed_metrics['unmet_criteria'], expected)
 
     def test_quality_check_fails_valid_recorded_unmet_task_criteria(self):
         self.assert_assisted_quality_failure(criterion='not_satisfied')

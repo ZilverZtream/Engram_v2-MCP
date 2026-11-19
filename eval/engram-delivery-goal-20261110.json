@@ -89,6 +89,13 @@
   "retained_eg24_next_delivery_record": {
     "finding": "EG24 regular LegacyValidation accepted-task verification",
     "status": "SELECTED_ORIGINAL_LEGACY_VALIDATION_PRIORITY",
+    "verified_criterion_diagnostics": {
+      "implementation": "eval/frozen_task_eval.py",
+      "retained_run_record": "eval/legacy_validation-archive-task-check-outcome-20261114.json",
+      "observed_failed_cases": 3,
+      "observed_unmet_criterion_ids": 6,
+      "scope": "The checker now identifies the exact recorded criteria and keeps withheld judgments distinct. Saved quality outcomes do not establish regular verification or current task benefit."
+    },
     "verified_output_accounting": {
       "implementation": "eval/frozen_task_eval.py",
       "retained_run_record": "eval/legacy_validation-archive-task-check-outcome-20261114.json",

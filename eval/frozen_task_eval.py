@@ -242,7 +242,9 @@ def results(root, manifest, oracle, judgments=None):
             raise ValueError('Unknown judgment value')
         item.update(satisfied=values.count('satisfied'),
             justified_withholding=values.count('justified_withholding'),
-            total_criteria=len(values),false_guidance=len(judgment['false_guidance']))
+            total_criteria=len(values),false_guidance=len(judgment['false_guidance']),
+            unmet_criteria={criterion: verdict for criterion, verdict in sorted(judgment['criteria'].items())
+                            if verdict != 'satisfied'})
     return metrics
 
 
@@ -260,7 +262,10 @@ def quality_check(manifest, metrics):
         if item['false_guidance']:
             reasons.append('The judge identified false guidance')
         if reasons:
-            failures.append(dict(case_id=item['case_id'], reasons=reasons))
+            failure = dict(case_id=item['case_id'], reasons=reasons)
+            if item.get('unmet_criteria'):
+                failure['unmet_criteria'] = item['unmet_criteria']
+            failures.append(failure)
     return dict(status='saved_assisted_quality_failed' if failures else 'saved_assisted_quality_passed',
         producer_kind=manifest.get('producer_kind', 'historical_frozen'),
         checked_arm='assisted', failed_cases=failures, metrics=metrics,

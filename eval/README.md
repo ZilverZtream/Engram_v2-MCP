@@ -71,6 +71,7 @@ false guidance. Honest withholding remains visible; it does not establish task
 completion. Baseline failures remain in the comparison and do not fail the
 assisted quality check. `report` stays informational and exits successfully for
 valid recorded judgments even when task criteria failed.
+Both outputs include the frozen IDs and recorded outcomes of unmet criteria.
 
 This command checks the recorded run only. To assess another installed build,
 capture its current outputs and execute a new run before calling `check`; passing
