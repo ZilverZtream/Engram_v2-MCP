@@ -1238,6 +1238,10 @@ pub struct AskCodebaseRequest {
     /// cooperative: synchronous work is not interrupted; startup/synthesis are separate.
     #[serde(default)]
     pub deadline_ms: Option<u64>,
+    /// Include database evidence in explicit HTTP and WebForms request traces.
+    /// Defaults to true. False skips SQL and DBML reads in that trace.
+    #[serde(default)]
+    pub request_trace_include_db: Option<bool>,
     /// Dream switch: `true` adds the dreamer-insight retrieval arm (the
     /// `insights` namespace) and nothing else. Default: OFF (round-2 audit
     /// P1-4 — the arm showed no measurable effect in the ablation).

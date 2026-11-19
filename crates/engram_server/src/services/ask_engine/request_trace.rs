@@ -175,8 +175,10 @@ impl RequestEvidence {
             self.note(&format!("No static routing candidate was returned for {entry}; this is not proof that a runtime route is absent."));
             return Ok(());
         }
-        let mut recovery = json!({"project_id":project,"entry_point":entry,"include_db":true,
-            "include_triggers":true,"max_tokens":TRACE_TOKENS});
+        let mut recovery = json!({"project_id":project,"entry_point":entry,
+            "include_db":trace["coverage"]["include_db"].as_bool().unwrap_or(true),
+            "include_triggers":trace["coverage"]["include_triggers"].as_bool().unwrap_or(true),
+            "max_tokens":TRACE_TOKENS});
         let action = trace["action"].as_str();
         let label = action.map_or_else(|| entry.to_owned(), |action| format!("{entry}: {action}"));
         if let Some(action) = action {

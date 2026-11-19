@@ -1,7 +1,7 @@
 //! Explicit requests and page/control questions reuse the held source selection.
 use crate::services::ask_engine::status::ProviderStatus;
 use crate::{
-    models::TraceUserRequestRequest,
+    models::{AskCodebaseRequest, TraceUserRequestRequest},
     services::ask_engine::{
         plan::QueryPlan,
         request_trace::{self, RequestEvidence},
@@ -13,14 +13,14 @@ use std::{sync::Arc, time::Duration};
 
 pub(super) async fn gather(
     engram: &Engram,
-    project: &str,
-    question: &str,
+    ask: &AskCodebaseRequest,
     plan: &QueryPlan,
     generation: u64,
     view: Option<Arc<SourceSnapshotGuard>>,
     deadline: Duration,
 ) -> Option<RequestEvidence> {
-    let queries = request_trace::requests(question);
+    let project = ask.project_id.as_str();
+    let queries = request_trace::requests(&ask.question);
     if queries.is_empty() {
         return None;
     }
@@ -66,7 +66,7 @@ pub(super) async fn gather(
             path_prefixes: plan.qualifiers.path_prefixes.clone(),
             entry_point: entry.clone(),
             action: query.action.clone(),
-            include_db: true,
+            include_db: ask.request_trace_include_db.unwrap_or(true),
             include_triggers: true,
             max_tokens: Some(request_trace::TRACE_TOKENS),
             response_id: None,
