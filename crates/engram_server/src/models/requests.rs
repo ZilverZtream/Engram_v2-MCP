@@ -832,12 +832,27 @@ pub struct PlanUserStoryRequest {
 #[serde(deny_unknown_fields)]
 pub struct OneShotFeaturePlanRequest {
     pub project_id: String,
+    /// Required for a new plan. Omit when recovering a saved response.
+    #[serde(default)]
     pub feature_description: String,
     pub model_after: Option<String>,
     pub area_hint: Option<String>,
     /// Currently supported: webforms_vbnet (including its JS/TS and SQL files).
+    /// Required for a new plan. Omit when recovering a saved response.
+    #[serde(default)]
     pub target_stack: String,
+    #[serde(default)]
     pub detail_level: PlanDetailLevel,
+    /// Complete response budget in estimated tokens (four UTF-8 bytes per token).
+    /// Default 10,240. Oversized plans or dossiers offer immutable recovery.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<usize>,
+    /// Recover a captured plan or dossier without running retrieval or generation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_id: Option<String>,
+    /// Exact UTF-8 byte offset from the preceding recovery page.
+    #[serde(default, skip_serializing_if = "schema_response_offset_is_zero")]
+    pub response_offset: usize,
     /// Return bounded source, scoped guidance and pattern context for the calling
     /// AI to plan from, without server-side requirement/plan generation. No edit
     /// safety verdict or generated implementation plan is produced. Default false.
@@ -856,11 +871,12 @@ pub struct OneShotFeaturePlanRequest {
     pub history_semantic_timeout_ms: Option<u64>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 pub enum PlanDetailLevel {
     #[serde(alias = "sketch")]
     Sketch,
     #[serde(alias = "detailed")]
+    #[default]
     Detailed,
     #[serde(alias = "ready_to_code")]
     ReadyToCode,

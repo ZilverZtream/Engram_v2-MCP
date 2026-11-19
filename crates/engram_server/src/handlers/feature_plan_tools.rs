@@ -6,7 +6,7 @@ use crate::{
 use plan::{MethodTarget, SourceEvidence};
 use rmcp::{
     ErrorData as McpError,
-    model::{CallToolResult, Content},
+    model::CallToolResult,
 };
 use serde_json::{Value, json};
 use std::{
@@ -155,16 +155,8 @@ fn body(result: CallToolResult) -> Result<Value, McpError> {
         .map_err(|_| failure("Planning evidence was not structured JSON"))
 }
 
-fn response(value: Value) -> Result<CallToolResult, McpError> {
-    let text = serde_json::to_string(&value).map_err(|_| failure("Cannot render feature plan"))?;
-    // All evidence and model bounds are accounted for. Never silently cut a plan.
-    if text.len() > 1024 * 1024 {
-        return Err(failure(
-            "Feature plan exceeds 1 MiB response bound; narrow the feature or area",
-        ));
-    }
-    Ok(CallToolResult::success(vec![Content::text(text)]))
-}
+#[path = "feature_plan_delivery.rs"]
+mod delivery;
 
 fn change_request(
     project: &str,
@@ -303,6 +295,18 @@ impl Engram {
         req: OneShotFeaturePlanRequest,
     ) -> Result<CallToolResult, McpError> {
         super::validate_project_id(&req.project_id)?;
+        let limit = delivery::budget(req.max_tokens)?;
+        let data = &self.state.cfg.data_dir;
+        if let Some(id) = req.response_id.as_deref() {
+            return delivery::recover(data, &req.project_id, id, req.response_offset, limit).await;
+        }
+        if req.response_offset != 0 {
+            return Err(McpError::invalid_params(
+                "response_offset requires response_id from feature-plan recovery",
+                None,
+            ));
+        }
+        let respond = |output| delivery::finish(data, &req.project_id, limit, output);
         plan::validate_request(&req).map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         let record = self.ensure_project_record(&req.project_id).await?;
         let identity = self.state.dreaming.text_generation_identity()
@@ -322,10 +326,14 @@ impl Engram {
         });
         if identity.is_none() && !req.dossier_only {
             output["reason"] = json!("llm_backend_unavailable");
-            return response(output);
+            return respond(output).await;
         }
         let intent = if req.dossier_only {
-            output["request"] = json!(&req);
+            let captured_request = OneShotFeaturePlanRequest {
+                max_tokens: None,
+                ..req.clone()
+            };
+            output["request"] = json!(captured_request);
             output["provenance"]["prompt_version"] = Value::Null;
             None
         } else {
@@ -340,7 +348,7 @@ impl Engram {
                 Err(e) => {
                     output["failure"] = json!(AnalysisDegradation::from_error(&e));
                     output["reason"] = json!("intent_provider_failed");
-                    return response(output);
+                    return respond(output).await;
                 }
             };
             let intent = match plan::parse_intent(&intent_text) {
@@ -348,7 +356,7 @@ impl Engram {
                 Err(error) => {
                     output["reason"] = json!("invalid_intent_contract");
                     output["rejection"] = plan::rejection_details(&error, &intent_text);
-                    return response(output);
+                    return respond(output).await;
                 }
             };
             Some(intent)
@@ -396,7 +404,7 @@ impl Engram {
             if total > 512 * 1024 {
                 output["reason"] = json!("change_set_exceeds_planning_context");
                 output["change_set"] = change_set;
-                return response(output);
+                return respond(output).await;
             }
             let data_dir = self.state.cfg.data_dir.clone();
             let project = req.project_id.clone();
@@ -409,7 +417,7 @@ impl Engram {
         if !change_set["files"].is_array() {
             output["reason"] = json!("incomplete_change_set_intake");
             output["change_set"] = change_set;
-            return response(output);
+            return respond(output).await;
         }
         let pattern_query = req
             .model_after
@@ -568,18 +576,18 @@ impl Engram {
         output["planning_context"] = json!({"change_set":change_set, "patterns":patterns, "schema":schema, "source_coverage":output["source_coverage"]});
         if evidence.is_empty() {
             output["reason"] = json!("no_current_source_evidence");
-            return response(output);
+            return respond(output).await;
         }
         if output["planning_context"].to_string().len() > 192 * 1024 {
             output["reason"] = json!("planning_context_limit");
-            return response(output);
+            return respond(output).await;
         }
         if req.dossier_only {
             let stale = changed_source_evidence(&record.directory, &evidence);
             if !stale.is_empty() || self.get_active_generation(&req.project_id).await? != generation {
                 output["reason"] = json!("source_changed_during_planning");
                 output["changed_files"] = json!(stale);
-                return response(output);
+                return respond(output).await;
             }
             output["status"] = json!("SOURCE_DOSSIER_READY");
             output["source_freshness"] = json!("CURRENT_AT_RETURN");
@@ -589,7 +597,7 @@ impl Engram {
                 "EXPLICIT_SCHEMA_REQUESTS_REPORTED"
             });
             output["edit_safety_status"] = json!("NOT_ASSESSED_NO_PROPOSED_EDITS");
-            return response(output);
+            return respond(output).await;
         }
         let intent = intent.expect("generation mode parsed its intent before source intake");
         output["provenance"]["provider_calls"] = json!(2);
@@ -604,7 +612,7 @@ impl Engram {
             Err(e) => {
                 output["failure"] = json!(AnalysisDegradation::from_error(&e));
                 output["reason"] = json!("plan_provider_failed");
-                return response(output);
+                return respond(output).await;
             }
         };
         let mut proposal = match plan::parse_plan(&plan_text, &intent, &evidence) {
@@ -616,7 +624,7 @@ impl Engram {
                 else {
                     output["reason"] = json!("invalid_plan_contract_or_source_reference");
                     output["rejection"] = rejection;
-                    return response(output);
+                    return respond(output).await;
                 };
                 output["repair"] = json!({"status":"ATTEMPTED", "maximum_attempts":1,
                     "initial_rejection":rejection});
@@ -632,7 +640,7 @@ impl Engram {
                         output["repair"]["status"] = json!("PROVIDER_FAILED");
                         output["failure"] = json!(AnalysisDegradation::from_error(&error));
                         output["reason"] = json!("plan_repair_provider_failed");
-                        return response(output);
+                        return respond(output).await;
                     }
                 };
                 match plan::parse_plan(&repaired_text, &intent, &evidence) {
@@ -645,7 +653,7 @@ impl Engram {
                         output["repair"]["status"] = json!("REJECTED");
                         output["reason"] = json!("invalid_plan_contract_or_source_reference");
                         output["rejection"] = plan::rejection_details(&error, &repaired_text);
-                        return response(output);
+                        return respond(output).await;
                     }
                 }
             }
@@ -656,7 +664,7 @@ impl Engram {
                 .map_err(|_| failure("Unsafe proposed new-file path"))?;
             if path.try_exists().unwrap_or(true) {
                 output["reason"] = json!("proposed_new_file_already_exists_or_unverifiable");
-                return response(output);
+                return respond(output).await;
             }
         }
         let mut safety = Vec::new();
@@ -708,12 +716,12 @@ impl Engram {
         if !stale.is_empty() || self.get_active_generation(&req.project_id).await? != generation {
             output["reason"] = json!("source_changed_during_planning");
             output["changed_files"] = json!(stale);
-            return response(output);
+            return respond(output).await;
         }
         plan::project_detail(&mut proposal, req.detail_level);
         output["status"] = json!("DRAFT_REQUIRES_SOURCE_AND_REQUIREMENT_REVIEW");
         output["structural_validation"] = json!({"references_and_order":"PASS","semantic_correctness":"UNVERIFIED","runtime_behavior":"UNVERIFIED"});
         output["plan"] = json!(proposal);
-        response(output)
+        respond(output).await
     }
 }
