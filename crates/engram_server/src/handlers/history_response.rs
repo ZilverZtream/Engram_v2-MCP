@@ -48,6 +48,23 @@ pub(super) fn finish(req: &SearchHistoryRequest, header: String, blocks: &[Strin
     let ranked_total=metadata["ranked_matches_before_limit"].as_u64();
     let more_ranked=ranked_total.map(|total|total>window as u64);
     metadata["more_ranked_matches"]=json!(more_ranked);
+    let mut next_request = None;
+    if rows.len() > 1
+        && let Some(revision) = metadata["resolved_revision"].as_str()
+        && let Some(mode @ ("text" | "precedent")) = metadata["mode"].as_str()
+    {
+        let mut arguments = serde_json::to_value(req)
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        arguments["as_of_rev"] = json!(revision);
+        arguments["mode"] = json!(mode);
+        next_request = Some(arguments);
+    }
+    let next_call = |offset| {
+        next_request.clone().map(|mut arguments| {
+            arguments["offset"] = json!(offset);
+            json!({"tool":"search_history","arguments":arguments})
+        })
+    };
     if rows.is_empty() {
         // Own the empty-page guidance in both formats so middleware cannot
         // suggest inspecting a historical lead that this page did not supply.
@@ -70,12 +87,18 @@ pub(super) fn finish(req: &SearchHistoryRequest, header: String, blocks: &[Strin
         } else {
             "Selected ranking window only. Text matched-file lists are drawn from retrieved documents, not the complete commit. Precedent descriptions and non-generated file lists are capped at 1500 characters and 40 paths before previews. Git recovery includes generated paths. No corpus completeness or snapshot guarantee; LLM reranking and mutable inputs can reorder pages."
         });
-        structured_response::finish(metadata,rows,structured_response::Page{
-            offset:req.offset,window_limit:req.sanitized_limit(),total:Some(window)},req.max_tokens)?.0
+        structured_response::finish_with_next_call(metadata,rows,structured_response::Page{
+            offset:req.offset,window_limit:req.sanitized_limit(),total:Some(window)},req.max_tokens,next_call)?.0
     } else {
         let pagination=|returned| {
             let next=offset+returned;
-            let action=if next<window {format!("next_page: offset={next}; keep query, filters, limit and ranking options fixed.\n")}
+            let action=if next<window {
+                    if let Some(call) = next_call(next) {
+                        format!("next_page: {call}\n")
+                    } else {
+                        format!("next_page: offset={next}; keep query, filters, limit and ranking options fixed.\n")
+                    }
+                }
                 else if window==0 {"ranking_window_empty: no results returned for this query and filters; no next page in this window. This does not prove absence from all history.\n".to_string()}
                 else if req.offset>=window {format!("ranking_window_end: requested offset={} is outside this {window}-result window; restart at offset=0 to read its results.\n",req.offset)}
                 else if more_ranked==Some(false) {"ranking_window_end: no additional ranked matches beyond this window in the selected history scope.\n".to_string()}
