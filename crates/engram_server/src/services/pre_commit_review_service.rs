@@ -2524,7 +2524,7 @@ pub async fn run_pre_commit_review_with(
     gate_list: Vec<Box<dyn Gate>>,
 ) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize, Vec<GateOutcome>)> {
     run_pre_commit_review_selected(state, project_id, project_dir, generation,
-        diff_text, config, gate_list, None).await
+        Arc::new(parse_unified_diff(diff_text)), config, gate_list, None).await
 }
 
 /// Review using the caller's already-selected source view. Retired views remain
@@ -2538,8 +2538,21 @@ pub async fn run_pre_commit_review_with_source_view(
     config: &ReviewConfig,
     source_view: Arc<engram_index::SourceSnapshotGuard>,
 ) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize, Vec<GateOutcome>)> {
+    run_parsed_review_with_source_view(state, project_id, project_dir, generation,
+        Arc::new(parse_unified_diff(diff_text)), config, source_view).await
+}
+
+pub(crate) async fn run_parsed_review_with_source_view(
+    state: &AppState,
+    project_id: &str,
+    project_dir: &Path,
+    generation: u64,
+    diff_files: Arc<Vec<DiffFile>>,
+    config: &ReviewConfig,
+    source_view: Arc<engram_index::SourceSnapshotGuard>,
+) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize, Vec<GateOutcome>)> {
     run_pre_commit_review_selected(state, project_id, project_dir, generation,
-        diff_text, config, gates::all_gates(), Some(source_view)).await
+        diff_files, config, gates::all_gates(), Some(source_view)).await
 }
 
 #[derive(Clone)]
@@ -2563,12 +2576,11 @@ async fn run_pre_commit_review_selected(
     project_id: &str,
     project_dir: &Path,
     generation: u64,
-    diff_text: &str,
+    diff_files: Arc<Vec<DiffFile>>,
     config: &ReviewConfig,
     gate_list: Vec<Box<dyn Gate>>,
     source_view: Option<Arc<engram_index::SourceSnapshotGuard>>,
 ) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize, Vec<GateOutcome>)> {
-    let diff_files = parse_unified_diff(diff_text);
     if diff_files.is_empty() {
         return Ok((Vec::new(), 0, 0, Vec::new()));
     }
@@ -2597,7 +2609,7 @@ async fn run_pre_commit_review_selected(
     // many changed files. `diff_files.len()` is an exact upper bound.
     let changed_paths: Arc<HashSet<String>> = {
         let mut s = HashSet::with_capacity(diff_files.len());
-        for f in &diff_files {
+        for f in diff_files.iter() {
             s.insert(f.path.clone());
         }
         Arc::new(s)
@@ -2674,7 +2686,7 @@ async fn run_pre_commit_review_selected(
         project_id: project_id.to_string(),
         project_dir: project_dir.to_path_buf(),
         generation,
-        diff_files: Arc::new(diff_files.clone()),
+        diff_files: diff_files.clone(),
         changed_paths: changed_paths.clone(),
         total_commits,
         repo_rules: repo_rules.clone(),

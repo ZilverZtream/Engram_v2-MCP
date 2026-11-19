@@ -14,7 +14,7 @@ use crate::handlers::validate_project_id;
 use crate::models::requests::PreCommitReviewRequest;
 use crate::services::pre_commit_review_service::{
     ReviewConfig, Severity, render_compact_markdown, render_json, render_markdown, resolve_diff_source,
-    run_pre_commit_review_with_source_view,
+    run_parsed_review_with_source_view,
 };
 use crate::services::project_service::ensure_project_record;
 use crate::tools::Engram;
@@ -79,7 +79,9 @@ impl Engram {
         // Resolve the diff input into raw unified-diff text.
         let diff_text = resolve_diff_source(&project_dir, &req.diff)
             .map_err(|e| McpError::invalid_params(format!("diff resolution failed: {e}"), None))?;
-        let parsed = crate::services::pre_commit_review_service::parse_unified_diff(&diff_text);
+        let parsed = std::sync::Arc::new(
+            crate::services::pre_commit_review_service::parse_unified_diff(&diff_text),
+        );
         let head_before = head_commit(&project_dir);
         let source_before = source_snapshot(&project_dir, &parsed);
 
@@ -131,7 +133,7 @@ impl Engram {
             return response_delivery::finish(&req, &self.state.cfg.data_dir, body, &payload);
         }
 
-        if crate::services::pre_commit_review_service::parse_unified_diff(&diff_text).is_empty() {
+        if parsed.is_empty() {
             return Err(McpError::invalid_params(
                 "diff contains no parseable file changes; review was not run",
                 None,
@@ -148,12 +150,12 @@ impl Engram {
             output_json: req.output_json,
         };
 
-        let (findings, gates_run, files_analysed, outcomes) = run_pre_commit_review_with_source_view(
+        let (findings, gates_run, files_analysed, outcomes) = run_parsed_review_with_source_view(
             &self.state,
             &req.project_id,
             &project_dir,
             generation,
-            &diff_text,
+            parsed.clone(),
             &config,
             source_view.clone(),
         )
