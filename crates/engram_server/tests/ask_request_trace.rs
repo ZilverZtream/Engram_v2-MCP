@@ -115,10 +115,13 @@ fn only_explicit_http_requests_activate_tracing_with_deduplication_and_cap_discl
     assert!(request_trace::queries("Explain /language.aspx/change").is_empty());
     assert_eq!(
         request_trace::queries(
-            "Explain `post /language.aspx/change`, then POST /language.aspx/change"
+            "Explain post `/language.aspx/change`, then `POST /language.aspx/change`"
         ),
         vec!["POST /language.aspx/change"]
     );
+    let traced = request_trace::requests("What happens on GET `/dashboard/system/project`?");
+    assert_eq!(traced.len(), 1);
+    assert_eq!(traced[0].entry_point, "GET /dashboard/system/project");
     assert_eq!(
         request_trace::queries("GET /a.aspx GET /b.aspx GET /c.aspx GET /d.aspx").len(),
         3
@@ -134,7 +137,7 @@ async fn ordinary_http_question_retains_exact_handler_source_guidance_and_execut
     }))?).await?;
     let direct: Value = serde_json::from_str(body(&direct))?;
     ensure!(handlers(&direct).len() == 1);
-    let answer = fixture.ask("Explain POST /language.aspx/change").await?;
+    let answer = fixture.ask("Explain POST `/language.aspx/change`").await?;
     let facts = traces(&answer);
     ensure!(facts.len() == 1, "{answer}");
     let trace = &facts[0]["trace"];

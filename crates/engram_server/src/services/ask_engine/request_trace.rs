@@ -11,7 +11,7 @@ pub const TRACE_TOKENS: usize = 16_384;
 const INTERPRETATION: &str = "Static request candidates from the ordinary request tracer using the ask-held selected source inventory. Per-member source hash/revision checks, omissions, authored guidance and saved trace recovery remain in the nested report. This is not an atomic graph/filesystem snapshot or proof of HTTP hosting, dispatch, authorization, database execution or runtime behavior. Single-tool recovery runs a new trace against then-current state; saved ask-report recovery retains the original answer.";
 static REQUESTS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r#"(?i)\b(?:(?P<method>GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+|(?:open(?:ing)?|visit(?:ing)?)\s+`?)(?P<target>(?:(?:https?://|~/|/)[^\s"'`<>]+|[a-z0-9_-][a-z0-9_./-]*\.(?:aspx|asmx|ashx)[^\s"'`<>]*))"#,
+        r#"(?i)\b(?:(?P<method>GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)|(?:open(?:ing)?|visit(?:ing)?))\s+`?(?P<target>(?:(?:https?://|~/|/)[^\s"'`<>]+|[a-z0-9_-][a-z0-9_./-]*\.(?:aspx|asmx|ashx)[^\s"'`<>]*))"#,
     )
     .expect("explicit HTTP requests and WebForms page openings")
 });

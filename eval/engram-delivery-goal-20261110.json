@@ -2995,6 +2995,13 @@
       "implementation": "crates/engram_server/src/services/request_trace/routing.rs and api.rs",
       "acceptance": "The exact routing module resolved the actual LegacyValidation registration and page with the authored pr_id=-1, and preserved /dashboard/system/project/42 as an explicit path value. Its focused fixture retains null defaults and rejects dynamic default expressions or omitted literal segments. Eight checks passed against cached dependencies. Packaged MCP verification and deployment are pending."
     },
+    "queued_ask_quoted_http_target": {
+      "status": "IMPLEMENTED_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGE_VERIFICATION",
+      "requirement": "TODO-28 natural-language access to ordinary WebForms request tracing",
+      "observed_gap": "An explicit HTTP method followed by a Markdown-quoted URL did not activate request tracing when the backticks enclosed only the URL.",
+      "implementation": "crates/engram_server/src/services/ask_engine/request_trace.rs",
+      "acceptance": "The exact ask selector recognizes GET followed by the quoted LegacyValidation project-editor URL and passes it to the exact routing reader, which returns the authored pr_id=-1. Deduplication, existing control actions and method-free API mention behavior passed the same focused check. The existing integration test now asks with a quoted URL. No Engram package was built or deployed for this change."
+    },
     "next_action": "Advance the remaining original LegacyValidation items. Source changes committed after this package was frozen remain queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
   },
   "windows_reconnect_release_interruption": {
