@@ -357,14 +357,11 @@ impl Engram {
         let (generation, view) = self
             .pin_active_source_generation(&req.project_id, &runtime.search)
             .await?;
-        let selected = view
-            .selected_file_revisions()
-            .ok_or_else(|| {
-                failure(
-                    "Feature planning requires a managed source inventory; update_project first",
-                )
-            })?
-            .clone();
+        if view.selected_file_revisions().is_none() {
+            return Err(failure(
+                "Feature planning requires a managed source inventory; update_project first",
+            ));
+        }
         let view = std::sync::Arc::new(view);
         output["active_generation"] = json!(generation);
         let mut story = req.feature_description.clone();
@@ -456,7 +453,8 @@ impl Engram {
         let (evidence, gaps, composition) = tokio::task::spawn_blocking(move || {
             // A cancelled request must not release selected source ownership
             // while this non-cancellable worker is still reading it.
-            let _source_hold = worker_view;
+            let selected = worker_view.selected_file_revisions()
+                .expect("Feature planning already verified the managed source inventory");
             let mut evidence = Vec::new();
             let mut gaps = Vec::new();
             let mut composition = Vec::new();
@@ -581,13 +579,12 @@ impl Engram {
                 Err(_) => json!({"name":name,"status":"UNAVAILABLE","recovery":{"tool":"query_schema","arguments":{"project_id":req.project_id,"query_type":{"kind":"table","name":name}}}}),
             });
         }
-        let context = json!({"change_set":change_set, "patterns":patterns, "schema":schema, "source_coverage":output["source_coverage"]});
-        output["planning_context"] = context.clone();
+        output["planning_context"] = json!({"change_set":change_set, "patterns":patterns, "schema":schema, "source_coverage":output["source_coverage"]});
         if evidence.is_empty() {
             output["reason"] = json!("no_current_source_evidence");
             return response(output);
         }
-        if context.to_string().len() > 192 * 1024 {
+        if output["planning_context"].to_string().len() > 192 * 1024 {
             output["reason"] = json!("planning_context_limit");
             return response(output);
         }
@@ -610,7 +607,7 @@ impl Engram {
         }
         let intent = intent.expect("generation mode parsed its intent before source intake");
         output["provenance"]["provider_calls"] = json!(2);
-        let prompt = plan::assembly_prompt(&req, &intent, &evidence, &context);
+        let prompt = plan::assembly_prompt(&req, &intent, &evidence, &output["planning_context"]);
         let plan_text = match self
             .state
             .dreaming

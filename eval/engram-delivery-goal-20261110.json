@@ -2984,6 +2984,13 @@
     "acceptance": "With dossier_only and schema_tables, an owned LegacyValidation-shaped WebForms/SQL fixture returns the requested table and exact citation under the same generation with zero server text-generation calls. Change-set recovery retains the selected history budget.",
     "verification": "Exact request validation and identifier parsing passed a focused cached-dependency check. The public dossier check is pending. Generated-plan semantic acceptance remains open. No additional release build."
   },
+  "dossier_source_selection_allocations": {
+    "original_requirement_id": "S14",
+    "status": "SOURCE_COMPLETE_AWAITING_PACKAGED_MCP",
+    "user_outcome": "Feature planning borrows the immutable path/revision map from the same held snapshot. It no longer duplicates the project-wide map or the assembled planning context.",
+    "acceptance": "Reuse the existing packaged dossier source and recovery checks. Preserve stale-source handling, generation and source evidence. The worker retains the source lease for the duration of its read.",
+    "verification": "Rust parser and scoped diff checks passed. Packaged validation and runtime measurements remain pending."
+  },
   "recent_filtered_history_progress": {
     "original_requirement_id": "EG-20",
     "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",
