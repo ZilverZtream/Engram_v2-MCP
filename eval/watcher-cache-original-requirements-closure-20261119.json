@@ -1,0 +1,541 @@
+{
+  "status": "ORIGINAL_WATCHER_AND_CACHE_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+  "at_utc": "2026-11-19T02:10:42.683069+00:00",
+  "original_requirement_ids": [
+    "EG-03",
+    "EG-04"
+  ],
+  "required_behavior": {
+    "EG-03": [
+      "Ignored/storage events schedule no work; unchanged refresh retains its source head; changes during indexing converge.",
+      "Deletion and rename behavior remains correct under Windows path forms."
+    ],
+    "EG-04": [
+      "Repeated reads and store reloads retain bounded caches and do not reopen/shutdown persistent writers unnecessarily.",
+      "Real-edit rewriting is measured and remains separately tracked in EG-13."
+    ]
+  },
+  "original_required_behavior_complete": true,
+  "recorder": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\watcher-cache-original-requirements-20261119\\record-closure.py",
+    "sha256": "b46485d43c4be4d11686a699528e57f6ce5845e8442f375ad3613c79d33a0b6e"
+  },
+  "requirement_evidence": {
+    "EG-03.1": {
+      "real_actor_native_and_no_vector": {
+        "native_current": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg03-durable-watch-config-final.json",
+            "sha256": "4f5b14bfd5d84b07b1ffb6ffabdac8895844da5e34cee71045c1c4d43e43481b"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg03-durable-watch-config-final.log",
+            "sha256": "2d0e9908281c5953e0d945aea13d13ad10d2eaf827217047f28b898bcfced025"
+          },
+          "passed_cases": [
+            "ingest::authoritative_scan_tests::complete_empty_and_filtered_source_sets_are_valid",
+            "ingest::authoritative_scan_tests::configured_limits_reject_the_corpus_instead_of_returning_a_prefix",
+            "ingest::authoritative_scan_tests::irrelevant_parent_git_rules_do_not_block_an_inner_repository",
+            "ingest::authoritative_scan_tests::missing_or_regular_file_root_is_not_an_empty_source_set",
+            "ingest::authoritative_scan_tests::unreadable_ignore_rules_do_not_authorize_a_partial_source_set",
+            "actors::watcher::behavior_tests::real_watcher_converges_after_an_edit_during_indexing_rename_and_deletion",
+            "actors::watcher::behavior_tests::real_watcher_ignores_storage_and_gitignored_writes_across_a_source_update",
+            "actors::watcher::behavior_tests::unwatch_cancels_busy_work_and_stays_disabled",
+            "actors::watcher::tests::project_watching_ignores_runtime_churn_but_keeps_source_and_ignore_changes",
+            "actors::watcher::tests::storage_exclusion_uses_the_resolved_directory_not_its_config_spelling",
+            "actors::watcher::tests::subtree_project_obeys_ignore_rules_from_its_git_root"
+          ],
+          "reexecuted": false
+        },
+        "no_vector_current": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg03-owned-source-and-watch-config-final.json",
+            "sha256": "4a6f97d9e65dc54eebeeb333354b4ed19f9c3fca3b755828b3660ff1e2d897ff"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg03-owned-source-and-watch-config-final.log",
+            "sha256": "ef4f1ff722f4db7fd3fb07d77b2de534ceaec099f7c401e1b336b266bed188d5"
+          },
+          "passed_cases": [
+            "ingest::authoritative_scan_tests::complete_empty_and_filtered_source_sets_are_valid",
+            "ingest::authoritative_scan_tests::configured_limits_reject_the_corpus_instead_of_returning_a_prefix",
+            "ingest::authoritative_scan_tests::irrelevant_parent_git_rules_do_not_block_an_inner_repository",
+            "ingest::authoritative_scan_tests::missing_or_regular_file_root_is_not_an_empty_source_set",
+            "ingest::authoritative_scan_tests::unreadable_ignore_rules_do_not_authorize_a_partial_source_set",
+            "actors::watcher::behavior_tests::real_watcher_converges_after_an_edit_during_indexing_rename_and_deletion",
+            "actors::watcher::behavior_tests::real_watcher_ignores_storage_and_gitignored_writes_across_a_source_update",
+            "actors::watcher::behavior_tests::unwatch_cancels_busy_work_and_stays_disabled",
+            "actors::watcher::tests::project_watching_ignores_runtime_churn_but_keeps_source_and_ignore_changes",
+            "actors::watcher::tests::storage_exclusion_uses_the_resolved_directory_not_its_config_spelling",
+            "actors::watcher::tests::subtree_project_obeys_ignore_rules_from_its_git_root"
+          ],
+          "reexecuted": false
+        },
+        "native_public_current": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg03-public-source-regressions-final.json",
+            "sha256": "4f482a7528a501f07ae4bd8f07728f5b19ca889f6772103b4994a1643498df04"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg03-public-source-regressions-final.log",
+            "sha256": "261e7f278e527bfa2968e0df41fedf5343ef635ba5287b078dcdaeefdd6696c1"
+          },
+          "passed_cases": [
+            "candidate_paths_are_the_indexed_canonical_forms",
+            "concept_expansion_is_reported_but_off_by_default",
+            "json_flag_is_rejected_nowhere_and_markdown_stays_default",
+            "json_output_carries_per_file_evidence_and_arm_coverage",
+            "markdown_reports_every_arm_status_including_a_dead_vector_arm",
+            "one_call_performs_one_full_node_scan",
+            "structured_output_has_compact_reconciled_and_forensic_views",
+            "structured_output_includes_hash_bound_repository_policy_without_prior_ingestion",
+            "typed_history_keeps_root_and_non_dotnet_paths_without_prose_inference",
+            "unknown_structured_detail_is_rejected",
+            "test_incremental_no_changes_is_zero",
+            "original_eg01_guidance_does_not_change_citations_or_weaken_missing_source_refusal",
+            "original_eg01_root_and_spaced_source_paths_retain_their_authored_guidance",
+            "original_eg01_same_guidance_reaches_planning_editing_retrieval_and_review",
+            "original_eg02_large_public_dossiers_keep_omissions_and_immutable_recovery_in_both_formats",
+            "change_set_routes_live_topics_and_preserves_policy_in_both_formats",
+            "historical_change_set_reports_unavailable_policy_without_future_content",
+            "malformed_topic_scope_is_visible_and_does_not_become_global_authority",
+            "new_and_edited_instruction_files_take_effect_without_reindexing",
+            "oversized_and_over_cap_policies_have_explicit_recovery_evidence",
+            "oversized_dossier_recovers_exact_receipt_and_original_policy_after_checkout_changes",
+            "pre_commit_review_supplies_scoped_guidance_without_claiming_prose_enforcement",
+            "topic_guidance_remains_discoverable_in_a_large_legacy_source_directory"
+          ],
+          "reexecuted": false
+        },
+        "no_vector_public_current": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg03-public-source-regressions-final.json",
+            "sha256": "b821c2ca8b7c0a59c739ee7518bf16011b1507ed24bdd4fdc4e8dbd0a0d6f056"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg03-public-source-regressions-final.log",
+            "sha256": "017366019b22e26dcbb40f8f70fe3f225eaa5b84d65f0b70877657d8f34bd66d"
+          },
+          "passed_cases": [
+            "candidate_paths_are_the_indexed_canonical_forms",
+            "concept_expansion_is_reported_but_off_by_default",
+            "json_flag_is_rejected_nowhere_and_markdown_stays_default",
+            "json_output_carries_per_file_evidence_and_arm_coverage",
+            "markdown_reports_every_arm_status_including_a_dead_vector_arm",
+            "one_call_performs_one_full_node_scan",
+            "structured_output_has_compact_reconciled_and_forensic_views",
+            "structured_output_includes_hash_bound_repository_policy_without_prior_ingestion",
+            "typed_history_keeps_root_and_non_dotnet_paths_without_prose_inference",
+            "unknown_structured_detail_is_rejected",
+            "test_incremental_no_changes_is_zero",
+            "original_eg01_guidance_does_not_change_citations_or_weaken_missing_source_refusal",
+            "original_eg01_root_and_spaced_source_paths_retain_their_authored_guidance",
+            "original_eg01_same_guidance_reaches_planning_editing_retrieval_and_review",
+            "original_eg02_large_public_dossiers_keep_omissions_and_immutable_recovery_in_both_formats",
+            "change_set_routes_live_topics_and_preserves_policy_in_both_formats",
+            "historical_change_set_reports_unavailable_policy_without_future_content",
+            "malformed_topic_scope_is_visible_and_does_not_become_global_authority",
+            "new_and_edited_instruction_files_take_effect_without_reindexing",
+            "oversized_and_over_cap_policies_have_explicit_recovery_evidence",
+            "oversized_dossier_recovers_exact_receipt_and_original_policy_after_checkout_changes",
+            "pre_commit_review_supplies_scoped_guidance_without_claiming_prose_enforcement",
+            "topic_guidance_remains_discoverable_in_a_large_legacy_source_directory"
+          ],
+          "reexecuted": false
+        }
+      },
+      "installed_noop_and_watch_observation": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg03-installed-20261111\\capture-v2\\acceptance.json",
+        "sha256": "3744070ee15f5b5adef591a82f324bd1e452aaf1b266650ef41994b9e5d2b67b"
+      },
+      "scope": "Ignored/storage scheduling and edit-during-index convergence use instrumented real-actor cases, not the short installed noise window alone."
+    },
+    "EG-03.2": {
+      "real_actor_windows_rename_and_delete": {
+        "native_current": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg03-durable-watch-config-final.json",
+            "sha256": "4f5b14bfd5d84b07b1ffb6ffabdac8895844da5e34cee71045c1c4d43e43481b"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg03-durable-watch-config-final.log",
+            "sha256": "2d0e9908281c5953e0d945aea13d13ad10d2eaf827217047f28b898bcfced025"
+          },
+          "passed_cases": [
+            "ingest::authoritative_scan_tests::complete_empty_and_filtered_source_sets_are_valid",
+            "ingest::authoritative_scan_tests::configured_limits_reject_the_corpus_instead_of_returning_a_prefix",
+            "ingest::authoritative_scan_tests::irrelevant_parent_git_rules_do_not_block_an_inner_repository",
+            "ingest::authoritative_scan_tests::missing_or_regular_file_root_is_not_an_empty_source_set",
+            "ingest::authoritative_scan_tests::unreadable_ignore_rules_do_not_authorize_a_partial_source_set",
+            "actors::watcher::behavior_tests::real_watcher_converges_after_an_edit_during_indexing_rename_and_deletion",
+            "actors::watcher::behavior_tests::real_watcher_ignores_storage_and_gitignored_writes_across_a_source_update",
+            "actors::watcher::behavior_tests::unwatch_cancels_busy_work_and_stays_disabled",
+            "actors::watcher::tests::project_watching_ignores_runtime_churn_but_keeps_source_and_ignore_changes",
+            "actors::watcher::tests::storage_exclusion_uses_the_resolved_directory_not_its_config_spelling",
+            "actors::watcher::tests::subtree_project_obeys_ignore_rules_from_its_git_root"
+          ],
+          "reexecuted": false
+        },
+        "no_vector_current": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg03-owned-source-and-watch-config-final.json",
+            "sha256": "4a6f97d9e65dc54eebeeb333354b4ed19f9c3fca3b755828b3660ff1e2d897ff"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg03-owned-source-and-watch-config-final.log",
+            "sha256": "ef4f1ff722f4db7fd3fb07d77b2de534ceaec099f7c401e1b336b266bed188d5"
+          },
+          "passed_cases": [
+            "ingest::authoritative_scan_tests::complete_empty_and_filtered_source_sets_are_valid",
+            "ingest::authoritative_scan_tests::configured_limits_reject_the_corpus_instead_of_returning_a_prefix",
+            "ingest::authoritative_scan_tests::irrelevant_parent_git_rules_do_not_block_an_inner_repository",
+            "ingest::authoritative_scan_tests::missing_or_regular_file_root_is_not_an_empty_source_set",
+            "ingest::authoritative_scan_tests::unreadable_ignore_rules_do_not_authorize_a_partial_source_set",
+            "actors::watcher::behavior_tests::real_watcher_converges_after_an_edit_during_indexing_rename_and_deletion",
+            "actors::watcher::behavior_tests::real_watcher_ignores_storage_and_gitignored_writes_across_a_source_update",
+            "actors::watcher::behavior_tests::unwatch_cancels_busy_work_and_stays_disabled",
+            "actors::watcher::tests::project_watching_ignores_runtime_churn_but_keeps_source_and_ignore_changes",
+            "actors::watcher::tests::storage_exclusion_uses_the_resolved_directory_not_its_config_spelling",
+            "actors::watcher::tests::subtree_project_obeys_ignore_rules_from_its_git_root"
+          ],
+          "reexecuted": false
+        },
+        "native_public_current": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg03-public-source-regressions-final.json",
+            "sha256": "4f482a7528a501f07ae4bd8f07728f5b19ca889f6772103b4994a1643498df04"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg03-public-source-regressions-final.log",
+            "sha256": "261e7f278e527bfa2968e0df41fedf5343ef635ba5287b078dcdaeefdd6696c1"
+          },
+          "passed_cases": [
+            "candidate_paths_are_the_indexed_canonical_forms",
+            "concept_expansion_is_reported_but_off_by_default",
+            "json_flag_is_rejected_nowhere_and_markdown_stays_default",
+            "json_output_carries_per_file_evidence_and_arm_coverage",
+            "markdown_reports_every_arm_status_including_a_dead_vector_arm",
+            "one_call_performs_one_full_node_scan",
+            "structured_output_has_compact_reconciled_and_forensic_views",
+            "structured_output_includes_hash_bound_repository_policy_without_prior_ingestion",
+            "typed_history_keeps_root_and_non_dotnet_paths_without_prose_inference",
+            "unknown_structured_detail_is_rejected",
+            "test_incremental_no_changes_is_zero",
+            "original_eg01_guidance_does_not_change_citations_or_weaken_missing_source_refusal",
+            "original_eg01_root_and_spaced_source_paths_retain_their_authored_guidance",
+            "original_eg01_same_guidance_reaches_planning_editing_retrieval_and_review",
+            "original_eg02_large_public_dossiers_keep_omissions_and_immutable_recovery_in_both_formats",
+            "change_set_routes_live_topics_and_preserves_policy_in_both_formats",
+            "historical_change_set_reports_unavailable_policy_without_future_content",
+            "malformed_topic_scope_is_visible_and_does_not_become_global_authority",
+            "new_and_edited_instruction_files_take_effect_without_reindexing",
+            "oversized_and_over_cap_policies_have_explicit_recovery_evidence",
+            "oversized_dossier_recovers_exact_receipt_and_original_policy_after_checkout_changes",
+            "pre_commit_review_supplies_scoped_guidance_without_claiming_prose_enforcement",
+            "topic_guidance_remains_discoverable_in_a_large_legacy_source_directory"
+          ],
+          "reexecuted": false
+        },
+        "no_vector_public_current": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg03-public-source-regressions-final.json",
+            "sha256": "b821c2ca8b7c0a59c739ee7518bf16011b1507ed24bdd4fdc4e8dbd0a0d6f056"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg03-public-source-regressions-final.log",
+            "sha256": "017366019b22e26dcbb40f8f70fe3f225eaa5b84d65f0b70877657d8f34bd66d"
+          },
+          "passed_cases": [
+            "candidate_paths_are_the_indexed_canonical_forms",
+            "concept_expansion_is_reported_but_off_by_default",
+            "json_flag_is_rejected_nowhere_and_markdown_stays_default",
+            "json_output_carries_per_file_evidence_and_arm_coverage",
+            "markdown_reports_every_arm_status_including_a_dead_vector_arm",
+            "one_call_performs_one_full_node_scan",
+            "structured_output_has_compact_reconciled_and_forensic_views",
+            "structured_output_includes_hash_bound_repository_policy_without_prior_ingestion",
+            "typed_history_keeps_root_and_non_dotnet_paths_without_prose_inference",
+            "unknown_structured_detail_is_rejected",
+            "test_incremental_no_changes_is_zero",
+            "original_eg01_guidance_does_not_change_citations_or_weaken_missing_source_refusal",
+            "original_eg01_root_and_spaced_source_paths_retain_their_authored_guidance",
+            "original_eg01_same_guidance_reaches_planning_editing_retrieval_and_review",
+            "original_eg02_large_public_dossiers_keep_omissions_and_immutable_recovery_in_both_formats",
+            "change_set_routes_live_topics_and_preserves_policy_in_both_formats",
+            "historical_change_set_reports_unavailable_policy_without_future_content",
+            "malformed_topic_scope_is_visible_and_does_not_become_global_authority",
+            "new_and_edited_instruction_files_take_effect_without_reindexing",
+            "oversized_and_over_cap_policies_have_explicit_recovery_evidence",
+            "oversized_dossier_recovers_exact_receipt_and_original_policy_after_checkout_changes",
+            "pre_commit_review_supplies_scoped_guidance_without_claiming_prose_enforcement",
+            "topic_guidance_remains_discoverable_in_a_large_legacy_source_directory"
+          ],
+          "reexecuted": false
+        }
+      },
+      "installed_actual_source_hash_oracle": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg03-installed-20261111\\capture-v2\\source-oracle.json",
+        "sha256": "ce2b41ef333f19f4df71a7521087d6d46004dbdaa9a44f7d3c3ef4265563e1d3"
+      },
+      "installed_actual_edit_rename_delete": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg03-installed-20261111\\capture-v2\\acceptance.json",
+        "sha256": "3744070ee15f5b5adef591a82f324bd1e452aaf1b266650ef41994b9e5d2b67b"
+      }
+    },
+    "EG-04.1": {
+      "retained_cache_pressure_query_recovery_and_store_lifetime": [
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg04-bounded-session-pressure-and-lifetime.json",
+            "sha256": "98e25c4834ab77b17b07ad1f9368269c204407a09565b102944e83c75b3aa274"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg04-bounded-session-pressure-and-lifetime.log",
+            "sha256": "909546051c5023a890d4070a301906d4f308d7ebb7efd8d38c4fcd8f6e030ed9"
+          },
+          "passed_cases": [
+            "vector::cache_behavior_tests::application_connections_isolate_roots_and_release_sessions",
+            "vector::cache_behavior_tests::pressure_preserves_vectors_old_readers_and_cold_reopen"
+          ],
+          "reexecuted": false
+        },
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg04-pressure-query-order-and-engine-recovery-final.json",
+            "sha256": "99be1e05a15355fd108537b61e8954578733522f98b44e14104d3798aa2a65e8"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg04-pressure-query-order-and-engine-recovery-final.log",
+            "sha256": "1c4c8d3aea44638450983ce117dc96f491b1b655e5d15f5a063736d1c167d047"
+          },
+          "passed_cases": [
+            "hybrid::backend_contracts::bulk_writes_do_not_put_interactive_queries_in_persistent_embedding_cache",
+            "hybrid::backend_contracts::default_vectors_survive_cold_reopen_and_reuse_unchanged_content_after_edit",
+            "hybrid::backend_contracts::editing_and_deleting_files_embed_only_new_content_and_preserve_inherited_vectors",
+            "hybrid::backend_contracts::explicit_lexical_mode_preserves_vectors_and_default_can_initialize_stored_text",
+            "hybrid::backend_contracts::filter_experiment::native_revision_selector_layouts_preserve_filtered_top_k_and_unsigned_boundaries",
+            "hybrid::backend_contracts::filter_experiment::native_sql_and_typed_source_filters_preserve_top_k_and_measure_query_cost",
+            "hybrid::backend_contracts::process_exclusion::separate_process_cannot_mutate_or_collect_while_engine_or_source_view_is_owned",
+            "hybrid::backend_contracts::redirected_ownership_metadata_is_refused_before_lexical_mutation",
+            "hybrid::vector_initialization::tests::recovery_retry_after_locked_route_preserves_the_old_view",
+            "hybrid::vector_initialization::tests::retired_cleanup_waits_for_all_provider_views_across_engine_reload",
+            "hybrid::vector_initialization::tests::scoped_writes_reject_foreign_projects_and_roots_and_keep_recovery_excluded",
+            "hybrid::vector_initialization::tests::vector_recovery_keeps_inflight_query_on_its_original_provider_and_rejects_stale_writers",
+            "hybrid::vector_initialization::tests::vector_recovery_repairs_equal_count_corruption_and_survives_restart_without_source_changes",
+            "vector::cache_behavior_tests::application_connections_isolate_roots_and_release_sessions",
+            "vector::cache_behavior_tests::pressure_preserves_vectors_old_readers_and_cold_reopen"
+          ],
+          "reexecuted": false
+        },
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg04-source-leases-edit-and-collection-final.json",
+            "sha256": "1a4a5f44976bb83bd50bd6002fb8ae9726f00a6372b9dfa46e176ec6716f7874"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg04-source-leases-edit-and-collection-final.log",
+            "sha256": "316a06011110f5f2c74a231176fb1f42c0dc38b7d2b5f1785fcb141362b12527"
+          },
+          "passed_cases": [
+            "conservative_physical_cleanup_keeps_the_published_logical_head",
+            "one_file_edit_reuses_unchanged_chunks_and_keeps_an_existing_reader_complete",
+            "retry_after_partial_indexing_replaces_only_the_abandoned_attempt",
+            "revision_selection_does_not_change_equal_content_relevance",
+            "vector_selection_and_collection_keep_inherited_revisions_and_hide_superseded_ones"
+          ],
+          "reexecuted": false
+        }
+      ],
+      "source_mechanisms": {
+        "crates/engram_server/src/actors/watcher.rs": {
+          "unchanged_since_retained_installed_source": true,
+          "current_source_sha256_normalized": "457893d6beb2235009f6cdc0cbf5e787009caf4d5a2f2047cf9cf054d277b3e8"
+        },
+        "crates/engram_core/src/storage.rs": {
+          "unchanged_since_retained_installed_source": true,
+          "current_source_sha256_normalized": "dc4fbbe5e506ac91a7a45092928fc6ce1e3ccb9fc71d7f851cce2104067bcbbe"
+        },
+        "crates/engram_index/src/vector.rs": {
+          "unchanged_since_retained_installed_source": true,
+          "current_source_sha256_normalized": "ce97ad45aa47d2b0b112bbd63bc13540b67ad25ba48bb39fac2f4ce9a5d8ed59"
+        },
+        "crates/engram_index/src/hybrid/native_store.rs": {
+          "unchanged_since_retained_installed_source": true,
+          "current_source_sha256_normalized": "2bd8b58f7dbc3f97cda7a4873d1637a5780914d9538b625e2ef0638b0e0fefc0"
+        },
+        "crates/engram_server/src/state.rs": {
+          "verified_unchanged_methods": [
+            {
+              "name": "pub fn get_project_cached",
+              "sha256": "93558219fbc3390f50d2ef2453e476111cee4a9b65ce538f0a1e3c1faebd1885"
+            },
+            {
+              "name": "pub async fn put_project_cached",
+              "sha256": "b0997713ffa07e8d1ed5a89a4eb3cf09d3d699af790d931c2ce7353f1094b8d2"
+            }
+          ]
+        },
+        "crates/engram_index/src/hybrid.rs": {
+          "verified_unchanged_methods": [
+            {
+              "name": "pub async fn copy_generation_for_paths",
+              "sha256": "06277d78a4894e3f36996108683db9793174c901e3564c9e4b4f03c9afa7e56f"
+            }
+          ]
+        }
+      },
+      "prior_delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\eg04-cache-store-delivery-20261111.json",
+        "sha256": "a87217be661b6ffcf66cee14ad50c1f1de386bc5f54cbce6605301a355143489"
+      }
+    },
+    "EG-04.2": {
+      "real_edit_measurement": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\s15-differential-module-persistence-delivery-20261114.json",
+        "sha256": "211a53a7f15a76dcc7df26dde99d9bed7cb638430305e4c5853133e20ddcb4aa"
+      },
+      "separate_unfinished_original_requirement": "EG-13 and original19storage gates",
+      "recorded_workload": {
+        "edits": 500,
+        "files": 51,
+        "checkpoints": 10,
+        "complete_source_checks": 11,
+        "restart_verified": true,
+        "unchanged_limits": true,
+        "baseline_completed_edits": 271,
+        "baseline_logical_write_bytes": 1074268421,
+        "candidate_logical_write_bytes": 762756497,
+        "candidate_peak_private_bytes": 159768576,
+        "matched_first250_update_write_bytes": {
+          "baseline": 802569552,
+          "candidate": 202324358
+        },
+        "matched_first250_timing": {
+          "baseline": {
+            "median_update_seconds": 0.40322355000535026,
+            "cpu_seconds": 120.984375
+          },
+          "candidate": {
+            "median_update_seconds": 0.5135521999909543,
+            "cpu_seconds": 140.625
+          }
+        }
+      },
+      "earlier_failed_measurement": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\s15-optimized-edit-acceptance-20261114.json",
+        "sha256": "80377cfd6e2d1186006201a075f335a5c25d109766d3272fc04f8b58f635ec84"
+      },
+      "earlier_failed_status": "FAILED_ORIGINAL_LOGICAL_WRITE_LIMIT"
+    }
+  },
+  "current_source_binding": {
+    "compiled_source_commit": "52be11e05c5dc6d5078d7e6da74ad2157fccb481",
+    "prior_installed_source_commit": "14407223a2fc3bf365a3ae758c28b2c2a3a8aa9c",
+    "mechanisms": {
+      "crates/engram_server/src/actors/watcher.rs": {
+        "unchanged_since_retained_installed_source": true,
+        "current_source_sha256_normalized": "457893d6beb2235009f6cdc0cbf5e787009caf4d5a2f2047cf9cf054d277b3e8"
+      },
+      "crates/engram_core/src/storage.rs": {
+        "unchanged_since_retained_installed_source": true,
+        "current_source_sha256_normalized": "dc4fbbe5e506ac91a7a45092928fc6ce1e3ccb9fc71d7f851cce2104067bcbbe"
+      },
+      "crates/engram_index/src/vector.rs": {
+        "unchanged_since_retained_installed_source": true,
+        "current_source_sha256_normalized": "ce97ad45aa47d2b0b112bbd63bc13540b67ad25ba48bb39fac2f4ce9a5d8ed59"
+      },
+      "crates/engram_index/src/hybrid/native_store.rs": {
+        "unchanged_since_retained_installed_source": true,
+        "current_source_sha256_normalized": "2bd8b58f7dbc3f97cda7a4873d1637a5780914d9538b625e2ef0638b0e0fefc0"
+      },
+      "crates/engram_server/src/state.rs": {
+        "verified_unchanged_methods": [
+          {
+            "name": "pub fn get_project_cached",
+            "sha256": "93558219fbc3390f50d2ef2453e476111cee4a9b65ce538f0a1e3c1faebd1885"
+          },
+          {
+            "name": "pub async fn put_project_cached",
+            "sha256": "b0997713ffa07e8d1ed5a89a4eb3cf09d3d699af790d931c2ce7353f1094b8d2"
+          }
+        ]
+      },
+      "crates/engram_index/src/hybrid.rs": {
+        "verified_unchanged_methods": [
+          {
+            "name": "pub async fn copy_generation_for_paths",
+            "sha256": "06277d78a4894e3f36996108683db9793174c901e3564c9e4b4f03c9afa7e56f"
+          }
+        ]
+      }
+    },
+    "installed_server_sha256": "532126d9b4d6301d76532ddd30024bef1166c676d64e0ea237e93d8c6cf137fc"
+  },
+  "existing_retained_output_delivery": {
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\source-history-schema-batch-delivery-20261115.json",
+      "sha256": "cb33855e74a47b86925cf531a15e9a78a0e15146652523aaeeb94b789f7f8341"
+    },
+    "candidate_and_installed": {
+      "candidate1/acceptance.json": {
+        "reference": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115\\candidate1\\acceptance.json",
+          "sha256": "2c496a3668c46c2ebc9c3ce6d36589ab70bfc7ab8dab6c73f1ecaaa5b34e75ab"
+        },
+        "checks": {
+          "EG13:source_index_with_bounded_shared_budget": true,
+          "EG13:source_update_published": true,
+          "EG13:updated_source_readback": true
+        }
+      },
+      "installed1/acceptance.json": {
+        "reference": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115\\installed1\\acceptance.json",
+          "sha256": "f0bb0e2b574101d5ca4f4d639abe8b67dd7a59af82b17a710d93903006b564c4"
+        },
+        "checks": {
+          "EG13:source_index_with_bounded_shared_budget": true,
+          "EG13:source_update_published": true,
+          "EG13:updated_source_readback": true
+        }
+      }
+    },
+    "scope": "Already delivered shared-budget retention of parser statistics/document batches. This does not close all before-allocation, native/provider or source-wide bounds."
+  },
+  "preserved_prior_failures": {
+    "watcher_initial_fixture": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg03-installed-20261111\\capture-v1\\acceptance.json",
+        "sha256": "a14922f5646f1d22d0ac7f4ee87fbe24dc809d295c05e74cbf4541f2dab270dd"
+      },
+      "stderr": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg03-installed-20261111\\capture-v1\\stderr.log",
+        "sha256": "146304cfe325d41cc9b90669c4c99e9695725558a93b190cf8c2c8a576613b7f"
+      },
+      "reason": "max_commits_per_watch0 rejected before indexing; corrected to supported minimum1 in empty repository.",
+      "resources_cleaned": true
+    },
+    "production_resource_observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-delivery-outcome-20261105.json",
+      "sha256": "885289c99be0871a080626e2917e7c7bca22f497f85ab3824638e0afe46d960c"
+    },
+    "production_limit": "Earlier real LegacyValidation sustained resource outcome remained2of7 and above512MiB; neither original bounded correctness closure establishes a production plateau."
+  },
+  "new_builds": 0,
+  "new_tests_or_models": 0,
+  "product_source_changes": 0,
+  "general_task_usefulness_established": false,
+  "full_original_goal_complete": false,
+  "limitations": [
+    "This reconciles original bounded watcher/cache behavior from retained runs and current source binding; no live workload or test was repeated.",
+    "Retained installed watcher acceptance used fts_only. Native/no-vector actor scheduling and race checks are separate dated executions; the full old matrix was not rerun on the newest binary.",
+    "Cache/accounting limits are not hard process RSS limits. Earlier actual resource failures, source-rewrite scope, whole-app plateau and original19storage gates remain unfinished.",
+    "Hybrid engine/project-service files have other later changes; only the named cache/copy methods and complete storage/vector/native-store/watcher modules are claimed unchanged. No whole-file equivalence is implied for those later-changing files."
+  ],
+  "temporary_resources": {
+    "new_fixtures_or_product_processes": 0,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\watcher-cache-original-requirements-20261119",
+    "retention": "Keep script and referenced immutable logs/receipts. Referenced successful owned runs removed fixtures and preserved older held trees. No preexisting deletion or new scratch outside this case."
+  },
+  "protected_wip9": "UNCHANGED"
+}

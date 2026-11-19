@@ -2799,12 +2799,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "DOCUMENTATION_RECONCILIATION_COMPLETE_SOURCE_QUEUE_RETAINED",
-    "record": "eval/tool-contract-reconciliation-delivery-20261119.json",
+    "status": "ORIGINAL_WATCHER_CACHE_CORRECTNESS_COMPLETE_RESOURCE_GATES_RETAINED",
+    "record": "eval/watcher-cache-original-requirements-closure-20261119.json",
     "implementation_items_active": 0,
     "pending_source_outcomes": 1,
     "full_original_goal_complete": false,
-    "next_action": "Advance another ready original LegacyValidation requirement. Keep the one TODO28 source outcome queued; do not compile for it alone or add filler to reach the floor. Do not rerun completed catalog/acceptance or expand the closed direct review/packaging contracts."
+    "next_action": "Advance the remaining original LegacyValidation backlog from actual missing requirements. Preserve queued TODO28 source, completed bounded behavior and outstanding original resource/storage/task-usefulness gates. No duplicate watcher/cache workload or compile for one queued outcome; do not add filler."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4129,8 +4129,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T02:03:08.255317+00:00",
-    "reason": "Original EG26 dated documentation/schema reconciliation completed:125metadata-onlytool descriptions bound to source/decorators,19review gates/141flags verified; wrong gate name and false undeployed roadmap labels corrected. No build, suite, project/provider call or queued-source deployment."
+    "at_utc": "2026-11-19T02:13:18.536884+00:00",
+    "reason": "Closed original bounded EG03/EG04 from retained native/no-vector actor and cache/store tests plus installed source behavior, with current mechanism binding. Reconciled already-deployed retained-output accounting in S14 and kept271-edit failure beside completed500 measurement. No new build, fixture, model or workload replay."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4284,6 +4284,14 @@
     "EG-26": {
       "record": "eval/tool-contract-reconciliation-delivery-20261119.json",
       "status": "ORIGINAL_DATED_DOCUMENTATION_CONTRACT_RECONCILIATION_COMPLETE"
+    },
+    "EG-03": {
+      "record": "eval/watcher-cache-original-requirements-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_CORRECTNESS_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
+    },
+    "EG-04": {
+      "record": "eval/watcher-cache-original-requirements-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_CORRECTNESS_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
     }
   },
   "corpus_refresh_results_source_progress_20261118": {
@@ -4641,5 +4649,6 @@
   },
   "review_bootstrap_parser_batch_delivery_20261119": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
   "ask_review_date_source_progress_20261119": "eval/ask-review-date-progress-20261119.json",
-  "tool_contract_reconciliation_20261119": "eval/tool-contract-reconciliation-delivery-20261119.json"
+  "tool_contract_reconciliation_20261119": "eval/tool-contract-reconciliation-delivery-20261119.json",
+  "watcher_cache_original_requirements_closure_20261119": "eval/watcher-cache-original-requirements-closure-20261119.json"
 }

@@ -361,7 +361,7 @@
     {
       "id": "EG-03",
       "finding": "Watcher noise and unchanged refreshes rebuild source snapshots",
-      "ledger_disposition": "Installed watcher/no-op correctness verified; sustained-resource acceptance remains unfinished",
+      "ledger_disposition": "Original bounded watcher/cache behavior verified complete; independent production-resource and EG13/storage gates remain unfinished",
       "existing_evidence_and_next_gate": "Watcher and generation behavior tests; short live idle sample. Active-edit production measurements remain needed.",
       "required_behavior": [
         "Ignored/storage events schedule no work; unchanged refresh retains its source head; changes during indexing converge.",
@@ -381,12 +381,17 @@
         "record": "eval/source-health-maintenance-batch-delivery-20261118.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
+      },
+      "original_requirement_closure_20261119": {
+        "record": "eval/watcher-cache-original-requirements-closure-20261119.json",
+        "original_required_behavior_complete": true,
+        "general_task_usefulness_established": false
       }
     },
     {
       "id": "EG-04",
       "finding": "Repeated copy searches/writer shutdowns and oversized database cache allowances",
-      "ledger_disposition": "Bounded-cache/store-lifetime correctness delivered; separate resource gates unfinished",
+      "ledger_disposition": "Original bounded watcher/cache behavior verified complete; independent production-resource and EG13/storage gates remain unfinished",
       "existing_evidence_and_next_gate": "Streaming snapshot-copy and persistent-store checks. Actual source edits still copy unchanged chunks.",
       "required_behavior": [
         "Repeated reads and store reloads retain bounded caches and do not reopen/shutdown persistent writers unnecessarily.",
@@ -402,7 +407,12 @@
         "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
       },
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
-      "latest_delivery_reconciliation": "eval/eg04-cache-store-delivery-20261111.json"
+      "latest_delivery_reconciliation": "eval/eg04-cache-store-delivery-20261111.json",
+      "original_requirement_closure_20261119": {
+        "record": "eval/watcher-cache-original-requirements-closure-20261119.json",
+        "original_required_behavior_complete": true,
+        "general_task_usefulness_established": false
+      }
     },
     {
       "id": "EG-05",
@@ -1689,12 +1699,18 @@
     {
       "id": "S14",
       "required_behavior": "Reserve and bound reads, parsing, ancestry, copies, selectors and pinned views before allocation; budget failure preserves the head.",
-      "state": "Partial: prior bounded recovery/source enumeration evidence retained. Actual blocking parse workers now own reservation, rootoperation and globalparse slot through cancellation/output disposal; native2/no-vector2 plus currentserver17PASS. Retainedstats/docbuffers, prefix/growth/native/provider andotherbefore-allocation bounds remainopen.",
+      "state": "Partial: actual parse workers retain their existing reservation/operation/slot ownership. Retained parser statistics and document-batch shared-budget admission is already delivered in the linked November15batch; it is not new work or full before-allocation closure. Remaining prefix/growth/native/provider and other source-wide bounds remain open.",
       "policy_discovery_evidence": "native_batched_readers_policy_parser_empty_delete_20261103: realFilecandidateheader/bodyI/O behavior+completeapplicableguidance pass11nativepolicycases. Publicworkflowintegrationpending; all-applicablemax256MiBreadboundremains.",
       "latest_bounded_manifest_evidence": "bounded_manifest_and_exact_selected_conventions_20261103: native pre-SDK manifest/path admission and actual malformed retained-history refusal pass; actual no-vector companion behaviors pass. Other parser/inventory/source-wide bounds remain open.",
       "latest_vb_inventory_admission_evidence": "peer_refresh_publication_recovery_cutoff_and_delivery_20261103: borrowed250k-entry/16MiBpath limits and computed metadata/wire reservation before derived clones/preparation, retained through actual cancellation, real budget refusal/retry PASS. C# syntax/semantic tree heap/sourcebody aggregate admission remains open; no whole-process cap.",
       "latest_actual_no_vector_v4_evidence": "execution_evidence_20261101.no_vector_alias_v4_publication_and_tool_milestone_20261103",
-      "latest_vb_compilation_admission_state": "Implemented/native+actualno-vector local behavior verified: metadata plan admission,32MiB aggregate warmed source/10MiBfile ceilings, fixed length checked reads before parse, reserved retained estimate32xraw+8KiBtree plus transient scratch through actual transport-owner teardown. Estimate is not hard Roslyn heap/RSS cap. Other before-allocation source-wide bounds remain separately open."
+      "latest_vb_compilation_admission_state": "Implemented/native+actualno-vector local behavior verified: metadata plan admission,32MiB aggregate warmed source/10MiBfile ceilings, fixed length checked reads before parse, reserved retained estimate32xraw+8KiBtree plus transient scratch through actual transport-owner teardown. Estimate is not hard Roslyn heap/RSS cap. Other before-allocation source-wide bounds remain separately open.",
+      "state_before_retained_output_reconciliation_20261119": "Partial: prior bounded recovery/source enumeration evidence retained. Actual blocking parse workers now own reservation, rootoperation and globalparse slot through cancellation/output disposal; native2/no-vector2 plus currentserver17PASS. Retainedstats/docbuffers, prefix/growth/native/provider andotherbefore-allocation bounds remainopen.",
+      "retained_output_delivery_reconciled_20261119": {
+        "record": "eval/source-history-schema-batch-delivery-20261115.json",
+        "reconciliation": "eval/watcher-cache-original-requirements-closure-20261119.json",
+        "full_original_gate_complete": false
+      }
     },
     {
       "id": "S15",
@@ -10572,12 +10588,12 @@
   },
   "last_updated_at": "2026-11-19T01:39:29.894721+00:00",
   "current_execution_focus": {
-    "status": "DOCUMENTATION_RECONCILIATION_COMPLETE_SOURCE_QUEUE_RETAINED",
-    "record": "eval/tool-contract-reconciliation-delivery-20261119.json",
+    "status": "ORIGINAL_WATCHER_CACHE_CORRECTNESS_COMPLETE_RESOURCE_GATES_RETAINED",
+    "record": "eval/watcher-cache-original-requirements-closure-20261119.json",
     "implementation_items_active": 0,
     "pending_source_outcomes": 1,
     "full_original_goal_complete": false,
-    "next_action": "Advance another ready original LegacyValidation requirement. Keep the one TODO28 source outcome queued; do not compile for it alone or add filler to reach the floor. Do not rerun completed catalog/acceptance or expand the closed direct review/packaging contracts."
+    "next_action": "Advance the remaining original LegacyValidation backlog from actual missing requirements. Preserve queued TODO28 source, completed bounded behavior and outstanding original resource/storage/task-usefulness gates. No duplicate watcher/cache workload or compile for one queued outcome; do not add filler."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -17905,5 +17921,6 @@
     "runtime_deployed": false,
     "full_original_goal_complete": false
   },
-  "tool_contract_reconciliation_20261119": "eval/tool-contract-reconciliation-delivery-20261119.json"
+  "tool_contract_reconciliation_20261119": "eval/tool-contract-reconciliation-delivery-20261119.json",
+  "watcher_cache_original_requirements_closure_20261119": "eval/watcher-cache-original-requirements-closure-20261119.json"
 }
