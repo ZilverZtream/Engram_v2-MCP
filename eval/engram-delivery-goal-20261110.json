@@ -2964,7 +2964,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "CUMULATIVE_CANDIDATE_VERIFIED_AND_PACKAGED",
+    "status": "VERIFIED_CANDIDATE_AVAILABLE_NEWER_BUILD_INTERRUPTED",
     "implementation_items_active": 0,
     "verified_base_record": "eval/history-schema-review-candidate-20261119.json",
     "record": "eval/cumulative-agent-workflows-candidate-20261119.json",
@@ -2974,7 +2974,22 @@
     "candidate_build_session": 72691,
     "candidate_public_checks": 29,
     "pending_source_outcomes": 5,
-    "next_action": "Use the verified cumulative package for one coordinated Windows cutover. A running MCP proxy was observed. Preserve the live service until the user chooses a cutover or clients close. Do not rebuild the verified artifact."
+    "next_action": "The cumulative ZIP is the latest verified artifact available for a coordinated cutover. After the boot, multiple installed proxies are running. Leave those sessions connected until clients close or the user chooses cutover. Account for the interrupted newer build before deciding when to resume compilation."
+  },
+  "windows_reconnect_release_interruption": {
+    "status": "INTERRUPTED_NO_NEW_BINARY",
+    "source_commit": "9de403606cf8cbcdafa72e0fe07fdef8d841d333",
+    "release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-reconnect-workflow-batch-20261119",
+    "last_observed_build_state_at_local": "2026-11-19T19:28:42.3388068+01:00",
+    "last_observed_runner_elapsed_seconds": 9359.317616799992,
+    "current_system_boot_at_local": "2026-11-19T20:53:39+01:00",
+    "observed": "The build relay, compiler and verification owner are gone after the restart. No terminal build receipt, candidate stage or new package exists. The exact event that ended the process was not observed.",
+    "shared_target_sha256": "0e4cb3c164c9dfcb82d4924613554ff5cf6a6e636ee0d0e503aa9198d52ba346",
+    "installed_server_sha256": "0f218770760226b4818d0cd71a72e3460792c4a1914f7ef55bc1aab2bd50d7d9",
+    "verified_fallback_archive_sha256": "523c9ff5554b384fefa45417a6b782c734ac90ff8506b7be248bf180d4588179",
+    "retained_owned_compiler_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-reconnect-workflow-batch-20261119\\nagn6utj0",
+    "cleanup_condition": "Retain for interrupted-build inspection. Remove only the exact owned temporary path after its evidence is accounted for and no process owns it. Preserve the shared target, repository and previous package.",
+    "replacement_builds_started": 0
   },
   "dossier_explicit_schema_progress": {
     "original_requirement_id": "TODO-32",
