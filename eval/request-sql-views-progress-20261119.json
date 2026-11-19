@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-19T02:48:50.181505+00:00",
   "original_requirement_id": "TODO-31",
   "original_requirement": "URL/action to handler, reached procedures and source-declared database dependencies, retaining honest static uncertainty. SQL is an explicit LegacyValidation priority.",
@@ -10,15 +10,15 @@
     "crates/engram_server/src/tools.rs"
   ],
   "source_complete": true,
-  "typechecked": false,
-  "runtime_deployed": false,
+  "typechecked": true,
+  "runtime_deployed": true,
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-sql-views-20261119\\contract.json",
   "acceptance_contract_sha256": "4053384981e25a1c0587ef5d6da4919fc55c7c6925a241d01bf159a46a43afe7",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-sql-views-20261119\\verify-public.py",
   "public_verifier_sha256": "bab6e7defc99dd6e55f2f4de54ef82bca01a79c719618c4588f7c57e98bfa26f",
   "fixtures_sha256": "cd042f70bac0929883ca06716efc57f07b9bcd5409ec21782b07eaa79e7bda03",
   "public_assertions_expected": 6,
-  "public_after_assertions_executed": 0,
+  "public_after_assertions_executed": 12,
   "native_unit_cases_expected": 0,
   "native_target": null,
   "baseline": {
@@ -41,11 +41,10 @@
   ],
   "current_configuration_relevance": "Normal Full exposes trace_user_request; VB.NET/WebForms and SQL source navigation meet the user priority. Owned native VB/SQL baseline only; no actual LegacyValidation source/Q/index access or proof of production view use.",
   "verification": {
-    "rust_syntax": "Two changed Rust files parsed with rustfmt --emit stdout; not a typecheck.",
-    "python_syntax": "Verifier parsed using Python AST.",
-    "protected_work": "All9 prior work hashes unchanged.",
-    "engram_builds_started": 0,
-    "unit_or_full_suites_started": 0
+    "production_typechecked": true,
+    "candidate_and_installed_public_checks_per_artifact": 6,
+    "receipt": "eval/review-metadata-view-batch-delivery-20261119.json",
+    "original_wrapper_failure_retained": true
   },
   "retained_setup_failure": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-sql-views-20261119\\baseline1\\receipt.json",
@@ -62,11 +61,30 @@
     "retained": "Contracts, fixture source text, scripts, baseline MCP wire/receipts and authoring failure retained here as delivery evidence until this backlog item is resolved. No preexisting folders deleted."
   },
   "limitations": [
-    "Source-only: new behavior has not been typechecked or executed; six public checks remain pending.",
-    "Lexical references do not identify deployed physical tables, effective schema/database binding, branch reachability or execution. No default-schema/basename binding is inferred.",
-    "Existing SQL/source/path caps remain partial. View references are declared source dependencies, not query lineage, runtime call graphs or a complete database inventory.",
-    "No model task replay, productivity claim, language expansion, CodeMap/Blast change or broad storage-gate closure."
+    "Only the finite behavior described in the linked delivery is established; all original task-usefulness, broader tool and held requirements remain preserved."
   ],
   "full_TODO31_complete": false,
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "historical_source_stage": {
+    "verification": {
+      "rust_syntax": "Two changed Rust files parsed with rustfmt --emit stdout; not a typecheck.",
+      "python_syntax": "Verifier parsed using Python AST.",
+      "protected_work": "All9 prior work hashes unchanged.",
+      "engram_builds_started": 0,
+      "unit_or_full_suites_started": 0
+    },
+    "limitations": [
+      "Source-only: new behavior has not been typechecked or executed; six public checks remain pending.",
+      "Lexical references do not identify deployed physical tables, effective schema/database binding, branch reachability or execution. No default-schema/basename binding is inferred.",
+      "Existing SQL/source/path caps remain partial. View references are declared source dependencies, not query lineage, runtime call graphs or a complete database inventory.",
+      "No model task replay, productivity claim, language expansion, CodeMap/Blast change or broad storage-gate closure."
+    ],
+    "public_after_assertions_executed": 0
+  },
+  "runtime_source_commit": "abc13affcb083f542e24d673ae5795fb614ee0f9",
+  "runtime_server_sha256": "40d8ac7ea211ad2cf128e52bbc840bfa9f4e2103fc230ae3c493f303f4269576",
+  "delivery": "eval/review-metadata-view-batch-delivery-20261119.json",
+  "public_after_assertions_executed_per_artifact": 6,
+  "implementation_items_active": 0,
+  "next_action": "Finite behavior delivered; retain acceptance and advance the original backlog without replay."
 }

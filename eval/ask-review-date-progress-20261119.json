@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-19T01:49:22.394384+00:00",
   "original_requirement_id": "TODO-28",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-date-20261119",
@@ -8,7 +8,7 @@
   "public_assertions_expected": 7,
   "native_unit_cases_expected": 0,
   "implementation_items_active": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "source_files": [
     "crates/engram_server/src/handlers/ask_review_decisions.rs",
     "crates/engram_server/src/tools.rs"
@@ -34,11 +34,29 @@
   "acceptance_contract_sha256": "d82884444a0c5669f01290bfaa3d6537d61646160fb80866f1715e7a87ed5dc9",
   "native_target": null,
   "native_cases_expected": 0,
-  "next_action": "Keep this single source outcome queued. Select another ready original LegacyValidation improvement from a different original requirement; no compile until at least3independent source outcomes. Do not replay the baseline or delivered direct review checks.",
+  "next_action": "Finite behavior delivered; retain acceptance and advance the original backlog without replay.",
   "limitations": [
-    "Not runtime validated or deployed. Seven candidate/installed public checks await a later source-complete combined batch.",
-    "Only an explicit before YYYY-MM-DD qualifier in the existing named-file prior-review branch is recognized; no general temporal-language parser, new router or model call.",
-    "Imported dates, authors and scope remain unverified; current source facts do not become historical code. Structured direct dated discovery remains separately delivered.",
-    "No actual LegacyValidation source/Q/index mutation, language expansion, CodeMap/Blast work or new unit/debug build. General task usefulness/full original goal remain unfinished."
-  ]
+    "Only the finite behavior described in the linked delivery is established; all original task-usefulness, broader tool and held requirements remain preserved."
+  ],
+  "historical_source_stage": {
+    "limitations": [
+      "Not runtime validated or deployed. Seven candidate/installed public checks await a later source-complete combined batch.",
+      "Only an explicit before YYYY-MM-DD qualifier in the existing named-file prior-review branch is recognized; no general temporal-language parser, new router or model call.",
+      "Imported dates, authors and scope remain unverified; current source facts do not become historical code. Structured direct dated discovery remains separately delivered.",
+      "No actual LegacyValidation source/Q/index mutation, language expansion, CodeMap/Blast work or new unit/debug build. General task usefulness/full original goal remain unfinished."
+    ],
+    "next_action": "Keep this single source outcome queued. Select another ready original LegacyValidation improvement from a different original requirement; no compile until at least3independent source outcomes. Do not replay the baseline or delivered direct review checks."
+  },
+  "typechecked": true,
+  "runtime_source_commit": "abc13affcb083f542e24d673ae5795fb614ee0f9",
+  "runtime_server_sha256": "40d8ac7ea211ad2cf128e52bbc840bfa9f4e2103fc230ae3c493f303f4269576",
+  "delivery": "eval/review-metadata-view-batch-delivery-20261119.json",
+  "public_after_assertions_executed_per_artifact": 7,
+  "public_after_assertions_executed": 14,
+  "verification": {
+    "production_typechecked": true,
+    "candidate_and_installed_public_checks_per_artifact": 7,
+    "receipt": "eval/review-metadata-view-batch-delivery-20261119.json",
+    "original_wrapper_failure_retained": true
+  }
 }

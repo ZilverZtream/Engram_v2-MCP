@@ -222,6 +222,7 @@ These degrade or improve *every single interaction*. Nothing below matters until
   [Delivery](eval/preset-browser-bootstrap-batch-delivery-20261117.json).
 
 - [x] **5. Staleness metadata on every response** (S) — *done 2026-06-12: last_index_completed_ms recorded by process_ingest_stats; get_index_freshness tool (generation, age, watcher, disk-drift count, advice); footer on hot read tools.*
+  Installed November19: JSON and multi-result method metadata report per-file timestamp observations, retaining explicit freshness limitations and exact saved-result recovery. Six public checks passed per candidate/installed binary. [Delivery](eval/review-metadata-view-batch-delivery-20261119.json).
   `state.rs`, `metrics.rs`, handlers. There is no "index generation age", "last reindex",
   or "commits behind HEAD" signal anywhere. An agent getting stale results has zero way to
   detect it — it just gets wrong answers confidently. Add `index_age`/`generation`/
@@ -481,7 +482,7 @@ proposals that duplicate the existing surface:
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
   Installed November18: explicit prospective-file instruction questions retain scoped authored guidance; explicit prior-review questions retain complete scoped decision events, conditions, provenance and callable history with advisory authority. Source appSettings changes select only dependent guidance. No effective-value, compliance or approval claim. [Delivery](eval/planned-config-review-batch-delivery-20261118.json).
-  November19 source complete: explicit prior-review questions containing before YYYY-MM-DD forward that exclusive source-date cutoff instead of silently using later rulings. Seven public checks await combined validation/deployment; this is not an installed fix yet. [Progress](eval/ask-review-date-progress-20261119.json).
+  Installed November19: explicit prior-review questions containing before YYYY-MM-DD preserve the exclusive source-date cutoff and dated history actions. Seven public checks passed per candidate/installed binary. [Delivery](eval/review-metadata-view-batch-delivery-20261119.json).
   Installed November 18: named SQL-function questions retain complete declared signatures/bodies, lexical references and exact source hashes/spans, with qualified ambiguity and callable Full/Core clarification. These are source declarations; actual LegacyValidation use and database execution are unproven. [Delivery](eval/request-guidance-function-batch-delivery-20261118.json).
   Installed November18: named SQL-view lookup and explicit SQL-view questions retain
   complete source declarations, qualified ambiguity, Full/Core clarification, scoped
@@ -626,7 +627,7 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
-  November19 source complete: reached SQL procedures follow exact qualified source views and nested view relation references, with source hashes and guarded recovery. Six public checks await combined validation; this is not installed yet. [Progress](eval/request-sql-views-progress-20261119.json).
+  Installed November19: reached SQL procedures follow exact qualified source views and nested view relation references, with source hashes and guarded recovery. Six public checks passed per candidate/installed binary; deployed database identity and execution remain unproven. [Delivery](eval/review-metadata-view-batch-delivery-20261119.json).
   Installed November18: registered literal VB RoutePrefix/Route paths select their declared collection/item action, retain route parameters and cite controller/registration source. Existing Roslyn companion required; hosting, precedence and execution remain unproven. [Delivery](eval/cache-guidance-attribute-batch-delivery-20261118.json).
   Installed November 18: explicit VB WebHandler directives select their instance IHttpHandler.ProcessRequest implementation and existing downstream source/SQL evidence. Other classes and page lifecycle methods are excluded; hosting and execution remain unproven. [Delivery](eval/request-guidance-function-batch-delivery-20261118.json).
   Installed November18: admitted authored PreRender handlers join page/control/master

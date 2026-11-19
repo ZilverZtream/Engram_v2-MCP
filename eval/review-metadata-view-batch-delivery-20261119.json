@@ -1,0 +1,144 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-19T03:32:30.208741+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119",
+  "recording_script": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\record-delivery.py",
+    "sha256": "906f5992fcc50c2df05d8a80f56387cb800c33c8a7e15b0dd0bc9b5db1feef8e"
+  },
+  "original_requirement_ids": [
+    "TODO-28",
+    "TODO-5",
+    "TODO-31"
+  ],
+  "source_preparation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\source-preparation1.json",
+    "sha256": "986bbc37c4881bbcd196e928fb998ae7e77ad0d54a9682a547539149b31153ac"
+  },
+  "delivered_behaviors": {
+    "TODO-28": "Explicit natural-language prior-review before YYYY-MM-DD questions retain the exclusive source-date cutoff through selection and dated history actions.",
+    "TODO-5": "Method metadata JSON and multi-result Markdown expose per-returned-file project-update/mtime observations with their heuristic limitations.",
+    "TODO-31": "Reached SQL procedures follow exact qualified source views and nested views to cited lexical relation references, retaining source hashes and guarded recovery."
+  },
+  "runtime": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\package1",
+    "server_sha256": "40d8ac7ea211ad2cf128e52bbc840bfa9f4e2103fc230ae3c493f303f4269576",
+    "manifest_sha256": "02b45ea0366dfce0fb21a8804e9aa218fd9f19cbbd57518504f593c8be4c7b04",
+    "old_server_sha256": "532126d9b4d6301d76532ddd30024bef1166c676d64e0ea237e93d8c6cf137fc",
+    "old_manifest_sha256": "6771b7352859e223a788ed4f76a5f61401a61597aebfeb2a67d81b34c7f1b02e",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\release1-reconciled.json",
+      "sha256": "7f554624dafe4a674bf42faab2aa962669b6157727aaa3ada61bb62af53d73de"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "6771b7352859e223a788ed4f76a5f61401a61597aebfeb2a67d81b34c7f1b02e"
+    },
+    "source_commit": "abc13affcb083f542e24d673ae5795fb614ee0f9"
+  },
+  "public_check_assertions_per_artifact": 19,
+  "public_receipts": {
+    "candidate1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\candidate1\\acceptance.json",
+      "sha256": "4b95dd24cd414ed1e0f71077e94c9eb0f48b64d53c8d5a9f126b1c30b29901ba",
+      "checks": 19,
+      "seconds": 9.835727400000906,
+      "owners_closed": true,
+      "fixtures_removed": true
+    },
+    "installed1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\installed1\\acceptance.json",
+      "sha256": "d595f4e35a9ae5b610339d5fa4978e812b0675441298fd9e3d14fbde446dd8d5",
+      "checks": 19,
+      "seconds": 9.749196300006588,
+      "owners_closed": true,
+      "fixtures_removed": true
+    }
+  },
+  "native_acceptance": {
+    "status": "NOT_RUN",
+    "native_unit_cases_expected": 0,
+    "native_unit_cases_executed": 0,
+    "reason": "One optimized executable verifies production source and the frozen public MCP contracts; no separate unit/debug build or full suite."
+  },
+  "build_accounting": {
+    "optimized_builds": 1,
+    "seconds": 2072.2469114999985,
+    "unit_debug_or_full_suites": 0,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\release1-reconciled.json",
+      "sha256": "7f554624dafe4a674bf42faab2aa962669b6157727aaa3ada61bb62af53d73de"
+    }
+  },
+  "installed_assets_verified": 215,
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "normal_runtime_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\restored-runtime\\receipt.json",
+    "sha256": "f9aaf22e3576e72d796afc1e7e11b3000b49844a3a749a3083c97ea80658df4d"
+  },
+  "normal_runtime_restored": true,
+  "selected_generation": 3157,
+  "protected_wip9": "Raw hashes unchanged; excluded from the clean build checkout.",
+  "windows_bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\bundle1.json",
+    "sha256": "63ef2b7a34d78c9dbb433730cd721b6241613bcc096c9cb5a286263268329c5b"
+  },
+  "temporary_resources": {
+    "build": {
+      "owned_temp_removed": true,
+      "job_empty_and_closed": true
+    },
+    "public": {
+      "candidate1": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\candidate1\\acceptance.json",
+        "sha256": "4b95dd24cd414ed1e0f71077e94c9eb0f48b64d53c8d5a9f126b1c30b29901ba",
+        "checks": 19,
+        "seconds": 9.835727400000906,
+        "owners_closed": true,
+        "fixtures_removed": true
+      },
+      "installed1": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\installed1\\acceptance.json",
+        "sha256": "d595f4e35a9ae5b610339d5fa4978e812b0675441298fd9e3d14fbde446dd8d5",
+        "checks": 19,
+        "seconds": 9.749196300006588,
+        "owners_closed": true,
+        "fixtures_removed": true
+      }
+    },
+    "deployment": {
+      "owned_config_removed": true,
+      "hold_closed": true
+    },
+    "retained": "Package, ZIP, build/transport evidence and scripts remain in this single recorded case. Normal runtime intentionally restored. No preexisting folders deleted.",
+    "managed_rollback_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-b3ec3261e0c84b348a3a1d871a72f1cc",
+      "purpose": "Installer-managed previous runtime pair retained for rollback.",
+      "cleanup_condition": "Retain pending explicit rollback/retirement decision; no deletion performed by this task."
+    }
+  },
+  "limitations": [
+    "Review dates are imported source provenance, not authenticated event times, approval or current fix verification.",
+    "File timestamps are heuristic observations; null warnings do not certify indexed locators, parsers, call bindings or coverage.",
+    "SQL paths are bounded static source dependencies, not deployed database binding, physical table identity, query lineage or execution proof.",
+    "No matched-task replay, general productivity/readiness claim, new target-language support or CodeMap/Blast improvement. Full original31findings/19gates and held work remain unfinished."
+  ],
+  "full_original_goal_complete": false,
+  "retained_wrapper_failure": {
+    "original": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\release1.json",
+      "sha256": "97a894ce619ecdb5da5df84f5ea05719e175c79d49fccacf8e11fbde2dfc07fc"
+    },
+    "reconciled": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\release1-reconciled.json",
+      "sha256": "7f554624dafe4a674bf42faab2aa962669b6157727aaa3ada61bb62af53d73de"
+    },
+    "reason": "Post-Cargo argument-order allowlist only accepted --release at the end. Actual Cargo accepted the equivalent --release-first command and exited0; the wrapper assertion happened before its binary-artifact capture.",
+    "new_builds_started_for_recovery": 0
+  }
+}
