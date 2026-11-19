@@ -162,7 +162,7 @@ impl Engram {
             settings::gather(self, &req.project_id, &plan, gen_, source_view.clone(), deadline),
             state::gather(self, &req.project_id, &req.question, &plan, gen_, source_view.clone(), deadline),
             request_trace::gather(self, &req, &plan, gen_, source_view.clone(), deadline),
-            review_decisions::gather(self, &req.project_id, &req.question, deadline),
+            review_decisions::gather(self, &req.project_id, &req.question, &plan.qualifiers.path_prefixes, deadline),
         );
         if let Some(schema) = &mut schema_evidence {
             raw.append(&mut schema.items);

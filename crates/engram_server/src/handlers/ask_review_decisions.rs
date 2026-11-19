@@ -3,6 +3,7 @@ use crate::{
     handlers::review_decisions::{DecisionView, GetReviewDecisionsRequest},
     services::ask_engine::{
         evidence::{Authority, EvidenceItem, EvidenceKind},
+        resolver::scope_full_prefix,
         status::{ProviderReport, ProviderStatus},
     },
     tools::Engram,
@@ -15,24 +16,29 @@ pub(super) struct ReviewEvidence {
     pub provider: ProviderReport,
 }
 
-fn paths(question: &str) -> (Vec<String>, bool) {
+fn paths(question: &str, scopes: &[String]) -> (Vec<String>, bool, bool) {
     let lower = question.to_ascii_lowercase();
     if !["review decision", "review ruling", "prior review", "accepted exception"].iter().any(|term| lower.contains(term)) {
-        return (Vec::new(), false);
+        return (Vec::new(), false, false);
     }
     let mut selected = BTreeSet::new();
+    let mut scope_excluded = false;
     for token in question.split_whitespace() {
         let token = token.trim_matches(['`', '"', '\'', '(', ')', '[', ']', ',', ';', '?', '!']);
         if token.len() > 4096 || token.contains(['*', '?', '{', '}']) { continue; }
         let Some(path) = crate::services::project_policy::normalized_relative(token) else { continue; };
         let lower = path.to_ascii_lowercase();
         if ![".vb", ".aspx", ".ascx", ".master", ".ashx", ".asmx", ".js", ".ts", ".sql"].iter().any(|extension| lower.ends_with(extension)) { continue; }
+        if !scopes.is_empty() && !scopes.iter().any(|scope| scope_full_prefix(&path, scope).is_some()) {
+            scope_excluded = true;
+            continue;
+        }
         if selected.len() == 16 && !selected.contains(&path) {
-            return (selected.into_iter().collect(), true);
+            return (selected.into_iter().collect(), true, scope_excluded);
         }
         selected.insert(path);
     }
-    (selected.into_iter().collect(), false)
+    (selected.into_iter().collect(), false, scope_excluded)
 }
 
 fn recorded_before(question: &str) -> Result<Option<String>, &'static str> {
@@ -49,14 +55,24 @@ fn recorded_before(question: &str) -> Result<Option<String>, &'static str> {
     Ok(Some(date))
 }
 
-pub(super) async fn gather(engram: &Engram, project: &str, question: &str, deadline: Duration) -> Option<ReviewEvidence> {
-    let (selected, paths_truncated) = paths(question);
-    if selected.is_empty() { return None; }
+pub(super) async fn gather(
+    engram: &Engram,
+    project: &str,
+    question: &str,
+    scopes: &[String],
+    deadline: Duration,
+) -> Option<ReviewEvidence> {
+    let (selected, paths_truncated, scope_excluded) = paths(question, scopes);
+    if selected.is_empty() && !scope_excluded { return None; }
     let mut out = ReviewEvidence { item: None, provider: ProviderReport {
         provider: "review_decisions".into(), status: ProviderStatus::Empty, count: 0,
         note: Some("Recorded review evidence is advisory; no current approval, semantic applicability or fix verification is established.".into()),
         examined: 0, available: None, truncated: paths_truncated, proof: None,
     }};
+    if selected.is_empty() {
+        out.provider.note = Some("None of the named review files match the requested path scope. No review discovery was run.".into());
+        return Some(out);
+    }
     let recorded_before = match recorded_before(question) {
         Ok(value) => value,
         Err(note) => {
@@ -89,6 +105,9 @@ pub(super) async fn gather(engram: &Engram, project: &str, question: &str, deadl
             out.provider.truncated |= value["coverage"]["identity_scan_has_more"].as_bool().unwrap_or(false)
                 || ["identity_values_omitted", "candidate_or_event_byte_omissions"].iter().any(|key| value["coverage"][*key].as_u64().unwrap_or(0) > 0);
             out.provider.note = Some(format!("{} Discovery coverage: {}{}", value["interpretation"].as_str().unwrap_or("Advisory recorded review evidence"), value["coverage"], if paths_truncated { " Explicit path selection stopped at16; further files require another question." } else { "" }));
+            if scope_excluded && let Some(note) = &mut out.provider.note {
+                note.push_str(" Named paths outside the requested scope were omitted from review discovery.");
+            }
             if count > 0 {
                 out.provider.status = ProviderStatus::Hit;
                 let content = value.to_string();
