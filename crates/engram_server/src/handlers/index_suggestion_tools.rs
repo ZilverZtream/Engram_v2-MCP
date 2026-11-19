@@ -54,6 +54,38 @@ impl Engram {
         &self,
         req: FindMissingIndexesRequest,
     ) -> Result<CallToolResult, McpError> {
+        if !(1..=65536).contains(&req.max_tokens.unwrap_or(16_384)) {
+            return Err(McpError::invalid_params("max_tokens must be 1..=65536", None));
+        }
+        let budget = super::search_tools::response_budget::token_bytes(req.max_tokens)?
+            .unwrap_or(16_384 * 4);
+        let delivery = crate::read_report_delivery::Report::handler_owned(
+            "find_missing_indexes", req.project_id.clone(), budget,
+            req.response_id.clone(), req.response_offset,
+        )?;
+        if let Some(original) = delivery.recover(&self.state.cfg.data_dir)? {
+            return Ok(original);
+        }
+        let mut guidance = serde_json::to_value(&req)
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?
+            .as_object().cloned().unwrap_or_default();
+        let mut original = self.missing_index_evidence(req).await?;
+        if original.content.first().and_then(|part| part.as_text())
+            .is_some_and(|text| text.text.len() > budget) {
+            guidance.insert("max_tokens".into(), json!(65536));
+        }
+        crate::tool_guidance::annotate(
+            "find_missing_indexes", &crate::tool_guidance::context(Some(&guidance)),
+            &mut original, &crate::tool_surface::registered_for_preset(
+                self.tool_router.list_all(), self.state.cfg.effective_tool_preset()), true,
+        );
+        delivery.finish(&self.state.cfg.data_dir, original)
+    }
+
+    async fn missing_index_evidence(
+        &self,
+        req: FindMissingIndexesRequest,
+    ) -> Result<CallToolResult, McpError> {
         let limit = req.limit.unwrap_or(10);
         let offset = req.offset.unwrap_or(0);
         if !(1..=50).contains(&limit)
@@ -84,7 +116,6 @@ impl Engram {
             .pin_active_source_generation(&req.project_id, &runtime.search)
             .await?;
         let graph = self.state.graph.clone();
-        let max_tokens = req.max_tokens.or(Some(16384));
         let reservation = engram_core::memory::AllocationGuard::try_new(
             self.state.memory_budget.as_ref(),
             256 * 1024 * 1024,
@@ -151,7 +182,6 @@ impl Engram {
             if offset+limit<total {let mut next=req.clone();next.offset=Some(offset+limit);result["next_page"]=json!({"tool":"find_missing_indexes","arguments":next,"consistency":"Repeat only while selected generation and source fingerprints remain unchanged"});}
             Ok(serde_json::to_string(&result)?)
         }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?.map_err(|e|McpError::internal_error(e.to_string(),None))?;
-        let output = super::search_tools::response_budget::bounded_message(output, max_tokens)?;
         Ok(CallToolResult::success(vec![Content::text(output)]))
     }
 }

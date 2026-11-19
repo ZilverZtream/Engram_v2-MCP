@@ -11,6 +11,38 @@ impl Engram {
         &self,
         req: DetectNPlusOneRequest,
     ) -> Result<CallToolResult, McpError> {
+        if !(1..=65536).contains(&req.max_tokens.unwrap_or(16_384)) {
+            return Err(McpError::invalid_params("max_tokens must be 1..=65536", None));
+        }
+        let budget = super::search_tools::response_budget::token_bytes(req.max_tokens)?
+            .unwrap_or(16_384 * 4);
+        let delivery = crate::read_report_delivery::Report::handler_owned(
+            "detect_n_plus_one", req.project_id.clone(), budget,
+            req.response_id.clone(), req.response_offset,
+        )?;
+        if let Some(original) = delivery.recover(&self.state.cfg.data_dir)? {
+            return Ok(original);
+        }
+        let mut guidance = serde_json::to_value(&req)
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?
+            .as_object().cloned().unwrap_or_default();
+        let mut original = self.n_plus_one_evidence(req).await?;
+        if original.content.first().and_then(|part| part.as_text())
+            .is_some_and(|text| text.text.len() > budget) {
+            guidance.insert("max_tokens".into(), json!(65536));
+        }
+        crate::tool_guidance::annotate(
+            "detect_n_plus_one", &crate::tool_guidance::context(Some(&guidance)),
+            &mut original, &crate::tool_surface::registered_for_preset(
+                self.tool_router.list_all(), self.state.cfg.effective_tool_preset()), true,
+        );
+        delivery.finish(&self.state.cfg.data_dir, original)
+    }
+
+    async fn n_plus_one_evidence(
+        &self,
+        req: DetectNPlusOneRequest,
+    ) -> Result<CallToolResult, McpError> {
         let count = req.max_files.unwrap_or(8);
         let offset = req.file_offset.unwrap_or(0);
         if req.method_start_line.is_some_and(|line|line==0 || req.file_path.is_none()) {
@@ -50,7 +82,6 @@ impl Engram {
             "N+1 source and invocation evidence",
         )
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let max_tokens = req.max_tokens.or(Some(16_384));
         let output=tokio::task::spawn_blocking(move||->anyhow::Result<String>{
             let _reservation=reservation;
             let selected=view.selected_file_revisions().ok_or_else(||anyhow::anyhow!("N+1 analysis requires managed source membership; update_project first"))?;
@@ -72,7 +103,6 @@ impl Engram {
                 "coverage":analyzer.coverage(),"pagination_consistency":"Repeat while source generation and fingerprints remain unchanged; pages are not an atomic source/graph snapshot."}))?)
         }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?
             .map_err(|e|McpError::internal_error(e.to_string(),None))?;
-        let output = super::search_tools::response_budget::bounded_message(output, max_tokens)?;
         Ok(CallToolResult::success(vec![Content::text(output)]))
     }
 }

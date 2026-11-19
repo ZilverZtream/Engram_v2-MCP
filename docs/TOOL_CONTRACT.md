@@ -1249,6 +1249,17 @@ analysis roots to that method; bounded helper paths reached from its repeated
 calls remain included. Missing, ambiguous or stale declarations produce coverage
 gaps and no file-wide fallback. Omit it to retain file/page scope.
 
+`detect_n_plus_one` and `find_missing_indexes` budget complete replies with
+`max_tokens` (default 16,384 estimated tokens / 64KiB). An oversized result returns
+`response_delivery.next_call` for the complete immutable original MCP result.
+Recover with the same tool/project and its `response_id`/`response_offset`, without
+fresh file, method or page selectors. Recovery survives source changes and restart;
+it does not rerun Roslyn or SQL analysis or establish current freshness. Existing
+file/result pages and source/runtime qualifications remain part of the captured
+report. A deferred report is not a finding or index recommendation.
+Snapshots use the existing 8MiB limit and expire after 24 hours or 32 newer
+captures for that tool/project.
+
 `derive_test_matrix` accepts `methods: [{"file_path":"Page.aspx.vb","line_start":5}]`.
 There must be1?16 distinct positive declaration anchors in the requested `files`.
 Inferred settings/permission/state/SQL axes and source-verified rule documents

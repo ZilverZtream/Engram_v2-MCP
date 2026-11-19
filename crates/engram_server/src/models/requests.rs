@@ -13,7 +13,14 @@ pub struct DetectNPlusOneRequest {
     pub file_offset: Option<usize>,
     /// File page size, 1..=16; default 8.
     pub max_files: Option<usize>,
+    /// Complete reply budget, four UTF-8 bytes per estimated token; default64KiB.
     pub max_tokens: Option<usize>,
+    /// Recover original findings without rerunning source or Roslyn analysis.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_id: Option<String>,
+    /// UTF-8 byte offset supplied by the preceding original-result recovery page.
+    #[serde(default, skip_serializing_if = "schema_response_offset_is_zero")]
+    pub response_offset: usize,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
@@ -25,7 +32,14 @@ pub struct FindMissingIndexesRequest {
     /// Result page size, 1..=50; default10.
     pub limit: Option<usize>,
     pub offset: Option<usize>,
+    /// Complete reply budget, four UTF-8 bytes per estimated token; default64KiB.
     pub max_tokens: Option<usize>,
+    /// Recover original suggestions and source evidence without rescanning.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_id: Option<String>,
+    /// UTF-8 byte offset supplied by the preceding original-result recovery page.
+    #[serde(default, skip_serializing_if = "schema_response_offset_is_zero")]
+    pub response_offset: usize,
 }
 
 /// Query source-declared SQL schema or DBML model mappings, never a live database.
