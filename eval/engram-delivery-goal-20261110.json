@@ -89,6 +89,14 @@
   "retained_eg24_next_delivery_record": {
     "finding": "EG24 regular LegacyValidation accepted-task verification",
     "status": "SELECTED_ORIGINAL_LEGACY_VALIDATION_PRIORITY",
+    "verified_output_accounting": {
+      "implementation": "eval/frozen_task_eval.py",
+      "retained_run_record": "eval/legacy_validation-archive-task-check-outcome-20261114.json",
+      "verified_runs": 8,
+      "final_response_bytes": 64613,
+      "captured_response_bytes": 78304,
+      "scope": "The saved-run report now includes evidence-request responses in captured output totals. The previous quality outcome and the remaining regular-verification requirement are unchanged."
+    },
     "remaining": "EG24: integrate the existing frozen LegacyValidation accepted-task checks into regular verification, reusing retained cases and verifier; no new evaluation platform or expanded benchmark.",
     "scope_guard": "No further Java/Python/Rust/Go language expansion, modern-state deployment, CodeMap or Blast improvement absent an explicit LegacyValidation need or concrete regression. Engram implementation language Rust is distinct from adding Rust target-language support."
   },

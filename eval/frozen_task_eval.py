@@ -168,14 +168,18 @@ def results(root, manifest, oracle, judgments=None):
         case = next(case for case in manifest['cases'] if case['id'] == run['case_id'])
         delivered = []
         read_count = 0
+        intermediate_output_bytes = 0
+        intermediate_output_characters = 0
         intermediates = run.get('intermediate_responses', [])
         if len(intermediates) != max(0, len(run['turns']) - 1):
             raise ValueError('Every requested-read turn requires its captured model response')
         for number, turn in enumerate(run['turns']):
             if number:
-                _, previous = candidate_response(root, intermediates[number - 1], canary)
+                intermediate, previous = candidate_response(root, intermediates[number - 1], canary)
                 if previous['read_requests'] != turn['read_ids']:
                     raise ValueError('Delivered evidence differs from what the candidate requested')
+                intermediate_output_bytes += len(intermediate)
+                intermediate_output_characters += len(intermediate.decode('utf-8'))
             actual = bounded(root, turn['prompt']).read_bytes()
             expected_packet = packet(root, manifest, run['case_id'], run['arm'], turn['read_ids'])
             if json.loads(actual) != expected_packet or canary in actual:
@@ -195,9 +199,12 @@ def results(root, manifest, oracle, judgments=None):
         elapsed = (datetime.datetime.fromisoformat(run['finished_at']) - datetime.datetime.fromisoformat(run['started_at'])).total_seconds()
         if elapsed < 0:
             raise ValueError('Invalid candidate wall time')
+        output_characters = len(response.decode('utf-8'))
         metrics.append(dict(case_id=run['case_id'],arm=run['arm'],
             input_bytes=sum(map(len,delivered)),input_characters=sum(len(x.decode('utf-8')) for x in delivered),
-            output_bytes=len(response),output_characters=len(response.decode('utf-8')),
+            output_bytes=len(response),output_characters=output_characters,
+            captured_output_bytes=intermediate_output_bytes + len(response),
+            captured_output_characters=intermediate_output_characters + output_characters,
             additional_reads=read_count,observed_agent_wall_seconds=elapsed))
     # Judge labels are opaque. Their hidden mapping is kept out of the judge
     # input and joined only after the independent judgment has been captured.
@@ -282,6 +289,7 @@ def main():
         return int(bool(checked['failed_cases']))
     elif args.command == 'report' or args.require_results:
         print(json.dumps(dict(status='saved_run_verified',metrics=results(root,manifest,oracle),
+            output_scope='Output totals cover the final response. Captured output totals also include every retained response requesting evidence.',
             limits='Saved-run integrity and recorded judgments, not a fresh model evaluation or completed OX implementation/QA productivity.'),indent=2))
     else:
         print(json.dumps(dict(status='frozen_inputs_verified',cases=4,candidate_runs_not_verified=True)))

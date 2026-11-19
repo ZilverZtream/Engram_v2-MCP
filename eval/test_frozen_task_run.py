@@ -207,7 +207,7 @@ class FrozenTaskRunTests(unittest.TestCase):
             collection.record(self.root, a, 'different', self.answer())
         self.assertEqual(collection.status(self.root)['completed_candidates'], 0)
 
-    def test_stdin_delivery_counts_only_exact_packets_including_requested_reads(self):
+    def test_stdin_delivery_counts_exact_packets_and_all_captured_responses(self):
         pending = collection.prepare(self.corpus, self.root, 'protocol_test', 'manual_packet_v1')
         self.assertTrue(all('packet' in row and 'delivery_instruction' not in row
                             for row in pending['pending_candidates']))
@@ -217,7 +217,8 @@ class FrozenTaskRunTests(unittest.TestCase):
             actor = 'stdin-candidate-' + str(n)
             collection.bind(self.root, run['opaque_id'], actor)
             if n == 0:
-                collection.record(self.root, run['opaque_id'], actor, self.answer(['read0']))
+                collection.record(self.root, run['opaque_id'], actor,
+                                  self.answer(['read0'], decision='Read the café source.'))
             collection.record(self.root, run['opaque_id'], actor, self.answer())
         self.write(self.response, self.judgments())
         collection.judge(self.root, 'stdin-judge', self.response)
@@ -228,6 +229,14 @@ class FrozenTaskRunTests(unittest.TestCase):
             raw = [(self.root / turn['prompt']).read_bytes() for turn in run['turns']]
             self.assertEqual(metric['input_bytes'], sum(len(value) for value in raw))
             self.assertEqual(metric['input_characters'], sum(len(value.decode('utf-8')) for value in raw))
+            final = (self.root / run['response']).read_bytes()
+            responses = [(self.root / path).read_bytes() for path in run['intermediate_responses']]
+            responses.append(final)
+            self.assertEqual(metric['output_bytes'], len(final))
+            self.assertEqual(metric['output_characters'], len(final.decode('utf-8')))
+            self.assertEqual(metric['captured_output_bytes'], sum(map(len, responses)))
+            self.assertEqual(metric['captured_output_characters'],
+                             sum(len(value.decode('utf-8')) for value in responses))
         self.assertEqual(sum(m['additional_reads'] for m in metrics), 1)
 
     def test_unknown_delivery_mode_rejected_without_preparation(self):
