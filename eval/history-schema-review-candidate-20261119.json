@@ -1,0 +1,39 @@
+{
+  "status": "CANDIDATE_VERIFIED_AND_PACKAGED",
+  "source_commit": "5847d32f4080bf976af6dfd4ce73a4df683ab449",
+  "delivered_to_candidate": {
+    "TODO_35": "Direct scoped schema queries keep their SQL source path scopes and scope-preserving continuations.",
+    "TODO_4": "Pre-commit review shares its parsed diff across evidence and gates. No measured latency or memory improvement.",
+    "EG_20": "Text history applies ordinary file prefixes and exclusions to indexed Git diff filenames in both lexical and vector retrieval."
+  },
+  "build": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-schema-review-batch-20261119\\release1.json",
+    "sha256": "98dee48e0ad7f80200cb40befa80a56d6f323563b80d0fdf1bf09c7458139298",
+    "seconds": 4026.6058117000066,
+    "optimized_builds": 1,
+    "full_or_debug_suites": 0,
+    "owned_temporary_removed": true
+  },
+  "candidate": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-schema-review-batch-20261119\\candidate1\\receipt.json",
+    "sha256": "d05d9b711eda1ce22271c087a90a351aa4b120dfa83bca8f6a435520b9fd17ec",
+    "checks": 20,
+    "seconds": 22.5374398999993,
+    "owned_fixtures_removed": true,
+    "server_sha256": "d59168f34c5a8325d62bce62c0da69fe46a68bd760bb0c1c23a362827f749e7a"
+  },
+  "bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-schema-review-batch-20261119\\Engram-win-x64-candidate.zip",
+    "sha256": "3c41d6d304c7859407c99128864db62c0cd61cdedc9529f9572d0c8752a74cf1",
+    "entries": 219,
+    "runtime_assets": 215,
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-schema-review-batch-20261119\\bundle1.json",
+    "receipt_sha256": "9fd35cbcdfcb53a34232ede78ef1713ecadbf93ff7d747696588aaf9e178fcb8"
+  },
+  "runtime": {
+    "status": "LIVE_CUTOVER_PENDING",
+    "installed_binary_sha256": "0f218770760226b4818d0cd71a72e3460792c4a1914f7ef55bc1aab2bd50d7d9",
+    "reason": "Live daemon and client proxy remained online during the candidate build, verification, and packaging."
+  },
+  "retention": "Keep the staged pair, ZIP and receipts for cutover and explicit later cleanup. Reuse the existing build worktree only after preserving the source commit."
+}
