@@ -2100,9 +2100,11 @@ impl Engram {
         let sql_file_path = req.sql_file_path.clone();
 
         // ── Discover SQL files ──────────────────────────────────────────────
-        let sql_files = migration_sql_sources::load(&project_dir,sql_file_path.as_deref()).await?;
+        let sql_sources = migration_sql_sources::load(
+            &project_dir, sql_file_path.as_deref(), &self.state.memory_budget,
+        ).await?;
 
-        if sql_files.is_empty() {
+        if sql_sources.files.is_empty() {
             let body = database_report_delivery::finish(&self.state.cfg.data_dir, &req,
                 "No .sql files found. Place a database.sql (or other .sql files) in the project directory and re-run.".into(),
                 serde_json::json!({"stored_procedures":0, "warnings":[], "sp_limit":sp_limit}))?;
@@ -2112,7 +2114,7 @@ impl Engram {
         // ── Discover code files for SP cross-referencing ────────────────────
         // Caller metadata only ranks procedure candidates. With at most one
         // procedure in an explicit file, it cannot affect this report.
-        let single_sql_report = sql_file_path.is_some() && sql_files.iter()
+        let single_sql_report = sql_file_path.is_some() && sql_sources.files.iter()
             .flat_map(|(_, sql)| engram_index::sp_extractor::parse_sp_definitions(sql))
             .take(2).count() <= 1;
         let code_files = if single_sql_report { Vec::new() } else {
@@ -2166,9 +2168,9 @@ impl Engram {
         };
 
         // ── Build SP catalog + database intelligence in blocking task ───────
-        let sql_files_owned = sql_files;
         let result = tokio::task::spawn_blocking(move || {
             use crate::services::full_project_migration_service as full_mig;
+            let sql_files = sql_sources.as_slice();
 
             let code_refs: Vec<(&str, &str)> = code_files
                 .iter()
@@ -2177,7 +2179,7 @@ impl Engram {
 
             // Build SP catalog (reuse the same function the full report uses)
             let sp_catalog =
-                full_mig::build_sp_catalog_public(&sql_files_owned, &code_refs, sp_limit);
+                full_mig::build_sp_catalog_public(sql_files, &code_refs, sp_limit);
 
             // Collect code tables for cross-referencing
             let mut code_tables = std::collections::HashSet::new();
@@ -2201,7 +2203,7 @@ impl Engram {
 
             let intel = crate::services::database_intelligence_service::build_database_intelligence(
                 &sp_catalog,
-                &sql_files_owned,
+                sql_files,
                 &code_tables,
             );
 
@@ -2240,9 +2242,11 @@ impl Engram {
 
         let sql_file_path = req.sql_file_path.clone();
         let include_code_callers = req.include_code_callers;
-        let sql_files = migration_sql_sources::load(&project_dir,sql_file_path.as_deref()).await?;
+        let sql_sources = migration_sql_sources::load(
+            &project_dir, sql_file_path.as_deref(), &self.state.memory_budget,
+        ).await?;
 
-        if sql_files.is_empty() {
+        if sql_sources.files.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
                 "No .sql files found in project.",
             )]));
@@ -2277,8 +2281,9 @@ impl Engram {
 
         let result = tokio::task::spawn_blocking(move || -> Result<String, String> {
             use crate::services::database_intelligence_service as dbi;
+            let sql_files = sql_sources.as_slice();
 
-            let (sp_source_file, sp_body, definition) = dbi::find_procedure_source(&sql_files, &sp_name)?;
+            let (sp_source_file, sp_body, definition) = dbi::find_procedure_source(sql_files, &sp_name)?;
             let requested_name = sp_name;
             let sp_name = definition.name.clone();
 
@@ -2286,7 +2291,7 @@ impl Engram {
             let logic = dbi::deterministic_sp_summary(&sp_name, &sp_body);
 
             // Detect SP call chains
-            let chains = dbi::detect_sp_call_chains(&sql_files);
+            let chains = dbi::detect_sp_call_chains(sql_files);
 
             // Find chains involving this SP
             let relevant_chains: Vec<&dbi::SpCallChain> = chains
@@ -2295,7 +2300,7 @@ impl Engram {
                 .collect();
 
             // Detect triggers on tables this SP writes to
-            let triggers = dbi::detect_triggers(&sql_files);
+            let triggers = dbi::detect_triggers(sql_files);
             let affected_triggers: Vec<&dbi::TriggerInfo> = triggers
                 .iter()
                 .filter(|t| {
@@ -2322,7 +2327,7 @@ impl Engram {
 
             // Find reverse SP callers (other SPs that EXEC this one)
             let mut called_by_sps: Vec<String> = Vec::new();
-            for (_, content) in &sql_files {
+            for (_, content) in sql_files {
                 for caller in engram_index::sp_extractor::parse_sp_definitions(content) {
                     if !caller.name.eq_ignore_ascii_case(&sp_name)
                         && caller.called_procedures.iter().any(|name| name.eq_ignore_ascii_case(&sp_name)) {
@@ -2376,7 +2381,7 @@ impl Engram {
             if let Some(path) = &sql_file_path {
                 out.push_str(&format!("SQL source scope: explicit file `{path}`; reverse-procedure callers outside this file were not checked. Triggers outside this file were not checked.\n"));
             } else {
-                out.push_str("SQL source scope: up to2000 discovered SQL files; exhaustive or deployed-schema coverage is not established.\n");
+                out.push_str("SQL source scope: up to 2000 discovered SQL files and 64 MiB of source; exhaustive or deployed-schema coverage is not established.\n");
             }
             out.push_str("Dependency coverage: caller, call-chain and trigger leads use basename matching. Their schema and runtime binding remain unverified.\n");
             if include_code_callers {
