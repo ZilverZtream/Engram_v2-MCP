@@ -5,8 +5,9 @@
     "source_outcomes_for_runtime_build_floor": 0,
     "runtime_deployed": true,
     "current_release_excludes_this_change": false,
-    "next_action": "Validate with a later deliberately selected combined release; no standalone build or full suite.",
-    "delivery": "eval/webforms-integrity-batch-delivery-20261119.json"
+    "next_action": "Use restored release defaults for the next combined runtime delivery. No separate build for this trial conclusion.",
+    "delivery": "eval/webforms-integrity-batch-delivery-20261119.json",
+    "future_build_policy": "RESTORED_PREVIOUS_RELEASE_OPTIMIZATION_IN_SOURCE"
   },
   "schema_version": 1,
   "status": "ACTIVE",
@@ -4178,8 +4179,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T08:30:21.037400+00:00",
-    "reason": "Installed three original workflow improvements and verified the previous release contracts with the new compiler setting."
+    "at_utc": "2026-11-19T08:32:02.628408+00:00",
+    "reason": "Closed the unproductive server optimization trial by restoring the previous release profile for future builds. The verified installed release remains recorded."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",

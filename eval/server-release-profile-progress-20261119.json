@@ -45,5 +45,14 @@
       "seconds": 12.050034600004437
     },
     "interpretation": "Observed durations across releases with different source and compiler settings. This is neither a controlled same-source comparison nor a production workload benchmark."
+  },
+  "future_build_policy": {
+    "status": "RESTORED_PREVIOUS_RELEASE_OPTIMIZATION_IN_SOURCE",
+    "at_utc": "2026-11-19T08:32:02.628408+00:00",
+    "reason": "The optimized build using the trial opt-level=1 took 2753.89s versus 2682.01s for the preceding release. The runs used different source inputs and do not isolate compiler optimization. This delivery did not demonstrate the intended speedup, so restore the previous setting in source.",
+    "installed_runtime_retains_trial_for_current_release": true,
+    "standalone_builds_started": 0,
+    "source_outcomes_for_runtime_build_floor": 0,
+    "validation": "The parsed workspace manifest matches its state before the override. The next combined release will compile with this configuration."
   }
 }

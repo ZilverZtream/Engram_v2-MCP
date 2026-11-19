@@ -87,9 +87,3 @@ dashmap = "6"
 
 # Utils
 regex = "1"
-
-# Keep server rebuilds practical during delivery. Index/search/storage crates and
-# dependencies retain their default release optimization; only the MCP server
-# package uses the lighter optimization level.
-[profile.release.package.engram_server]
-opt-level = 1
