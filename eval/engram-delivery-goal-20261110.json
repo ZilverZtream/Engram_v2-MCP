@@ -2589,6 +2589,17 @@
         "native_unit_cases_expected": 0,
         "source_outcomes": 1,
         "current_release_excludes_this_item": true
+      },
+      {
+        "original_requirement_id": "TODO-31",
+        "source_commit": "a9d9e2234ef31d60db57bfc7494d42fc5ce4af8f",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "progress": "eval/request-navigation-scan-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-navigation-scan-20261119\\contract.json",
+        "public_assertions_expected": 5,
+        "native_unit_cases_expected": 0,
+        "source_outcomes": 1,
+        "current_release_excludes_this_item": true
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2824,8 +2835,8 @@
     "implementation_items_active": 0,
     "record": "eval/freshness-recovery-procedure-batch-delivery-20261119.json",
     "full_original_goal_complete": false,
-    "next_action": "Preserve the queued WebForms client-script context and SQL trigger filter outcomes and continue the original backlog before combined verification.",
-    "pending_source_outcomes": 2
+    "next_action": "Combine queued WebForms script context, SQL trigger lookup and navigation-only request source reads with any ready original LegacyValidation changes before one release verification.",
+    "pending_source_outcomes": 3
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

@@ -1,0 +1,30 @@
+{
+  "original_requirement_id": "TODO-31",
+  "source_commit": "a9d9e2234ef31d60db57bfc7494d42fc5ce4af8f",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-navigation-scan-20261119\\verify-public.py",
+    "sha256": "00ad3cf148d7d8286cc811e3707c885166e9947f8dd88b3eb5ec28a8f0370821"
+  },
+  "public_assertions_expected": 5,
+  "public_assertions": [
+    "webforms_handler_remains_the_same",
+    "default_preserves_cited_sql_and_trigger",
+    "database_optout_omits_only_sql_and_dbml_reads",
+    "database_coverage_is_explicit",
+    "source_files_unchanged"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-navigation-scan-20261119\\baseline1\\receipt.json",
+    "sha256": "db104eb9438798bfeca6888131f7e52e0c753869208c78cabb2f8d3e06650cd0"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "TODO-31 URL/route to WebForms handler and optional database source evidence.",
+  "observed_gap": "Installed trace_user_request reads SQL/DBML files and charges both against its 64 MiB scan allowance even when include_db=false.",
+  "behavior": "Exclude SQL and DBML before the route-only trace opens source files. Report the database source scan choice and preserve the default scan and database evidence when requested.",
+  "legacy_validation_dbml_scope_evidence": "eval/legacy_validation-request-dbml-mapping-delivery-20261112.json",
+  "verification": "Installed baseline observed the same four source file reads with and without database evidence, while preserving the handler and default cited trigger. Changed Rust parses with rustfmt; candidate and installed acceptance remain queued. No production latency measured.",
+  "temporary_resources": "Owned MCP server and reader closed before removing the owned runtime and WebForms fixture. Driver, receipt and wire data remain in the recorded case.",
+  "full_original_goal_complete": false
+}
