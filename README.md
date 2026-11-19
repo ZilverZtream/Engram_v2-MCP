@@ -536,9 +536,10 @@ and receiver type, physical database binding and execution are not inferred.
 
 Database identity, dynamic commands and ORM translation remain unresolved.
 
-The result describes static source candidates. When a WebForms URL omits a
-trailing route parameter, the trace can show simple defaults authored in an
-inline VB `RouteValueDictionary` under `defaulted_parameters`. Dynamic routes,
+The result describes static source candidates. The trace shows supported
+defaults from an inline VB `RouteValueDictionary` under `defaulted_parameters`,
+including omitted URL parameters and route data such as `MasterPage` that the
+page can read separately. Dynamic routes,
 other default expressions, rewrites, inherited/dynamic event bindings and
 missing database-trigger bindings remain explicit coverage limits. `include_db: false`
 omits database relationships; `include_triggers: false` skips trigger coverage.

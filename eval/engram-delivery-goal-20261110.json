@@ -2993,7 +2993,7 @@
       "requirement": "TODO-31 route to handler source navigation for LegacyValidation",
       "observed_gap": "LegacyValidation registers an inline VB default for the project editor route. Tracing /dashboard/system/project found no match for that registration because the URL omits pr_id.",
       "implementation": "crates/engram_server/src/services/request_trace/routing.rs and api.rs",
-      "acceptance": "The exact routing module resolved the actual LegacyValidation registration and page with the authored pr_id=-1, and preserved /dashboard/system/project/42 as an explicit path value. Its focused fixture retains null defaults and rejects dynamic default expressions or omitted literal segments. Eight checks passed against cached dependencies. Packaged MCP verification and deployment are pending."
+      "acceptance": "The exact routing module resolved the actual LegacyValidation registration and page with the authored pr_id=-1, and preserved /dashboard/system/project/42 as an explicit path value. The actual /modules/myaccount and /dashboard/myaccount registrations select the same page while retaining MasterPage=app and MasterPage=dashboard respectively, as read by that page's VB code. The focused fixture retains null defaults and rejects dynamic default expressions or omitted literal segments. Packaged MCP verification and deployment are pending."
     },
     "queued_ask_quoted_http_target": {
       "status": "IMPLEMENTED_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGE_VERIFICATION",

@@ -18,6 +18,7 @@ pub struct RouteCandidate {
     pub route_name: Option<String>,
     pub pattern: String,
     pub parameters: BTreeMap<String, String>,
+    /// Authored route data, including defaults for omitted URL parameters.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub defaulted_parameters: BTreeMap<String, Option<String>>,
     pub source_path: String,
@@ -278,7 +279,10 @@ fn match_parameters(
                 }
                 Some(_) => return None,
                 None => {
-                    applied.insert(key.into(), defaults?.get(&key.to_ascii_lowercase())?.clone());
+                    let (_, value) = defaults?
+                        .iter()
+                        .find(|(name, _)| name.eq_ignore_ascii_case(key))?;
+                    applied.insert(key.into(), value.clone());
                     continue;
                 }
             }
@@ -319,9 +323,10 @@ fn page_route_defaults(invocation: &[Token]) -> Option<RouteDefaults> {
             [sign, value] if word(sign, "-") && decimal(value) => Some(format!("-{}", value.text)),
             _ => return None,
         };
-        if defaults.insert(name.text.to_ascii_lowercase(), value).is_some() {
+        if defaults.keys().any(|key: &String| key.eq_ignore_ascii_case(&name.text)) {
             return None;
         }
+        defaults.insert(name.text.clone(), value);
     }
     Some(defaults)
 }
@@ -441,15 +446,26 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
                 continue;
             }
             let pattern = &window[5].text;
-            let mut matched = match_parameters(pattern, &path, None);
-            if matched.is_none() && lower.ends_with(".vb") {
-                if let Some(defaults) = page_route_defaults(&tokens[index + 3..]) {
-                    matched = match_parameters(pattern, &path, Some(&defaults));
-                }
-            }
-            let Some((values, defaulted_parameters)) = matched else {
+            let defaults = if lower.ends_with(".vb") {
+                page_route_defaults(&tokens[index + 3..])
+            } else {
+                None
+            };
+            let Some((values, mut defaulted_parameters)) =
+                match_parameters(pattern, &path, defaults.as_ref())
+            else {
                 continue;
             };
+            // System.Web also copies authored defaults that have no URL segment.
+            for (name, value) in defaults.into_iter().flatten() {
+                if !values
+                    .keys()
+                    .chain(defaulted_parameters.keys())
+                    .any(|key| key.eq_ignore_ascii_case(&name))
+                {
+                    defaulted_parameters.insert(name, value);
+                }
+            }
             let Some(root) = app_root(source.path, sources) else {
                 result.gaps.push(format!(
                     "{}:{}: matching route has no established application root (Global.asax)",
@@ -601,6 +617,27 @@ mod tests {
         assert!(supplied.candidates[0].defaulted_parameters.is_empty());
         assert!(resolve("dynamic", &files).unwrap().candidates.is_empty());
         assert!(resolve("required", &files).unwrap().candidates.is_empty());
+    }
+
+    #[test]
+    fn route_defaults_outside_the_url_distinguish_shared_page_registrations() {
+        let files = sources(concat!(
+            "routes.MapPageRoute(\"app\", \"modules/myaccount\", \"~/admin/project.aspx\", True, ",
+            "New RouteValueDictionary(New With {.MasterPage = \"app\"}))\n",
+            "routes.MapPageRoute(\"dashboard\", \"dashboard/myaccount\", \"~/admin/project.aspx\", True, ",
+            "New RouteValueDictionary(New With {.MasterPage = \"dashboard\"}))",
+        ));
+        for (path, expected, line) in [
+            ("modules/myaccount", "app", 1),
+            ("dashboard/myaccount", "dashboard", 2),
+        ] {
+            let result = resolve(path, &files).unwrap();
+            assert_eq!(result.candidates.len(), 1);
+            let route = &result.candidates[0];
+            assert_eq!(route.page, "Site/admin/project.aspx");
+            assert_eq!(route.defaulted_parameters["MasterPage"].as_deref(), Some(expected));
+            assert_eq!(route.source_line, line);
+        }
     }
     #[test]
     fn commented_and_string_example_routes_do_not_dispatch() {
