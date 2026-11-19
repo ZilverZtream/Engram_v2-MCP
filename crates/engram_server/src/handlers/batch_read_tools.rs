@@ -15,7 +15,6 @@ use std::collections::BTreeSet;
 
 const OMITTED: &str = "omitted_shared_response_budget";
 
-#[derive(Clone, Serialize)]
 struct Row {
     request_id: String,
     status: &'static str,
@@ -23,6 +22,16 @@ struct Row {
     response_bytes: u64,
     response: Option<Value>,
     recovery: Value,
+    included: bool,
+}
+
+#[derive(Serialize)]
+struct WireRow<'a> {
+    request_id: &'a str,
+    status: &'static str,
+    response_bytes: u64,
+    response: Option<&'a Value>,
+    recovery: &'a Value,
 }
 
 #[derive(Serialize)]
@@ -32,14 +41,13 @@ struct Reply<'a> {
     max_tokens: usize,
     budget_accounting: &'static str,
     consistency: &'static str,
-    results: &'a [Row],
+    results: Vec<WireRow<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     response_delivery: Option<&'a Value>,
 }
 
 struct BudgetedBatch {
     rows: Vec<Row>,
-    original_rows: Vec<Row>,
     response_delivery: Option<Value>,
     max_tokens: usize,
 }
@@ -98,10 +106,11 @@ impl BudgetedBatch {
                 response_bytes: u64::MAX,
                 response: None,
                 recovery,
+                included: false,
             });
         }
         let mut batch = Self {
-            original_rows: rows.clone(), rows, max_tokens,
+            rows, max_tokens,
             // Reserve immutable recovery controls before executing any reads.
             response_delivery: Some(delivery(&"0".repeat(64), u64::MAX, max_tokens)),
         };
@@ -129,15 +138,25 @@ impl BudgetedBatch {
     }
 
     fn encode(&self) -> Result<String, McpError> {
-        self.encode_rows(&self.rows, self.response_delivery.as_ref())
+        self.encode_rows(false, self.response_delivery.as_ref())
     }
 
-    fn encode_rows(&self, rows: &[Row], response_delivery: Option<&Value>) -> Result<String, McpError> {
-        let omitted_count = rows.iter().filter(|r| r.status == OMITTED).count();
+    fn encode_rows(&self, original: bool, response_delivery: Option<&Value>) -> Result<String, McpError> {
+        let results: Vec<_> = self.rows.iter().map(|row| {
+            let include = original || row.included;
+            WireRow {
+                request_id: &row.request_id,
+                status: if include { row.status } else { OMITTED },
+                response_bytes: row.response_bytes,
+                response: row.response.as_ref().filter(|_| include),
+                recovery: &row.recovery,
+            }
+        }).collect();
+        let omitted_count = results.iter().filter(|row| row.status == OMITTED).count();
         serde_json::to_string(&Reply { complete: omitted_count == 0, omitted_count,
             max_tokens: self.max_tokens, budget_accounting: "ceil(complete JSON UTF-8 bytes / 4)",
             consistency: "Sequential ordinary reads; no atomic batch snapshot. Each result retains its existing freshness and citation contract. Per-row recovery reruns that read against then-current state; response_delivery recovers original executed results without rerunning reads.",
-            results: rows, response_delivery }).map_err(serialization)
+            results, response_delivery }).map_err(serialization)
     }
 
     fn insert(
@@ -146,30 +165,29 @@ impl BudgetedBatch {
         status: &'static str,
         response: Value,
     ) -> Result<(), McpError> {
-        self.original_rows[index].response_bytes =
+        let row = &mut self.rows[index];
+        row.response_bytes =
             serde_json::to_vec(&response).map_err(serialization)?.len() as u64;
-        self.original_rows[index].status = status;
-        self.original_rows[index].response = Some(response);
-        self.rows[index] = self.original_rows[index].clone();
+        row.status = status;
+        row.response = Some(response);
+        row.included = true;
         if self.encode()?.len() > self.max_tokens * 4 {
-            self.rows[index].response = None;
-            self.rows[index].status = OMITTED;
+            self.rows[index].included = false;
         }
         Ok(())
     }
     fn finish(mut self, data: &Path) -> Result<String, McpError> {
-        if self.rows.iter().all(|row| row.status != OMITTED) {
+        if self.rows.iter().all(|row| row.included) {
             return self.encode();
         }
-        let original = self.encode_rows(&self.original_rows, None)?;
+        let original = self.encode_rows(true, None)?;
         let id = blake3::hash(original.as_bytes()).to_hex().to_string();
         self.response_delivery = Some(delivery(&id, original.len() as u64, self.max_tokens));
         // Recovery metadata was reserved before reads. Keep whole fitting
         // results; return every omitted result through the exact saved batch.
         for index in (0..self.rows.len()).rev() {
             if self.encode()?.len() <= self.max_tokens * 4 { break; }
-            self.rows[index].response = None;
-            self.rows[index].status = OMITTED;
+            self.rows[index].included = false;
         }
         let output = self.encode()?;
         if output.len() > self.max_tokens * 4 {
