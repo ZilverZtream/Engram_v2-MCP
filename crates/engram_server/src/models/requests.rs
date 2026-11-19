@@ -3717,7 +3717,8 @@ pub struct GetSpDetailsRequest {
     /// Default true; false explicitly leaves application callers unrequested.
     #[serde(default = "default_true")]
     pub include_code_callers: bool,
-    /// Name of the stored procedure.
+    /// Authored procedure name, optionally schema-qualified. An ambiguous
+    /// basename requires a qualified name or a narrower SQL file scope.
     #[serde(alias = "name", alias = "sp")]
     pub sp_name: String,
     /// Reserved: no analysis cache exists, so every call already re-analyzes

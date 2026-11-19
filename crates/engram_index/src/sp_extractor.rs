@@ -104,6 +104,8 @@ pub struct SpParameter {
 #[derive(Debug, Clone)]
 pub struct StoredProcedureDefinition {
     pub name: String,
+    /// Original identifier spelling, including any schema qualifier.
+    pub authored_name: String,
     pub parameters: Vec<SpParameter>,
     pub tables_read: Vec<String>,
     pub tables_written: Vec<String>,
@@ -296,13 +298,13 @@ pub fn parse_sp_definitions(source: &str) -> Vec<StoredProcedureDefinition> {
 
     for cap in create_re.captures_iter(source) {
         let m = cap.get(0).expect("full match");
-        let name = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
+        let name = cap.get(1).map_or("", |m| m.as_str()).to_owned();
         proc_starts.push((m.start(), name));
     }
 
     for cap in alter_re.captures_iter(source) {
         let m = cap.get(0).expect("full match");
-        let name = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
+        let name = cap.get(1).map_or("", |m| m.as_str()).to_owned();
         let alter_start = m.start();
         // Skip this ALTER match if it falls within an already-recorded CREATE OR ALTER span.
         // CREATE OR ALTER PROCEDURE contains the word ALTER, so the alter_re would match it
@@ -372,7 +374,8 @@ pub fn parse_sp_definitions(source: &str) -> Vec<StoredProcedureDefinition> {
         let line_count = (end_line - start_line + 1) as usize;
 
         results.push(StoredProcedureDefinition {
-            name: name.clone(),
+            name: strip_sql_name(name),
+            authored_name: name.clone(),
             parameters,
             tables_read,
             tables_written,

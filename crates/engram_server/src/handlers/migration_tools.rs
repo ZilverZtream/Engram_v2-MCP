@@ -2278,9 +2278,9 @@ impl Engram {
         let result = tokio::task::spawn_blocking(move || -> Result<String, String> {
             use crate::services::database_intelligence_service as dbi;
 
-            let (sp_source_file, sp_body, definition) =
-                dbi::find_procedure_source(&sql_files, &sp_name).ok_or_else(||
-                    format!("Stored procedure '{}' not found in any .sql file.", sp_name))?;
+            let (sp_source_file, sp_body, definition) = dbi::find_procedure_source(&sql_files, &sp_name)?;
+            let requested_name = sp_name;
+            let sp_name = definition.name.clone();
 
             // Deterministic summary
             let logic = dbi::deterministic_sp_summary(&sp_name, &sp_body);
@@ -2367,8 +2367,9 @@ impl Engram {
             };
 
             // Build response markdown
-            let mut out = format!("# Stored Procedure: {}\n\n", sp_name);
+            let mut out = format!("# Stored Procedure: {requested_name}\n\n");
             out.push_str(&format!("**Source file**: {}\n", sp_source_file));
+            out.push_str(&format!("**Declared name**: {} (line {})\n", definition.authored_name, definition.start_line + 1));
             out.push_str(&format!("**Complexity**: {}\n", complexity));
             out.push_str(&format!("**Content hash**: {}\n\n", logic.content_hash));
 
@@ -2377,6 +2378,7 @@ impl Engram {
             } else {
                 out.push_str("SQL source scope: up to2000 discovered SQL files; exhaustive or deployed-schema coverage is not established.\n");
             }
+            out.push_str("Dependency coverage: caller, call-chain and trigger leads use basename matching. Their schema and runtime binding remain unverified.\n");
             if include_code_callers {
                 out.push_str("Code caller coverage: bounded project scan (up to5000 VB/C# files) and stored graph leads; not exhaustive or runtime execution proof.\n\n");
             } else {

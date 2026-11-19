@@ -359,22 +359,47 @@ fn is_sql_keyword(s: &str) -> bool {
 
 // ── SP Call Chain Detection ──────────────────────────────────────────────────
 
-/// Build SP→SP call chains from SQL file contents.
-/// Locate the original declaration body for a basename-based procedure report.
+/// Select one authored declaration. A basename can identify a procedure only
+/// when it has one match in the requested SQL source scope.
 pub(crate) fn find_procedure_source(
     sql_files: &[(String, String)],
     name: &str,
-) -> Option<(String, String, engram_index::sp_extractor::StoredProcedureDefinition)> {
+) -> Result<(String, String, engram_index::sp_extractor::StoredProcedureDefinition), String> {
+    let wanted = super::schema_query::input_name(name).map_err(|error| error.to_string())?;
+    let mut selected = None;
+    let mut matches = 0;
+    let mut locations = Vec::new();
     for (path, source) in sql_files {
         for definition in engram_index::sp_extractor::parse_sp_definitions(source) {
-            if !definition.name.eq_ignore_ascii_case(name) { continue; }
-            // The shared parser reports zero-based inclusive line spans. Keep
-            // the original declaration and bytes, stopping at its SQL batch.
-            let body = procedure_source_text(source, &definition);
-            return Some((path.clone(), body, definition));
+            if !wanted.0.last().is_some_and(|name| definition.name.eq_ignore_ascii_case(name)) {
+                continue;
+            }
+            let Ok(identity) = super::schema_query::input_name(&definition.authored_name) else {
+                continue;
+            };
+            if !identity.lookup(&wanted) {
+                continue;
+            }
+            matches += 1;
+            if locations.len() < 8 {
+                locations.push(format!("{} at {path}:{}", identity.display(), definition.start_line + 1));
+            }
+            if selected.is_none() {
+                selected = Some((path, source, definition));
+            }
         }
     }
-    None
+    match selected {
+        Some((path, source, definition)) if matches == 1 => {
+            let body = procedure_source_text(source, &definition);
+            Ok((path.clone(), body, definition))
+        }
+        Some(_) => Err(format!(
+            "Stored procedure '{name}' is ambiguous: {matches} declarations in the requested SQL source scope. Use a qualified name or sql_file_path. Candidates: {}",
+            locations.join("; "),
+        )),
+        None => Err(format!("Stored procedure '{name}' not found in the requested SQL source scope.")),
+    }
 }
 
 fn procedure_source_text(source: &str, definition: &engram_index::sp_extractor::StoredProcedureDefinition) -> String {
@@ -1280,7 +1305,7 @@ mod tests {
         assert!(body.starts_with("ALTER PROCEDURE [dbo].[RefreshRecord]"));
         assert!(definition.tables_written.iter().any(|name| name == "Archive"), "MERGE support must remain");
         assert_eq!(definition.called_procedures, ["SaveRecord"]);
-        assert!(find_procedure_source(&files, "MissingProcedure").is_none());
+        assert!(find_procedure_source(&files, "MissingProcedure").is_err());
     }
 
     #[test]
