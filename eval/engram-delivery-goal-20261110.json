@@ -3006,6 +3006,14 @@
     "acceptance": "Reuse the existing packaged dossier source and recovery checks. Preserve stale-source handling, generation and source evidence. The worker retains the source lease for the duration of its read.",
     "verification": "Rust parser and scoped diff checks passed. Packaged validation and runtime measurements remain pending."
   },
+  "dossier_selected_model_example": {
+    "original_requirement_id": "TODO-32",
+    "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",
+    "observed_gap": "An exact selected model_after path is treated as discovery text, so ranking can omit the example the caller supplied.",
+    "implementation": "crates/engram_server/src/handlers/feature_plan_tools.rs",
+    "acceptance": "An exact selected WebForms exemplar occupies the first source slot and uses normal source admission. Ranked candidates retain their order and the example appears once. A prose hint still uses ordinary discovery.",
+    "verification": "Focused source-candidate selection passed against cached dependencies. Packaged dossier verification remains pending."
+  },
   "recent_filtered_history_progress": {
     "original_requirement_id": "EG-20",
     "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",

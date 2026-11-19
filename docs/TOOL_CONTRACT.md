@@ -141,6 +141,10 @@ lookups to the planning context. Dossier mode reads those explicit names without
 calling a model. The lookups use the dossier's selected source generation, with
 ordinary schema coverage and source citations.
 
+An exact selected project-relative `model_after` file gets a source-dossier slot
+before ranked discovery candidates. It passes the same current-source and
+revision checks as any other candidate. Prose hints continue to guide discovery.
+
 Installed November16: standalone `check_edit_safety`
 adds current scoped authored guidance for the canonical selected method file.
 Its verdict, confidence, evidence and unknown coverage retain their existing

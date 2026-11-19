@@ -190,9 +190,10 @@ fn change_request(
     }
 }
 
-fn path_candidates(change_set: &Value, patterns: &Value) -> Vec<String> {
-    let mut paths = Vec::new();
-    // Keep ranked candidates first; dependencies and patterns remain explicit
+fn path_candidates(change_set: &Value, patterns: &Value, model_file: Option<&str>) -> Vec<String> {
+    let mut paths: Vec<_> = model_file.into_iter().map(str::to_owned).collect();
+    // Preserve discovery order after the caller's exact selected example.
+    // Dependencies and patterns remain explicit
     // context even when not admitted to the bounded source bundle.
     for key in ["files", "asset_dependencies", "caller_dependencies"] {
         for row in change_set[key].as_array().into_iter().flatten() {
@@ -357,11 +358,14 @@ impl Engram {
         let (generation, view) = self
             .pin_active_source_generation(&req.project_id, &runtime.search)
             .await?;
-        if view.selected_file_revisions().is_none() {
-            return Err(failure(
+        let selected = view.selected_file_revisions().ok_or_else(|| {
+            failure(
                 "Feature planning requires a managed source inventory; update_project first",
-            ));
-        }
+            )
+        })?;
+        let model_file = req.model_after.as_deref()
+            .map(|hint| hint.trim().replace('\\', "/"))
+            .filter(|path| plan::relative_file(path) && selected.contains_key(path));
         let view = std::sync::Arc::new(view);
         output["active_generation"] = json!(generation);
         let mut story = req.feature_description.clone();
@@ -443,7 +447,7 @@ impl Engram {
                 json!({"status":"UNAVAILABLE", "recovery":{"tool":"find_implementation_pattern","arguments":{"project_id":req.project_id,"pattern_query":req.feature_description,"output_json":true}}})
             }
         };
-        let paths = path_candidates(&change_set, &patterns);
+        let paths = path_candidates(&change_set, &patterns, model_file.as_deref());
         let source_paths = initial_source_paths(&paths);
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
@@ -548,6 +552,7 @@ impl Engram {
         output["source_evidence"] = json!(evidence);
         output["source_coverage"] = json!({"file_cap":MAX_SOURCE_FILES, "primary_file_cap":plan::MAX_FILES, "composition_host_cap":MAX_COMPOSITION_HOSTS,
             "composition":composition, "candidate_files":paths.len(), "admitted_files":evidence.len(), "omitted_paths":omitted_paths, "gaps":gaps,
+            "explicit_model_after_file":model_file,
             "excerpt_limit":"One lexical window of at most 100 lines / 12 KiB per file; at most 192 KiB total; unshown lines are unexamined",
             "recovery":{"tool":"get_change_set","arguments":{"project_id":req.project_id,"story":story,"output_json":true,"detail":"full","concepts":retrieval_concepts,"history_semantic_timeout_ms":req.history_semantic_timeout_ms}}});
         let mut schema = Vec::new();

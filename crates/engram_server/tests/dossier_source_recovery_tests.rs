@@ -85,6 +85,8 @@ async fn unindexed_registered_control_retains_its_gap_and_returns_executable_cur
     }))?).await?;
     let dossier: Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text)?;
     ensure!(dossier["provenance"]["provider_calls"] == 0);
+    ensure!(dossier["source_coverage"]["explicit_model_after_file"] == "Settings.aspx");
+    ensure!(dossier["source_evidence"][0]["file_path"] == "Settings.aspx");
     let schema = &dossier["planning_context"]["schema"][0];
     ensure!(schema["name"] == "dbo.Settings" && schema["result"]["active_generation"] == generation);
     let table = &schema["result"]["results"][0]["table"];
