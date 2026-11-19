@@ -186,11 +186,11 @@ async fn superseded_scope_is_not_resurrected_and_external_fix_is_not_current_hea
 }
 
 #[tokio::test]
-async fn discovery_rejects_mixed_historical_or_exact_selectors_and_non_exact_paths() -> Result<()> {
+async fn discovery_rejects_invalid_cutoffs_mixed_selectors_and_non_exact_paths() -> Result<()> {
     let fixture = Fixture::new()?;
     for extra in [
         json!({"review_id":"PR-1"}),
-        json!({"recorded_before":"2026-01-01"}),
+        json!({"recorded_before":"not-a-date"}),
         json!({"discussion":{}}),
         json!({"view":"current"}),
         json!({"discover_for_paths":["Site/**"]}),

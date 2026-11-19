@@ -100,7 +100,8 @@ pub struct GetReviewDecisionsRequest {
     /// forward-slash paths without knowing review IDs. Reuses bounded declared-
     /// scope/legacy full-path relevance; complete admitted events include history
     /// actions. Missing/omitted/legacy identities mean coverage remains partial.
-    /// Cannot combine with review_id, recorded_before, discussion or view=current.
+    /// recorded_before selects the latest eligible dated events instead of current
+    /// events. Cannot combine with review_id, discussion or view=current.
     #[serde(default)]
     pub discover_for_paths: Vec<String>,
     /// history (default) includes every eligible event. current retains only the
@@ -110,6 +111,7 @@ pub struct GetReviewDecisionsRequest {
     pub view: DecisionView,
     /// Exclusive YYYY-MM-DD cutoff on imported decision source dates. Filters
     /// events before reconstructing the latest state; not current fix verification.
+    /// Also supported with discover_for_paths; returned history actions retain it.
     /// Omit for the unchanged complete event history. Cannot combine with discussion.
     #[serde(default)]
     pub recorded_before: Option<String>,
@@ -597,7 +599,8 @@ impl Engram {
             let state = self.state.clone();
             let report = tokio::task::spawn_blocking(move || {
                 let _reservation = reservation;
-                path_discovery::read(&state, &req.project_id, &req.discover_for_paths)
+                path_discovery::read(&state, &req.project_id, &req.discover_for_paths,
+                    req.recorded_before.as_deref())
             }).await.map_err(|error| McpError::internal_error(format!("review discovery worker failed: {error}"), None))?
                 .map_err(|error| McpError::internal_error(error, None))?;
             return Ok(CallToolResult::success(vec![Content::text(report)]));
