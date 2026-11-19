@@ -1,0 +1,40 @@
+{
+  "original_requirement_id": "EG-01",
+  "source_commit": "6bb0e3c49c9345487733b2b04ad4f7a7f9ebb062",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-script-context-20261119\\verify-public.py",
+    "sha256": "023d56f7c0f001d28dd0cfe602b9645cd7f6182e1d8c124a140f57ca88ee4713"
+  },
+  "public_assertions_expected": 5,
+  "public_assertions": [
+    "markup_context_preserved",
+    "only_local_declared_client_sources_are_admitted",
+    "script_scoped_guidance_and_missing_target_are_visible",
+    "markdown_names_scripts_and_scoped_guidance",
+    "source_bytes_preserved"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-script-context-20261119\\baseline3\\receipt.json",
+    "sha256": "f887fbcc496048c9a2172622983061e59e8ece9a3dae358f1a7d3e22449b2e04"
+  },
+  "baseline_setup_attempts": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-script-context-20261119\\baseline1\\receipt.json",
+      "sha256": "bec852354511d029054a09b5a927d87abe15c97cf1f16ad19db839e1fd00c1ee"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\page-script-context-20261119\\baseline2\\receipt.json",
+      "sha256": "e03b9d56f6547e4c5a3a5210b23f18ac0c9d5c0fc178184df98c59a8fef537ab"
+    }
+  ],
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "EG-01 source composition guidance coverage for WebForms/JavaScript/TypeScript. Retained bounded guidance closure remains intact.",
+  "observed_gap": "get_page_context omitted source-admitted literal local script targets and their scoped authored guidance.",
+  "behavior": "At most eight discovered JS/MJS/TS script targets are observed within the application root and existing composition file/byte budgets. Resolved files carry source hash and declaring markup path; unresolved local paths are disclosed. Existing parser excludes commented tags and external URLs.",
+  "verification": "Installed baseline confirmed omission. The first harness run retained an unrelated fixture statement; the second expected unpaged JSON. The corrected verifier uses actual composition records and required_context from the public envelope. Changed Rust passed syntax and whitespace checks.",
+  "temporary_resources": "All three owned source and runtime fixtures were closed and removed. Verifier and wire evidence remain in this one case.",
+  "current_release_excludes_this_item": true,
+  "full_original_goal_complete": false
+}
