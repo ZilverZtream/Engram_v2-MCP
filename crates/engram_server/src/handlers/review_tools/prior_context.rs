@@ -17,6 +17,7 @@ pub(super) struct Input {
     omitted_paths: usize,
     source_snapshots: BTreeMap<String, String>,
     recorded_before: Option<String>,
+    finding_paths: BTreeMap<String, String>,
 }
 
 impl Input {
@@ -56,11 +57,22 @@ impl Input {
             query,
             source_snapshots: snapshots.iter().map(|(p,h)|(normalized(p),h.clone())).collect(),
             recorded_before: None,
+            finding_paths: BTreeMap::new(),
         }
     }
 
     pub fn with_recorded_before(mut self, cutoff: Option<String>) -> Self {
         self.recorded_before = cutoff;
+        self
+    }
+
+    pub fn with_findings(
+        mut self,
+        findings: &[crate::services::pre_commit_review_service::ReviewFinding],
+    ) -> Self {
+        self.finding_paths = findings.iter()
+            .map(|finding| (finding.finding_id.clone(), finding.file_path.clone()))
+            .collect();
         self
     }
 }
@@ -247,6 +259,20 @@ fn collect_inner(
         .iter()
         .map(|p| normalized(p))
         .collect::<Vec<_>>();
+    let same_finding = |event: &ReviewDecision| {
+        input.finding_paths.get(&event.finding_id)
+            .is_some_and(|path| mentions_changed_path(event, std::slice::from_ref(path)))
+    };
+    let discovery = review_decisions::discover_at_prefer(
+        state, pid, 24, input.recorded_before.as_deref(),
+        |event| mentions_changed_path(event, &paths),
+        |event| same_finding(event),
+    );
+    let preferred_events: BTreeSet<_> = discovery.as_ref().ok().into_iter()
+        .flat_map(|discovery| &discovery.candidates)
+        .filter(|candidate| same_finding(&candidate.event))
+        .map(|candidate| (candidate.review_id.clone(), candidate.event.event_id.clone()))
+        .collect();
     let mut cached: BTreeMap<u64, Result<Vec<ReviewDecision>, String>> = BTreeMap::new();
     let mut items = Vec::new();
     let mut omitted = Vec::new();
@@ -306,7 +332,10 @@ fn collect_inner(
                     if event.scope.is_some() && !mentions_changed_path(event, &paths) {
                         continue;
                     }
-                    if emitted_events.contains(&(review_id.clone(), event.event_id.clone())) {
+                    let identity = (review_id.clone(), event.event_id.clone());
+                    // Give exact scoped matches their own bounded item. They
+                    // should survive even when the indexed summary is too large.
+                    if preferred_events.contains(&identity) || emitted_events.contains(&identity) {
                         continue;
                     }
                     if related.len() >= 3 {
@@ -318,9 +347,10 @@ fn collect_inner(
                         event_omissions += 1;
                         continue;
                     }
-                    emitted_events.insert((review_id.clone(), event.event_id.clone()));
+                    emitted_events.insert(identity);
                     related.push(json!({"evidence":event,
                         "event_blake3":blake3::hash(&bytes).to_hex().to_string(),
+                        "matches_current_scoped_finding_id":same_finding(event),
                         "association":if matching {"same_review_and_thread_identifier_only"}else{"same_review_only"},
                         "provider_identity_authenticated":false,
                         "effective_status":review_decisions::effective_status(event,"verification_not_established_for_current_worktree"),
@@ -350,8 +380,6 @@ fn collect_inner(
             "original_source_url":Value::Null,
             "provider_neutral_status":event_status,"provider_neutral_events":related,"omitted_provider_neutral_events":event_omissions}));
     }
-    let discovery = review_decisions::discover_at(state, pid, 24, input.recorded_before.as_deref(), |event|
-        mentions_changed_path(event, &paths));
     let mut standalone_candidates = 0usize;
     let discovery_coverage = match discovery {
         Ok(discovery) => {
@@ -373,6 +401,7 @@ fn collect_inner(
                     "original_source_url":event.source_url,
                     "provider_neutral_status":"imported_declarations_only",
                     "provider_neutral_events":[{"evidence":event,"event_blake3":event_hash,
+                        "matches_current_scoped_finding_id":same_finding(event),
                         "association":relation,
                         "provider_identity_authenticated":false,
                         "effective_status":review_decisions::effective_status(event,"verification_not_established_for_current_worktree"),
@@ -400,12 +429,16 @@ fn collect_inner(
         || ["identity_values_omitted","invalid_identity_records","unavailable_or_over_budget_records",
             "candidate_or_event_byte_omissions"].iter()
             .any(|field|discovery_coverage[*field].as_u64().is_some_and(|n|n > 0));
-    items.sort_by_key(|item| match item["retrieval_relation"].as_str() {
-        Some("exact_file_reference") => 0,
-        Some("declared_scope_intersection") => 0,
-        Some("declared_changed_path_mention") => 1,
-        Some("basename_only") => 2,
-        _ => 3,
+    items.sort_by_key(|item| {
+        let same_finding = item["provider_neutral_events"].as_array().into_iter().flatten()
+            .any(|event| event["matches_current_scoped_finding_id"] == true);
+        let relation = match item["retrieval_relation"].as_str() {
+            Some("exact_file_reference" | "declared_scope_intersection") => 0,
+            Some("declared_changed_path_mention") => 1,
+            Some("basename_only") => 2,
+            _ => 3,
+        };
+        (!same_finding, relation)
     });
     // At most 24 indexed and 24 decision candidates are observed; both share
     // the existing retained-candidate, delivered-item and final byte budgets.

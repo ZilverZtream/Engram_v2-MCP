@@ -3042,6 +3042,13 @@
       "implementation": "crates/engram_server/src/handlers/review_tools/response_delivery.rs",
       "acceptance": "The deferred JSON and Markdown ledgers show the exact finding_id from the complete review without changing finding indices, severities, content identity or recovery. A focused module check verified this on the retained actual LegacyValidation report. The existing packaged integration fixture now verifies ID continuity across all forty findings. No gate rerun or full build."
     },
+    "following_review_exact_decision_priority": {
+      "status": "IMPLEMENTED_FOCUSED_SELECTION_AND_LINK_CHECK_PASSED_AWAITING_PACKAGE_VERIFICATION",
+      "requirement": "EG-19 decision-aware reviews that preserve relevant prior evidence",
+      "observed_gap": "A decision about a matching finding was selected only by path and record traversal order. Twenty-four unrelated finding IDs for the same file could exhaust the discovery cap first. Indexed summary size could also spend the budget needed for the actual decision.",
+      "implementation": "crates/engram_server/src/handlers/review_decisions.rs and review_tools prior context and finding links",
+      "acceptance": "Admit exact current finding IDs only with path relevance, prioritize them through the existing discovery and report caps, and give admitted exact matches their own bounded context item. The annotation identifies a matching ID while retaining scope/conditions and the current verdict. The focused selection and annotation check passed. The extended actual review integration path remains queued for package verification. This extends the same EG-19 outcome as deferred finding IDs."
+    },
     "next_action": "Advance the remaining original LegacyValidation items. The single-scan SQL comparison committed after the installed package was frozen remains queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
   },
   "windows_reconnect_release_interruption": {

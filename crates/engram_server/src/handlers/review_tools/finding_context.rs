@@ -50,6 +50,7 @@ pub(super) fn annotate(report: &mut Value) {
             let Some(path) = finding["file_path"].as_str() else {
                 continue;
             };
+            let finding_id = finding["finding_id"].as_str();
             let selected = vec![path.to_owned()];
             let path = normalized(path);
             let mut annotations = Vec::new();
@@ -59,6 +60,7 @@ pub(super) fn annotate(report: &mut Value) {
                     if !review_decisions::relevant_to_paths(event, &selected) { return None; }
                     let pointer = format!("/prior_review_context/items/{}/provider_neutral_events/{index}", candidate.index);
                     Some(json!({"event_index":index,"event_pointer":pointer,
+                        "same_finding_id":finding_id == Some(event.finding_id.as_str()),
                         "relevance_basis":if event.scope.is_some(){"declared_exact_path"}else{"legacy_complete_path_mention"},
                         "scope_assessment_pointer":format!("{pointer}/declared_scope_assessment")}))
                 }).collect::<Vec<_>>();

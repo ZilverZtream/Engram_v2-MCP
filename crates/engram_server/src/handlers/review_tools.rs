@@ -212,6 +212,7 @@ impl Engram {
         // Evidence is collected after gate findings have been produced. It
         // cannot suppress, downgrade or silently reconcile those findings.
         let prior_input = prior_context::Input::from_diff(&parsed, &source_before)
+            .with_findings(&findings)
             .with_recorded_before(req.review_decisions_before.clone());
         let prior_state = self.state.clone();
         let prior_search = source_runtime.search.clone();

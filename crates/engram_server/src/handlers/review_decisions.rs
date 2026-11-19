@@ -322,7 +322,16 @@ pub(crate) fn discover(
 pub(crate) fn discover_at(
     state: &crate::state::AppState, pid: &str, max_candidates: usize,
     exclusive_date: Option<&str>,
+    relevant: impl FnMut(&ReviewDecision) -> bool,
+) -> Result<DecisionDiscovery, String> {
+    discover_at_prefer(state, pid, max_candidates, exclusive_date, relevant, |_| false)
+}
+
+pub(super) fn discover_at_prefer(
+    state: &crate::state::AppState, pid: &str, max_candidates: usize,
+    exclusive_date: Option<&str>,
     mut relevant: impl FnMut(&ReviewDecision) -> bool,
+    mut prefer: impl FnMut(&ReviewDecision) -> bool,
 ) -> Result<DecisionDiscovery, String> {
     if exclusive_date.is_some_and(|date| !valid_iso_date(date)) {
         return Err("historical review cutoff must be YYYY-MM-DD".into());
@@ -331,6 +340,8 @@ pub(crate) fn discover_at(
         pid, IDENTITY_PREFIX, DISCOVERY_RECORDS, 256, 32 * 1024,
     ).map_err(|e| e.to_string())?;
     let mut candidates = Vec::new();
+    let mut preferred = Vec::new();
+    let candidate_limit = max_candidates.min(24);
     let mut invalid_identities = 0usize;
     let mut unavailable_records = 0usize;
     let mut unrelated_current_events = 0usize;
@@ -375,12 +386,19 @@ pub(crate) fn discover_at(
             }
             // Preserve complete small evidence; disclose larger evidence rather
             // than clipping rationale or presenting a synthetic shortened event.
-            if candidates.len() >= max_candidates.min(24)
+            let is_preferred = prefer(event);
+            let full = candidates.len() + preferred.len() >= candidate_limit;
+            if (full && (!is_preferred || candidates.is_empty()))
                 || serde_json::to_vec(event).map_err(|e| e.to_string())?.len() > 8 * 1024 {
                 candidate_omissions += 1;
                 continue;
             }
-            candidates.push(DiscoveredDecision {
+            if full {
+                candidates.pop();
+                candidate_omissions += 1;
+            }
+            let selected = if is_preferred { &mut preferred } else { &mut candidates };
+            selected.push(DiscoveredDecision {
                 review_id: review_id.clone(), event: (**event).clone(),
                 record_blake3: record_hash.clone(), record_events: events.len(),
             });
@@ -405,7 +423,8 @@ pub(crate) fn discover_at(
         coverage["excluded_future_or_unparseable_events"] = serde_json::json!(excluded_by_date);
         coverage["observation_scope"] = serde_json::json!("Independent current records filtered by imported source dates before latest-event selection; not authenticated dates or an atomic historical corpus snapshot. Missing, malformed, oversized and uninspected records establish no absence of decisions.");
     }
-    Ok(DecisionDiscovery { candidates, coverage })
+    preferred.extend(candidates);
+    Ok(DecisionDiscovery { candidates: preferred, coverage })
 }
 
 /// Older imports used AcceptedException for a workflow/LLM disposition. Keep

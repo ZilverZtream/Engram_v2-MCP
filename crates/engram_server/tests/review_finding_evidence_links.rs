@@ -144,13 +144,24 @@ fn secret<'a>(review: &'a Value, path: &str) -> &'a Value {
 async fn exact_scoped_decision_links_to_its_finding_without_changing_gate_results() -> Result<()> {
     let f = Fixture::new().await?;
     let before: Value = serde_json::from_str(&f.review(true, "full", 65536).await?)?;
-    let event = f
-        .record(
-            "PR-101",
-            Some(FILE),
-            "Previous demonstration exception; not production clearance.",
-        )
-        .await?;
+    let finding_id = secret(&before, FILE)["finding_id"].as_str().unwrap();
+    let event = json!({"event_id":"same-finding","finding_id":finding_id,
+        "supersedes":null,"kind":"accepted_exception","source_url":"https://example.invalid/fixture/review",
+        "author":"Fixture owner","recorded_at":"2026-01-01T12:00:00Z",
+        "rationale":"Previous demonstration exception; not production clearance.","verification":null,
+        "scope":{"reviewed_commit":f.base,"paths":[FILE],"conditions":CONDITIONS}});
+    // These IDs sort ahead of the stable hex ID and occupy every discovery slot
+    // without finding-aware priority. All refer to the same file.
+    let mut earlier = (0..24).map(|index| {
+        let mut unrelated = event.clone();
+        unrelated["event_id"] = json!(format!("other-{index}"));
+        unrelated["finding_id"] = json!(format!("0-{index:02}"));
+        unrelated
+    }).collect::<Vec<_>>();
+    earlier.push(event.clone());
+    f.app.handle_record_review_decisions(serde_json::from_value(json!({
+        "project_id":f.pid,"review_id":"PR-101","decisions":earlier
+    }))?).await?;
     f.record(
         "PR-102",
         Some("other/Export.ts"),
@@ -194,6 +205,7 @@ async fn exact_scoped_decision_links_to_its_finding_without_changing_gate_result
     ensure!(annotation["same_file_summary"] == false);
     let matched = &annotation["event_matches"][0];
     ensure!(matched["relevance_basis"] == "declared_exact_path");
+    ensure!(matched["same_finding_id"] == true);
     let evidence = review
         .pointer(matched["event_pointer"].as_str().unwrap())
         .unwrap();
