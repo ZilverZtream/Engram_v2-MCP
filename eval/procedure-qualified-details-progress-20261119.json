@@ -1,0 +1,27 @@
+{
+  "original_requirement_id": "TODO-59",
+  "source_commit": "818f17d262702e089c0caecb24128a67089d2491",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-qualified-details-20261119\\verify-public.py",
+    "sha256": "a305200f5a356dad992164925f876b700e2795430e26d0510b1c58e533193e21"
+  },
+  "public_assertions_expected": 5,
+  "public_assertions": [
+    "explicit_file_preserves_original_parameters",
+    "ambiguous_lookup_lists_both_source_declarations",
+    "qualified_lookup_returns_only_selected_body",
+    "wrong_schema_never_falls_back_to_basename",
+    "source_files_unchanged"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-qualified-details-20261119\\baseline1\\receipt.json",
+    "sha256": "431798b4a4ea753bec3001c16479d54a5090315347ff14d12f1cda76cadf8f5a"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "behavior": "get_sp_details resolves exact authored qualified procedure names and presents source locations for ambiguous basenames. The existing source-file selector remains available. Basename-only caller and dependency leads are labelled.",
+  "verification": "Installed baseline returned an arbitrary declaration for a collision and did not resolve the qualified lookup. Existing explicit file and unchanged source were verified. Rust syntax and whitespace checks passed; candidate and installed verification are pending.",
+  "temporary_resources": "The owned MCP server and reader closed before the temporary source and data directory were removed. The retained verifier and wire evidence are in the recorded case.",
+  "full_original_goal_complete": false
+}
