@@ -1,0 +1,32 @@
+{
+  "original_requirement_id": "TODO-59",
+  "related_requirement_id": "S14",
+  "source_commit": "67f292282675f3ff5e03703cfbedec3a8691e239",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\bounded-sql-report-sources-20261119\\verify-public.py",
+    "sha256": "8b2c8822ccd7ab961f77bb295f2bdc28fdadd6bae513850dd0c37ae98592de3b"
+  },
+  "public_assertions_expected": 5,
+  "public_assertions": [
+    "bounded_file_keeps_complete_sql_evidence",
+    "large_explicit_source_is_refused",
+    "wide_scan_explains_explicit_file_recovery",
+    "small_explicit_source_still_recovers_report",
+    "source_bytes_unchanged"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\bounded-sql-report-sources-20261119\\baseline1\\receipt.json",
+    "sha256": "3d41826e5c7bfd2ca5645184b6f0321131a48de9fe3ab3ae77a7cdf8c4abf3f2"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "S14 reserve SQL source reads before allocation in the shared TODO-59 database report input path.",
+  "observed_gap": "Current shared analyze_database_intelligence/get_sp_details loader reads each SQL file into an unreserved String with only a file-count bound. Installed ordinary explicit-file behavior passed the retained baseline.",
+  "behavior": "Cap selected SQL input at 64 MiB across the report, matching the selected-source SQL scanner's aggregate limit. Read within the file-handle metadata bound, reserve raw source buffers dynamically, and retain reservations while parsing. A project scan refuses over-limit input with explicit-file recovery available.",
+  "configuration_relevance": "Retained LegacyValidation acceptance uses explicit source files from its SQL project. No production source or storage workload was run.",
+  "limitations": "This covers raw SQL buffers for the two shared-loader tools. Parser allocations, code-caller discovery, trigger inventory and the broader original S14 matrix remain open.",
+  "verification": "Ordinary behavior verified on installed baseline. Changed Rust parsed with rustfmt. Candidate and installed checks will exercise the byte-limit refusal and scoped recovery.",
+  "temporary_resources": "Owned MCP server and reader closed before removal. Verifier and wire evidence stay in this case.",
+  "full_original_goal_complete": false
+}
