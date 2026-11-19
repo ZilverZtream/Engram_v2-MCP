@@ -2578,6 +2578,16 @@
         "native_unit_cases_expected": 0,
         "source_outcomes": 1,
         "current_release_excludes_this_item": true
+      },
+      {
+        "original_requirement_id": "TODO-39",
+        "source_commit": "ad3c321285218713c0bcfc552aad1ef9a232d4f7",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "progress": "eval/integrity-recovery-reasons-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\integrity-recovery-reasons-20261119\\contract.json",
+        "public_assertions_expected": 5,
+        "native_unit_cases_expected": 0,
+        "source_outcomes": 1
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2811,10 +2821,17 @@
   "current_execution_focus": {
     "status": "SOURCE_OUTCOMES_QUEUED_FOR_LATER_COMBINED_VALIDATION",
     "implementation_items_active": 0,
-    "record": "eval/webforms-integrity-batch-delivery-20261119.json",
+    "original_requirement": "TODO-39: distinguish unresolved recovery from a healthy index after partial ingest or a failed repair.",
+    "observed_gap": "check_integrity withholds overall_healthy for a durable recovery requirement, but omits its reason when source and namespace counts agree.",
+    "implementation_files": [
+      "crates/engram_core/src/registry/reindex.rs",
+      "crates/engram_server/src/services/integrity_service.rs"
+    ],
+    "acceptance": "A failed vector-only repair is visible as a pending vector requirement even when counts match. Successful repair clears it and the healthy report becomes distinguishable.",
     "full_original_goal_complete": false,
-    "next_action": "Preserve the separate freshness change for later combined validation and continue the original backlog.",
-    "pending_source_outcomes": 1
+    "record": "eval/integrity-recovery-reasons-progress-20261119.json",
+    "pending_source_outcomes": 2,
+    "next_action": "Select another ready original requirement with its own public behavior and keep the two completed changes queued for one future combined build."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4179,8 +4196,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T08:32:02.628408+00:00",
-    "reason": "Closed the unproductive server optimization trial by restoring the previous release profile for future builds. The verified installed release remains recorded."
+    "at_utc": "2026-11-19T08:34:59.957787+00:00",
+    "reason": "Implemented the missing durable recovery status in integrity reports and confirmed the installed gap with an actual provider failure against owned stores."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",

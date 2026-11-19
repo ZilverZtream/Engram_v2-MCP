@@ -1,0 +1,32 @@
+{
+  "original_requirement_id": "TODO-39",
+  "source_commit": "ad3c321285218713c0bcfc552aad1ef9a232d4f7",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\integrity-recovery-reasons-20261119\\verify-public.py",
+    "sha256": "ca798f779b1cccb53c48d88d31092553e130831200ae512b6e6cdf51e081a075"
+  },
+  "public_assertions_expected": 5,
+  "public_assertions": [
+    "failed_repair_preserves_counts_but_withholds_health",
+    "durable_vector_reason_and_timestamp_reported",
+    "freshness_independently_reports_vector_recovery",
+    "successful_vector_repair_restores_health",
+    "source_unchanged"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\integrity-recovery-reasons-20261119\\baseline2\\receipt.json",
+    "sha256": "fb33c38118b6768080f09d3a3308ff227121131b014c2408f5d83161f6f2a3fa"
+  },
+  "baseline_setup_attempt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\integrity-recovery-reasons-20261119\\baseline1\\receipt.json",
+    "sha256": "60721622da597cd6660da84c3322a050ab83a5ca090e8cace0a6bf07635c3cc9"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "behavior": "Report durable source/vector/legacy recovery reasons and earliest pending time in check_integrity, from the same registry observation used to decide whether pending recovery prevents healthy output.",
+  "baseline_setup_correction": "The first vector repair used cached embeddings. Close the fixture process and move its owned cache aside before injecting an unavailable provider. The stored vectors remain in place.",
+  "verification": "Installed baseline reproduced the unexplained unhealthy report with matching selected source and namespace counts, and verified successful recovery clears it. Changed code passed Rust syntax and whitespace checks. Candidate and installed checks await the combined build.",
+  "temporary_resources": "The verifier and wire evidence remain in one case. Owned source, provider and cache fixtures were released and removed.",
+  "full_original_goal_complete": false
+}
