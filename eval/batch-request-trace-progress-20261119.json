@@ -1,0 +1,31 @@
+{
+  "original_requirement_id": "TODO-33",
+  "source_commit": "90b228a6e8f500881c84d917ea733cee3f340d8e",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-request-trace-20261119\\verify-public.py",
+    "sha256": "8258302900e6c5bd9415ede8745e650cb7358a5977149d44c42de901a08427be"
+  },
+  "public_assertions_expected": 6,
+  "public_assertions": [
+    "ordinary_trace_resolves_handler_and_redirect",
+    "ordered_page_trace_and_independent_error",
+    "trace_preserves_direct_paths_scope_and_guidance",
+    "bounded_batch_omits_whole_trace",
+    "immutable_recovery_preserves_trace_and_error",
+    "source_files_unchanged"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-request-trace-20261119\\baseline1\\receipt.json",
+    "sha256": "853d71d57a54edf9e1edcc26609140c4c5d781df6567cc79a180529f94749197"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "TODO-33 multiple ordinary agent reads under one complete-reply budget and exact result recovery.",
+  "observed_gap": "Installed batch_read rejects trace_user_request even though the ordinary WebForms trace and batch page-context path are available.",
+  "behavior": "Accept trace_user_request in batch_read. Delegate to the ordinary trace handler so source scope, errors, budget controls and saved response semantics are preserved. Compose page inventory and source trace in one batch with existing whole-result recovery.",
+  "configuration_relevance": "WebForms request tracing and page context are installed LegacyValidation workflows. LegacyValidation uses Full tool advertisement; the baseline uses an owned WebForms project.",
+  "verification": "Installed baseline reproduced the invalid operation response and verified the direct handler and redirect. Changed Rust parsed with rustfmt; candidate and installed public acceptance remain queued.",
+  "temporary_resources": "Owned MCP server and reader closed before removing the source and runtime fixture. Driver, receipt and wire data remain in the recorded case.",
+  "full_original_goal_complete": false
+}
