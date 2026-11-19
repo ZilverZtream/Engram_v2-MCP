@@ -2820,12 +2820,11 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "THREE_SOURCE_OUTCOMES_AWAITING_DELIBERATE_BATCH_FREEZE",
+    "status": "OPTIMIZED_BUILD_RUNNING",
     "implementation_items_active": 0,
-    "progress": "eval/review-readback-hints-progress-20261119.json",
-    "pending_source_outcomes": 3,
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119",
     "full_original_goal_complete": false,
-    "next_action": "Preserve all three independent source outcomes. Deliberately prepare a combined17assertion candidate/installed contract with one optimized executable only after confirming no further ready original source item; three outcomes are a minimum, not an automatic release cadence."
+    "next_action": "Observe existing release session81750 and observer12508. Do not restart after an observation timeout. The observer packages only after terminal PASS, runs17frozen public checks per candidate/installed executable, and restores normal runtime. No unit/debug/full suite or model/task replay. Retain all original failures and scope."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3021,27 +3020,27 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "INSTALLED_ACCEPTANCE_AND_NORMAL_RESTORATION_COMPLETE",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119",
-    "source_commit": "eca74f21162edec8226a396506d87662d10f4dc2",
+    "status": "OPTIMIZED_BUILD_RUNNING",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119",
+    "source_commit": "c468bca6484c805fe65236eef03af14bab67b59b",
     "original_requirement_ids": [
+      "TODO-27",
       "TODO-4",
-      "TODO-7",
-      "TODO-35"
+      "TODO-34"
     ],
+    "source_outcomes": 3,
     "release_builds_planned": 1,
     "unit_or_debug_builds_planned": 0,
-    "public_assertions_per_artifact": 21,
-    "execution_session_id": 12064,
-    "driver_pid": 83032,
-    "relay_pid": 44296,
-    "owner_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\release1-owner.json",
-    "full_original_goal_complete": false,
-    "postrelease_observer_session_id": 87985,
-    "postrelease_observer_pid": 61864,
-    "postrelease_observer_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\postrelease-observer-pin1.json",
-    "helper_preflight": "PASS: source/contracts/baselines/current installed identity and PowerShell syntax; no additional build.",
-    "record": "eval/review-project-dbml-batch-delivery-20261119.json"
+    "public_assertions_per_artifact": 17,
+    "execution_session_id": 81750,
+    "driver_pid": 54780,
+    "relay_pid": 84284,
+    "owner_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\release1-owner.json",
+    "postrelease_observer_session_id": 12508,
+    "postrelease_observer_pid": 85544,
+    "postrelease_observer_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-sql-review-batch-20261119\\postrelease-observer-pin1.json",
+    "helper_preflight": "Source/contracts/installed identity, current hashes, driver syntax and PowerShell syntax PASS.",
+    "full_original_goal_complete": false
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
@@ -4163,8 +4162,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T06:09:41.529357+00:00",
-    "reason": "Confirmed existing record readbacks were correct and retained two harness parser failures; native2.15s baseline proved separate generic review hints omit required selectors. Added validated current-path navigation and historical/unscoped selection withholding;5public assertions queued, no compilation."
+    "at_utc": "2026-11-19T06:33:07.380173+00:00",
+    "reason": "Implemented scoped generic review hints with the existing path contract, retained corrected baseline/harness failures, consolidated three distinct original source outcomes in the existing clean checkout, froze17public checks and launched exactly one optimized build with its pinned delivery observer."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4778,5 +4777,28 @@
     "record": "eval/review-readback-hints-progress-20261119.json",
     "source_commit": "89233116d43b8f753a364f795d0fe2dad1d42fe2",
     "runtime_deployed": false
+  },
+  "retained_release_validation_before_browser_sql_review_20261119": {
+    "status": "INSTALLED_ACCEPTANCE_AND_NORMAL_RESTORATION_COMPLETE",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119",
+    "source_commit": "eca74f21162edec8226a396506d87662d10f4dc2",
+    "original_requirement_ids": [
+      "TODO-4",
+      "TODO-7",
+      "TODO-35"
+    ],
+    "release_builds_planned": 1,
+    "unit_or_debug_builds_planned": 0,
+    "public_assertions_per_artifact": 21,
+    "execution_session_id": 12064,
+    "driver_pid": 83032,
+    "relay_pid": 44296,
+    "owner_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\release1-owner.json",
+    "full_original_goal_complete": false,
+    "postrelease_observer_session_id": 87985,
+    "postrelease_observer_pid": 61864,
+    "postrelease_observer_pin": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\postrelease-observer-pin1.json",
+    "helper_preflight": "PASS: source/contracts/baselines/current installed identity and PowerShell syntax; no additional build.",
+    "record": "eval/review-project-dbml-batch-delivery-20261119.json"
   }
 }

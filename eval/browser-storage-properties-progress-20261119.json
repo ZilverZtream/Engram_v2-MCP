@@ -32,11 +32,11 @@
   },
   "acceptance_contract": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage-properties-20261119\\contract.json",
-    "sha256": "e8eece279ffdc3ebb1a097343fce9f5079ff1ac9d44e25550f436c431cfc8821"
+    "sha256": "7ab058d5b670e84cd4cb1ebc0148a2b10efca24e485292ad76d7688ee1a1e72c"
   },
   "future_public_driver": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage-properties-20261119\\verify-public.py",
-    "sha256": "3c80e64b6e466857b3a9695366928f5444fe08b5c00a6e553933bf0d0b83a612"
+    "sha256": "cf6a9113fb56b35814abae1aaf871c93bc59ac4cae4bd65a181c2df80f0dbae5"
   },
   "implemented": "Literal dot/bracket browser storage properties use existing shared key identities and indexed access evidence. Assignments/delete write; compounds read/write. A script property contract forces older extraction refresh. Browser-specific wrapper updates coverage while preserving protected legacy handler work.",
   "typechecked": false,
@@ -58,5 +58,10 @@
   "source_commit": "16f3634633c8c4e595dc7015dea0ff74680ff3a7",
   "source_outcomes": 1,
   "public_assertions_expected": 6,
-  "native_unit_cases_expected": 0
+  "native_unit_cases_expected": 0,
+  "retained_pre_refresh_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage-properties-20261119\\verify-public-before-pre-refresh-control.py",
+    "sha256": "3c80e64b6e466857b3a9695366928f5444fe08b5c00a6e553933bf0d0b83a612"
+  },
+  "extra_acceptance_prepared": "Within the existing old-script refresh assertion, preserve known API readers/writers before refresh. This directly checks the new extraction marker upgrade boundary; no added source outcome, check count, execution or build."
 }
