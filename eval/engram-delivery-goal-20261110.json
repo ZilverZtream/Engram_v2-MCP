@@ -2580,6 +2580,18 @@
         "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-metadata-freshness-20261119\\verify-public.py",
         "public_assertions_expected": 6,
         "counting_rule": "One original per-file method metadata timestamp observation outcome; formats and recovery are acceptance aspects."
+      },
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "TODO-31",
+        "source_commit": "bcd9e7e5f41608fd9935b65522d354e28aa32c60",
+        "progress": "eval/request-sql-views-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-sql-views-20261119\\contract.json",
+        "native_target": null,
+        "native_cases_expected": 0,
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-sql-views-20261119\\verify-public.py",
+        "public_assertions_expected": 6,
+        "counting_rule": "One original reached SQL view dependency outcome; nesting, provenance, scope, opt-out and qualifications are acceptance aspects, not independent deliveries."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2811,12 +2823,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "TWO_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
-    "progress": "eval/method-metadata-freshness-progress-20261119.json",
+    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "progress": "eval/request-sql-views-progress-20261119.json",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 2,
+    "pending_source_outcomes": 3,
     "full_original_goal_complete": false,
-    "next_action": "Continue a ready original LegacyValidation source improvement after checking retained delivery evidence once. Preserve TODO-28 and TODO-5 acceptance queue; no Cargo or release build with only two outcomes."
+    "next_action": "Consolidate queued TODO-28, TODO-5 and TODO-31 acceptance. Three outcomes meet the minimum but do not automatically authorize a release cadence; preserve the one-optimized-build/no-unit-build plan and include any ready original source work before freezing the batch."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4137,8 +4149,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T02:13:18.536884+00:00",
-    "reason": "Closed original bounded EG03/EG04 from retained native/no-vector actor and cache/store tests plus installed source behavior, with current mechanism binding. Reconciled already-deployed retained-output accounting in S14 and kept271-edit failure beside completed500 measurement. No new build, fixture, model or workload replay."
+    "at_utc": "2026-11-19T02:48:50.181505+00:00",
+    "reason": "Reproduced missing SQL view dependency expansion on the installed executable in2.878seconds, committed bounded qualified view navigation and pinned six future public assertions. No Cargo, unit/full suite or task/model replay."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4666,5 +4678,11 @@
   "review_bootstrap_parser_batch_delivery_20261119": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
   "ask_review_date_source_progress_20261119": "eval/ask-review-date-progress-20261119.json",
   "tool_contract_reconciliation_20261119": "eval/tool-contract-reconciliation-delivery-20261119.json",
-  "watcher_cache_original_requirements_closure_20261119": "eval/watcher-cache-original-requirements-closure-20261119.json"
+  "watcher_cache_original_requirements_closure_20261119": "eval/watcher-cache-original-requirements-closure-20261119.json",
+  "request_sql_views_source_progress_20261119": {
+    "record": "eval/request-sql-views-progress-20261119.json",
+    "source_commit": "bcd9e7e5f41608fd9935b65522d354e28aa32c60",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "runtime_deployed": false
+  }
 }

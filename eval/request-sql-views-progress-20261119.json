@@ -1,0 +1,72 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-19T02:48:50.181505+00:00",
+  "original_requirement_id": "TODO-31",
+  "original_requirement": "URL/action to handler, reached procedures and source-declared database dependencies, retaining honest static uncertainty. SQL is an explicit LegacyValidation priority.",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-sql-views-20261119",
+  "source_commit": "bcd9e7e5f41608fd9935b65522d354e28aa32c60",
+  "source_files": [
+    "crates/engram_server/src/services/request_trace/database.rs",
+    "crates/engram_server/src/tools.rs"
+  ],
+  "source_complete": true,
+  "typechecked": false,
+  "runtime_deployed": false,
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-sql-views-20261119\\contract.json",
+  "acceptance_contract_sha256": "4053384981e25a1c0587ef5d6da4919fc55c7c6925a241d01bf159a46a43afe7",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-sql-views-20261119\\verify-public.py",
+  "public_verifier_sha256": "bab6e7defc99dd6e55f2f4de54ef82bca01a79c719618c4588f7c57e98bfa26f",
+  "fixtures_sha256": "cd042f70bac0929883ca06716efc57f07b9bcd5409ec21782b07eaa79e7bda03",
+  "public_assertions_expected": 6,
+  "public_after_assertions_executed": 0,
+  "native_unit_cases_expected": 0,
+  "native_target": null,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-sql-views-20261119\\baseline2\\receipt.json",
+    "sha256": "dd18e1dac6eb4c1fad6627abd938726575fc8625b7473e5bd0d199acc4c2975f",
+    "seconds": 2.8783800000092015,
+    "observed_gap": "Installed native tracer reaches dbo.LoadOrders and emits a terminal OpenOrders relation; dbo.Orders and audit.OrderAudit behind two source views are absent.",
+    "checks": {
+      "entry_reaches_procedure": true,
+      "view_name_is_terminal": true,
+      "underlying_orders_and_audit_missing": true
+    }
+  },
+  "implemented_behavior": [
+    "Existing SQL declaration parser supplies fully qualified procedure/view references and exact declaration citations.",
+    "Reached procedures expand matching source views and nested view references into the existing bounded path graph.",
+    "View source members retain raw excerpts, full raw-file hashes and ordinary hash-bound source recovery.",
+    "At most64view declarations; each source view expands once per reached procedure root; existing complete-path cap retained. Ambiguous admitted same-qualified view declarations are withheld with a gap.",
+    "Database opt-out and all existing procedure/table paths remain. No source/index writes or model requests."
+  ],
+  "current_configuration_relevance": "Normal Full exposes trace_user_request; VB.NET/WebForms and SQL source navigation meet the user priority. Owned native VB/SQL baseline only; no actual LegacyValidation source/Q/index access or proof of production view use.",
+  "verification": {
+    "rust_syntax": "Two changed Rust files parsed with rustfmt --emit stdout; not a typecheck.",
+    "python_syntax": "Verifier parsed using Python AST.",
+    "protected_work": "All9 prior work hashes unchanged.",
+    "engram_builds_started": 0,
+    "unit_or_full_suites_started": 0
+  },
+  "retained_setup_failure": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-sql-views-20261119\\baseline1\\receipt.json",
+    "seconds": 0.3022338999871863,
+    "reason": "Fixture supplied invalid project_type=webforms; MCP rejected before indexing. Corrected to existing webforms_vb with identical fixture bytes. Owner/readers closed; fixture removed."
+  },
+  "other_pre_execution_notes": [
+    "Initial verifier authoring had a Python string SyntaxError; retained initial-script-authoring-error.txt. No native child or fixture was started by that attempt.",
+    "A later retained-receipt assertion expected the wrong baseline status label; corrected the assertion to the actual BASELINE_STOPS_AT_VIEW. No rerun."
+  ],
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-sql-views-20261119",
+    "owned_fixtures": "Both native attempt fixtures removed after native owners/readers closed.",
+    "retained": "Contracts, fixture source text, scripts, baseline MCP wire/receipts and authoring failure retained here as delivery evidence until this backlog item is resolved. No preexisting folders deleted."
+  },
+  "limitations": [
+    "Source-only: new behavior has not been typechecked or executed; six public checks remain pending.",
+    "Lexical references do not identify deployed physical tables, effective schema/database binding, branch reachability or execution. No default-schema/basename binding is inferred.",
+    "Existing SQL/source/path caps remain partial. View references are declared source dependencies, not query lineage, runtime call graphs or a complete database inventory.",
+    "No model task replay, productivity claim, language expansion, CodeMap/Blast change or broad storage-gate closure."
+  ],
+  "full_TODO31_complete": false,
+  "full_original_goal_complete": false
+}

@@ -626,6 +626,7 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  November19 source complete: reached SQL procedures follow exact qualified source views and nested view relation references, with source hashes and guarded recovery. Six public checks await combined validation; this is not installed yet. [Progress](eval/request-sql-views-progress-20261119.json).
   Installed November18: registered literal VB RoutePrefix/Route paths select their declared collection/item action, retain route parameters and cite controller/registration source. Existing Roslyn companion required; hosting, precedence and execution remain unproven. [Delivery](eval/cache-guidance-attribute-batch-delivery-20261118.json).
   Installed November 18: explicit VB WebHandler directives select their instance IHttpHandler.ProcessRequest implementation and existing downstream source/SQL evidence. Other classes and page lifecycle methods are excluded; hosting and execution remain unproven. [Delivery](eval/request-guidance-function-batch-delivery-20261118.json).
   Installed November18: admitted authored PreRender handlers join page/control/master
