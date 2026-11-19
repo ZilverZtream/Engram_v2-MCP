@@ -1807,6 +1807,29 @@ features, change schemas or establish model selection accuracy or task productiv
 | `get_change_set` | Scope a story and reconcile candidate/dependency file rows before planning. | Use `get_method_edit_context` once a method is selected. |
 | `get_method_edit_context` | Inspect a specific method's source, callers, policy, effects and available safety evidence before editing. | Use `get_full_method_body` for source alone or `get_change_set` for broader task scope. |
 
+#### Workflow controls in the verified Windows candidate
+
+These controls are available in candidate `1915f24c`. Check the running version's
+MCP tool schemas before using them with an existing installation.
+
+- In text-mode `search_history`, use a repository path prefix such as
+  `file_filter: "Site/App_Code/"` to select matching Git diff records. Use
+  `exclude_paths` to remove diff records by path. A commit can still match through
+  another diff or through a commit message when the search includes messages.
+- Set `query_schema.path_prefixes` to narrow SQL or DBML source declarations to
+  the selected paths. Follow the returned actions to keep that scope on later reads.
+- Add `get_review_decisions` to `batch_read` with its usual path, date or discussion
+  selector. Each read keeps its own result or error and a callable refresh action.
+- Follow `pre_commit_review.review_next_calls` when the report identifies an
+  additional staged or unstaged diff you need to review. Each call covers its own diff.
+- With `expected_git_commit`, `get_index_freshness` reports tracked changes and
+  non-ignored untracked entries. With `check_disk: false`, generation coverage can
+  use published source membership while current disk coverage stays unknown.
+- Supply the recorded `work_item_text` for an ID-targeted `get_change_set` with
+  either `as_of_rev` or `merged_before`.
+
+[Candidate verification](../eval/cumulative-agent-workflows-candidate-20261119.json).
+
 `ask_codebase` defaults to a deterministic `retrieval_only` report across code, docs,
 memory, insights, business rules, history and graph. Its typed status and cited,
 authority-ranked evidence retain conflicts, freshness and missing coverage; an
