@@ -80,9 +80,14 @@ pub(super) fn collect(
     page: &Path,
     include_master: bool,
     include_codebehind: bool,
+    include_client_scripts: bool,
 ) -> Composition {
     let mut report = Composition {
-        runtime_verification: "not_run; static directive declarations only",
+        runtime_verification: if include_client_scripts {
+            "not_run; static directives and local script declarations only"
+        } else {
+            "not_run; static directive declarations only"
+        },
         ..Default::default()
     };
     let Ok(root) = root.canonicalize() else {
@@ -95,12 +100,16 @@ pub(super) fn collect(
         return report;
     };
     let mut queue = VecDeque::from([(page, "page".to_string(), String::new(), 0usize)]);
+    let mut scripts = VecDeque::new();
+    let mut script_targets = HashSet::new();
+    let mut scripts_truncated = false;
     let mut seen = HashSet::new();
     let mut contents: HashMap<String, (HashSet<String>, Vec<String>)> = HashMap::new();
     let mut masters = Vec::new();
     let mut total_bytes = 0usize;
     let mut directives_seen = 0usize;
-    while let Some((path, kind, parent, depth)) = queue.pop_front() {
+    // Preserve the existing directive traversal and its read budget priority.
+    while let Some((path, kind, parent, depth)) = queue.pop_front().or_else(|| scripts.pop_front()) {
         if !path.starts_with(&root) {
             report
                 .warnings
@@ -144,7 +153,7 @@ pub(super) fn collect(
             continue;
         }
         total_bytes += text.len();
-        let is_markup = kind != "codebehind";
+        let is_markup = !matches!(kind.as_str(), "codebehind" | "client_script");
         report.files.push(Component {
             path: relative.clone(),
             kind,
@@ -153,6 +162,40 @@ pub(super) fn collect(
         });
         if !is_markup {
             continue;
+        }
+        if include_client_scripts
+            && !scripts_truncated
+            && let Some(app_relative) = engram_core::RelPath::from_relative(&app, &path)
+        {
+            for edge in engram_index::webforms::extract_template_script_includes(&app, &app_relative, &text) {
+                let target = Path::new(&edge.target_name);
+                if !target.extension().and_then(|ext| ext.to_str()).is_some_and(|ext|
+                    matches!(ext.to_ascii_lowercase().as_str(), "js" | "mjs" | "ts"))
+                {
+                    continue;
+                }
+                if script_targets.contains(target) {
+                    continue;
+                }
+                if script_targets.len() >= 8 {
+                    report.warnings.push("client script discovery truncated at eight local paths".into());
+                    scripts_truncated = true;
+                    break;
+                }
+                script_targets.insert(target.to_path_buf());
+                let absolute = app.join(target);
+                match absolute.canonicalize() {
+                    Ok(resolved) if resolved.starts_with(&app) => {
+                        scripts.push_back((resolved, "client_script".into(), relative.clone(), depth + 1));
+                    }
+                    Ok(_) => report.warnings.push(format!(
+                        "{relative}: client script '{}' escapes the web application root", edge.target_name
+                    )),
+                    Err(error) => report.warnings.push(format!(
+                        "{relative}: client script '{}' unresolved: {error}", edge.target_name
+                    )),
+                }
+            }
         }
         let code = COMMENTS.replace_all(&text, " ");
         let code = SERVER_CODE.replace_all(&code, " ");
@@ -278,7 +321,7 @@ mod tests {
             "<%@ Control %><asp:Label ID='Message' />",
         )
         .unwrap();
-        let report = collect(root, root, &root.join("page.aspx"), true, true);
+        let report = collect(root, root, &root.join("page.aspx"), true, true, false);
         assert_eq!(report.files.len(), 4);
         assert_eq!(report.bindings.len(), 2);
         assert!(
@@ -299,7 +342,7 @@ mod tests {
             "<%@ Master MasterPageFile='a.master' %>",
         )
         .unwrap();
-        let report = collect(root, root, &root.join("page.aspx"), true, true);
+        let report = collect(root, root, &root.join("page.aspx"), true, true, false);
         assert_eq!(report.files.len(), 2);
         assert!(
             report
@@ -324,7 +367,7 @@ mod tests {
             .map(|index| format!("<%@ Register Src='missing{index}.ascx' %>"))
             .collect::<String>();
         std::fs::write(root.join("page.aspx"), source).unwrap();
-        let report = collect(root, root, &root.join("page.aspx"), true, true);
+        let report = collect(root, root, &root.join("page.aspx"), true, true, false);
         assert!(
             report
                 .warnings

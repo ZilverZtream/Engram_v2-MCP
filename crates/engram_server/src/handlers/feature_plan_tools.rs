@@ -48,7 +48,7 @@ fn registered_components(
 ) -> super::page_composition::Composition {
     let page = directory.join(&host.file_path);
     let app = super::access_layer_tools::discover_web_application_root(directory, &page);
-    let mut composition = super::page_composition::collect(directory, &app, &page, false, true);
+    let mut composition = super::page_composition::collect(directory, &app, &page, false, true, false);
     // Discovery reads the host again. A changed host cannot supply new leads
     // under its previously admitted content fingerprint. Composition uses
     // ContentHash's normalized line endings; SourceEvidence uses raw bytes.

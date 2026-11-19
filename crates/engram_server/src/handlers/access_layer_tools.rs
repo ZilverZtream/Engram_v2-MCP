@@ -5054,7 +5054,7 @@ impl Engram {
                 None
             };
             let app_root = discover_web_application_root(Path::new(&project_dir), &aspx_full);
-            let composition = super::page_composition::collect(Path::new(&project_dir), &app_root, &aspx_full, include_master, include_cb);
+            let composition = super::page_composition::collect(Path::new(&project_dir), &app_root, &aspx_full, include_master, include_cb, true);
             let mut policy_paths: Vec<_> = composition.files.iter().map(|file| file.path.clone()).collect();
             policy_paths.push(aspx_file.clone());
             if include_cb && cb_content.is_some() {
