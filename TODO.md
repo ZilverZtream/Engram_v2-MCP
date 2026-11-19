@@ -635,6 +635,7 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  Installed: Authored VB WebForms route defaults and route data appear in the trace. Three live LegacyValidation checks verified the project editor's `pr_id` default and the two `MasterPage` values for the shared myaccount page. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Navigation-only WebForms request traces skip SQL and DBML source reads when database evidence is disabled. [Delivery](eval/webforms-navigation-triggers-batch-delivery-20261119.json).
   Installed: Reached VB methods surface source-cited redirect calls independently of excerpt clipping and database tracing. Literal destinations are shown and expressions remain unresolved. [Delivery](eval/webforms-integrity-batch-delivery-20261119.json).
   Installed November19: reached SQL procedures follow exact qualified source views and nested view relation references, with source hashes and guarded recovery. Six public checks passed per candidate/installed binary; deployed database identity and execution remain unproven. [Delivery](eval/review-metadata-view-batch-delivery-20261119.json).

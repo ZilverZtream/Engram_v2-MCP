@@ -2971,7 +2971,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "CONSOLIDATED_WINDOWS_RELEASE_INSTALLED_AND_FRESH_MCP_VERIFIED",
+    "status": "WEBFORMS_GUIDANCE_SQL_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "verified_base_record": "eval/history-schema-review-candidate-20261119.json",
     "record": "eval/cumulative-agent-workflows-candidate-20261119.json",
@@ -2982,35 +2982,44 @@
     "candidate_public_checks": 37,
     "candidate_owned_install_checks": 7,
     "next_consolidated_windows_batch": {
-      "status": "ONE_OPTIMIZED_BUILD_RUNNING",
+      "status": "INSTALLED_WITH_CANDIDATE_AND_LIVE_MCP_EVIDENCE",
       "case": "webforms-guidance-sql-20261119",
       "frozen_source_commit": "5080e1e803518ab1b1fa50f944e602f9f78f0963",
       "independent_requirements": ["EG-01", "EG-02", "TODO-31"],
       "public_checks": 7,
       "build_session": 21232,
       "package_verification_session": 93121,
+      "build_seconds": 720.6732231,
+      "binary_sha256": "e31a6c084b1b8c5ed3ce4645c50c2a5eedc01292ea0ef1273db07de2567f0f10",
+      "package_sha256": "ea17a83acc8abf55298c971203c469f389f9a65af8a1fd19fa0888eadf302ca4",
+      "installed_manifest_sha256": "e5bc1fb1369f004797aae8b02416b97dad16b1ca7d9d119a4a7e0e956a1c9d59",
+      "candidate_acceptance": {"relative_path":"candidate/receipt.json","sha256":"0ac4efeb243e38932048fa4ebe1cf6bb21d30ff0077294bc25747ceda8e3c1df"},
+      "forward_transition": {"relative_path":"live-cutover1/forward-transition.json","sha256":"2655b728d332899bef64cab11ab20d7fa1c966b6bdc59b2bc40713a1a80fbcf2"},
+      "live_cutover": {"relative_path":"live-cutover1/status.json","sha256":"041c076d27d5e7fe672d3154280bd8c26e8bc7aabf963971764473e362b0c11b"},
+      "installed_legacy_validation_routes": {"relative_path":"installed-legacy_validation-routes/receipt.json","sha256":"5e5ec11157a8720fdcfff0c6acbcbab2d6050b8009ac6426a0c28204b850c4a1","checks":3,"generation":3222},
+      "scope": "Seven public checks passed on the candidate. Fresh MCP connected to the exact installed bundle and returned all three LegacyValidation route declarations with their authored defaults and BLAKE3 citations. The registry snapshot and selected source map matched before and after the swap. There were no live clients to stop. The old pair and its install record are retained. This forward cutover does not close the independent production vector or downgrade gates.",
       "baseline": "The owned installed-binary baseline verified both exact recoveries and the dossier's saved change-set path. Scoped policy was absent from the deferred preview and both WebForms route cases were missing. Earlier fixture attempts and their corrected final baseline are kept together in the case. No additional Cargo builds or full test suites."
     },
     "queued_sql_report_recovery": {
-      "status": "IMPLEMENTED_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGE_VERIFICATION",
+      "status": "INSTALLED_AND_CANDIDATE_MCP_VERIFIED",
       "requirement": "EG-02 bounded and complete report recovery for SQL workflows",
       "observed_gap": "Each SQL database-report page performed synchronous snapshot I/O and full content verification on a Tokio async worker.",
       "implementation": "crates/engram_server/src/handlers/database_report_delivery.rs and migration_tools.rs",
-      "acceptance": "The existing focused checks passed for exact JSON and Markdown pagination, reply budgets, and rejection of invalid controls. The recovery path now uses Tokio's blocking pool. No Engram package was built or deployed for this change."
+      "acceptance": "The existing focused checks passed for exact JSON and Markdown pagination, reply budgets, and rejection of invalid controls. The combined candidate recovered the exact JSON report and retained its SQL evidence. The package containing the blocking-worker change is installed."
     },
     "queued_webforms_route_defaults": {
-      "status": "IMPLEMENTED_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGE_VERIFICATION",
+      "status": "INSTALLED_AND_LEGACY_VALIDATION_MCP_VERIFIED",
       "requirement": "TODO-31 route to handler source navigation for LegacyValidation",
       "observed_gap": "LegacyValidation registers an inline VB default for the project editor route. Tracing /dashboard/system/project found no match for that registration because the URL omits pr_id.",
       "implementation": "crates/engram_server/src/services/request_trace/routing.rs and api.rs",
-      "acceptance": "The exact routing module resolved the actual LegacyValidation registration and page with the authored pr_id=-1, and preserved /dashboard/system/project/42 as an explicit path value. The actual /modules/myaccount and /dashboard/myaccount registrations select the same page while retaining MasterPage=app and MasterPage=dashboard respectively, as read by that page's VB code. The focused fixture retains null defaults and rejects dynamic default expressions or omitted literal segments. Packaged MCP verification and deployment are pending."
+      "acceptance": "The installed MCP tracer verified the actual LegacyValidation project editor route with pr_id=-1 and both myaccount routes with MasterPage=app and MasterPage=dashboard. The candidate demonstrated explicit URL values and the focused fixture covers null defaults and unsupported expressions."
     },
     "queued_ask_quoted_http_target": {
-      "status": "IMPLEMENTED_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGE_VERIFICATION",
+      "status": "INSTALLED_AND_CANDIDATE_MCP_VERIFIED",
       "requirement": "TODO-28 natural-language access to ordinary WebForms request tracing",
       "observed_gap": "An explicit HTTP method followed by a Markdown-quoted URL did not activate request tracing when the backticks enclosed only the URL.",
       "implementation": "crates/engram_server/src/services/ask_engine/request_trace.rs",
-      "acceptance": "The exact ask selector recognizes GET followed by the quoted LegacyValidation project-editor URL and passes it to the exact routing reader, which returns the authored pr_id=-1. Deduplication, existing control actions and method-free API mention behavior passed the same focused check. The existing integration test now asks with a quoted URL. No Engram package was built or deployed for this change."
+      "acceptance": "The focused ask selector and routing reader returned pr_id=-1 for the quoted LegacyValidation project-editor URL. The combined candidate proved a quoted HTTP target reaches the route with its source citation through ask_codebase. The exact package is installed."
     },
     "following_ask_schema_scan": {
       "status": "IMPLEMENTED_FOCUSED_STREAM_CHECK_PASSED_AWAITING_PACKAGE_VERIFICATION",
@@ -3019,7 +3028,7 @@
       "implementation": "crates/engram_server/src/handlers/ask_schema.rs and schema_tools.rs",
       "acceptance": "Reuse one catalog scan and stream complete per-object reports in request order. Preserve an already returned result if a later lookup reaches the deadline. The exact worker dispatch and join passed a cached-dependency transport check. An existing schema integration fixture now checks both citations and one examination per SQL or DBML source. Its execution and packaged MCP verification remain pending. Carry this source change in a later batch."
     },
-    "next_action": "Advance the remaining original LegacyValidation items. Source changes committed after this package was frozen remain queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
+    "next_action": "Advance the remaining original LegacyValidation items. The single-scan SQL comparison committed after the installed package was frozen remains queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
