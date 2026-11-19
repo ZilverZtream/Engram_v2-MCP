@@ -2568,6 +2568,18 @@
         "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-import-result-delivery-20261119\\verify-public.py",
         "public_assertions_expected": 6,
         "counting_rule": "One original complete review-import outcome; schema, budgets, authors, restart, expiry and stored-data observations are acceptance aspects, not independent deliveries."
+      },
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "TODO-7",
+        "source_commit": "03c2980c2755e40709cc0ed075cafc249cd22273",
+        "progress": "eval/graph-project-recovery-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-project-recovery-20261119\\contract.json",
+        "native_target": null,
+        "native_cases_expected": 0,
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-project-recovery-20261119\\verify-public.py",
+        "public_assertions_expected": 7,
+        "counting_rule": "One original actionable project-identity recovery outcome across three basic readers. Tools, error fields, normal/empty/reserved controls and non-registration are acceptance aspects, not independent source outcomes."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2799,12 +2811,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "ONE_SOURCE_OUTCOME_AWAITING_COMBINED_VALIDATION",
-    "progress": "eval/review-import-result-delivery-progress-20261119.json",
-    "pending_source_outcomes": 1,
+    "status": "TWO_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "progress": "eval/graph-project-recovery-progress-20261119.json",
+    "pending_source_outcomes": 2,
     "implementation_items_active": 0,
     "full_original_goal_complete": false,
-    "next_action": "Continue substantive source work from the original backlog; one queued outcome does not permit Cargo. Consolidate later native/public acceptance without replaying delivered tasks."
+    "next_action": "Continue substantive original source work and retain both queued outcomes. No Cargo with only two independent outcomes; the three-outcome floor is not an automatic release schedule."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -4143,8 +4155,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T03:42:30.138477+00:00",
-    "reason": "Reproduced unsupported budgets for an8533-byte review-import report in1.544seconds and committed shared immutable returned-result delivery. One source outcome queued, six public assertions pending; no new build or full suite."
+    "at_utc": "2026-11-19T03:54:15.166119+00:00",
+    "reason": "Reproduced three unknown-project false empty successes in1.469seconds, retained the existing correct resolve_id control, and committed metadata-only project validation with seven public checks queued. No new build or full suite."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4695,6 +4707,11 @@
   "review_import_result_delivery_source_progress_20261119": {
     "record": "eval/review-import-result-delivery-progress-20261119.json",
     "source_commit": "40e430c4125fb6416aa8b2955b33a9f801aabe2a",
+    "runtime_deployed": false
+  },
+  "graph_project_recovery_source_progress_20261119": {
+    "record": "eval/graph-project-recovery-progress-20261119.json",
+    "source_commit": "03c2980c2755e40709cc0ed075cafc249cd22273",
     "runtime_deployed": false
   }
 }

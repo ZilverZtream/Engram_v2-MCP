@@ -1,0 +1,66 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-19T03:54:15.166119+00:00",
+  "original_requirement_id": "TODO-7",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-project-recovery-20261119",
+  "source_commit": "03c2980c2755e40709cc0ed075cafc249cd22273",
+  "source_files": [
+    "crates/engram_server/src/handlers/graph_tools.rs"
+  ],
+  "observed_missing_behavior": "Installed query_graph_nodes, find_references and traverse_graph return successful empty results for a valid but unregistered project ID. Existing resolve_id already returns actionable ProjectNotFound and remains unchanged.",
+  "implemented_behavior": "Validate ordinary graph-reader projects through the existing registry metadata lookup before querying. Preserve reserved __user__ read behavior without creating its registry entry; known-project missing-symbol results remain distinct. No runtime loading added for identity validation.",
+  "current_configuration_relevance": "Original LegacyValidation AI discovery/recovery workflow; actual Full advertises these basic readers. Applies to VB.NET/WebForms, JavaScript/TypeScript and SQL projects without target-language changes. Reproduction used one owned TypeScript project only.",
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-project-recovery-20261119\\baseline1\\receipt.json",
+    "sha256": "941db955efac5d8b3bdc554cd5de175f200ccd2a2ccdcb28f54c2269b8063451",
+    "seconds": 1.4689048000000184,
+    "checks": {
+      "query_graph_nodes_returns_empty_success_for_unknown_project": true,
+      "find_references_returns_empty_success_for_unknown_project": true,
+      "traverse_graph_returns_empty_success_for_unknown_project": true,
+      "registered_positive_readers_work": true,
+      "identity_lookup_already_reports_unknown_project": true,
+      "unknown_project_not_registered_and_source_preserved": true
+    }
+  },
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-project-recovery-20261119\\contract.json",
+  "acceptance_contract_sha256": "e48daf5e526233e3d96a369681537b57a2eb9800e33ac631a43e62cd86854320",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-project-recovery-20261119\\verify-public.py",
+  "public_verifier_sha256": "84f6e0d66943d7b8d9d2a84ffb8aebf6e18f4ff4abaf8a508e93c958622ba131",
+  "public_assertions_expected": 7,
+  "required_check_names": [
+    "query_graph_nodes_unknown_project_has_actionable_error",
+    "find_references_unknown_project_has_actionable_error",
+    "traverse_graph_unknown_project_has_actionable_error",
+    "registered_positive_readers_and_schemas_preserved",
+    "known_project_missing_results_stay_distinct",
+    "reserved_user_namespace_behavior_preserved",
+    "unknown_project_not_registered_and_source_preserved"
+  ],
+  "public_after_assertions_executed": 0,
+  "native_unit_cases_expected": 0,
+  "native_target": null,
+  "typechecked": false,
+  "runtime_deployed": false,
+  "implementation_items_active": 0,
+  "verification": {
+    "rust_syntax": "PASS using rustfmt --emit stdout; parse only.",
+    "python_syntax": "PASS using Python AST.",
+    "protected_work": "All9prior raw hashes unchanged.",
+    "new_builds": 0,
+    "unit_debug_or_full_suites": 0
+  },
+  "counting_rule": "One original actionable project-identity recovery outcome across three basic readers. Tools, error fields, normal/empty/reserved controls and non-registration are acceptance aspects, not independent source outcomes.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-project-recovery-20261119",
+    "owned_fixture": "Native owner closed, reader joined, fixture removed.",
+    "retained": "Contract, verifier and exact baseline MCP records retained in this case until queued acceptance is resolved. No preexisting folders removed."
+  },
+  "limitations": [
+    "Source-only; seven post-change public checks and production typechecking remain pending.",
+    "No source freshness, graph completeness, compiler resolution, traversal, index publication, project deletion or general task-benefit claim.",
+    "CodeMap/Blast and resolve_id implementations are unchanged; raw protected work is preserved."
+  ],
+  "next_action": "Continue substantive original source work and retain both queued outcomes. No Cargo with only two independent outcomes; the three-outcome floor is not an automatic release schedule.",
+  "full_original_goal_complete": false
+}

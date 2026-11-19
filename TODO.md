@@ -248,6 +248,7 @@ These degrade or improve *every single interaction*. Nothing below matters until
   [Delivery](eval/source-health-maintenance-batch-delivery-20261118.json).
 
 - [x] **7. Actionable error messages with recovery hints** (M) — *done 2026-06-12: ProjectNotFound, no_hits, get_chunk not-found, find_symbol_references empty — all carry concrete next steps.*
+  November19 source complete: `query_graph_nodes`, `find_references` and `traverse_graph` distinguish unknown projects from successful empty results using the existing actionable project error. Reserved user-memory reads retain their behavior. Seven public checks await combined validation; this is not installed yet. [Progress](eval/graph-project-recovery-progress-20261119.json).
   Installed November19: `project_info` unknown-project errors now include the
   requested ID and `list_projects`/`index_project` recovery without registering
   a missing project. [Delivery](eval/planning-contract-batch-delivery-20261119.json).
