@@ -1,0 +1,75 @@
+{
+  "status": "ORIGINAL_BOUNDED_GENERATOR_BEHAVIOR_VERIFIED_COMPLETE",
+  "at_utc": "2026-11-19T11:59:35.293577+00:00",
+  "original_requirements": {
+    "EG-15": [
+      "Preserve human, unreceipted and externally edited generated files across root, diverted, scoped and integration outputs.",
+      "Refresh/removal requires exact owner/path/current-content evidence; stale proposals and interrupted publication preserve human work.",
+      "Return proposed content or explicit skips on conflicts; verify actual output and cleanup behavior."
+    ],
+    "EG-16": [
+      "Every root-overflow rule reaches a correctly scoped artifact or an explicit recoverable omission.",
+      "Actual returned/written paths and counts match claims even at caps, write failures or disabled optional output."
+    ],
+    "EG-17": [
+      "Manual/legacy generated rules retain directory/language/file scope and accepted exceptions.",
+      "Different scopes are not merged into broader mandates; zero-match scope warns without widening or declaring policy wrong.",
+      "Closed/fixed/rejected review workflow status is not automatically an accepted policy decision."
+    ]
+  },
+  "installed_generator_evidence": "eval/eg15-eg17-generator-delivery-20261111.json",
+  "exact_candidate_and_installed_40_rules": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\candidate\\acceptance.json",
+      "sha256": "ac1ec46b2cb4e98c23fed1d974582045b1d2465b70ad4c9e46cb3799d7ddbfed"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\installed\\acceptance.json",
+      "sha256": "72ad36bb9c8ca8be12bd4880fed98739d3c0406daa7524576981920086a71494"
+    }
+  ],
+  "ownership_and_scope_receipts": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\public\\acceptance.json",
+      "sha256": "75bc5ac049e373170e823fdf1e5ae8bcbd661ed7347a8359728cb6f505f1af52"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\followup\\acceptance.json",
+      "sha256": "b5d8bc361ec9a6a32da462e49d19c05b9b79427adc72f5d92c4f0affe1594dde"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\legacy\\acceptance.json",
+      "sha256": "d8fdbfaf694a6e3ef73787eb6b6cddff07cfba2237d3c26188d5c5e202e180ad"
+    }
+  ],
+  "retained_publication_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\native-publication-result.json",
+    "sha256": "118209e4e937a5d7b34bdd0f71492f54a3f6ddfdb95335f7b441fb38e3830f99"
+  },
+  "native_publication_log": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\native-publication.log",
+    "sha256": "c27819538c9cfcb9801fff124b3ad0a490bd67233afaa2852e139559b1eaa4cc"
+  },
+  "evidence": {
+    "EG-15": "Retained ordinary publication preserved human roots, diverted AGENTS and companions. Corrected follow-up verified blocked paths, owned refresh and survival of a human amendment. Controlled publication tests cover stale owner/path/bytes, interruption and unreceipted files.",
+    "EG-16": "Candidate and installed public proof preserve 40 complete rules and exceptions through root overflow. Earlier observed catalog/zero-match recovery, blocked-path ledger-only output and disabled optional output reconcile actual writes.",
+    "EG-17": "Scope/exception contract, zero-match reporting and independently seeded legacy and closed/fixed/rejected rows verify conditional authority and recoverable originals. No broadened rule or inferred adoption."
+  },
+  "baseline_source": "bd708e8f7e08f2c0882f3ab2e041e2c4cca20a41",
+  "current_installed": {
+    "source_commit": "7657c22710cb85de6bd841d97865bedbab3a3525",
+    "server_sha256": "a099d7e85b2d7b91699993b5242c7fa9917dd32f54a847f3980561aa13e91e74",
+    "manifest_sha256": "a5a339b850606c7c614849a259be84502f44ac90698084e1ea783e89e54f88df"
+  },
+  "unchanged_implementation_paths": [
+    "crates/engram_server/src/services/generated_files.rs",
+    "crates/engram_server/src/services/generated_files",
+    "crates/engram_server/src/services/produce_claude_md_service",
+    "crates/engram_server/src/services/agent_integration_service.rs"
+  ],
+  "reviewed_later_generator_delta": "Authorization rendering now labels inspected behavior as evidence instead of inventing a universal permission order. Related budgeted generator and result delivery evidence is retained in eval/agent-instruction-batch-delivery-20261118.json.",
+  "limits": "Preserve the first public run's failure after six observed cases. Use the separately passed follow-up for the blocked path. These receipts do not establish native per-path consumer filtering, rule adoption, broad agent productivity or all storage gates.",
+  "runtime_changed": false,
+  "tests_repeated": 0,
+  "full_original_goal_complete": false
+}

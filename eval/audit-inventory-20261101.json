@@ -837,7 +837,8 @@
       "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
       "latest_no_vector_publication_evidence": "execution_evidence_20261101.no_vector_alias_v4_publication_and_tool_milestone_20261103",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
-      "delivery_receipt": "eval\\eg15-eg17-generator-delivery-20261111.json"
+      "delivery_receipt": "eval\\eg15-eg17-generator-delivery-20261111.json",
+      "original_requirement_closure_20261119": "eval/eg15-eg17-original-requirements-closure-20261119.json"
     },
     {
       "id": "EG-16",
@@ -852,7 +853,8 @@
       "dependencies": [],
       "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
-      "delivery_receipt": "eval\\eg15-eg17-generator-delivery-20261111.json"
+      "delivery_receipt": "eval\\eg15-eg17-generator-delivery-20261111.json",
+      "original_requirement_closure_20261119": "eval/eg15-eg17-original-requirements-closure-20261119.json"
     },
     {
       "id": "EG-17",
@@ -881,7 +883,8 @@
         "record": "eval/policy-revert-status-batch-delivery-20261116.json",
         "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
         "whole_finding_complete": false
-      }
+      },
+      "original_requirement_closure_20261119": "eval/eg15-eg17-original-requirements-closure-20261119.json"
     },
     {
       "id": "EG-18",

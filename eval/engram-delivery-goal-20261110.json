@@ -4392,6 +4392,18 @@
     "EG-08": {
       "record": "eval/eg06-eg08-original-requirements-closure-20261119.json",
       "status": "ORIGINAL_BOUNDED_POLICY_LIFECYCLE_VERIFIED_COMPLETE"
+    },
+    "EG-15": {
+      "record": "eval/eg15-eg17-original-requirements-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_GENERATOR_BEHAVIOR_VERIFIED_COMPLETE"
+    },
+    "EG-16": {
+      "record": "eval/eg15-eg17-original-requirements-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_GENERATOR_BEHAVIOR_VERIFIED_COMPLETE"
+    },
+    "EG-17": {
+      "record": "eval/eg15-eg17-original-requirements-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_GENERATOR_BEHAVIOR_VERIFIED_COMPLETE"
     }
   },
   "corpus_refresh_results_source_progress_20261118": {
