@@ -2971,7 +2971,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "WEBFORMS_GUIDANCE_SQL_RELEASE_INSTALLED_AND_MCP_VERIFIED",
+    "status": "CORRECTED_SQL_HISTORY_REVIEW_VB_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "verified_base_record": "eval/history-schema-review-candidate-20261119.json",
     "record": "eval/cumulative-agent-workflows-candidate-20261119.json",
@@ -3062,22 +3062,30 @@
       "acceptance": "The public installed-binary baseline returned both SQL declarations after four examinations, the expected Git author/date/body, and the unchanged review severity and verdict. Its review omitted the exact prior event behind twenty-four same-file events and lacked the stable ID in the deferred ledger. Candidate acceptance requires two SQL examinations, unchanged Git evidence, both restored review identities with source restrictions, and exact recovery. The baseline runtime and fixture closed."
     },
     "next_vb_interface_implementers": {
-      "status": "IMPLEMENTED_FOCUSED_SOURCE_AND_CACHED_TYPE_CHECKS_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_CANDIDATE_MCP_VERIFIED_ON_ACTUAL_LEGACY_VALIDATION_SOURCE_COPIES",
       "requirement": "TODO-9 direct interface implementation navigation for LegacyValidation VB.NET and TODO-28 natural-language source questions",
       "observed_gap": "The installed ask_codebase baseline cited the actual IWebhookVetroService and VetroService files separately and reported answered without returning their implementation relationship. Ordinary query_graph_nodes and the existing incoming Implements edge verified both indexed endpoints.",
       "baseline": {"case":"legacy_validation-interface-question-baseline","relative_path":"receipt.json","sha256":"9cd351acb060116e3dd1401cf38379e49a2b95da1f3eff5c27c7ef7eb119105b"},
-      "packaged_verifier": {"case":"legacy_validation-interface-question-baseline","relative_path":"verify-public.py","sha256":"9394f988334702a3fe43327542d807ee435957d85c1d2465172b06ae6bdac32d","status":"PREPARED_NOT_RUN"},
+      "packaged_verifier": {"case":"legacy_validation-interface-question-baseline","relative_path":"verify-public.py","sha256":"9394f988334702a3fe43327542d807ee435957d85c1d2465172b06ae6bdac32d","status":"PASS","receipt":{"relative_path":"candidate/receipt.json","sha256":"2888d35e38efb6ae2953a8716abc2eba3a337834b11568bf88960c4a88b0909b"}},
       "implementation": "crates/engram_server/src/handlers/ask_interfaces.rs, ask_tools.rs and services/ask_engine/report.rs",
-      "acceptance": "An explicit implementer question returns the current indexed VB class edge and cites the exact Implements line and both source identities. Reject stale, ambiguous and unselected endpoints with explicit coverage. Keep the direct declaration separate from runtime dispatch. A focused check used the actual LegacyValidation VB line and confirmed unrelated interface exclusion, and the exact provider type-checked against cached Engram core/index/graph libraries. Full handler and packaged MCP verification are queued in the corrective release."
+      "acceptance": "Candidate MCP returned the direct VetroService class edge, the exact Implements line and both source hashes using the two actual LegacyValidation files in an owned fixture. The same package is installed. The receipt verifies selected direct declaration evidence; it does not establish runtime dispatch or a complete type hierarchy."
     },
     "corrected_sql_history_review_vb_release": {
-      "status": "ONE_CORRECTIVE_OPTIMIZED_BUILD_RUNNING",
+      "status": "CORRECTED_CANDIDATE_AND_LIVE_MCP_VERIFIED_INSTALLED",
       "case": "sql-history-review-vb-20261119",
       "source_commit": "ea6c87dc95f54501b2333afec5a2542718739e0e",
       "build_session": 23379,
       "build_driver_pid": 85324,
+      "build_seconds": 632.6553513,
+      "binary_sha256": "7be739c14cfd49cfda142fe940b14a0937083a41610f0e8ee87bb15014796946",
+      "package_sha256": "92daecba3a6828ce193f3e8cfaa2f7bf3f5f74b6c58c8a8649382782a94435b7",
+      "installed_manifest_sha256": "e2b47e26d3e3d6cd86bf31a6ae4359a096412093d16a2a6e25591d99893634e5",
+      "package_receipt": {"relative_path":"package-receipt.json","sha256":"43c5c6a0c2d4b2ac20f024bab8d4d99325e49cb83147f5babe87f750d0376065"},
+      "candidate_review_receipt": {"relative_path":"candidate/receipt.json","sha256":"85764507aebcd89ad40a9f8dc835eef7a74fe0839bcf9266398e648bf7465379"},
+      "forward_transition": {"relative_path":"live-cutover1/forward-transition.json","sha256":"5abfd94d5cc4e8c465006591f7a1947b24b20b92da4359e59315827290708ebb"},
+      "live_runtime": {"status":"INSTALLED_AND_FRESH_MCP_CONNECTED","generation":3222,"relative_path":"live-cutover1/status.json","sha256":"efdfcf909a8db630b2acdfd4fbfd262ef71815deb72f296374e1a7b2efe72d71"},
       "prior_candidate_retained": "sql-history-review-20261119/candidate/receipt.json",
-      "acceptance": "Recheck the one failed scoped-review workflow, including deferred finding identity and unchanged severity and verdict. Run the added public VB interface check against the same corrected binary. Referenced SQL and history evidence remains tied to the previous binary, with the pertinent source unchanged. Follow the managed cutover only after the affected candidate checks pass. No full test suite."
+      "acceptance": "The corrected candidate retained the exact scoped prior event behind 24 same-file records, its stable preview ID, and the same current finding and verdict. The added public VB fixture retained both actual LegacyValidation source citations. Earlier SQL and history evidence remains pinned to the prior artifact with the relevant lookup source unchanged. The installed binary matched the passed package and responded to a fresh MCP client at generation 3222 after the quiescent forward cutover. No active clients required stopping and no full test suite ran. The remaining storage and task-level requirements remain open."
     },
     "next_instruction_maintenance_git_scope": {
       "status": "IMPLEMENTED_FOCUSED_GIT_CHECK_PASSED_AWAITING_PACKAGED_MCP",
@@ -3087,7 +3095,7 @@
       "actual_legacy_validation_scope": {"case":"legacy_validation-maintenance-path-scope","oracle":{"relative_path":"legacy_validation-oracle.json","sha256":"ecc8364f286d7c8112f248d3684a3048aa1e31bebe7f0bca40f96be7f36cfa34"},"verifier":{"relative_path":"verify-public.py","sha256":"8e3fab182c96c11449f72893acea919337ae32c98503e8f99afe52f5290655db"},"non_q_comparison_paths":289,"scope":"Site/modules/system","scoped_paths":1,"status":"GIT_ORACLE_VERIFIED_PUBLIC_CHECK_PREPARED"},
       "acceptance": "In a real Git fixture, the unscoped change count exceeds the cap. A literal Site scope includes its modified VB, deleted SQL and new TypeScript files and excludes 130 files from SiteArchive. Exact-file and empty scopes also passed with the production Git selector. The maintenance integration fixture now verifies the retained before/after packet and stale guard under that scope. Full MCP verification remains pending, independently of the running correction package."
     },
-    "next_action": "Advance the remaining original LegacyValidation items. The single-scan SQL comparison committed after the installed package was frozen remains queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
+    "next_action": "Advance the remaining original LegacyValidation items. Scoped Git-driven instruction maintenance and its actual source oracle are queued for a later package. Preserve previous package identities and the existing rollback proof requirements."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",

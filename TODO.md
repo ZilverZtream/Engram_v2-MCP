@@ -299,6 +299,10 @@ they feed blast radius, edit safety, and the ADP gates.
   establishing runtime authorization. Unresolved inheritance is disclosed;
   this item stays partial.
   [Delivery](eval/revision-guard-history-batch-delivery-20261115.json).
+  Installed: `ask_codebase` answers explicit VB.NET implementer questions with
+  the direct `Implements` declaration and exact source citations for both files.
+  The candidate verified `VetroService` and `IWebhookVetroService` on the actual
+  LegacyValidation source copies. [Delivery](eval/engram-delivery-goal-20261110.json).
   `engram_graph/src/store.rs`, `cs_extractor.rs`, `vb_extractor.rs`, `parsing.rs`. There
   are 33 edge kinds but no type hierarchy. An agent can't answer "who implements
   IRepository" or see that editing a base class touches 50 subclasses. This also fixes a
