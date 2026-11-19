@@ -3525,8 +3525,8 @@ impl Engram {
         }
 
         // Historical and detached-checkout workflows need a stronger binding
-        // than generation completeness. A complete index can still contain a
-        // dirty worktree at the expected commit.
+        // than generation completeness. A complete index can still contain
+        // uncommitted source at the expected commit.
         let mut source_binding_invalid = false;
         let mut source_binding_unknown = false;
         if let Some(expected) = req.expected_git_commit.as_deref() {
@@ -3552,30 +3552,40 @@ impl Engram {
                 let status = std::process::Command::new("git")
                     .args(["--no-optional-locks", "-C"])
                     .arg(&directory)
-                    .args(["status", "--porcelain=v1", "--untracked-files=no"])
+                    .args(["status", "--porcelain=v1", "--untracked-files=normal"])
                     .output()?;
                 if !status.status.success() {
                     return Ok(None);
                 }
+                let status_text = String::from_utf8_lossy(&status.stdout);
+                let (tracked, untracked) = status_text.lines().fold((0usize, 0usize), |counts, line| {
+                    if line.starts_with("?? ") {
+                        (counts.0, counts.1 + 1)
+                    } else {
+                        (counts.0 + 1, counts.1)
+                    }
+                });
                 Ok(Some((
                     String::from_utf8_lossy(&head.stdout)
                         .trim()
                         .to_ascii_lowercase(),
-                    String::from_utf8_lossy(&status.stdout).lines().count(),
+                    tracked,
+                    untracked,
                 )))
             })
             .await;
             out.push_str(&format!("expected_git_commit: {expected}\n"));
             match check {
-                Ok(Ok(Some((head, dirty)))) => {
+                Ok(Ok(Some((head, tracked, untracked)))) => {
                     let matches = head == expected;
-                    source_binding_invalid = !matches || dirty > 0;
+                    source_binding_invalid = !matches || tracked > 0 || untracked > 0;
                     out.push_str(&format!("source_git_head: {head}\n"));
                     out.push_str(&format!(
-                        "source_revision_check: {}\ntracked_worktree_changes: {dirty}\nsource_binding_check: {}\n",
+                        "source_revision_check: {}\ntracked_worktree_changes: {tracked}\nuntracked_worktree_entries: {untracked}\nsource_binding_check: {}\n",
                         if matches { "match" } else { "MISMATCH" },
                         if source_binding_invalid { "FAILED" } else { "pass" }
                     ));
+                    out.push_str("source_binding_basis: Git status excludes ignored paths and may group untracked directories\n");
                 }
                 Ok(Ok(None)) => {
                     source_binding_unknown = true;
