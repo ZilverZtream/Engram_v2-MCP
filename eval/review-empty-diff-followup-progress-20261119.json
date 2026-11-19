@@ -1,0 +1,30 @@
+{
+  "original_requirement_id": "TODO-34",
+  "source_commit": "ae85a745bb306f027765ac3e79f1cb17aa04f1ad",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-empty-diff-followup-20261119\\verify-public.py",
+    "sha256": "e64387829a34a99754c0e907cb5418eecd1185bc8e02590445914336b56a15d0"
+  },
+  "public_assertions_expected": 5,
+  "public_assertions": [
+    "staged_change_is_disclosed_in_empty_unstaged_review",
+    "staged_followup_is_callable_and_preserves_review_controls",
+    "markdown_exposes_staged_handoff",
+    "review_leaves_git_index_and_source_unchanged",
+    "empty_staged_review_offers_actual_unstaged_scope"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-empty-diff-followup-20261119\\baseline1\\receipt.json",
+    "sha256": "c482755b82f141a93777472d03516d8fdb567cc7fbaa001060d696ba35b1d822"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "TODO-34 next-call guidance that agents can use to finish the ordinary review workflow.",
+  "observed_gap": "An empty unstaged review sees a staged edit but tells the caller to rerun the same empty unstaged review.",
+  "behavior": "Use Git status to return calls for alternate changed scopes. Preserve worktree and request controls and continue to report the original empty scope as unreviewed.",
+  "configuration_relevance": "LegacyValidation uses ordinary Git and the Full review tool surface. Public baseline uses an independently authored VB file and staging operations only in an owned Git fixture.",
+  "verification": "Installed baseline reproduced the wrong unstaged retry. Changed Rust parsed with rustfmt. Candidate and installed proof remain queued.",
+  "temporary_resources": "Owners closed and fixture removed. Retain driver and public wire evidence in the recorded case.",
+  "full_original_goal_complete": false
+}
