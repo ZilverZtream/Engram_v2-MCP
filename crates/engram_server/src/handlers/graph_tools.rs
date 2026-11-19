@@ -305,6 +305,9 @@ impl Engram {
         req: QueryGraphNodesRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if req.project_id != engram_core::namespaces::USER_PROJECT_ID {
+            self.ensure_project_record(&req.project_id).await?;
+        }
         let graph = self.state.graph.clone();
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
             let nodes = graph
@@ -351,6 +354,9 @@ impl Engram {
         req: FindReferencesRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if req.project_id != engram_core::namespaces::USER_PROJECT_ID {
+            self.ensure_project_record(&req.project_id).await?;
+        }
         let kind = req.edge_kind.as_deref().and_then(EdgeKind::parse);
 
         let graph = self.state.graph.clone();
@@ -725,6 +731,9 @@ impl Engram {
         req: TraverseGraphRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if req.project_id != engram_core::namespaces::USER_PROJECT_ID {
+            self.ensure_project_record(&req.project_id).await?;
+        }
         let kinds = req.edge_kinds.as_ref().map(|v| {
             v.iter()
                 .filter_map(|s| EdgeKind::parse(s.as_str()))
