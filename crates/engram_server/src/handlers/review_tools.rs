@@ -229,6 +229,16 @@ impl Engram {
             Some(_) if review_next_calls.is_empty() => "no_alternate_changes_observed",
             Some(_) => "alternate_changes_observed_after_review",
         };
+        let staged_worktree_drift = if mode == "staged" {
+            alternate_changes.as_ref().map(|changes| {
+                parsed.iter()
+                    .filter(|file| changes.staged_with_unstaged.contains(&file.path))
+                    .map(|file| &file.path)
+                    .collect::<Vec<_>>()
+            })
+        } else {
+            None
+        };
         let changed_during_review = head_before != head_after || source_before != source_after;
         let snapshot_unavailable = source_after
             .iter()
@@ -251,6 +261,7 @@ impl Engram {
             "head_before":head_before,"head_after":head_after,
             "changed_during_review":changed_during_review,
             "alternate_diff_scope_status":alternate_scope_status,
+            "staged_files_with_unstaged_edits":staged_worktree_drift,
             "source_snapshot_complete":!snapshot_unavailable,
             "diff_blake3":blake3::hash(diff_text.as_bytes()).to_hex().to_string(),
             "source_before":source_before,"source_after":source_after,
@@ -320,6 +331,9 @@ impl Engram {
             }
             if !review_next_calls.is_empty() {
                 report.push_str(&format!("\nGit status observed additional diff scopes after this review. Inspect them separately before relying on coverage for the whole worktree.\n\nreview_next_calls: {}\n", payload["review_next_calls"]));
+            }
+            if let Some(paths) = &staged_worktree_drift && !paths.is_empty() {
+                report.push_str(&format!("\nStaged review includes files with additional unstaged edits: {}. Current-file context for these paths can differ from the submitted staged diff.\n", coverage["staged_files_with_unstaged_edits"]));
             }
             if compact {
                 report.push_str(&format!(

@@ -859,6 +859,7 @@ pub(crate) struct WorkingTreeChanges {
     pub paths: Vec<String>,
     pub staged: bool,
     pub unstaged: bool,
+    pub staged_with_unstaged: std::collections::BTreeSet<String>,
 }
 
 pub(crate) fn working_tree_changes(project_dir: &Path, include_paths: bool) -> anyhow::Result<WorkingTreeChanges> {
@@ -878,11 +879,18 @@ pub(crate) fn working_tree_changes(project_dir: &Path, include_paths: bool) -> a
         if status.is_ignored() {
             continue;
         }
-        if include_paths && let Some(path) = entry.path() {
-            changes.paths.push(path.replace('\\', "/"));
+        let staged = status.intersects(index_changes);
+        let unstaged = status.intersects(worktree_changes);
+        if let Some(path) = entry.path() {
+            if include_paths {
+                changes.paths.push(path.replace('\\', "/"));
+            }
+            if staged && unstaged {
+                changes.staged_with_unstaged.insert(path.replace('\\', "/"));
+            }
         }
-        changes.staged |= status.intersects(index_changes);
-        changes.unstaged |= status.intersects(worktree_changes);
+        changes.staged |= staged;
+        changes.unstaged |= unstaged;
     }
     changes.paths.sort();
     changes.paths.dedup();
