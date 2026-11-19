@@ -19,6 +19,12 @@ INVENTORY_FIELDS = {"status", "registry_snapshot_blake3", "project_id", "project
     "authored_files_written"}
 RECEIPT_FIELDS = {"origin", "source_hash", "authored", "pending", "doc_ids", "rules",
                   "cleanup", "corpus_revision", "legacy_aliases"}
+ADVISORY_FIELDS = {"next_tools", "next_tools_status"}
+ADVISORY_STATUSES = {
+    "suggested; backend and project-data requirements still apply",
+    "no_applicable_follow_up_in_active_profile",
+    "suggestions_reduced_to_preserve_guidance_budget",
+}
 
 
 class PreflightRefusal(RuntimeError):
@@ -47,6 +53,33 @@ def strict_json(text):
 
 def shape(value, keys, label):
     need(isinstance(value, dict) and set(value) == set(keys), f"Unknown/incomplete {label} shape")
+
+
+def inventory_shape(value):
+    """Recognize bounded navigation metadata without treating it as authority."""
+    need(isinstance(value, dict), "Unknown/incomplete ownership inventory shape")
+    if not ADVISORY_FIELDS.intersection(value):
+        shape(value, INVENTORY_FIELDS, "ownership inventory")
+        return
+    shape(value, INVENTORY_FIELDS | ADVISORY_FIELDS, "ownership inventory")
+    hints = value["next_tools"]
+    need(isinstance(value["next_tools_status"], str)
+         and value["next_tools_status"] in ADVISORY_STATUSES
+         and isinstance(hints, list) and len(hints) <= 16,
+         "Unknown/incomplete advisory navigation")
+    for hint in hints:
+        need(isinstance(hint, dict)
+             and {"tool", "reason"} <= set(hint) <= {"tool", "reason", "arguments"}
+             and isinstance(hint["tool"], str)
+             and re.fullmatch(r"[a-z][a-z0-9_]{0,127}", hint["tool"]) is not None
+             and isinstance(hint["reason"], str) and bool(hint["reason"])
+             and ("arguments" not in hint or isinstance(hint["arguments"], dict)),
+             "Unknown/incomplete advisory action")
+    advisory = {key: value[key] for key in ADVISORY_FIELDS}
+    need(len(json.dumps(advisory, ensure_ascii=False, separators=(",", ":")).encode("utf-8")) <= 2048,
+         "Advisory navigation exceeds the producer budget")
+    # Leave the original value intact. All raw rule/source/receipt checks below
+    # still run, and no action is executed or used to establish ownership.
 
 
 def hash_string(value):
@@ -91,7 +124,7 @@ def inspect_inventory(text, project_id, old_sha256):
     need(isinstance(text, str) and len(text.encode("utf-8")) <= MAX_INVENTORY,
          "Ownership response exceeds exact inventory budget")
     inventory = strict_json(text)
-    shape(inventory, INVENTORY_FIELDS, "ownership inventory")
+    inventory_shape(inventory)
     need(old_sha256.lower() == OLD_POLICY_PROFILE, "Old binary policy semantics are unproven")
     need(isinstance(inventory["enforcement_notes"], list)
          and all(isinstance(note, str) for note in inventory["enforcement_notes"])

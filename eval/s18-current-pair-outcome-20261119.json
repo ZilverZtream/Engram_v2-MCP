@@ -1,0 +1,111 @@
+{
+  "status": "CURRENT_PAIR_OLD_EDIT_FAILED_AUTHORITY_REFUSAL_PASSED",
+  "at_utc": "2026-11-19T05:20:42.113620+00:00",
+  "original_requirement_ids": [
+    "EG-13",
+    "S18"
+  ],
+  "full_requirement_complete": false,
+  "current_pair_downgrade_proven": false,
+  "runtime_changes": false,
+  "production_downgrade_performed": false,
+  "current_server_sha256": "40038b3322b93b83d0791a527e3cf4adde962d52765b53a91634ecaf2e81972c",
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "retained_old_server_sha256": "b762d3d4a10b2b3a722fa90be07ae957c9d72c99f78609b57319e02e4e366bdd",
+  "reports": {
+    "source-roundtrip": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\s18-current-20261119\\source-roundtrip\\report.json",
+      "sha256": "2fa9ae44b3d3be77b4a850fe4cd19b4b9dd392b3742020e391fdc5122a24f4f2",
+      "outcome": "unresolved",
+      "seconds": 5.0204230999952415,
+      "failure": {
+        "phase": "new-materialize",
+        "type": "PreflightRefusal",
+        "error": "Unknown/incomplete ownership inventory shape"
+      },
+      "fixtures_removed": true,
+      "children_reaped": true
+    },
+    "source-roundtrip-after-preflight": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\s18-current-20261119\\source-roundtrip-after-preflight\\report.json",
+      "sha256": "ce0324876afa4780ea97783f79039c9191d0c04378a57b99a199b08a7a13895f",
+      "outcome": "unresolved",
+      "seconds": 1.6573459000064759,
+      "failure": {
+        "phase": "preflight",
+        "type": "CalledProcessError",
+        "error": "Command '['git', '-C', 'C:\\\\ai-projects\\\\Engram-MCP_v2\\\\target\\\\diagnostics\\\\snapshot-verification-20261101\\\\p131-modern-state-20261112\\\\current-task-check\\\\s18-current-20261119\\\\source-roundtrip-after-preflight\\\\edit-workload-7aq5wzl7\\\\source', 'add', '.']' returned non-zero exit status 128."
+      },
+      "fixtures_removed": true,
+      "children_reaped": true
+    },
+    "r2": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\s18-current-20261119\\r2\\report.json",
+      "sha256": "a1c8fc809aa6e556fdf33282c6fe0e175dbaa81ea89bbc1b1691efca1b9d2348",
+      "outcome": "unresolved",
+      "seconds": 9.260971399999107,
+      "failure": {
+        "phase": "old-read-edit",
+        "type": "RuntimeError",
+        "error": "{'code': -32603, 'message': 'scoped graph purge failed; resolver refresh not run'}"
+      },
+      "fixtures_removed": true,
+      "children_reaped": true
+    },
+    "a1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\s18-current-20261119\\a1\\report.json",
+      "sha256": "3846ac48c26e8b9d0538142c58ebdde1f19869100c47de0e0366f43df7bee0a2",
+      "outcome": "unsupported_adopted_authority_refusal_passed",
+      "seconds": 6.050158599988208,
+      "failure": null,
+      "fixtures_removed": true,
+      "children_reaped": true
+    }
+  },
+  "demonstrated": {
+    "current_materialization_lexical_and_native_declarations": 8,
+    "old_initial_read_lexical_and_native_declarations": 8,
+    "old_subsequent_edit": "FAIL: scoped graph purge failed; resolver refresh not run",
+    "adopted_authority_refuses_before_old_launch": true
+  },
+  "preflight_change": {
+    "reason": "Current advisory next_tools/next_tools_status broke the old exact top-level inventory shape. Accept only the known bounded navigation metadata; preserve all exact authority/raw-byte/source/receipt checks and reject unknown ownership fields.",
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\downgrade_policy_preflight.py",
+      "sha256": "d5b0c094af768fa2b8cb5cc7c54b227d011e03fafe04cec92d37c687155ac1de"
+    },
+    "tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\test_downgrade_policy_preflight.py",
+      "sha256": "9438f8ed43d377ffb0cda12791a105bbc37e07f2c7eb2beadf2030aeb2a82310"
+    },
+    "focused_tests_passed": 8,
+    "test_seconds": 0.003,
+    "test_output": "Observed in exec output; no separate raw log captured.",
+    "original_driver_unchanged": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\downgrade_compatibility_workload.py",
+      "sha256": "44e482ffb6dfd8b4aeeb6b86764309ef5ce2e157c9ba0a81f8fb2432addb5f23"
+    },
+    "source_outcomes_for_runtime_batch_floor": 0
+  },
+  "unexecuted": [
+    "representable-policy-roundtrip: common old-writer edit is already blocked; no duplicate attempt."
+  ],
+  "fixture_setup_limit": "The long evidence label failed Git add before any server launch. The shorter r2 label remained within this same recorded case. Earlier source-run Git enrichment path warnings are retained; no Git/path fix or source-history completeness claim.",
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\s18-current-20261119",
+    "all_four_owned_fixtures_removed": true,
+    "all_owned_children_reaped": true,
+    "all_owned_readers_joined": true,
+    "server_children": 4,
+    "new_builds_or_full_suites": 0,
+    "retained": "Reports/logs/owner records remain in this case; preexisting installation backups untouched.",
+    "cleanup_condition": "Retain reports/logs with this unresolved original S18 outcome until superseded and reviewed. No evidence or preexisting folder deletion is performed; generated owned fixtures have already been removed."
+  },
+  "limitations": [
+    "No successful current/old/current edit roundtrip, general metadata/history compatibility, production downgrade or app-enforced minimum version is established.",
+    "No cause is assigned to the old-writer graph purge failure beyond its exact RPC error. Keep S18 unresolved; do not replace missing acceptance with the passing initial reads or authority refusal.",
+    "The preflight change is an operator-procedure compatibility fix, not an Engram runtime tool improvement. No actual LegacyValidation source/index/Q operation, kernel/physical-SSD investigation or target-language expansion."
+  ],
+  "next_action": "Retain the original S18 failure in the backlog. Advance other ready original LegacyValidation work; no further S18 replay without a relevant fix. Preserve queued browser-property source work and completed runtime deliveries.",
+  "full_original_goal_complete": false
+}

@@ -1,0 +1,55 @@
+{
+  "status": "CURRENT_PAIR_OLD_EDIT_FAILED_AUTHORITY_REFUSAL_PASSED",
+  "at_utc": "2026-11-19T05:12:44.825655+00:00",
+  "original_requirement_ids": [
+    "EG-13",
+    "S18"
+  ],
+  "original_requirement": "Binary downgrade has a verified compatible materialization/recovery path, vector coverage and a successful subsequent edit.",
+  "reason_for_execution": "The retained installed acceptance pins05609ecf; the currently installed40038b33 binary is a changed input not covered by that exact-pair receipt. Reuse the unchanged three-mode acceptance rather than inventing another procedure.",
+  "previous_acceptance": "eval/s18-installed-compatibility-validation-20261111.json",
+  "new_binary": {
+    "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+    "sha256": "40038b3322b93b83d0791a527e3cf4adde962d52765b53a91634ecaf2e81972c"
+  },
+  "old_binary": {
+    "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-c2586c4f0eae44c3b39b1e7861a5b24a\\engram_server.exe",
+    "sha256": "b762d3d4a10b2b3a722fa90be07ae957c9d72c99f78609b57319e02e4e366bdd"
+  },
+  "frozen_helpers": {
+    "unchanged_original_verifier": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\downgrade_compatibility_workload.py",
+      "sha256": "44e482ffb6dfd8b4aeeb6b86764309ef5ce2e157c9ba0a81f8fb2432addb5f23"
+    },
+    "policy_preflight": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\downgrade_policy_preflight.py",
+      "sha256": "45f115a9f2478c3c5d8c3bf015d0e8c5b7bb13fafa8b170caaa44fc54bebed71"
+    },
+    "resource_helper": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\edit_resource_workload.py",
+      "sha256": "4db263193a6f8b86f97736fa0aa99a484059dc3bf321f18dc3809f3fcee98fa0"
+    }
+  },
+  "finite_acceptance": [
+    "Exact current-to-retained-old source materialization/read/edit and explicit current return recovery with subsequent edit; eight source declarations retain lexical and native-vector coverage.",
+    "Recognized manual/ordinary policy raw bytes survive the same roundtrip.",
+    "Adopted legacy authority refuses before the old binary starts.",
+    "Every owned child and reader closes, all three generated fixtures are removed, and the production executable/configuration remain unchanged."
+  ],
+  "limits": "Unchanged original per-mode120second/512MiBprocess/512MiBfixture/1GiBlogical-write protective stops. No compile, model generation, actual LegacyValidation source/index/Q operation, production downgrade or kernel/physical-SSD investigation. Do not expand on a failure.",
+  "implementation_items_active": 0,
+  "validation_items_active": 0,
+  "source_outcomes": 0,
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\s18-current-20261119",
+    "retention": "Keep reports/logs/owner identities here. Each newly owned fixture is removed by the unchanged driver only after owned child/readers/monitor closure. Preexisting old binary pair remains untouched."
+  },
+  "outcome": "eval/s18-current-pair-outcome-20261119.json",
+  "preflight_source_changed": true,
+  "preflight_after": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\downgrade_policy_preflight.py",
+    "sha256": "d5b0c094af768fa2b8cb5cc7c54b227d011e03fafe04cec92d37c687155ac1de"
+  },
+  "full_requirement_complete": false,
+  "next_action": "Retain the original S18 failure in the backlog. Advance other ready original LegacyValidation work; no further S18 replay without a relevant fix. Preserve queued browser-property source work and completed runtime deliveries."
+}
