@@ -22,11 +22,14 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\integrity-recovery-reasons-20261119\\baseline1\\receipt.json",
     "sha256": "60721622da597cd6660da84c3322a050ab83a5ca090e8cace0a6bf07635c3cc9"
   },
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "runtime_deployed": false,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "runtime_deployed": true,
   "behavior": "Report durable source/vector/legacy recovery reasons and earliest pending time in check_integrity, from the same registry observation used to decide whether pending recovery prevents healthy output.",
   "baseline_setup_correction": "The first vector repair used cached embeddings. Close the fixture process and move its owned cache aside before injecting an unavailable provider. The stored vectors remain in place.",
   "verification": "Installed baseline reproduced the unexplained unhealthy report with matching selected source and namespace counts, and verified successful recovery clears it. Changed code passed Rust syntax and whitespace checks. Candidate and installed checks await the combined build.",
   "temporary_resources": "The verifier and wire evidence remain in one case. Owned source, provider and cache fixtures were released and removed.",
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "delivery": "eval/freshness-recovery-procedure-batch-delivery-20261119.json",
+  "runtime_server_sha256": "d1e8f9997833b5b9277dd0e9dbfc19d49113d5fe2b7b9bcb3fcb37dbd52eceaa",
+  "public_checks_passed_per_artifact": 5
 }

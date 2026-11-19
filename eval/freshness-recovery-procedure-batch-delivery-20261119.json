@@ -1,0 +1,100 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-19T09:55:27.010290+00:00",
+  "original_requirement_ids": [
+    "EG-13",
+    "TODO-39",
+    "TODO-59"
+  ],
+  "delivered_behaviors": {
+    "EG-13": "Freshness and generation completeness share the complete nonempty path inventory from the default disk check. Existing independent completeness fallback remains.",
+    "TODO-39": "Integrity checks expose still-pending durable recovery reasons and earliest timestamp even when lexical and vector counts match.",
+    "TODO-59": "Procedure detail reports select exact qualified SQL declarations and return source locations for ambiguous basenames. Caller and dependency leads disclose basename matching."
+  },
+  "runtime": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-recovery-procedure-batch-20261119\\package1",
+    "server_sha256": "d1e8f9997833b5b9277dd0e9dbfc19d49113d5fe2b7b9bcb3fcb37dbd52eceaa",
+    "manifest_sha256": "3a68b224b8aa4fc1103502e85f939ddd6a7f29d89f62262d337711d75e638c08",
+    "old_server_sha256": "ff47184424ba8d2b75dfd7ef5eca6a262a3a4ab41ec4d52a4cf6ede721ab1bfb",
+    "old_manifest_sha256": "6811b436a1d205e146763e7297c28ec889dfe981afd5b3d801099b3a76207128",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-recovery-procedure-batch-20261119\\release1.json",
+      "sha256": "80850bb014c824fbf55a6275e727dea2182cfd5213c9d9ffdbf47715069ad03e"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "6811b436a1d205e146763e7297c28ec889dfe981afd5b3d801099b3a76207128"
+    },
+    "source_commit": "390ae4b53e4150c819dd9faa3307b0b0efb2b4a4"
+  },
+  "source_preparation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-recovery-procedure-batch-20261119\\source-preparation1.json",
+    "sha256": "ea011029b1fece021c5b5aaf87915a925d37269a9f4c53579b6a4e736257a681"
+  },
+  "windows_bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-recovery-procedure-batch-20261119\\bundle1.json",
+    "sha256": "7abe61785d3494d11aa028705e57fd11afc80449d3f615f983bea01ea965924a"
+  },
+  "public_receipts": {
+    "candidate1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-recovery-procedure-batch-20261119\\candidate1\\acceptance.json",
+      "sha256": "9b20f54e17d35cf82c2570cc8c5d6e195df0c43e4a86cd07b275d99d28db8619",
+      "checks": 14,
+      "seconds": 10.63569299998926
+    },
+    "installed1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-recovery-procedure-batch-20261119\\installed1\\acceptance.json",
+      "sha256": "ceddf901e462a320db9cb820ceec939d8774c5ac90c67c4420002cd84b62ed10",
+      "checks": 14,
+      "seconds": 11.152257100009592
+    }
+  },
+  "installed_assets_verified": 215,
+  "build_accounting": {
+    "optimized_builds": 1,
+    "seconds": 4097.986385299999,
+    "unit_debug_or_full_suites": 0,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-recovery-procedure-batch-20261119\\release1.json",
+      "sha256": "80850bb014c824fbf55a6275e727dea2182cfd5213c9d9ffdbf47715069ad03e"
+    }
+  },
+  "integrity_regression": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\integrity-result-20261119\\freshness-recovery-procedure-batch-20261119-integrity-regression1\\receipt.json",
+    "sha256": "5cb97eb59a3d831427c2351223d7992ecfd5fbbfb32960231807bdf887620c89",
+    "checks": 7,
+    "seconds": 4.790609000003315
+  },
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-recovery-procedure-batch-20261119\\restored-runtime\\receipt.json",
+    "sha256": "ebdca916ceb5094ae59b51ad02921cc4b34ecdde29cc32ecba069985323ed0e7"
+  },
+  "selected_generation": 3177,
+  "previous_runtime_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\webforms-integrity-batch-delivery-20261119.json",
+    "sha256": "e38314b8c8d732ab92b8d1e70c347ec20097ec12ba102465c155b4a0280d6b21"
+  },
+  "full_original_goal_complete": false,
+  "temporary_resources": {
+    "owned_build_temp_removed": true,
+    "fixture_checks_closed": true,
+    "owned_config_removed": true,
+    "managed_rollback_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-356e4acac9c44e9c94b93f1a7dbb24c1",
+      "cleanup_condition": "Retain for an explicit rollback or retirement decision."
+    }
+  },
+  "limitations": [
+    "Shared inventory removes the duplicate walk after a complete disk-change observation. Whole-repository timing was not measured.",
+    "Recovery status records observed registry requirements and does not assert live index health beyond the report.",
+    "Qualified SQL source selection does not determine deployed schema or caller binding.",
+    "Original findings, storage gates, held work and task usefulness remain separately tracked."
+  ]
+}

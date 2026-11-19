@@ -22,8 +22,8 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-shared-inventory-20261119\\baseline1\\receipt.json",
     "sha256": "42b34561c5905c72477d4aebaeb557faf752261d2464df29257f03853c0b0dcd"
   },
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "runtime_deployed": false,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "runtime_deployed": true,
   "original_requirement": "S07: source counts and completeness diagnostics use consistent observations.",
   "observed_gap": "The normal freshness call obtains a disk inventory for change detection, then independently walks the same checkout to compute completeness expectations.",
   "implementation_files": [
@@ -36,5 +36,8 @@
     "The first baseline indexed an empty file and exposed its existing graph-only row. The corrected fixture adds the empty file after indexing to isolate the disk inventory denominator."
   ],
   "temporary_resources": "The two owned MCP fixtures were removed after process and reader closure. The verifier and receipts remain in the recorded case.",
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "delivery": "eval/freshness-recovery-procedure-batch-delivery-20261119.json",
+  "runtime_server_sha256": "d1e8f9997833b5b9277dd0e9dbfc19d49113d5fe2b7b9bcb3fcb37dbd52eceaa",
+  "public_checks_passed_per_artifact": 4
 }

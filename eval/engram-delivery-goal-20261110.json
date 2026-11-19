@@ -7,7 +7,8 @@
     "current_release_excludes_this_change": false,
     "next_action": "Use restored release defaults for the next combined runtime delivery. No separate build for this trial conclusion.",
     "delivery": "eval/webforms-integrity-batch-delivery-20261119.json",
-    "future_build_policy": "RESTORED_PREVIOUS_RELEASE_OPTIMIZATION_IN_SOURCE"
+    "future_build_policy": "RESTORED_PREVIOUS_RELEASE_OPTIMIZATION_IN_SOURCE",
+    "default_profile_restored_in_runtime": "eval/freshness-recovery-procedure-batch-delivery-20261119.json"
   },
   "schema_version": 1,
   "status": "ACTIVE",
@@ -2568,38 +2569,6 @@
     },
     "next_batch_pending": [
       {
-        "original_requirement_id": "EG-13",
-        "related_requirement_id": "S07",
-        "source_commit": "ff4370b264138b641a4718f89fa3c985553a3736",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "progress": "eval/freshness-shared-inventory-progress-20261119.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-shared-inventory-20261119\\contract.json",
-        "public_assertions_expected": 4,
-        "native_unit_cases_expected": 0,
-        "source_outcomes": 1,
-        "current_release_excludes_this_item": true
-      },
-      {
-        "original_requirement_id": "TODO-39",
-        "source_commit": "ad3c321285218713c0bcfc552aad1ef9a232d4f7",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "progress": "eval/integrity-recovery-reasons-progress-20261119.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\integrity-recovery-reasons-20261119\\contract.json",
-        "public_assertions_expected": 5,
-        "native_unit_cases_expected": 0,
-        "source_outcomes": 1
-      },
-      {
-        "original_requirement_id": "TODO-59",
-        "source_commit": "818f17d262702e089c0caecb24128a67089d2491",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "progress": "eval/procedure-qualified-details-progress-20261119.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-qualified-details-20261119\\contract.json",
-        "public_assertions_expected": 5,
-        "native_unit_cases_expected": 0,
-        "source_outcomes": 1
-      },
-      {
         "original_requirement_id": "EG-01",
         "source_commit": "6bb0e3c49c9345487733b2b04ad4f7a7f9ebb062",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
@@ -2840,11 +2809,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "OPTIMIZED_BUILD_RUNNING",
+    "status": "SOURCE_OUTCOMES_QUEUED_FOR_LATER_COMBINED_VALIDATION",
     "implementation_items_active": 0,
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-recovery-procedure-batch-20261119",
-    "next_action": "Observe owned build session 7673 and release observer 9602. The frozen plan contains 14 checks per artifact and 7 candidate checks for integrity recovery. Record passing installed proof and normal runtime restoration before advancing.",
-    "full_original_goal_complete": false
+    "record": "eval/freshness-recovery-procedure-batch-delivery-20261119.json",
+    "full_original_goal_complete": false,
+    "next_action": "Preserve the separate freshness change for later combined validation and continue the original backlog.",
+    "pending_source_outcomes": 1
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3040,7 +3010,7 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "OPTIMIZED_BUILD_RUNNING",
+    "status": "INSTALLED_ACCEPTANCE_AND_NORMAL_RESTORATION_COMPLETE",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-recovery-procedure-batch-20261119",
     "source_commit": "390ae4b53e4150c819dd9faa3307b0b0efb2b4a4",
     "build_session": 7673,
@@ -3083,7 +3053,8 @@
     "unit_debug_or_full_suites": 0,
     "checks_per_artifact": 14,
     "additional_candidate_integrity_checks": 7,
-    "full_original_goal_complete": false
+    "full_original_goal_complete": false,
+    "record": "eval/freshness-recovery-procedure-batch-delivery-20261119.json"
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
@@ -4205,8 +4176,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T08:57:45.695515+00:00",
-    "reason": "Implemented source-cited client scripts and authored guidance in WebForms page context. The active release remains frozen and this independent source outcome is queued for later verification."
+    "at_utc": "2026-11-19T09:55:27.010290+00:00",
+    "reason": "Installed three original workflow improvements and verified integrity report recovery under the updated schema."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4569,11 +4540,11 @@
     "historical_source_status": true
   },
   "latest_runtime_delivery": {
-    "record": "eval/webforms-integrity-batch-delivery-20261119.json",
+    "record": "eval/freshness-recovery-procedure-batch-delivery-20261119.json",
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "source_commit": "a3cb19412943a646ba907849d5fc53718231c4a3",
-    "server_sha256": "ff47184424ba8d2b75dfd7ef5eca6a262a3a4ab41ec4d52a4cf6ede721ab1bfb",
-    "manifest_sha256": "6811b436a1d205e146763e7297c28ec889dfe981afd5b3d801099b3a76207128"
+    "source_commit": "390ae4b53e4150c819dd9faa3307b0b0efb2b4a4",
+    "server_sha256": "d1e8f9997833b5b9277dd0e9dbfc19d49113d5fe2b7b9bcb3fcb37dbd52eceaa",
+    "manifest_sha256": "3a68b224b8aa4fc1103502e85f939ddd6a7f29d89f62262d337711d75e638c08"
   },
   "cache_guidance_attribute_batch_delivery_20261118": {
     "record": "eval/cache-guidance-attribute-batch-delivery-20261118.json",
@@ -4860,5 +4831,12 @@
     "server_sha256": "47d70c6d36ccb9ae74707c9712f7865eeb1be9499e4aa691ffe6cd57991b09a2",
     "manifest_sha256": "294b980c905fcd23eb215d2af71181cbd9800a75250bc76dd40044dffb2c5fac",
     "source_commit": "c468bca6484c805fe65236eef03af14bab67b59b"
+  },
+  "previous_runtime_before_freshness_recovery_procedure_batch_20261119": {
+    "record": "eval/webforms-integrity-batch-delivery-20261119.json",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "source_commit": "a3cb19412943a646ba907849d5fc53718231c4a3",
+    "server_sha256": "ff47184424ba8d2b75dfd7ef5eca6a262a3a4ab41ec4d52a4cf6ede721ab1bfb",
+    "manifest_sha256": "6811b436a1d205e146763e7297c28ec889dfe981afd5b3d801099b3a76207128"
   }
 }

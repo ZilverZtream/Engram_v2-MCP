@@ -899,6 +899,7 @@ specs already written.
   the config-driven path. CI test: named_pipe_transport_round_trips.*
 
 - [~] **39. Vector/Tantivy consistency repair after partial ingest failures** (M) -
+  Installed: Integrity checks expose still-pending durable recovery reasons and earliest timestamp even when lexical and vector counts match. [Delivery](eval/freshness-recovery-procedure-batch-delivery-20261119.json).
   Installed: `check_integrity` supports bounded exact recovery of original findings and repair outcomes. [Delivery](eval/webforms-integrity-batch-delivery-20261119.json).
   Published-source remainder delivered 2026-11-12: compare the same managed
   source snapshot and memory namespace, including inherited revisions. Detect
@@ -1130,6 +1131,7 @@ value is accuracy, this is the biggest meta-gap.
 ## P7 — Debt & cleanup
 
 - [x] **59. Consolidate the 3 overlapping DB-analysis services** (M) ? source-recognition consolidation installed 2026-11-15. Shared SQL statement/body/identifier and procedure parsers now back the named services; schema declarations and supported DDL targets share the catalog. Report assembly reuses parsed inputs and preserves source citations. SQL interpretation, scaffold validation and original quality/usefulness gaps remain separate. [Delivery](eval/legacy_validation-database-source-consolidation-delivery-20261115.json).
+  Installed: Procedure detail reports select exact qualified SQL declarations and return source locations for ambiguous basenames. Caller and dependency leads disclose basename matching. [Delivery](eval/freshness-recovery-procedure-batch-delivery-20261119.json).
   `database_intelligence_service`, `db_strategy_service`, parts of
   `full_project_migration_service` re-implement SQL parsing/table extraction.
   Partial delivery 2026-11-14: shared qualified object-name recognition and

@@ -18,10 +18,13 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-qualified-details-20261119\\baseline1\\receipt.json",
     "sha256": "431798b4a4ea753bec3001c16479d54a5090315347ff14d12f1cda76cadf8f5a"
   },
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "runtime_deployed": false,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "runtime_deployed": true,
   "behavior": "get_sp_details resolves exact authored qualified procedure names and presents source locations for ambiguous basenames. The existing source-file selector remains available. Basename-only caller and dependency leads are labelled.",
   "verification": "Installed baseline returned an arbitrary declaration for a collision and did not resolve the qualified lookup. Existing explicit file and unchanged source were verified. Rust syntax and whitespace checks passed; candidate and installed verification are pending.",
   "temporary_resources": "The owned MCP server and reader closed before the temporary source and data directory were removed. The retained verifier and wire evidence are in the recorded case.",
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "delivery": "eval/freshness-recovery-procedure-batch-delivery-20261119.json",
+  "runtime_server_sha256": "d1e8f9997833b5b9277dd0e9dbfc19d49113d5fe2b7b9bcb3fcb37dbd52eceaa",
+  "public_checks_passed_per_artifact": 5
 }
