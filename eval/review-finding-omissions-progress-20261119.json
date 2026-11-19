@@ -1,0 +1,30 @@
+{
+  "original_requirement_id": "TODO-4",
+  "source_commit": "8f170298fd263a0a2dfed47d328a0f7cbc575075",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-omissions-20261119\\verify-public.py",
+    "sha256": "5ed7ecb9c003e2a8d38475171f284e923a7259f2666c04562eff611720b2030c"
+  },
+  "public_assertions_expected": 5,
+  "public_assertions": [
+    "fixture_has_three_eligible_findings_and_one_returned",
+    "json_discloses_exact_eligible_omission_count",
+    "uncapped_review_does_not_report_an_omission",
+    "compact_markdown_exposes_omission_and_action",
+    "source_unchanged"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-omissions-20261119\\baseline1\\receipt.json",
+    "sha256": "58d2f5f8a6b65aad52e140802d5023456e82429e8c325f0704dcd7509c4a81ac"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "TODO-4 transparent response limits and omissions for bounded agent reports.",
+  "observed_gap": "The installed review evaluates three authored rule findings and returns one under max_findings=1 without a finding-selection omission in the gate coverage.",
+  "behavior": "Count otherwise eligible normalized findings before the per-gate and overall selection limits. Disclose the exact omitted count per gate using the existing caps field, in JSON, Markdown and the bounded report ledger. Selection order and result counts remain.",
+  "configuration_relevance": "Installed LegacyValidation uses Git review on VB source. The baseline uses an owned WebForms/VB fixture and three authored constraints.",
+  "verification": "Installed baseline reproduced the missing cap explanation. Changed Rust parsed with rustfmt. Public candidate and installed proof remain queued.",
+  "temporary_resources": "Owned server and reader closed before fixture removal. Retain driver and wire evidence in the recorded case.",
+  "full_original_goal_complete": false
+}

@@ -2593,6 +2593,17 @@
         "native_unit_cases_expected": 0,
         "source_outcomes": 1,
         "current_release_excludes_this_item": true
+      },
+      {
+        "original_requirement_id": "TODO-4",
+        "source_commit": "8f170298fd263a0a2dfed47d328a0f7cbc575075",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "progress": "eval/review-finding-omissions-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-omissions-20261119\\contract.json",
+        "public_assertions_expected": 5,
+        "native_unit_cases_expected": 0,
+        "source_outcomes": 1,
+        "current_release_excludes_this_item": true
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2828,8 +2839,8 @@
     "implementation_items_active": 0,
     "record": "eval/agent-history-trace-planning-batch-delivery-20261119.json",
     "full_original_goal_complete": false,
-    "next_action": "Preserve any other queued source outcomes and continue the original backlog.",
-    "pending_source_outcomes": 2
+    "next_action": "Verify queued bounded SQL input, empty review recovery and finding omission reporting together with any further ready original outcome.",
+    "pending_source_outcomes": 3
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
