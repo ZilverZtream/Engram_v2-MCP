@@ -663,6 +663,11 @@ fn parser_context_locked(guard: &mut Option<Sidecar>) -> anyhow::Result<VbParser
         Err(error) => {
             anyhow::ensure!(guard.is_none(), "VB parser startup/teardown is unresolved; fallback cannot be certified");
             anyhow::ensure!(transport::lifecycle_ready(), "VB previous process/IO teardown is unresolved; parser reuse and replacement are refused");
+            if let Some(path) = std::env::var_os("ENGRAM_VB_SIDECAR_PATH").filter(|value| !value.is_empty()) {
+                anyhow::bail!(
+                    "Configured ENGRAM_VB_SIDECAR_PATH '{}' could not start: {error}. Fix this path or unset ENGRAM_VB_SIDECAR_PATH to use automatic companion discovery. Trusted parser authority was not established for this explicit override.",
+                    PathBuf::from(path).display());
+            }
             tracing::debug!(error = %error, "VB parser unavailable; current extraction backend is Rust fallback");
             Ok(VbParserContext::from_authority(None))
         }
