@@ -88,7 +88,7 @@ pub struct RecordReviewDecisionsRequest {
     pub decisions: Vec<ReviewDecision>,
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetReviewDecisionsRequest {
     pub project_id: String,

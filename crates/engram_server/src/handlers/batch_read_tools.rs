@@ -233,6 +233,9 @@ impl Engram {
                 BatchReadOperation::RequestTrace(arguments) => {
                     self.handle_trace_user_request(arguments).await
                 }
+                BatchReadOperation::ReviewDecisions(arguments) => {
+                    self.handle_get_review_decisions(arguments).await
+                }
             };
             let (status, response) = match result {
                 Ok(result) => (

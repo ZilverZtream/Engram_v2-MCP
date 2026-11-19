@@ -4152,6 +4152,10 @@ pub enum BatchReadOperation {
     PageContext(GetPageContextRequest),
     #[serde(rename = "trace_user_request")]
     RequestTrace(TraceUserRequestRequest),
+    /// Recorded review evidence with ordinary scope/date/discussion selectors.
+    /// The batch-level budget applies to these results and their recovery.
+    #[serde(rename = "get_review_decisions")]
+    ReviewDecisions(crate::handlers::review_decisions::GetReviewDecisionsRequest),
 }
 
 /// Navigate a URL/page and optional action through authored WebForms bindings.

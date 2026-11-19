@@ -12,7 +12,7 @@ pub(crate) const IMPORT_ALLOWANCE: u64=64*1024*1024;
 const PAGE_BYTES: usize=24*1024;
 const MARKER: &str="\nEngram imported discussion v1: ";
 
-#[derive(Debug,Clone,Default,Deserialize,schemars::JsonSchema)]
+#[derive(Debug,Clone,Default,Serialize,Deserialize,schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct DiscussionSelector {
     /// Both thread_id and capture_blake3 select one immutable capture. With
