@@ -384,7 +384,8 @@ impl Engram {
         let mut change_req = change_request(&req.project_id, &story, Some(retrieval_concepts.clone()));
         change_req.history_semantic_timeout_ms = req.history_semantic_timeout_ms;
         let mut change_set = body(self.handle_get_change_set(change_req).await?)?;
-        // Reassemble an existing immutable response, never rerun ranking.
+        // Read the retained response once, without rerunning ranking or using
+        // public page envelopes inside this handler.
         if let Some(id) = change_set["response_delivery"]["response_id"]
             .as_str()
             .map(str::to_owned)
@@ -397,27 +398,11 @@ impl Engram {
                 output["change_set"] = change_set;
                 return response(output);
             }
-            let mut text = String::new();
-            loop {
-                let mut recovery = change_request(&req.project_id, "", None);
-                recovery.response_id = Some(id.clone());
-                recovery.response_offset = Some(text.len());
-                let page = body(self.handle_get_change_set(recovery).await?)?;
-                let part = page["content"]
-                    .as_str()
-                    .ok_or_else(|| failure("Invalid change-set recovery"))?;
-                if part.is_empty() || text.len() + part.len() > total as usize {
-                    return Err(failure("Non-advancing or oversized change-set recovery"));
-                }
-                text.push_str(part);
-                if page["complete"] == true {
-                    break;
-                }
-            }
-            if text.len() != total as usize || blake3::hash(text.as_bytes()).to_hex().as_str() != id
-            {
-                return Err(failure("Change-set recovery identity mismatch"));
-            }
+            let data_dir = self.state.cfg.data_dir.clone();
+            let project = req.project_id.clone();
+            let text = tokio::task::spawn_blocking(move || {
+                super::planning_tools::change_set_delivery::read_complete_change_set(&data_dir, &project, &id, total as usize)
+            }).await.map_err(|_| failure("Change-set recovery worker failed"))??;
             change_set = serde_json::from_str(&text)
                 .map_err(|_| failure("Recovered change set is not JSON"))?;
         }

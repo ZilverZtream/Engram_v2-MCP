@@ -3031,6 +3031,14 @@
     "acceptance": "A model-free dossier with two named tables and one missing table does one declaration scan and preserves exact individual results, citations, scope, and budget behavior. Preserve the existing single-query public and ask_codebase paths.",
     "verification": "Scoped Rust parser and diff checks passed. The updated fixture awaits packaged MCP execution. No latency measurement or additional Engram build."
   },
+  "dossier_single_read_change_set_recovery": {
+    "original_requirement_id": "EG-02",
+    "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",
+    "observed_gap": "Feature planning reconstructs a saved report through public pages. Each page opens and hashes the full saved report again before returning a slice.",
+    "implementation_files": ["crates/engram_server/src/handlers/change_set_delivery.rs", "crates/engram_server/src/handlers/feature_plan_tools.rs"],
+    "acceptance": "The planner reads one project-scoped immutable snapshot within its existing 512 KiB intake limit. Size and BLAKE3 verification remain mandatory. Existing public pagination and its exact content remain usable.",
+    "verification": "Two focused exact-module tests passed against cached dependencies, including deep Windows recovery, Unicode public pagination, project and byte limits, and tampering refusal. Packaged planner wiring remains pending. The running release checkout excludes this change."
+  },
   "recent_filtered_history_progress": {
     "original_requirement_id": "EG-20",
     "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",

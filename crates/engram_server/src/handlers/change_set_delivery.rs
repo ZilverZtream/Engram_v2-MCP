@@ -410,12 +410,23 @@ pub(crate) fn recover_read_report(data: &Path,project: &str,id: &str,offset: usi
     recover_for(data,project,id,offset,budget,Family::ReadReport(tool))
 }
 
-fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize, family: Family) -> Result<String, McpError> {
+/// Internal composition needs the same immutable source once, without
+/// repeatedly reading and escaping it through the public page envelope.
+pub(crate) fn read_complete_change_set(data_dir: &Path, project_id: &str, id: &str, expected_bytes: usize) -> Result<String, McpError> {
+    let body = read_snapshot(data_dir, project_id, id, Family::ChangeSet, expected_bytes)?;
+    if body.len() != expected_bytes || body.is_empty() {
+        return Err(failure("Change-set recovery identity mismatch"));
+    }
+    Ok(body)
+}
+
+fn read_snapshot(data_dir: &Path, project_id: &str, id: &str, family: Family, max_bytes: usize) -> Result<String, McpError> {
+    let max_bytes = max_bytes.min(SNAPSHOT_BYTES);
     let directory = directory_for(data_dir, project_id, family)?;
     let path = checked_path(&directory, id)?;
     let metadata = std::fs::symlink_metadata(&path)
         .map_err(|_| McpError::invalid_params("Response snapshot unavailable; rerun the original request and reconcile its new result", None))?;
-    if !metadata.is_file() || metadata.len() > SNAPSHOT_BYTES as u64 {
+    if !metadata.is_file() || metadata.len() > max_bytes as u64 {
         return Err(failure(
             "Response snapshot is not a supported bounded regular file",
         ));
@@ -434,10 +445,10 @@ fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budge
     let mut bytes = Vec::new();
     engram_core::safe_open_read(&directory, &format!("{id}.txt"))
         .map_err(|_| failure("Cannot safely open the change-set response snapshot"))?
-        .take(SNAPSHOT_BYTES as u64 + 1)
+        .take(max_bytes as u64 + 1)
         .read_to_end(&mut bytes)
         .map_err(|_| failure("Cannot read the change-set response snapshot"))?;
-    if bytes.len() > SNAPSHOT_BYTES {
+    if bytes.len() > max_bytes {
         return Err(failure("Response snapshot exceeds its byte limit"));
     }
     if blake3::hash(&bytes).to_hex().as_str() != id {
@@ -445,7 +456,11 @@ fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budge
             "Response snapshot failed its BLAKE3 identity check; no evidence returned",
         ));
     }
-    let body = String::from_utf8(bytes).map_err(|_| failure("Response snapshot is not UTF-8"))?;
+    String::from_utf8(bytes).map_err(|_| failure("Response snapshot is not UTF-8"))
+}
+
+fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize, family: Family) -> Result<String, McpError> {
+    let body = read_snapshot(data_dir, project_id, id, family, SNAPSHOT_BYTES)?;
     if offset > body.len() || !body.is_char_boundary(offset) {
         return Err(McpError::invalid_params(
             "response_offset must be a UTF-8 byte boundary within the original response",
@@ -508,6 +523,9 @@ mod tests {
         let value: super::Value = serde_json::from_str(&response).unwrap();
         let id = value["response_delivery"]["response_id"].as_str().unwrap();
         assert_eq!(recover_all(&data, "project", id), body);
+        assert_eq!(read_complete_change_set(&data, "project", id, body.len()).unwrap(), body);
+        assert!(read_complete_change_set(&data, "project", id, body.len() - 1).is_err());
+        assert!(read_complete_change_set(&data, "other-project", id, body.len()).is_err());
     }
     use super::*;
 
@@ -602,6 +620,8 @@ mod tests {
         let path = checked_path(&directory(tmp.path(), "project").unwrap(), id).unwrap();
         std::fs::write(path, "tampered").unwrap();
         assert!(recover(tmp.path(), "project", id, 0).is_err());
+        assert!(read_complete_change_set(tmp.path(), "project", id, "tampered".len())
+            .unwrap_err().to_string().contains("BLAKE3 identity check"));
     }
 
     #[test]
