@@ -3202,7 +3202,14 @@
       "source_outcomes": 1,
       "native_unit_cases_expected": 0,
       "current_release_excludes_this_item": true,
-      "verification": "Installed baseline shows one whole paged result with no callable continuation. Source syntax and whitespace checks passed. Candidate and installed verification remain pending."
+      "focused_pagination_verification": {
+        "status": "PASS",
+        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-page-action-20261119\\isolated-history-receipt.json",
+        "sha256": "c58e6c4da9a91b1968b3af3e30c7c0978a97ccd9630ab36329f3862ac605bdc4",
+        "checks": 5,
+        "scope": "Exact renderers and budget accounting with fixture request/transport types. Both JSON and Markdown actions fit the budget, keep the resolved revision and original controls, and stop on the last page. A too-small reply budget refuses."
+      },
+      "verification": "Installed baseline shows one whole paged result without a callable continuation. Packaged verification includes executing the new action after the branch moves; that remains pending. No full Engram build was run for the focused renderer checks."
     },
     {
       "original_requirement_id": "TODO-34",
