@@ -2653,7 +2653,7 @@
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
-    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-history-review-vb-20261119",
+    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-lifecycle-20261119",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "incremental_codegen": {
@@ -3111,7 +3111,21 @@
       "acceptance": "An ordinary load trace surfaces the admitted explicit LoadComplete handler, its source position and authored call alongside Page_Load. Preserve explicit event selection and source admission, and keep AutoEventWireup=false behavior.",
       "verification": "The focused executable used the exact binding selector and tokenizer on actual LegacyValidation Git blobs. The ordinary load selects both handlers, with LoadComplete at line 603 and the call at line 604. Exact Page_Load selection remains scoped. The installed MCP baseline omitted the LoadComplete handler in the ordinary trace and returned it and its call in an explicit method trace; the current scoped graph did not resolve its control implementation. Extended the existing lifecycle integration fixture for ordinary load and control-event traces. Full combined candidate MCP and deployment remain pending. No Cargo build or full suite ran."
     },
-    "next_action": "Prepare and verify one combined release for the completed source changes in EG-31, TODO-28 and TODO-31. Check the actual public maintenance, file history and task-management trace behaviors before deployment."
+    "maintenance_history_lifecycle_batch": {
+      "status": "ONE_SHARED_TARGET_RELEASE_RUNNING",
+      "case": "maintenance-history-lifecycle-20261119",
+      "source_commit": "6cb88efbfbd2e6f982639673deee4c10a0cf158d",
+      "requirements": ["EG-31", "TODO-28", "TODO-31"],
+      "release_plan_sha256": "441e43154bf3a1e07187720fa9907153de96f2f6e72d1193bdd8d8cbb6cd1212",
+      "public_verifier_sha256": "592eb3abadd02bd84ba4cbcf4d9f558821dfe9387bd7e9a0c0c172c12a43b492",
+      "baseline_receipt_sha256": "45fc356f3c8d7c9f9e8f622218453fe14d8812cde3731020b691bd394c707949",
+      "stage_and_verify_sha256": "6ef56d784710202fc0f5ce3e3b5a9f66445cf8fbc61c773c9dc8ce134b31cceb",
+      "build_session": 82317,
+      "build_driver_pid": 59040,
+      "build_owner": "release1-owner.json",
+      "baseline": "The installed-equivalent binary reproduced both gaps in an owned selected-source checkout against actual pinned LegacyValidation Git objects. The explicit method trace retained the authored call; ordinary load omitted it. The exact recent-file question had no direct commit evidence. The owned runtime closed and its temporary project was removed."
+    },
+    "next_action": "Verify completion of the existing build session 82317. If the exact build receipt passes, use stage-and-verify.py to check public maintenance, file history and task-management tracing on one artifact before deployment."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -3509,28 +3523,22 @@
   },
   "next_source_batch_pending": [
     {
+      "original_requirement_id": "EG-31",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "0e2d22bbde31e86f2b01a89ef745dcb25258e917",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\legacy_validation-maintenance-path-scope\\verify-public.py"
+    },
+    {
       "original_requirement_id": "TODO-28",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "84780d57cec3d70d1461c3dbe458578357852f6d",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-history-review-20261119\\verify-public.py"
+      "source_commit": "5326263489be07f9dd99f3ef33e1ff34a3992394",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-lifecycle-20261119\\verify-public.py"
     },
     {
-      "original_requirement_id": "EG-20",
+      "original_requirement_id": "TODO-31",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "dca5a92c42aab1c0a7ab0bb510d62277ff547019",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-history-review-20261119\\verify-public.py"
-    },
-    {
-      "original_requirement_id": "EG-19",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "ea6c87dc95f54501b2333afec5a2542718739e0e",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-history-review-vb-20261119\\verify-review.py"
-    },
-    {
-      "original_requirement_id": "TODO-9",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "44e59d83176f816df928753d591e4a0c5fc052a6",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\legacy_validation-interface-question-baseline\\verify-public.py"
+      "source_commit": "6cb88efbfbd2e6f982639673deee4c10a0cf158d",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-lifecycle-20261119\\verify-public.py"
     }
   ],
   "sql_history_review_frozen_queue_20261119": [
