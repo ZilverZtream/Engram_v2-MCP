@@ -3095,7 +3095,15 @@
       "actual_legacy_validation_scope": {"case":"legacy_validation-maintenance-path-scope","oracle":{"relative_path":"legacy_validation-oracle.json","sha256":"ecc8364f286d7c8112f248d3684a3048aa1e31bebe7f0bca40f96be7f36cfa34"},"verifier":{"relative_path":"verify-public.py","sha256":"8e3fab182c96c11449f72893acea919337ae32c98503e8f99afe52f5290655db"},"non_q_comparison_paths":289,"scope":"Site/modules/system","scoped_paths":1,"status":"GIT_ORACLE_VERIFIED_PUBLIC_CHECK_PREPARED"},
       "acceptance": "In a real Git fixture, the unscoped change count exceeds the cap. A literal Site scope includes its modified VB, deleted SQL and new TypeScript files and excludes 130 files from SiteArchive. Exact-file and empty scopes also passed with the production Git selector. The maintenance integration fixture now verifies the retained before/after packet and stale guard under that scope. Full MCP verification remains pending, independently of the running correction package."
     },
-    "next_action": "Advance the remaining original LegacyValidation items. Scoped Git-driven instruction maintenance and its actual source oracle are queued for a later package. Preserve previous package identities and the existing rollback proof requirements."
+    "ask_recent_file_history": {
+      "status": "IMPLEMENTED_FOCUSED_ACTUAL_GIT_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-28 natural-language access to existing source and history capabilities",
+      "observed_gap": "Installed ask_codebase answered the explicit recent-changes question about Site/modules/system/DownloadFile.aspx.vb with current source and omitted the first Git-verified change. Installed search_history recent mode returned it for the same literal path.",
+      "implementation": "ask_tools.rs and ask_recent_history.rs in the server handlers",
+      "acceptance": "For an explicit recent-changes question with a project-relative file path, show bounded first-parent commit evidence from the same history basis as search_history recent. Keep the commit IDs, author, timestamps and path, give exact patch and older-history follow-ups, and disclose the scan bound or an empty window. Preserve the existing as_of source route.",
+      "verification": "A focused executable used the exact new provider and the existing Git history walker/scanner against the actual LegacyValidation repository. Three Quick-mode commit IDs and timestamps matched git log --first-parent on origin/master in order, headed by a1581c1f875192da74c7c381c40cbcb81f7fd8d3. It checked the pinned patch action and older-window action. The installed search_history patch endpoint accepted the produced file/commit/tip combination. Candidate ask_codebase MCP through the normal handler and installation remain pending. No Cargo build or full suite ran."
+    },
+    "next_action": "Advance the next remaining original LegacyValidation item. The recent-file ask route and scoped Git-driven instruction maintenance are queued for a later package. Preserve previous package identities and the existing rollback proof requirements."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",

@@ -39,6 +39,9 @@ mod request_trace;
 #[path = "ask_interfaces.rs"]
 mod interfaces;
 
+#[path = "ask_recent_history.rs"]
+mod recent_history;
+
 /// Round-2 audit P1-4: the dreamer-insight arm is OFF unless the caller asks
 /// for it (`include_insights: true`) — the ablation showed no measurable
 /// effect, so the default must not spend retrieval budget on it.
@@ -111,6 +114,12 @@ impl Engram {
                 crate::services::ask_engine::historical::gather(&root, &history_req, plan)
             }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
                 .map_err(|error| McpError::invalid_params(format!("Historical source retrieval unavailable: {error:#}"), None))?;
+            return self.deliver_ask_report(&req, out).await;
+        }
+        if !req.route_with_model
+            && let Some(path) = recent_history::requested_file(&req.question)
+        {
+            let out = recent_history::gather(&req, &rec.directory, path).await?;
             return self.deliver_ask_report(&req, out).await;
         }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
