@@ -2626,6 +2626,18 @@
         "source_outcomes": 1,
         "native_unit_cases_expected": 0,
         "current_release_excludes_this_item": true
+      },
+      {
+        "original_requirement_id": "TODO-4",
+        "related_requirement_id": "S14",
+        "source_commit": "c6cd6db35c11ac4be583d06ccbc5dde03283d7fc",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "progress": "eval/review-single-diff-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-single-diff-20261119\\contract.json",
+        "public_assertions_expected": 4,
+        "source_outcomes": 1,
+        "native_unit_cases_expected": 0,
+        "current_release_excludes_this_item": true
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2862,9 +2874,10 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-review-navigation-batch-20261119",
     "next_action": "Observe build session 12525 and release observer 44508. Verify the focused public cases on the same binary and record installed behavior and normal runtime restoration.",
     "full_original_goal_complete": false,
-    "queued_following_source_outcomes": 1,
+    "queued_following_source_outcomes": 2,
     "queued_following_records": [
-      "eval/query-schema-path-scope-progress-20261119.json"
+      "eval/query-schema-path-scope-progress-20261119.json",
+      "eval/review-single-diff-progress-20261119.json"
     ]
   },
   "history_webmethod_business_batch_delivery": {

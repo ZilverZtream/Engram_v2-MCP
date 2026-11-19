@@ -1,0 +1,34 @@
+{
+  "original_requirement_id": "TODO-4",
+  "related_requirement_id": "S14",
+  "source_commit": "c6cd6db35c11ac4be583d06ccbc5dde03283d7fc",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-single-diff-20261119\\verify-public.py",
+    "sha256": "3f51da5ec3ee8e9a5cab632c14f81fe72b0080293beea2b35637d7f5310b3830"
+  },
+  "public_assertions_expected": 4,
+  "public_assertions": [
+    "gate_findings_match_all_submitted_files",
+    "original_diff_and_source_are_cited",
+    "malformed_diff_still_refuses_before_gates",
+    "source_files_remain_unchanged"
+  ],
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-single-diff-20261119\\baseline2\\receipt.json",
+    "sha256": "b801cdf3d565f62f522d273098952c3fe33a05a0b7f42e88e9b28dfa567c4e4b"
+  },
+  "native_unit_cases_expected": 0,
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "S14 avoid duplicate source/diff materialization in the bounded TODO-4 review report pipeline.",
+  "observed_gap": "The installed source parses the same review diff for coverage, parses it again to check for parseable changes, parses it again inside the service, and deep-clones the gate input.",
+  "behavior": "Share a single parsed diff through coverage, gate dispatch, prior evidence and output. Preserve the existing public service entry points and raw resolved diff identity.",
+  "configuration_relevance": "Full pre_commit_review and ordinary VB source diffs are LegacyValidation workflows. End-to-end latency and memory changes were not measured.",
+  "verification": "Source inspection establishes eliminated allocations. Four public baseline controls passed. The first harness expected a raw diff hash, then the wire verified the existing trimmed inline diff contract; the corrected baseline is pinned. Candidate/installed controls remain queued.",
+  "prior_baseline_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-single-diff-20261119\\baseline1\\receipt.json",
+    "sha256": "58db9e65fc41085dc9fca2ebe1de4db6be7306fbf660c902d19064e11c2c8437"
+  },
+  "temporary_resources": "Owned MCP server, reader and test fixture closed. Intentionally retain wire evidence in this one case.",
+  "full_original_goal_complete": false
+}
