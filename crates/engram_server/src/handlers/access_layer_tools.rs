@@ -3994,20 +3994,42 @@ impl Engram {
 
         let results = result.map_err(|e| McpError::invalid_params(e, None))?;
 
+        // Observe project metadata once and each distinct returned file once.
+        // These timestamps do not verify the indexed method against current bytes.
+        let reg = self.state.registry.clone();
+        let project_id = req.project_id.clone();
+        let last_ms = tokio::task::spawn_blocking(move || {
+            reg.get_meta(&project_id, "last_index_completed_ms")
+                .ok()
+                .flatten()
+                .and_then(|value| value.parse::<u64>().ok())
+        })
+        .await
+        .unwrap_or(None);
+        let generation = self.get_active_generation(&req.project_id).await.unwrap_or(0);
+        let details = crate::utils::envelope::footer(generation, last_ms);
+        let mut freshness = std::collections::BTreeMap::new();
+        for row in &results {
+            freshness.entry(row.file_path.clone()).or_insert_with(|| {
+                let mtime = safe_join(Path::new(&rec.directory), &row.file_path)
+                    .ok()
+                    .and_then(|path| crate::utils::envelope::file_mtime_ms(&path));
+                AccessFreshness::observed(Some(&row.file_path), mtime, last_ms, details.clone())
+            });
+        }
+
         if output_json {
-            let json = serde_json::to_string_pretty(&results)
+            let rows: Vec<_> = results.iter().map(|row| FreshAccessResponse {
+                result: row,
+                freshness: freshness[&row.file_path].clone(),
+            }).collect();
+            let json = serde_json::to_string_pretty(&rows)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
         if results.len() == 1 {
-            let (banner, footer) = self
-                .access_freshness(
-                    &req.project_id,
-                    &rec.directory,
-                    Some(results[0].file_path.as_str()),
-                )
-                .await.markdown_parts();
+            let (banner, footer) = freshness[&results[0].file_path].markdown_parts();
             let mut out = banner.unwrap_or_default();
             out.push_str(&render_method_info_markdown(&results[0]));
             method_info_delivery::append_policy_markdown(&results, &mut out);
@@ -4050,11 +4072,18 @@ impl Engram {
             ));
         }
 
-        let (_, footer) = self
-            .access_freshness(&req.project_id, &rec.directory, None)
-            .await.markdown_parts();
         method_info_delivery::append_policy_markdown(&results, &mut md);
-        md.push_str(&footer);
+        md.push_str("\n## File timestamp observations\n\n");
+        for (file, observation) in &freshness {
+            md.push_str(&format!("- `{file}`: {} ({})\n",
+                observation.file_time_check, observation.warning_scope));
+            if let Some(warning) = &observation.warning {
+                md.push_str(warning);
+                md.push('\n');
+            }
+        }
+        md.push_str(freshness[&results[0].file_path].interpretation);
+        md.push_str(&details);
         Ok(CallToolResult::success(vec![Content::text(md)]))
     }
 
