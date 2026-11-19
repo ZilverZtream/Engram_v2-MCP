@@ -42,5 +42,15 @@
     "installed_binary_sha256": "0f218770760226b4818d0cd71a72e3460792c4a1914f7ef55bc1aab2bd50d7d9",
     "reason": "A running client proxy holds the installed executable. No live process was stopped."
   },
+  "isolated_archive_install": {
+    "status": "PASS",
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\follow-on-agent-workflows-20261119\\owned-install1\\acceptance.json",
+    "receipt_sha256": "cd524744dd12b6d7504da0bf2d18f1d1eec36a28f742387248c5b1b9960ebad8",
+    "checks": 7,
+    "seconds": 31.869434200008982,
+    "runtime_assets_verified": 215,
+    "verified_behavior": "The checksum-pinned ZIP installed to a fresh private directory. Its registered MCP command started the bundled sidecar, indexed the owned WebForms sample and recovered cited VB source.",
+    "owned_fixture_removed": true
+  },
   "retention": "Retain the verified cumulative staged pair, ZIP and receipts for the managed cutover. No source or index writes on the live LegacyValidation project."
 }
