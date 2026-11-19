@@ -2611,6 +2611,17 @@
         "native_unit_cases_expected": 0,
         "source_outcomes": 1,
         "current_release_excludes_this_item": true
+      },
+      {
+        "original_requirement_id": "EG-20",
+        "source_commit": "39caf85a5a372fd48d14e2b69c12645b9564531b",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "progress": "eval/history-text-revision-progress-20261119.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-text-revision-20261119\\contract.json",
+        "public_assertions_expected": 5,
+        "native_unit_cases_expected": 0,
+        "source_outcomes": 1,
+        "current_release_excludes_this_item": true
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2847,8 +2858,11 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-navigation-triggers-batch-20261119",
     "next_action": "Observe the existing build session 98765 and release observer 50345. Record passing installed proof and normal runtime restoration; reuse the single artifact.",
     "full_original_goal_complete": false,
-    "queued_following_source_outcomes": 1,
-    "queued_following_record": "eval/ask-sql-trigger-progress-20261119.json"
+    "queued_following_source_outcomes": 2,
+    "queued_following_records": [
+      "eval/ask-sql-trigger-progress-20261119.json",
+      "eval/history-text-revision-progress-20261119.json"
+    ]
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

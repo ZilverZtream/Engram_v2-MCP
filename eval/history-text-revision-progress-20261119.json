@@ -1,0 +1,30 @@
+{
+  "original_requirement_id": "EG-20",
+  "source_commit": "39caf85a5a372fd48d14e2b69c12645b9564531b",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-text-revision-20261119\\verify-public.py",
+    "sha256": "08bc13ca7658cf694113dabf9922d12c529edb4ffa1581978f5a7e81db1956aa"
+  },
+  "public_assertions_expected": 5,
+  "public_assertions": [
+    "published_history_excludes_later_indexed_commit",
+    "text_report_names_exact_revision",
+    "markdown_exposes_same_cutoff",
+    "pinned_offset_still_uses_original_scope_after_branch_moves",
+    "working_tree_stays_clean"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-text-revision-20261119\\baseline1\\receipt.json",
+    "sha256": "0c6458333f2b3171bde3b86a122380069d6a2b806f4dab83f58aca413c3a8c76"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "EG-20 usable lexical history with selected revision scope. Original bounded closure retained.",
+  "observed_gap": "Installed text history enforces the published cutoff but omits its exact Git revision. Source resolved the moving ref twice, independently for filtering and folding.",
+  "behavior": "Resolve Git reachability once and reuse it for filtering, publisher folding and output. Report the exact Git cutoff and how to reuse it with as_of_rev on later pages. No claim of fixed ranking or immutable index state.",
+  "configuration_relevance": "Text and lexical history already verified on LegacyValidation. The movement check uses an owned VB repository and ordinary Git refs.",
+  "verification": "Installed baseline confirmed cutoff filtering and missing exact revision. Changed Rust parsed with rustfmt; later candidate and installed checks will move the owned origin ref and query an offset under the pinned cutoff.",
+  "temporary_resources": "Owned MCP server and reader closed before removing Git, runtime and VB fixture. Driver and wire evidence remain in the recorded case.",
+  "full_original_goal_complete": false
+}
