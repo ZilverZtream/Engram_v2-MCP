@@ -2824,6 +2824,17 @@
       "public_assertions_expected": 1,
       "source_outcomes": 0,
       "verification": "Installed tools/list reproduced the stale pre_push_audit description. Existing prior-guidance maintenance delivery proves the advertised behavior. Carry the description-only change with the following batch and check its catalog. No dedicated build or behavior replay."
+    },
+    {
+      "original_requirement_id": "TODO-5",
+      "component_name": "TODO-5-disk-opt-out",
+      "source_commit": "0aa9f0f1abb01a305c5eff6e9cb2495d8e7ee4a9",
+      "prerequisite_source_commits": ["ba8dfa7ee16fadaf0bd53456913f35f0a662de14"],
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\freshness-skip-disk-inventory-20261119\\contract.json",
+      "public_assertions_expected": 3,
+      "source_outcomes": 0,
+      "verification": "Installed baseline reported an unindexed VB addition with check_disk=false through the hidden generation-inventory disk walk. The change uses held published source membership when available and reports current disk coverage unknown. Legacy absence of source membership remains explicit. Default disk checks retain existing behavior. Candidate and installed acceptance pending; no latency gain measured."
     }
   ],
   "following_batch_pending": [
