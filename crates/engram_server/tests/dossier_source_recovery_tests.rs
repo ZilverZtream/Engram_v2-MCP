@@ -21,10 +21,7 @@ impl Fixture {
         let root = owned.path().join("source");
         std::fs::create_dir_all(root.join("widgets"))?;
         std::fs::write(root.join("web.config"), "<configuration />\n")?;
-        std::fs::write(
-            root.join("Settings.sql"),
-            "CREATE TABLE dbo.Settings (Threshold int NOT NULL);\nCREATE TABLE dbo.SettingsAudit (AuditId int NOT NULL);\n",
-        )?;
+        std::fs::write(root.join("Settings.sql"), "CREATE TABLE dbo.Settings (Threshold int NOT NULL);\nCREATE TABLE dbo.SettingsAudit (AuditId int NOT NULL);\n")?;
         std::fs::write(
             root.join("Settings.aspx"),
             "<%@ Page Language='VB' %>\n<%@ Register Src='~/widgets/Threshold.ascx' TagName='Threshold' TagPrefix='u' %>\n<u:Threshold runat='server' />\n",
@@ -84,55 +81,22 @@ async fn unindexed_registered_control_retains_its_gap_and_returns_executable_cur
     let reply=fixture.server.handle_one_shot_feature_plan(serde_json::from_value(json!({
         "project_id":fixture.project,"feature_description":"Adjust Threshold settings editor",
         "model_after":"Settings.aspx","target_stack":"webforms_vbnet","detail_level":"Detailed","dossier_only":true,
-        "schema_tables":["dbo.Settings", "dbo.Missing", "dbo.SettingsAudit"],"history_semantic_timeout_ms":0,
-        "max_tokens":600
+        "schema_tables":["dbo.Settings", "dbo.Missing", "dbo.SettingsAudit"],"history_semantic_timeout_ms":0
     }))?).await?;
-    let text = &reply.content[0].as_text().unwrap().text;
-    ensure!(text.len() <= 2400);
-    let preview: Value = serde_json::from_str(text)?;
-    let delivery = &preview["response_delivery"];
-    ensure!(delivery["status"] == "DEFERRED_FEATURE_PLAN" && preview["provider_calls"] == 0);
-    let mut action = delivery["next_call"].clone();
-    let mut original = String::new();
-    std::fs::write(
-        fixture.owned.path().join("source/AGENTS.md"),
-        "Different working-tree guidance after capture.\n",
-    )?;
-    while !action.is_null() {
-        ensure!(action["tool"] == "one_shot_feature_plan");
-        let reply = fixture
-            .server
-            .handle_one_shot_feature_plan(serde_json::from_value(action["arguments"].clone())?)
-            .await?;
-        let text = &reply.content[0].as_text().unwrap().text;
-        ensure!(text.len() <= 2400);
-        let page: Value = serde_json::from_str(text)?;
-        original.push_str(page["content"].as_str().unwrap());
-        action = page["next_call"].clone();
-    }
-    ensure!(Some(original.len() as u64) == delivery["original_bytes"].as_u64());
-    ensure!(delivery["response_id"] == blake3::hash(original.as_bytes()).to_hex().as_str());
-    ensure!(!original.contains("Different working-tree guidance after capture."));
-    let dossier: Value = serde_json::from_str(&original)?;
+    let dossier: Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text)?;
     ensure!(dossier["provenance"]["provider_calls"] == 0);
     ensure!(dossier["source_coverage"]["explicit_model_after_file"] == "Settings.aspx");
     ensure!(dossier["source_evidence"][0]["file_path"] == "Settings.aspx");
     let schema = &dossier["planning_context"]["schema"][0];
-    ensure!(
-        schema["name"] == "dbo.Settings" && schema["result"]["active_generation"] == generation
-    );
+    ensure!(schema["name"] == "dbo.Settings" && schema["result"]["active_generation"] == generation);
     let table = &schema["result"]["results"][0]["table"];
-    ensure!(
-        table["columns"][0]["name"] == "Threshold" && table["citation"]["path"] == "Settings.sql"
-    );
+    ensure!(table["columns"][0]["name"] == "Threshold" && table["citation"]["path"] == "Settings.sql");
     let schema = dossier["planning_context"]["schema"].as_array().unwrap();
     ensure!(schema.len() == 3);
     ensure!(schema[1]["name"] == "dbo.Missing" && schema[1]["result"]["results"] == json!([]));
     ensure!(schema[2]["result"]["active_generation"] == generation);
     ensure!(schema[2]["result"]["results"][0]["table"]["columns"][0]["name"] == "AuditId");
-    ensure!(
-        dossier["source_coverage"]["recovery"]["arguments"]["history_semantic_timeout_ms"] == 0
-    );
+    ensure!(dossier["source_coverage"]["recovery"]["arguments"]["history_semantic_timeout_ms"] == 0);
     ensure!(
         !dossier["source_evidence"]
             .as_array()

@@ -101,6 +101,10 @@ fn oversized_reports_recover_exact_original_parts_status_and_unicode_with_projec
     let manifest: Value = serde_json::from_str(text(&result)).unwrap();
     assert_eq!(manifest["report_content"], "DEFERRED_NOT_SUPPLIED");
     assert_eq!(
+        manifest["plan_summary"],
+        json!({"status":"INCOMPLETE","active_generation":null,"provider_calls":2})
+    );
+    assert_eq!(
         manifest["response_delivery"]["original_format"],
         "mcp_call_tool_result_json"
     );

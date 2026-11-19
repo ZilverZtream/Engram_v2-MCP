@@ -3145,11 +3145,11 @@
     },
     "feature_plan_response_budget": {
       "status": "IMPLEMENTED_FOCUSED_ACTUAL_DOSSIER_CHECK_PASSED_AWAITING_PACKAGED_MCP",
-      "requirement": "TODO-32 deliver a complete bounded pre-edit dossier for the calling AI",
-      "observed_gap": "The retained installed LegacyValidation dossier sent 302,377 bytes in one response. The handler exposes no reply budget or dossier recovery and refuses plans above its existing 1 MiB internal ceiling.",
-      "implementation": "Feature plan request and handler, reusing the project-scoped exact response snapshot mechanism.",
-      "acceptance": "Complete inline replies fit the selected byte budget. An oversized dossier or plan returns a bounded preview with truthful status and an executable continuation. Recovery reconstructs the full original byte-for-byte via its BLAKE3 identity without rerunning retrieval or generation, even after source edits. Preserve original evidence authority and the existing 1 MiB capture bound.",
-      "verification": "The exact feature-plan delivery and snapshot modules used cached dependencies to process the retained actual LegacyValidation wire reply. The complete 302,377 bytes matched after 15 default-budget pages, including 16 source records and complete nested context. Each page stayed within 40 KiB, the identity matched BLAKE3, a larger budget returned the original inline, and cross-project recovery refused. The existing dossier public-handler fixture now follows its recovery action after a working-tree guidance edit. Combined package and MCP checks remain pending. No Cargo build or semantic planner tuning."
+      "requirement": "TODO-32 usable complete pre-edit dossier for the calling AI",
+      "observed_gap": "The current installed baseline already captures complete oversized plans and dossiers with its shared public read-report wrapper. The deferred reply concealed whether the original was a ready source dossier, an incomplete result or a draft, and concealed the generation and provider-call count.",
+      "implementation": "The existing shared read-report delivery for one_shot_feature_plan. Supersedes the handler-local implementation in 57dd75d4 after public baseline verification.",
+      "acceptance": "A deferred plan or dossier exposes its captured status, generation and provider-call count within the original reply budget. Evidence stays in the preserved original MCP result. Existing continuation actions recover it byte-for-byte without rerunning retrieval or generation after source edits.",
+      "verification": "The installed-equivalent public baseline used DEFERRED_READ_REPORT and exact generic recovery but had no plan_summary. The focused test used the exact shared delivery modules and the historical 302,377-byte LegacyValidation dossier to verify the three summary fields and exact MCP CallToolResult recovery under the same format and BLAKE3 identity. The newer public candidate check is queued; no semantic tuning or Cargo build."
     },
     "webforms_registered_control_calls": {
       "status": "IMPLEMENTED_FOCUSED_ACTUAL_SOURCE_CHECK_PASSED_AWAITING_PACKAGED_MCP",

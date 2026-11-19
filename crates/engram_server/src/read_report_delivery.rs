@@ -153,6 +153,22 @@ pub(crate) fn save_job_instruction_observation(
 
 const GENERATION_DELIVERY_INSTRUCTION: &str = "Do not repeat produce_claude_md to recover this response. Recover the original root, companion files and complete rule ledger, including publication notes and conflicts. A returned proposal does not establish that files were written or policy was accepted. Recovery never generates or publishes files. If recovery expires, inspect existing files and ownership receipts before deciding on another operation.";
 
+const DRAFT_FEATURE_STATUS: &str = "DRAFT_REQUIRES_SOURCE_AND_REQUIREMENT_REVIEW";
+
+fn feature_plan_summary(original: &CallToolResult) -> Option<Value> {
+    let text = &original.content.first()?.as_text()?.text;
+    let report: Value = serde_json::from_str(text).ok()?;
+    let status = report["status"].as_str()?;
+    if !matches!(status, "SOURCE_DOSSIER_READY" | "INCOMPLETE" | DRAFT_FEATURE_STATUS) {
+        return None;
+    }
+    Some(json!({
+        "status":status,
+        "active_generation":report["active_generation"].as_u64(),
+        "provider_calls":report["provenance"]["provider_calls"].as_u64()
+    }))
+}
+
 fn generation_instruction(tool: &str) -> Option<&'static str> {
     match tool {
         "produce_claude_md" => Some(GENERATION_DELIVERY_INSTRUCTION),
@@ -397,6 +413,12 @@ impl Report {
     }
 
     fn manifest(&self, id: &str, bytes: usize) -> String {
+        if self.tool == "one_shot_feature_plan" {
+            let probe = json!({
+                "status":DRAFT_FEATURE_STATUS,"active_generation":u64::MAX,"provider_calls":u64::MAX
+            });
+            return self.manifest_for(id, bytes, Some(&probe));
+        }
         // Reserve both full-length IDs before any indexing is admitted. These
         // placeholders are only a sizing probe; actual replies use the header.
         let probe = json!({"handler_returned":true,"acknowledgement":"existing_registration",
@@ -448,6 +470,11 @@ impl Report {
         }
         if self.tool == "index_project" {
             if let Some(operation) = operation { value["operation"] = operation.clone(); }
+        }
+        if self.tool == "one_shot_feature_plan"
+            && let Some(summary) = operation
+        {
+            value["plan_summary"] = summary.clone();
         }
         if maintenance_operation(self.tool) {
             value["operation"] = maintenance_outcome(self.tool);
@@ -592,6 +619,11 @@ impl Report {
         let operation = if self.tool == "index_project" { Some(index_operation(&original)) }
             else if maintenance_operation(self.tool) { Some(maintenance_outcome(self.tool)) }
             else { None };
+        let plan_summary = if self.tool == "one_shot_feature_plan" {
+            feature_plan_summary(&original)
+        } else {
+            None
+        };
         let original = if self.json_envelope {
             let result = serde_json::to_value(&original)
                 .map_err(|error| McpError::internal_error(error.to_string(), None))?;
@@ -632,7 +664,7 @@ impl Report {
         let body = serde_json::to_string(&original)
             .map_err(|error| McpError::internal_error(error.to_string(), None))?;
         let id = blake3::hash(body.as_bytes()).to_hex().to_string();
-        let manifest = self.manifest_for(&id, body.len(), operation.as_ref());
+        let manifest = self.manifest_for(&id, body.len(), operation.as_ref().or(plan_summary.as_ref()));
         if manifest.len() > self.budget {
             return Err(McpError::invalid_params(
                 "Increase max_tokens for complete read-report recovery metadata",
