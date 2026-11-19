@@ -2653,7 +2653,7 @@
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
-    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-lifecycle-20261119",
+    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-dossier-controls-20261120",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "incremental_codegen": {
@@ -3159,7 +3159,22 @@
       "acceptance": "Resolve the two actual LegacyValidation parameterless calls to the single selected bulk-edit control's public declarations, cite the call and registration, and retain guarded target source. Clearly preserve source-candidate authority and withhold ambiguous or stale targets. No general compiler or runtime-dispatch inference.",
       "verification": "A focused executable used the exact resolver, existing control registration traversal and source-admission code against actual LegacyValidation Git blobs and an owned graph. Both calls at lines 25 and 604 reached the selected control declarations at lines 22 and 15 respectively. It verified the actual registration at line 4, instance at line 106 and target markup hash. The installed graph returned matching target declaration identities independently. Added a request-trace integration case for the qualified path and stale or ambiguous source withholding. Packaged MCP verification remains pending; no Cargo build."
     },
-    "next_action": "Prepare public acceptance and one combined package for TODO-39 selected-source identity, TODO-32 feature-plan recovery and TODO-31 registered-control calls."
+    "identity_dossier_control_batch": {
+      "status": "ONE_SHARED_TARGET_RELEASE_RUNNING",
+      "case": "identity-dossier-controls-20261120",
+      "source_commit": "e3f3b0983f9a6b24533c9b40c67f923ac34cded3",
+      "requirements": ["TODO-39", "TODO-32", "TODO-31"],
+      "release_plan_sha256": "afccf2faa9bcf85178bda8ee6ad025346cdb18b56f463929e2a9cf6c11fc53a7",
+      "stage_and_verify_sha256": "9c5486fc74d453ce3855455ab975e8958576e8d687ac37d66ac69d2eae05981c",
+      "public_verifier_sha256": "e63c364769174521b7887bc4b2a6006e99c3dfab72664643f5e2e74c6e718fdf",
+      "baseline_receipt_sha256": "ab89be4a271722c3069d59fbb88576b43bca3412af72d39d9f8fb271f8b0d731",
+      "fixture_helper_sha256": "a8b146f06f380b9184621aeb5a5dd6aeb4e39e7d17c37a97baeb97b35bfc36cb",
+      "build_session": 33672,
+      "build_driver_pid": 46320,
+      "stage_session": 76939,
+      "baseline": "The previously installed binary reported healthy after one wrong physical vector key was substituted at an inherited source row in an owned database. It returned the two ordinary LegacyValidation control calls as unresolved external edges, and its existing budgeted planner recovery lacked the captured status summary. All owned processes and temporary projects closed. The native fixture helper must be used only with the disposable owner-marked project."
+    },
+    "next_action": "Follow existing build session 33672 and dependent staging session 76939. The dependent session requires the passing build receipt, verifies the three public behaviors, and packages the exact artifact. Prepare cutover only after public acceptance."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -3557,22 +3572,22 @@
   },
   "next_source_batch_pending": [
     {
-      "original_requirement_id": "EG-31",
+      "original_requirement_id": "TODO-39",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "0e2d22bbde31e86f2b01a89ef745dcb25258e917",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\legacy_validation-maintenance-path-scope\\verify-public.py"
+      "source_commit": "644e7dcee060ae79d383f41699d43f32f53ffbc7",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-dossier-controls-20261120\\verify-public.py"
     },
     {
-      "original_requirement_id": "TODO-28",
+      "original_requirement_id": "TODO-32",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "5326263489be07f9dd99f3ef33e1ff34a3992394",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-lifecycle-20261119\\verify-public.py"
+      "source_commit": "e3f3b0983f9a6b24533c9b40c67f923ac34cded3",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-dossier-controls-20261120\\verify-public.py"
     },
     {
       "original_requirement_id": "TODO-31",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "6cb88efbfbd2e6f982639673deee4c10a0cf158d",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-history-lifecycle-20261119\\verify-public.py"
+      "source_commit": "8f84817b079d4dfae22ebd7105c36dbe3675bc1d",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-dossier-controls-20261120\\verify-public.py"
     }
   ],
   "sql_history_review_frozen_queue_20261119": [
