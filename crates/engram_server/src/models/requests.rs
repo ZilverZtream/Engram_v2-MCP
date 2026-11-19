@@ -3732,7 +3732,8 @@ pub struct GetSpDetailsRequest {
 #[serde(deny_unknown_fields)]
 pub struct ListTriggersRequest {
     pub project_id: String,
-    /// Filter to triggers on a specific table name.
+    /// Filter by authored SQL table name. Use a schema-qualified name for an
+    /// exact target. A bare table name matches declarations in any schema.
     #[serde(default)]
     pub table_name: Option<String>,
     /// Output as JSON instead of Markdown. Default: false.

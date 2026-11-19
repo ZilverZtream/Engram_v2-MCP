@@ -524,6 +524,19 @@ pub fn detect_triggers(sql_files: &[(String, String)]) -> Vec<TriggerInfo> {
     project_catalog_triggers(&source_catalog(sql_files))
 }
 
+pub(crate) fn filter_triggers_by_table(triggers: &mut Vec<TriggerInfo>, table: &str) {
+    let Ok(wanted) = super::schema_query::input_name(table) else {
+        // Preserve legacy literal basename filters, such as a name with spaces.
+        triggers.retain(|trigger| trigger.target_table.eq_ignore_ascii_case(table));
+        return;
+    };
+    triggers.retain(|trigger| {
+        trigger.qualified_target_table.as_deref()
+            .and_then(|target| super::schema_query::input_name(target).ok())
+            .is_some_and(|target| target.lookup(&wanted))
+    });
+}
+
 fn project_catalog_triggers(catalog: &super::schema_query::Catalog) -> Vec<TriggerInfo> {
     catalog.objects.iter().filter(|object| object.kind == "trigger").filter_map(|object| {
         let header = object.trigger_header.as_ref()?;

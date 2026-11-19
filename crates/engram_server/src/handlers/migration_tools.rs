@@ -2547,59 +2547,39 @@ impl Engram {
 
             let mut triggers = dbi::detect_triggers(&sql_files);
 
-            // Filter by table if requested
             if let Some(ref table) = table_filter {
-                triggers.retain(|t| t.target_table.eq_ignore_ascii_case(table));
+                dbi::filter_triggers_by_table(&mut triggers, table);
             }
 
-            // Collect code tables that write to trigger target tables
-            // for cross-reference (which code paths indirectly fire each trigger)
-
-            // Pre-fetch SqlCalls edges once (not per-trigger)
-            let sql_call_edges = graph
-                .list_edges_by_kind(&pid, engram_graph::EdgeKind::SqlCalls, 5_000)
-                .unwrap_or_default();
-
-            let mut trigger_code_paths: std::collections::HashMap<String, Vec<String>> =
-                std::collections::HashMap::new();
-            for trigger in &triggers {
-                let table_lower = trigger.target_table.to_lowercase();
-                // Check graph for code that writes to this table via incoming QueriesTable edges
-                if let Ok(incoming) = graph.find_incoming_edges(
-                    &pid,
-                    Some(engram_graph::EdgeKind::QueriesTable),
-                    &trigger.target_table,
-                    500,
-                ) {
-                    for (source_id, _weight) in &incoming {
-                        trigger_code_paths
-                            .entry(trigger.name.clone())
-                            .or_default()
-                            .push(source_id.clone());
-                    }
-                }
-                // Cross-reference SqlCalls edges that target this table
-                for e in &sql_call_edges {
-                    if e.target_id.to_lowercase().contains(&table_lower) {
-                        trigger_code_paths
-                            .entry(trigger.name.clone())
-                            .or_default()
-                            .push(e.source_id.clone());
-                    }
+            let mut table_references = std::collections::BTreeMap::new();
+            if !output_json {
+                for trigger in &triggers {
+                    table_references
+                        .entry(trigger.target_table.clone())
+                        .or_insert_with(|| {
+                            // A QueriesTable edge carries neither write intent nor trigger binding.
+                            let mut paths: Vec<String> = graph
+                                .find_incoming_edges(
+                                    &pid, Some(engram_graph::EdgeKind::QueriesTable),
+                                    &trigger.target_table, 500,
+                                )
+                                .unwrap_or_default()
+                                .into_iter()
+                                .map(|(source, _)| source)
+                                .collect();
+                            paths.sort();
+                            paths.dedup();
+                            paths
+                        });
                 }
             }
-            // Dedup code paths
-            for paths in trigger_code_paths.values_mut() {
-                paths.sort();
-                paths.dedup();
-            }
 
-            (triggers, trigger_code_paths)
+            (triggers, table_references)
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let (triggers, trigger_code_paths) = result;
+        let (triggers, table_references) = result;
 
         if triggers.is_empty() {
             let msg = if let Some(ref table) = req.table_name {
@@ -2617,33 +2597,36 @@ impl Engram {
         }
 
         let mut out = format!("# Database Triggers ({})\n\n", triggers.len());
-        out.push_str("| Trigger | Table | Event | Type | Body Summary |\n");
-        out.push_str("|---------|-------|-------|------|-------------|\n");
+        out.push_str("Declarations found in project SQL. Database deployment, enablement and execution remain unverified.\n\n");
+        out.push_str("| Trigger | Table | Event | Type | Body Summary | Source |\n");
+        out.push_str("|---------|-------|-------|------|--------------|--------|\n");
         for t in &triggers {
+            let source = t.source_citation
+                .as_ref()
+                .map(|citation| format!("{}:{}", citation.path.replace('|', "\\|"), citation.start_line))
+                .unwrap_or_default();
             out.push_str(&format!(
-                "| {} | {} | {} | {} | {} |\n",
-                t.name,
-                t.target_table,
+                "| {} | {} | {} | {} | {} | {} |\n",
+                t.qualified_name.as_deref().unwrap_or(&t.name).replace('|', "\\|"),
+                t.qualified_target_table.as_deref().unwrap_or(&t.target_table).replace('|', "\\|"),
                 t.event_types.join(", "),
                 t.trigger_type,
                 t.body_summary.replace('|', "\\|"),
+                source,
             ));
         }
         out.push('\n');
 
-        // Show code paths that indirectly fire each trigger
-        let mut has_code_refs = false;
-        for t in &triggers {
-            if let Some(paths) = trigger_code_paths.get(&t.name)
-                && !paths.is_empty()
-            {
-                if !has_code_refs {
-                    out.push_str("## Code Paths That Fire Triggers\n\n");
-                    has_code_refs = true;
-                }
-                out.push_str(&format!("### {} (on {})\n\n", t.name, t.target_table));
-                for p in paths {
-                    out.push_str(&format!("- {}\n", p));
+        let mut table_references = table_references
+            .into_iter()
+            .filter(|(_, paths)| !paths.is_empty())
+            .peekable();
+        if table_references.peek().is_some() {
+            out.push_str("## Indexed Table References\n\nMatched by table basename. These can be reads or writes. Operation, schema binding and trigger activation are unverified.\n\n");
+            for (table, paths) in table_references {
+                out.push_str(&format!("### {table}\n\n"));
+                for path in paths {
+                    out.push_str(&format!("- {path}\n"));
                 }
                 out.push('\n');
             }
