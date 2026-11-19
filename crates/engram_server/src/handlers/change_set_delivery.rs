@@ -211,6 +211,7 @@ pub(super) fn bounded_with_budget(
     if body.len() <= limit {
         return Ok(body);
     }
+    let policy = manifest.as_object_mut().and_then(|object| object.remove("project_policy_sources"));
     let id = blake3::hash(body.as_bytes()).to_hex().to_string();
     let delivery = json!({
         "status": "DEFERRED_CONTEXT", "complete": false,
@@ -222,6 +223,9 @@ pub(super) fn bounded_with_budget(
         "next_call": continuation(project_id, &id, 0, limit),
     });
     manifest["response_delivery"] = delivery;
+    if policy.is_some() {
+        manifest["response_delivery"]["project_policy_deferred"] = json!(true);
+    }
     let mut rendered = serde_json::to_string(&manifest)
         .map_err(|_| failure("Cannot render change-set delivery manifest"))?;
     const MARKDOWN_PREFIX: &str = "# Change set: deferred evidence\n\nEvery mandatory identity is retained below. Recover the full dossier before completing intake.\n\n```json\n";
@@ -245,6 +249,17 @@ pub(super) fn bounded_with_budget(
         manifest["response_delivery"]["checkpoint_content_deferred"] = json!(true);
         rendered = serde_json::to_string(&manifest)
             .map_err(|_| failure("Cannot render change-set delivery manifest"))?;
+    }
+    if let Some(policy) = policy
+        && rendered.len() + wrapper_bytes <= limit
+    {
+        manifest["project_policy_sources"] = policy;
+        manifest["response_delivery"]["project_policy_deferred"] = json!(false);
+        let with_policy = serde_json::to_string(&manifest)
+            .map_err(|_| failure("Cannot render scoped change-set guidance"))?;
+        if with_policy.len() + wrapper_bytes <= limit {
+            rendered = with_policy;
+        }
     }
     let rendered = if output_json {
         rendered
@@ -528,6 +543,28 @@ mod tests {
         assert!(read_complete_change_set(&data, "other-project", id, body.len()).is_err());
     }
     use super::*;
+
+    #[test]
+    fn deferred_change_set_keeps_complete_scoped_guidance_when_it_fits() {
+        let temporary = tempfile::tempdir().unwrap();
+        let policy = json!({"sources":[{"path":"AGENTS.md", "content":
+            "Preserve the approved replay exception.\n".repeat(70)}]});
+        let body = json!({"project_policy_sources":policy, "evidence":"citation\n".repeat(3000)}).to_string();
+        let manifest = json!({"reconciliation_rows":[{"row_id":"P001","path":"Site/Example.vb"}],
+            "project_policy_sources":policy});
+        let roomy = bounded_with_budget(temporary.path(), "project", body.clone(), true, manifest.clone(), 8192).unwrap();
+        let roomy: Value = serde_json::from_str(&roomy).unwrap();
+        assert_eq!(roomy["project_policy_sources"], policy);
+        assert_eq!(roomy["response_delivery"]["project_policy_deferred"], false);
+
+        let tight = bounded_with_budget(temporary.path(), "project", body.clone(), true, manifest, 2048).unwrap();
+        assert!(tight.len() <= 2048);
+        let tight: Value = serde_json::from_str(&tight).unwrap();
+        assert!(tight.get("project_policy_sources").is_none());
+        assert_eq!(tight["response_delivery"]["project_policy_deferred"], true);
+        let id = tight["response_delivery"]["response_id"].as_str().unwrap();
+        assert_eq!(read_complete_change_set(temporary.path(), "project", id, body.len()).unwrap(), body);
+    }
 
     fn manifest() -> Value {
         json!({

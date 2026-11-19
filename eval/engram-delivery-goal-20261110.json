@@ -3039,6 +3039,14 @@
     "acceptance": "The planner reads one project-scoped immutable snapshot within its existing 512 KiB intake limit. Size and BLAKE3 verification remain mandatory. Existing public pagination and its exact content remain usable.",
     "verification": "Two focused exact-module tests passed against cached dependencies, including deep Windows recovery, Unicode public pagination, project and byte limits, and tampering refusal. Packaged planner wiring remains pending. The running release checkout excludes this change."
   },
+  "deferred_change_set_scoped_guidance": {
+    "original_requirement_id": "EG-01",
+    "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",
+    "observed_gap": "A bounded change-set preview drops scoped authored guidance even when the complete guidance packet would fit with the mandatory receipt identities.",
+    "implementation_files": ["crates/engram_server/src/handlers/change_set_delivery.rs", "crates/engram_server/src/handlers/planning_tools.rs"],
+    "acceptance": "The preview includes the exact scoped guidance when it fits. A tighter budget tells the caller to recover it, without clipping rules or losing the original report and mandatory identities.",
+    "verification": "Two focused exact-module tests passed against cached dependencies. Ordinary JSON and Markdown through packaged MCP remain pending. No additional release build."
+  },
   "recent_filtered_history_progress": {
     "original_requirement_id": "EG-20",
     "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",

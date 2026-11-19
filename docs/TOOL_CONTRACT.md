@@ -649,6 +649,10 @@ default. The budget also travels with every exact-original recovery action.
 Mandatory reconciliation and checkpoint identities remain inline; if they
 cannot fit, the tool reports a minimum budget before saving a response snapshot.
 The same controls apply to JSON and Markdown without changing dossier selection.
+When the change set needs recovery, the preview includes complete scoped
+repository guidance if it fits alongside the mandatory identities. If
+`response_delivery.project_policy_deferred` is true, recover the saved report
+to read that guidance before completing intake.
 
 ### References in supplied repository guidance
 

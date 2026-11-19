@@ -12183,6 +12183,7 @@ impl Engram {
                 "omission_summary": payload["omission_summary"],
                 "reconciliation_rows": reconciliation_rows,
                 "contract_checkpoint": payload["contract_checkpoint"],
+                "project_policy_sources": payload["project_policy_sources"],
                 "contract_checkpoint_identity": {
                     "receipt_id": payload["contract_checkpoint"]["receipt"]["receipt_id"],
                     "hard_item_ids": payload["contract_checkpoint"]["hard_items"].as_array()
@@ -13005,6 +13006,7 @@ impl Engram {
             "omission_summary": omission_summary,
             "reconciliation_rows": reconciliation_rows,
             "contract_checkpoint": contract_checkpoint,
+            "project_policy_sources": project_policy_sources,
             "contract_checkpoint_identity": {
                 "receipt_id": contract_checkpoint["receipt"]["receipt_id"],
                 "hard_item_ids": contract_checkpoint["hard_items"].as_array()
