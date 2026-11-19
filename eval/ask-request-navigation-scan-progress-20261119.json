@@ -1,0 +1,29 @@
+{
+  "original_requirement_id": "TODO-28",
+  "source_commit": "b085876d5696924db48d45181c14c30915afcc6f",
+  "public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-navigation-scan-20261119\\verify-public.py",
+    "sha256": "e73719ec6be7412db12da8a868819a241a083571ea190231035eac79245187d0"
+  },
+  "public_assertions_expected": 4,
+  "public_assertions": [
+    "default_ask_keeps_database_trace_and_handler",
+    "ask_skips_sql_and_dbml_but_keeps_handler",
+    "callable_followup_preserves_database_optout",
+    "source_files_unchanged"
+  ],
+  "native_unit_cases_expected": 0,
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-navigation-scan-20261119\\baseline1\\receipt.json",
+    "sha256": "6ccad6b258253cb3f2fb8db8188031cbc4d517b3e79a1059f75e5cbf8862d92e"
+  },
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "runtime_deployed": false,
+  "original_requirement": "TODO-28 natural-language WebForms request navigation through the ordinary trace.",
+  "observed_gap": "Installed ask_codebase composes WebForms traces with database evidence enabled and rejects the explicit opt-out.",
+  "behavior": "Accept request_trace_include_db=false for the request-trace arm and preserve that choice in the ordinary trace follow-up. Default evidence remains unchanged.",
+  "configuration_relevance": "Verified against the installed runtime on an owned WebForms/VB/SQL fixture. No production latency measured.",
+  "verification": "Installed baseline returned the handler and source trigger by default, and rejected the caller opt-out. Changed Rust parsed with rustfmt; candidate and installed proof remain queued.",
+  "temporary_resources": "Owned MCP server and reader closed; sealed receipt and wire evidence remain in the recorded case.",
+  "full_original_goal_complete": false
+}
