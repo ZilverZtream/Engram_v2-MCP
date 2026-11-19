@@ -3189,7 +3189,21 @@
     "full_original_goal_complete": false,
     "record": "eval/sql-review-navigation-batch-delivery-20261119.json"
   },
-  "next_source_batch_pending": [],
+  "next_source_batch_pending": [
+    {
+      "original_requirement_id": "EG-20",
+      "source_commit": "935980c8cca03a14a70e710dd9627fc133f0eb95",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "observed_gap": "Budgeted text history pages expose an offset and a separate revision identity but provide no literal MCP tool call that keeps both together.",
+      "user_outcome": "Text and precedent pages with a resolved revision offer a callable next page preserving that Git commit and the selection and ranking controls. Callable actions are included inside the existing reply budget. Mutable ranking remains explicitly unsnapshotted.",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-page-action-20261119\\contract.json",
+      "public_assertions_expected": 5,
+      "source_outcomes": 1,
+      "native_unit_cases_expected": 0,
+      "current_release_excludes_this_item": true,
+      "verification": "Installed baseline shows one whole paged result with no callable continuation. Source syntax and whitespace checks passed. Candidate and installed verification remain pending."
+    }
+  ],
   "browser_json_history_batch_delivery": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\browser-json-history-batch-delivery-20261116.json",
     "sha256": "a0cdde6e96500e17221ed373128a0150cdbb6485d7a53bcec1e61642f95243b9"
