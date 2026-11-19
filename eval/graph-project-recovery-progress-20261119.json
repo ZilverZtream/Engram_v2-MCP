@@ -62,5 +62,13 @@
     "CodeMap/Blast and resolve_id implementations are unchanged; raw protected work is preserved."
   ],
   "next_action": "Continue substantive original source work and retain both queued outcomes. No Cargo with only two independent outcomes; the three-outcome floor is not an automatic release schedule.",
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "pre_execution_harness_correction": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\acceptance-harness-correction1.json",
+    "sha256": "59d12855e6d263d690c07bfc8ff8e09b0f2fea1900b07d029fede5e10241839f"
+  },
+  "corrected_public_verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-project-recovery-20261119\\verify-public.py",
+    "sha256": "08d73eac48e735b2059b51afe276490c900628c294a2db47d4cfb9b1e2f69383"
+  }
 }
