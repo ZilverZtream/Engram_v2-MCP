@@ -90,6 +90,24 @@ fn run(expansion: bool) -> Result<()> {
             let lexical=engram.handle_graph_search(request("sourcekeepmarker")?).await?;
             let text=&lexical.content[0].as_text().unwrap().text;
             ensure!(text.contains("file:src/keep.ts") && text.contains(keep.trim()) && !text.contains("fixture:tail"),"Overwritten live file node replaced selected lexical evidence or authorized expansion: {text}");
+
+            graph.upsert_edges(&pid,&[
+                edge("fixture:stable","fixture:deleted",old),
+                edge("fixture:stable","fixture:tail",current+1),
+                edge("fixture:stable","fixture:missing",old),
+            ])?;
+            let refs=engram.handle_find_references(serde_json::from_value(json!({
+                "project_id":pid,"node_id":"fixture:stable","edge_kind":"calls",
+                "direction":"out","selected_source_only":true
+            }))?).await?;
+            let refs:serde_json::Value=serde_json::from_str(&refs.content[0].as_text().unwrap().text)?;
+            ensure!(refs["active_generation"]==current);
+            ensure!(refs["edges"].as_array().unwrap().len()==1);
+            ensure!(refs["edges"][0]["target"]["node_id"]=="fixture:validleaf");
+            ensure!(refs["edges"][0]["edge_source_revision"]==old);
+            ensure!(refs["withheld"]["unselected_endpoint_observations"]==2);
+            ensure!(refs["withheld"]["unavailable_endpoint_observations"]==1);
+            ensure!(refs["withheld"]["source_revision_mismatch_edges"]==1);
         }
         Ok::<(),anyhow::Error>(())
     });

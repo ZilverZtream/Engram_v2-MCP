@@ -2075,6 +2075,10 @@ pub struct QueryGraphNodesRequest {
 pub struct FindReferencesRequest {
     pub project_id: String,
     pub node_id: String,
+    /// Check both file revisions and the edge's source revision against the
+    /// published source selection. Requires one explicit edge_kind. Returns JSON.
+    #[serde(default)]
+    pub selected_source_only: bool,
     #[serde(default)]
     pub edge_kind: Option<String>,
     #[serde(default = "default_direction_in")]

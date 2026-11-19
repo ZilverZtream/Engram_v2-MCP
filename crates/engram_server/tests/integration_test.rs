@@ -1889,6 +1889,7 @@ async fn test_find_references() {
     // 1. Find outgoing references from A
     let res = engram
         .find_references(Parameters(engram_server::FindReferencesRequest {
+            selected_source_only: false,
             project_id: project_id.to_string(),
             node_id: "A".into(),
             edge_kind: Some("dependency".into()),
@@ -1906,6 +1907,7 @@ async fn test_find_references() {
     // 2. Find incoming references to B
     let res = engram
         .find_references(Parameters(engram_server::FindReferencesRequest {
+            selected_source_only: false,
             project_id: project_id.to_string(),
             node_id: "B".into(),
             edge_kind: Some("dependency".into()),
@@ -3906,6 +3908,7 @@ async fn test_graph_structure_edges() {
         .clone();
     let res = engram
         .find_references(Parameters(engram_server::FindReferencesRequest {
+            selected_source_only: false,
             project_id: project_id.to_string(),
             node_id: class_node_id,
             edge_kind: Some("contains".into()),

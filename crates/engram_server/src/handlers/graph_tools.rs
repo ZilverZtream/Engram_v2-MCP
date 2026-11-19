@@ -11,6 +11,9 @@ use rmcp::{
     model::{CallToolResult, Content},
 };
 
+#[path = "selected_graph_references.rs"]
+mod selected_graph_references;
+
 fn module_reference_evidence(
     graph: &engram_graph::GraphStore, project: &str, source: &str, target: &str,
     remaining: &mut usize,
@@ -358,6 +361,27 @@ impl Engram {
             self.ensure_project_record(&req.project_id).await?;
         }
         let kind = req.edge_kind.as_deref().and_then(EdgeKind::parse);
+        if req.selected_source_only {
+            let kind = kind.ok_or_else(|| McpError::invalid_params(
+                "selected_source_only requires a supported explicit edge_kind", None,
+            ))?;
+            let runtime = self.ensure_project_runtime(&req.project_id).await?;
+            let (generation, view) = self
+                .pin_active_source_generation(&req.project_id, &runtime.search)
+                .await?;
+            let graph = self.state.graph.clone();
+            let search = runtime.search.clone();
+            let text = tokio::task::spawn_blocking(move || {
+                let lookup = search.selected_source_revision_lookup(
+                    &req.project_id, generation, std::sync::Arc::new(view),
+                )?;
+                selected_graph_references::read(&graph, &lookup, req, kind, generation)
+            })
+            .await
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(text)]));
+        }
 
         let graph = self.state.graph.clone();
         let edge_kind_str = req.edge_kind.clone();
