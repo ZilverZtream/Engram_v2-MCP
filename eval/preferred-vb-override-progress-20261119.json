@@ -1,0 +1,37 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-10",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119\\contract.json",
+  "native_unit_cases_expected": 0,
+  "public_assertions_expected": 5,
+  "runtime_deployed": false,
+  "source_stage_cargo_invocations": 0,
+  "next_action": "Consolidate the three original independent source outcomes into one source-frozen batch. Exactly one optimized build with25public checks on candidate and installed artifacts; no per-item unit/debug build or full suite.",
+  "at_utc": "2026-11-19T00:46:55.159516+00:00",
+  "source_commit": "449acb9b39f8093531a5af239f3be56a01211017",
+  "implementation_files": [
+    "crates/engram_index/src/vb_extractor.rs"
+  ],
+  "source_sha256": "4780953bd6357a9ef2ad3408879576f7c22386999188bd5b7e6258c1037d9ae3",
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119\\baseline1\\receipt.json",
+    "sha256": "cc0ffd25311381a70c9a2cddbf1683ec4c5f3f75d802c216ae1071841a38dcc3"
+  },
+  "baseline_binary_sha256": "595e75f7f42e38f516ba3f9c2e6444bd8a77bc69a2928f1b4ad245f5f2202c0a",
+  "observed_missing_behavior": "After a healthy explicit paired-companion source generation1, a missing explicit companion override silently returned success and published generation2 using fallback; no requested path/variable diagnostic reached the caller.",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\preferred-vb-override-20261119\\verify-public.py",
+  "public_verifier_sha256": "8d83b2471041b29d27eafd2f920293df6fb9458fe5efa972f47eff0c96c29a50",
+  "acceptance_contract_sha256": "52db59c471217087232366716785952ca5e9b65e1266c04e3018c2fda4fe470d",
+  "source_syntax_validation": "RUSTFMT_PARSE_PASS_NOT_TYPECHECKED; Python verifier parsed. No after API/unit execution.",
+  "public_after_checks_executed": 0,
+  "native_tests_executed": 0,
+  "protected_wip9": "UNCHANGED",
+  "configuration_relevance": "Actual normal Full/Ollama configuration remains unchanged. This Rust implementation change protects trusted VB source ingestion/parser authority; no target-language expansion or sidecar build.",
+  "implementation": "Explicit nonempty configured companion startup failures now propagate an actionable error with variable, requested path, OS cause and fix/unset action. Unset/empty override keeps existing automatic-discovery/fallback behavior; valid identity-capable overrides unchanged.",
+  "limitations": [
+    "Not runtime validated or deployed yet. Five public checks cover healthy explicit selection, actionable failure, old selected source preservation, valid retry and no silent packaged fallback.",
+    "No blanket claim about all bad-protocol/unsupported-identity cases or stand-alone legacy extraction. Existing identity/teardown guards remain; only explicit startup failure stops trusted authority acquisition.",
+    "No sidecar rebuild, storage/source-format change, actual LegacyValidation source/Q/index operation, provider/model request, CodeMap/Blast improvement or preexisting deletion. General readiness/task usefulness and the full goal remain unfinished."
+  ]
+}
