@@ -321,6 +321,12 @@ pub fn context(arguments: Option<&Map<String, Value>>) -> Map<String, Value> {
             result.insert(key.into(), value.clone());
         }
     }
+    if arguments.is_some_and(|args| {
+        ["as_of", "recorded_before", "before_pr_id"].iter()
+            .any(|key| args.get(*key).is_some_and(|value| !value.is_null()))
+    }) {
+        result.insert("historical_review_selection".into(), Value::Bool(true));
+    }
     result
 }
 
@@ -363,6 +369,7 @@ fn arguments_for(
     input: &Map<String, Value>,
     result: &Value,
 ) -> Option<Value> {
+    let properties = target.input_schema.get("properties")?.as_object()?;
     let mut args = Map::new();
     for key in ["project_id", "file_path", "method_name", "job_id"] {
         if let Some(value) = input
@@ -371,6 +378,16 @@ fn arguments_for(
         {
             args.insert(key.into(), value.clone());
         }
+    }
+    if target.name == "get_review_decisions" {
+        if input.get("historical_review_selection").and_then(Value::as_bool) == Some(true)
+            || !properties.contains_key("discover_for_paths") {
+            return None;
+        }
+        let project = args.get("project_id")?.as_str()?;
+        let path = args.get("file_path")?.as_str()?;
+        let action = crate::handlers::review_decisions::current_path_discovery_arguments(project, path)?;
+        args = action.as_object()?.clone();
     }
     if target.name == "get_method_edit_context" && source_tool == "detect_n_plus_one" {
         if let Some(site) = result.pointer("/findings/0/repeated_call") {
@@ -400,7 +417,6 @@ fn arguments_for(
             args.insert("job_id".into(), id.clone());
         }
     }
-    let properties = target.input_schema.get("properties")?.as_object()?;
     args.retain(|name, _| properties.contains_key(name));
     if target
         .input_schema
@@ -585,6 +601,8 @@ pub fn annotate(
         let mut hint = json!({"tool":name,"reason":purpose});
         if let Some(args) = arguments_for(target, tool, input, &data) {
             hint["arguments"] = args;
+        } else if *name == "get_review_decisions" {
+            hint["reason"] = json!(format!("{purpose} Select an exact review identity or explicit path discovery and preserve historical cutoffs before calling."));
         }
         hints.push(hint);
     }

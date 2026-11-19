@@ -122,6 +122,27 @@ pub struct GetReviewDecisionsRequest {
     pub discussion: Option<DiscussionSelector>,
 }
 
+/// Construct a current-file evidence lead using the reader's own path contract.
+/// Historical routing must retain its cutoff instead of using this action.
+pub(crate) fn current_path_discovery_arguments(
+    project_id: &str,
+    file_path: &str,
+) -> Option<serde_json::Value> {
+    crate::handlers::validate_project_id(project_id).ok()?;
+    let req = GetReviewDecisionsRequest {
+        project_id: project_id.into(),
+        review_id: String::new(),
+        discover_for_paths: vec![file_path.replace('\\', "/")],
+        view: DecisionView::History,
+        recorded_before: None,
+        discussion: None,
+    };
+    path_discovery::validate(&req).ok()?;
+    Some(serde_json::json!({
+        "project_id":req.project_id,"discover_for_paths":req.discover_for_paths,
+    }))
+}
+
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum DecisionView {

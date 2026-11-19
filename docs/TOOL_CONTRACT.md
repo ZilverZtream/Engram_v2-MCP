@@ -1621,9 +1621,16 @@ Discovery always reports partial coverage, including legacy identity gaps,
 unavailable records and candidate/byte omissions. It authenticates no authority,
 checks no current-head fix, establishes no semantic applicability and suppresses
 no findings. External fix attestations remain explicitly unchecked. History
-actions are fresh reads and may include later events. For historical reads,
-discussion recovery or `view=current`, use the returned exact `review_id`;
-those selectors cannot be combined with discovery.
+actions are fresh reads and may include later events. `recorded_before` may
+select dated candidates and is retained in their history actions. Discussion
+recovery and `view=current` use an exact `review_id` and cannot be combined with
+discovery.
+
+Generic review suggestions with a current `file_path` use this same validated
+path-discovery action. Without a file, or when a historical selector cannot be
+preserved, the hint omits `arguments` and asks for explicit selection; it does
+not offer a failing project-only event-history call or infer a review identity.
+Identity-bound readbacks emitted by decision recording remain unchanged.
 
 ### Instruction maintenance after an edit session
 
