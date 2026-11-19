@@ -8,7 +8,7 @@ use crate::{
     tools::Engram,
 };
 use serde_json::Value;
-use std::{collections::BTreeSet, time::Duration};
+use std::{collections::BTreeSet, sync::OnceLock, time::Duration};
 
 pub(super) struct ReviewEvidence {
     pub item: Option<EvidenceItem>,
@@ -35,6 +35,20 @@ fn paths(question: &str) -> (Vec<String>, bool) {
     (selected.into_iter().collect(), false)
 }
 
+fn recorded_before(question: &str) -> Result<Option<String>, &'static str> {
+    static BEFORE: OnceLock<regex::Regex> = OnceLock::new();
+    let expression = BEFORE.get_or_init(|| regex::Regex::new(r"(?i)\bbefore\s+`?([0-9]{4}-[0-9]{2}-[0-9]{2})\b").expect("literal review-date expression"));
+    let mut dates = expression.captures_iter(question);
+    let Some(first) = dates.next() else { return Ok(None); };
+    let date = first[1].to_owned();
+    if !crate::handlers::review_decisions::valid_iso_date(&date)
+        || dates.any(|capture| capture[1] != date)
+    {
+        return Err("Prior-review questions require one valid exclusive 'before YYYY-MM-DD' source-date cutoff; use get_review_decisions with recorded_before for an explicit dated read. No current ruling is substituted.");
+    }
+    Ok(Some(date))
+}
+
 pub(super) async fn gather(engram: &Engram, project: &str, question: &str, deadline: Duration) -> Option<ReviewEvidence> {
     let (selected, paths_truncated) = paths(question);
     if selected.is_empty() { return None; }
@@ -43,9 +57,17 @@ pub(super) async fn gather(engram: &Engram, project: &str, question: &str, deadl
         note: Some("Recorded review evidence is advisory; no current approval, semantic applicability or fix verification is established.".into()),
         examined: 0, available: None, truncated: paths_truncated, proof: None,
     }};
+    let recorded_before = match recorded_before(question) {
+        Ok(value) => value,
+        Err(note) => {
+            out.provider.status = ProviderStatus::Failed;
+            out.provider.note = Some(note.into());
+            return Some(out);
+        }
+    };
     let request = GetReviewDecisionsRequest {
         project_id: project.into(), review_id: String::new(), discover_for_paths: selected,
-        view: DecisionView::History, recorded_before: None, discussion: None,
+        view: DecisionView::History, recorded_before, discussion: None,
     };
     let result = tokio::time::timeout(deadline, engram.handle_get_review_decisions(request)).await;
     let parsed = match result {
