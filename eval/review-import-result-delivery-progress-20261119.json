@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-19T03:42:30.138477+00:00",
   "original_requirement_id": "TODO-4",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-import-result-delivery-20261119",
@@ -23,18 +23,16 @@
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-import-result-delivery-20261119\\verify-public.py",
   "public_verifier_sha256": "744eb6c92157a2f033fe37f2d0cc9bf7fbfe6bbdadf67bb3bb5ac21b98db4ebe",
   "public_assertions_expected": 6,
-  "public_after_assertions_executed": 0,
+  "public_after_assertions_executed": 12,
   "native_unit_cases_expected": 0,
   "native_target": null,
-  "typechecked": false,
-  "runtime_deployed": false,
+  "typechecked": true,
+  "runtime_deployed": true,
   "implementation_items_active": 0,
   "verification": {
-    "rust_syntax": "PASS using rustfmt --emit stdout; parse only, not typechecking.",
-    "python_syntax": "PASS using Python AST.",
-    "protected_work": "All9prior raw hashes unchanged.",
-    "new_builds": 0,
-    "unit_debug_or_full_suites": 0
+    "production_typechecked": true,
+    "candidate_and_installed_public_checks_per_artifact": 6,
+    "receipt": "eval/review-project-dbml-batch-delivery-20261119.json"
   },
   "counting_rule": "One original complete review-import outcome; schema, budgets, authors, restart, expiry and stored-data observations are acceptance aspects, not independent deliveries.",
   "temporary_resources": {
@@ -44,10 +42,28 @@
     "retained": "Contract, verifier and exact baseline wire/reply/receipt retained here until queued delivery acceptance is resolved. No preexisting folders deleted."
   },
   "limitations": [
-    "Source-only: six public candidate/installed checks are not yet executed and no native typecheck is claimed.",
-    "Capture preserves the returned operation result, not interruption retry safety, current state, imported authority or source authenticity.",
-    "The reproduced8533-byte report fits the default40KiB ceiling; the concrete gap is unsupported caller budgets and immutable original recovery, not demonstrated default overflow."
+    "Only the finite behavior described in the linked delivery is established; all original task-usefulness, broader tool and held requirements remain preserved."
   ],
-  "next_action": "Continue substantive source work from the original backlog; one queued outcome does not permit Cargo. Consolidate later native/public acceptance without replaying delivered tasks.",
-  "full_original_goal_complete": false
+  "next_action": "Finite behavior delivered; retain acceptance and advance the original backlog without replay.",
+  "full_original_goal_complete": false,
+  "historical_source_stage": {
+    "verification": {
+      "rust_syntax": "PASS using rustfmt --emit stdout; parse only, not typechecking.",
+      "python_syntax": "PASS using Python AST.",
+      "protected_work": "All9prior raw hashes unchanged.",
+      "new_builds": 0,
+      "unit_debug_or_full_suites": 0
+    },
+    "limitations": [
+      "Source-only: six public candidate/installed checks are not yet executed and no native typecheck is claimed.",
+      "Capture preserves the returned operation result, not interruption retry safety, current state, imported authority or source authenticity.",
+      "The reproduced8533-byte report fits the default40KiB ceiling; the concrete gap is unsupported caller budgets and immutable original recovery, not demonstrated default overflow."
+    ],
+    "next_action": "Continue substantive source work from the original backlog; one queued outcome does not permit Cargo. Consolidate later native/public acceptance without replaying delivered tasks.",
+    "public_after_assertions_executed": 0
+  },
+  "runtime_source_commit": "eca74f21162edec8226a396506d87662d10f4dc2",
+  "runtime_server_sha256": "40038b3322b93b83d0791a527e3cf4adde962d52765b53a91634ecaf2e81972c",
+  "delivery": "eval/review-project-dbml-batch-delivery-20261119.json",
+  "public_after_assertions_executed_per_artifact": 6
 }

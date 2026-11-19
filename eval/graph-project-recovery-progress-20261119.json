@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-19T03:54:15.166119+00:00",
   "original_requirement_id": "TODO-7",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-project-recovery-20261119",
@@ -37,18 +37,16 @@
     "reserved_user_namespace_behavior_preserved",
     "unknown_project_not_registered_and_source_preserved"
   ],
-  "public_after_assertions_executed": 0,
+  "public_after_assertions_executed": 14,
   "native_unit_cases_expected": 0,
   "native_target": null,
-  "typechecked": false,
-  "runtime_deployed": false,
+  "typechecked": true,
+  "runtime_deployed": true,
   "implementation_items_active": 0,
   "verification": {
-    "rust_syntax": "PASS using rustfmt --emit stdout; parse only.",
-    "python_syntax": "PASS using Python AST.",
-    "protected_work": "All9prior raw hashes unchanged.",
-    "new_builds": 0,
-    "unit_debug_or_full_suites": 0
+    "production_typechecked": true,
+    "candidate_and_installed_public_checks_per_artifact": 7,
+    "receipt": "eval/review-project-dbml-batch-delivery-20261119.json"
   },
   "counting_rule": "One original actionable project-identity recovery outcome across three basic readers. Tools, error fields, normal/empty/reserved controls and non-registration are acceptance aspects, not independent source outcomes.",
   "temporary_resources": {
@@ -57,11 +55,9 @@
     "retained": "Contract, verifier and exact baseline MCP records retained in this case until queued acceptance is resolved. No preexisting folders removed."
   },
   "limitations": [
-    "Source-only; seven post-change public checks and production typechecking remain pending.",
-    "No source freshness, graph completeness, compiler resolution, traversal, index publication, project deletion or general task-benefit claim.",
-    "CodeMap/Blast and resolve_id implementations are unchanged; raw protected work is preserved."
+    "Only the finite behavior described in the linked delivery is established; all original task-usefulness, broader tool and held requirements remain preserved."
   ],
-  "next_action": "Continue substantive original source work and retain both queued outcomes. No Cargo with only two independent outcomes; the three-outcome floor is not an automatic release schedule.",
+  "next_action": "Finite behavior delivered; retain acceptance and advance the original backlog without replay.",
   "full_original_goal_complete": false,
   "pre_execution_harness_correction": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\acceptance-harness-correction1.json",
@@ -70,5 +66,25 @@
   "corrected_public_verifier": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-project-recovery-20261119\\verify-public.py",
     "sha256": "08d73eac48e735b2059b51afe276490c900628c294a2db47d4cfb9b1e2f69383"
-  }
+  },
+  "historical_source_stage": {
+    "verification": {
+      "rust_syntax": "PASS using rustfmt --emit stdout; parse only.",
+      "python_syntax": "PASS using Python AST.",
+      "protected_work": "All9prior raw hashes unchanged.",
+      "new_builds": 0,
+      "unit_debug_or_full_suites": 0
+    },
+    "limitations": [
+      "Source-only; seven post-change public checks and production typechecking remain pending.",
+      "No source freshness, graph completeness, compiler resolution, traversal, index publication, project deletion or general task-benefit claim.",
+      "CodeMap/Blast and resolve_id implementations are unchanged; raw protected work is preserved."
+    ],
+    "next_action": "Continue substantive original source work and retain both queued outcomes. No Cargo with only two independent outcomes; the three-outcome floor is not an automatic release schedule.",
+    "public_after_assertions_executed": 0
+  },
+  "runtime_source_commit": "eca74f21162edec8226a396506d87662d10f4dc2",
+  "runtime_server_sha256": "40038b3322b93b83d0791a527e3cf4adde962d52765b53a91634ecaf2e81972c",
+  "delivery": "eval/review-project-dbml-batch-delivery-20261119.json",
+  "public_after_assertions_executed_per_artifact": 7
 }

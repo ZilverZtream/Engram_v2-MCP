@@ -1,0 +1,136 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-19T05:07:12.064402+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119",
+  "recording_script": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\record-delivery.py",
+    "sha256": "c97547966ab3ef2f66652d5424117fd54996b50a63714114f178f63374a3dc54"
+  },
+  "original_requirement_ids": [
+    "TODO-4",
+    "TODO-7",
+    "TODO-35"
+  ],
+  "source_preparation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\source-preparation1.json",
+    "sha256": "81c5220bcafaf53a7bed39c77c9fa8b1da027cc9c29afafe52a5325254e5cbd3"
+  },
+  "delivered_behaviors": {
+    "TODO-4": "Review imports accept complete-reply budgets and retain exact returned outcomes, with hash-bound restart recovery that does not repeat ingestion.",
+    "TODO-7": "Basic graph-node, reference and traversal readers distinguish unknown projects from successful empty results and preserve registered and user namespace behavior.",
+    "TODO-35": "Selected-current DBML table mappings expose declared columns, raw database types, explicit nullable/key flags and source hashes/spans in schema and table-question evidence; same-qualified SQL declarations take precedence."
+  },
+  "runtime": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\package1",
+    "server_sha256": "40038b3322b93b83d0791a527e3cf4adde962d52765b53a91634ecaf2e81972c",
+    "manifest_sha256": "59b050c732d7883be958c5102c94f7cba3a41559a6d2365a80d76fb85dd9e8f4",
+    "old_server_sha256": "40d8ac7ea211ad2cf128e52bbc840bfa9f4e2103fc230ae3c493f303f4269576",
+    "old_manifest_sha256": "02b45ea0366dfce0fb21a8804e9aa218fd9f19cbbd57518504f593c8be4c7b04",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\release1.json",
+      "sha256": "d299e958ee0472ee33215258f52c0d23a0ef3defa2a409145a24564ec838cbe8"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "02b45ea0366dfce0fb21a8804e9aa218fd9f19cbbd57518504f593c8be4c7b04"
+    },
+    "source_commit": "eca74f21162edec8226a396506d87662d10f4dc2"
+  },
+  "public_check_assertions_per_artifact": 21,
+  "public_receipts": {
+    "candidate1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\candidate1\\acceptance.json",
+      "sha256": "4247f5f7cbde7b1a05efab122a4fdfe53f43e0e3b46d225f485edb2ee8df5d45",
+      "checks": 21,
+      "seconds": 9.550482200007536,
+      "owners_closed": true,
+      "fixtures_removed": true
+    },
+    "installed1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\installed1\\acceptance.json",
+      "sha256": "71401e067ed8d0bb8ec31d2cb34e7f1939bc03905ab5595dbddf3b89973f4448",
+      "checks": 21,
+      "seconds": 9.368523099998129,
+      "owners_closed": true,
+      "fixtures_removed": true
+    }
+  },
+  "native_acceptance": {
+    "status": "NOT_RUN",
+    "native_unit_cases_expected": 0,
+    "native_unit_cases_executed": 0,
+    "reason": "One optimized executable verifies production source and the frozen public MCP contracts; no separate unit/debug build or full suite."
+  },
+  "build_accounting": {
+    "optimized_builds": 1,
+    "seconds": 2004.6952936000016,
+    "unit_debug_or_full_suites": 0,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\release1.json",
+      "sha256": "d299e958ee0472ee33215258f52c0d23a0ef3defa2a409145a24564ec838cbe8"
+    }
+  },
+  "installed_assets_verified": 215,
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "normal_runtime_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\restored-runtime\\receipt.json",
+    "sha256": "8ed9eb256655eedbc4a999b99539bdc5ef44f8d46167b708f27b2ab44be944d8"
+  },
+  "normal_runtime_restored": true,
+  "selected_generation": 3157,
+  "protected_wip9": "Raw hashes unchanged; excluded from the clean build checkout.",
+  "windows_bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\bundle1.json",
+    "sha256": "98e91e46d6f33decffef1ba96c72474b3dfa5c6c4754636c49b77aa540982607"
+  },
+  "temporary_resources": {
+    "build": {
+      "owned_temp_removed": true,
+      "job_empty_and_closed": true
+    },
+    "public": {
+      "candidate1": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\candidate1\\acceptance.json",
+        "sha256": "4247f5f7cbde7b1a05efab122a4fdfe53f43e0e3b46d225f485edb2ee8df5d45",
+        "checks": 21,
+        "seconds": 9.550482200007536,
+        "owners_closed": true,
+        "fixtures_removed": true
+      },
+      "installed1": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\installed1\\acceptance.json",
+        "sha256": "71401e067ed8d0bb8ec31d2cb34e7f1939bc03905ab5595dbddf3b89973f4448",
+        "checks": 21,
+        "seconds": 9.368523099998129,
+        "owners_closed": true,
+        "fixtures_removed": true
+      }
+    },
+    "deployment": {
+      "owned_config_removed": true,
+      "hold_closed": true
+    },
+    "retained": "Package, ZIP, build/transport evidence and scripts remain in this single recorded case. Normal runtime intentionally restored. No preexisting folders deleted.",
+    "managed_rollback_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-fe07715541d4482b91605df155021340",
+      "purpose": "Installer-managed previous runtime pair retained for rollback.",
+      "cleanup_condition": "Retain pending explicit rollback/retirement decision; no deletion performed by this task."
+    }
+  },
+  "limitations": [
+    "DBML is mapping-only evidence, not deployed database schema; absent flags stay unknown and SQL source declarations retain same-qualified-name precedence.",
+    "Review recovery preserves returned operation outcomes; it does not establish authenticated review authority or safe retry after an interrupted import.",
+    "Graph changes use registry metadata and do not change graph algorithms, source coverage, CodeMap or Blast Radius.",
+    "No model/task replay, actual LegacyValidation source/index/Q access, target-language expansion or full original goal/readiness/productivity claim. Unfinished original findings,19storage gates and held resources retain their separate states."
+  ],
+  "full_original_goal_complete": false,
+  "retained_acceptance_harness_correction": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-project-dbml-batch-20261119\\acceptance-harness-correction1.json",
+    "sha256": "59d12855e6d263d690c07bfc8ff8e09b0f2fea1900b07d029fede5e10241839f"
+  }
+}

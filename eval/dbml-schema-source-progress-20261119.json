@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-19T04:22:24.607037+00:00",
   "original_requirement_id": "TODO-35",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-schema-source-20261119",
@@ -52,18 +52,16 @@
     "reindex_admits_new_mapping_with_new_hash",
     "sql_declaration_table_shape_is_preserved"
   ],
-  "public_after_assertions_executed": 0,
+  "public_after_assertions_executed": 16,
   "native_unit_cases_expected": 0,
   "native_target": null,
-  "typechecked": false,
-  "runtime_deployed": false,
+  "typechecked": true,
+  "runtime_deployed": true,
   "implementation_items_active": 0,
   "verification": {
-    "rust_syntax": "All6changed Rust files parsed using rustfmt --emit stdout; new owned module formatted. Parsing is not typechecking.",
-    "python_syntax": "Verifier parses using Python AST.",
-    "protected_work": "All9prior raw hashes unchanged.",
-    "new_builds": 0,
-    "unit_debug_or_full_suites": 0
+    "production_typechecked": true,
+    "candidate_and_installed_public_checks_per_artifact": 8,
+    "receipt": "eval/review-project-dbml-batch-delivery-20261119.json"
   },
   "counting_rule": "One original database-schema usefulness outcome: the source reader and existing natural-language composition are one user workflow. Mapping fields, source scopes, qualifiers, stale refusal and SQL precedence are acceptance aspects, not separate source outcomes.",
   "temporary_resources": {
@@ -72,10 +70,28 @@
     "retained": "Contract, verifier, source-recovery/SQL-control replies and baseline wire/receipts remain here until queued acceptance is resolved. No preexisting folders removed."
   },
   "limitations": [
-    "Source-only: production typechecking and eight candidate/installed public assertions remain pending.",
-    "Model mappings are not deployed schema, effective defaults/types/nullability/keys, relationships or execution. DBML associations, derived-type columns and generated/computed semantics remain unassessed.",
-    "No actual LegacyValidation source/index/Q operation, external model request, sidecar rebuild, source-format/storage-schema change, CodeMap/Blast change or task-productivity claim."
+    "Only the finite behavior described in the linked delivery is established; all original task-usefulness, broader tool and held requirements remain preserved."
   ],
-  "next_action": "Consolidate the three queued source outcomes and include any other ready original work before a deliberate batch freeze. Three is only a minimum; no automatic Cargo cycle. Keep DBML acceptance bounded to these eight cases.",
-  "full_original_goal_complete": false
+  "next_action": "Finite behavior delivered; retain acceptance and advance the original backlog without replay.",
+  "full_original_goal_complete": false,
+  "historical_source_stage": {
+    "verification": {
+      "rust_syntax": "All6changed Rust files parsed using rustfmt --emit stdout; new owned module formatted. Parsing is not typechecking.",
+      "python_syntax": "Verifier parses using Python AST.",
+      "protected_work": "All9prior raw hashes unchanged.",
+      "new_builds": 0,
+      "unit_debug_or_full_suites": 0
+    },
+    "limitations": [
+      "Source-only: production typechecking and eight candidate/installed public assertions remain pending.",
+      "Model mappings are not deployed schema, effective defaults/types/nullability/keys, relationships or execution. DBML associations, derived-type columns and generated/computed semantics remain unassessed.",
+      "No actual LegacyValidation source/index/Q operation, external model request, sidecar rebuild, source-format/storage-schema change, CodeMap/Blast change or task-productivity claim."
+    ],
+    "next_action": "Consolidate the three queued source outcomes and include any other ready original work before a deliberate batch freeze. Three is only a minimum; no automatic Cargo cycle. Keep DBML acceptance bounded to these eight cases.",
+    "public_after_assertions_executed": 0
+  },
+  "runtime_source_commit": "eca74f21162edec8226a396506d87662d10f4dc2",
+  "runtime_server_sha256": "40038b3322b93b83d0791a527e3cf4adde962d52765b53a91634ecaf2e81972c",
+  "delivery": "eval/review-project-dbml-batch-delivery-20261119.json",
+  "public_after_assertions_executed_per_artifact": 8
 }
