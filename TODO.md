@@ -490,6 +490,7 @@ proposals that duplicate the existing surface:
 `find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
+  Installed: Explicit recent-file questions return first-parent commit evidence with pinned patch and older-history follow-ups. Verified against LegacyValidation's download page code-behind. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Navigation-only ask_codebase request traces skip SQL and DBML and preserve the option in follow-up calls. [Delivery](eval/sql-review-navigation-batch-delivery-20261119.json).
   Installed: Named SQL trigger questions report qualified source declarations, events and callable clarification. [Delivery](eval/agent-history-trace-planning-batch-delivery-20261119.json).
   Installed: Relative WebForms page and HTTP questions invoke existing source tracing with the original action and callable follow-up. VB codebehind filenames remain source mentions. [Delivery](eval/webforms-integrity-batch-delivery-20261119.json).
@@ -639,6 +640,7 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  Installed: Explicit `LoadComplete` bindings appear in ordinary page traces. The live LegacyValidation task-management trace identifies the handler whose source calls the bulk-edit control. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Authored VB WebForms route defaults and route data appear in the trace. Three live LegacyValidation checks verified the project editor's `pr_id` default and the two `MasterPage` values for the shared myaccount page. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Navigation-only WebForms request traces skip SQL and DBML source reads when database evidence is disabled. [Delivery](eval/webforms-navigation-triggers-batch-delivery-20261119.json).
   Installed: Reached VB methods surface source-cited redirect calls independently of excerpt clipping and database tracing. Literal destinations are shown and expressions remain unresolved. [Delivery](eval/webforms-integrity-batch-delivery-20261119.json).

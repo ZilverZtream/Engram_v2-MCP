@@ -2971,7 +2971,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "CORRECTED_SQL_HISTORY_REVIEW_VB_RELEASE_INSTALLED_AND_MCP_VERIFIED",
+    "status": "MAINTENANCE_HISTORY_LIFECYCLE_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "verified_base_record": "eval/history-schema-review-candidate-20261119.json",
     "record": "eval/cumulative-agent-workflows-candidate-20261119.json",
@@ -3088,7 +3088,7 @@
       "acceptance": "The corrected candidate retained the exact scoped prior event behind 24 same-file records, its stable preview ID, and the same current finding and verdict. The added public VB fixture retained both actual LegacyValidation source citations. Earlier SQL and history evidence remains pinned to the prior artifact with the relevant lookup source unchanged. The installed binary matched the passed package and responded to a fresh MCP client at generation 3222 after the quiescent forward cutover. No active clients required stopping and no full test suite ran. The remaining storage and task-level requirements remain open."
     },
     "next_instruction_maintenance_git_scope": {
-      "status": "IMPLEMENTED_FOCUSED_GIT_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "requirement": "EG-31 evidence-driven instruction maintenance over a caller-selected area",
       "observed_gap": "Automatic Git selection would reject any comparison larger than 128 changed files before an agent could scope it to the affected VB.NET/WebForms, JS/TS and SQL area. Enumerating changed_paths manually has a different sixteen-file limit.",
       "implementation": "The existing MaintenanceRequest and Git-driven changed-evidence reader. The health and pre-push observation models share the new git_path_prefixes field.",
@@ -3096,7 +3096,7 @@
       "acceptance": "In a real Git fixture, the unscoped change count exceeds the cap. A literal Site scope includes its modified VB, deleted SQL and new TypeScript files and excludes 130 files from SiteArchive. Exact-file and empty scopes also passed with the production Git selector. The maintenance integration fixture now verifies the retained before/after packet and stale guard under that scope. Full MCP verification remains pending, independently of the running correction package."
     },
     "ask_recent_file_history": {
-      "status": "IMPLEMENTED_FOCUSED_ACTUAL_GIT_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_LEGACY_VALIDATION_MCP_VERIFIED",
       "requirement": "TODO-28 natural-language access to existing source and history capabilities",
       "observed_gap": "Installed ask_codebase answered the explicit recent-changes question about Site/modules/system/DownloadFile.aspx.vb with current source and omitted the first Git-verified change. Installed search_history recent mode returned it for the same literal path.",
       "implementation": "ask_tools.rs and ask_recent_history.rs in the server handlers",
@@ -3104,7 +3104,7 @@
       "verification": "A focused executable used the exact new provider and the existing Git history walker/scanner against the actual LegacyValidation repository. Three Quick-mode commit IDs and timestamps matched git log --first-parent on origin/master in order, headed by a1581c1f875192da74c7c381c40cbcb81f7fd8d3. It checked the pinned patch action and older-window action. The installed search_history patch endpoint accepted the produced file/commit/tip combination. Candidate ask_codebase MCP through the normal handler and installation remain pending. No Cargo build or full suite ran."
     },
     "webforms_load_complete": {
-      "status": "IMPLEMENTED_FOCUSED_ACTUAL_GIT_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_LEGACY_VALIDATION_MCP_VERIFIED",
       "requirement": "TODO-31 WebForms page to handler and downstream source trace",
       "observed_gap": "Installed scoped trace for the LegacyValidation task-management page showed Page_Load but omitted the explicitly bound LoadComplete handler that updates the bulk edit control. Git identifies the binding and call at taskmanagement.aspx.vb:603-604 and the control implementation in ctrl_bulk_edit_tasks.ascx.vb:15-19.",
       "implementation": "Existing request_trace handler binding selection and lifecycle coverage descriptions.",
@@ -3112,23 +3112,30 @@
       "verification": "The focused executable used the exact binding selector and tokenizer on actual LegacyValidation Git blobs. The ordinary load selects both handlers, with LoadComplete at line 603 and the call at line 604. Exact Page_Load selection remains scoped. The installed MCP baseline omitted the LoadComplete handler in the ordinary trace and returned it and its call in an explicit method trace; the current scoped graph did not resolve its control implementation. Extended the existing lifecycle integration fixture for ordinary load and control-event traces. Full combined candidate MCP and deployment remain pending. No Cargo build or full suite ran."
     },
     "maintenance_history_lifecycle_batch": {
-      "status": "ONE_SHARED_TARGET_RELEASE_RUNNING",
+      "status": "INSTALLED_WITH_THREE_PUBLIC_MCP_CHECKS",
       "case": "maintenance-history-lifecycle-20261119",
       "source_commit": "6cb88efbfbd2e6f982639673deee4c10a0cf158d",
       "requirements": ["EG-31", "TODO-28", "TODO-31"],
       "release_plan_sha256": "441e43154bf3a1e07187720fa9907153de96f2f6e72d1193bdd8d8cbb6cd1212",
       "public_verifier_sha256": "592eb3abadd02bd84ba4cbcf4d9f558821dfe9387bd7e9a0c0c172c12a43b492",
       "baseline_receipt_sha256": "45fc356f3c8d7c9f9e8f622218453fe14d8812cde3731020b691bd394c707949",
-      "stage_and_verify_sha256": "6ef56d784710202fc0f5ce3e3b5a9f66445cf8fbc61c773c9dc8ce134b31cceb",
+      "stage_and_verify_sha256": "3326cf96ed75970c82c70d6a2cb7be7a2a7d25c157636ff9156705a9beea0dfe",
+      "stage_retry_sha256": "1791846e7e74307e9cc1e0511ce519997f9b7e56ced4cb31c68e3271608fab62",
+      "public_recovery_verifier_sha256": "e2b9d36d19ed2649a814ae5053a1cc091cab23e21c70fd2ef3cc7ae90b52e80c",
       "build_session": 82317,
       "build_driver_pid": 59040,
       "build_owner": "release1-owner.json",
       "stage_session": 14505,
-      "prepare_cutover_sha256": "27b4e0defa01bcedef75ea6d3d6366e992d3464084fb31fce82917e6853d54a3",
+      "prepare_cutover_sha256": "b087ab19980b8a4696718d618b9f509773e348d8f4bdd2ae8ae2b30d44e22296",
       "live_cutover_sha256": "2aea099dbae740b13930fe800219d1887298604cc1358e938e253a080bc35d20",
-      "baseline": "The installed-equivalent binary reproduced both gaps in an owned selected-source checkout against actual pinned LegacyValidation Git objects. The explicit method trace retained the authored call; ordinary load omitted it. The exact recent-file question had no direct commit evidence. The owned runtime closed and its temporary project was removed."
+      "baseline": "The installed-equivalent binary reproduced both gaps in an owned selected-source checkout against actual pinned LegacyValidation Git objects. The explicit method trace retained the authored call; ordinary load omitted it. The exact recent-file question had no direct commit evidence. The owned runtime closed and its temporary project was removed.",
+      "build": {"seconds":660.6824279,"optimized_builds":1,"full_test_suites":0,"receipt_sha256":"65d335690aca2432ecd29134798d401d18f327e166b9ff34aa98f4b878b835c4"},
+      "package": {"binary_sha256":"f63966e23122b44ca1fae216075e758e14316fd708095ff9d973da3edd9e341b","manifest_sha256":"6bb95028e553b4b12e85b8db693fd5dc0d1e30ea10d1dcaf774307115c3b4e74","archive_sha256":"d8ede2396f3559ee404fb66710feed9efa4624e4f6dd7c36691e375394dbd483","receipt_sha256":"d162920708c62041258350f7711ec2807786104924ce4446a68e57f01605016b"},
+      "candidate": {"workflow_receipt_sha256":"2fb58de07181ec76d915e84ec2f5b0e7ab7924bc56534770042bc261e833ea15","maintenance_receipt_sha256":"0e5c963dc00f010247f56beb50700fa65502824c11aa6143f99917d2c352d87d"},
+      "installed": {"generation":3222,"status_sha256":"e2cadaed0bfa7d6704e71bfd8baaad39d755b72d60777e00658f197b8f137f4b","forward_transition_sha256":"1efaff149341688bab76ef843cbbe5519b006eca12e933c1d118061a8d576f57","maintenance_receipt_sha256":"b12969844bcd44b06e7fdb614920ee5c2bdee75c91f847e986be8ff08d9a7f01","retained_pair":"engram-pair-backup-6ea84faaf391472780b8f36e681eec73"},
+      "acceptance": "Actual pinned LegacyValidation Git supplied three recent commits plus the exact patch, and the installed live MCP returned the expected latest commit. The LegacyValidation task-management load trace retained the authored LoadComplete handler at line 603. The candidate proof recovered the oversized trace exactly by byte count and BLAKE3 before examining the call at line 604. Scoped maintenance passed on both the staged and installed binary using exact LegacyValidation before/after bytes with 130 unrelated sibling paths. The runtime pair was swapped with no connected clients, and the source generation stayed at 3222. Fixture-only corrections reused the same binary. Broader effect, storage and task-level limits remain."
     },
-    "next_action": "Monitor existing build session 82317 and dependent stage session 14505. The dependent session waits for the recorded build driver to exit, requires the exact passing build receipt, then runs the three public acceptance checks and pins cutover evidence. Deploy only the verified candidate."
+    "next_action": "Advance the next ready original LegacyValidation backlog item. The maintenance, recent-file history and LoadComplete package is installed and verified. Keep the separate storage and task-quality limits open."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
