@@ -2971,7 +2971,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "CONSOLIDATED_CANDIDATE_VERIFIED_AWAITING_LIVE_CUTOVER",
+    "status": "CONSOLIDATED_WINDOWS_RELEASE_INSTALLED_AND_FRESH_MCP_VERIFIED",
     "implementation_items_active": 0,
     "verified_base_record": "eval/history-schema-review-candidate-20261119.json",
     "record": "eval/cumulative-agent-workflows-candidate-20261119.json",
@@ -2988,7 +2988,7 @@
       "implementation": "crates/engram_server/src/handlers/database_report_delivery.rs and migration_tools.rs",
       "acceptance": "The existing focused checks passed for exact JSON and Markdown pagination, reply budgets, and rejection of invalid controls. The recovery path now uses Tokio's blocking pool. No Engram package was built or deployed for this change."
     },
-    "next_action": "Use this verified ZIP for the coordinated Windows cutover when clients close or the user authorizes their disconnection. Preserve the older installed pair for rollback. Source changes committed after this frozen build remain queued independently."
+    "next_action": "Advance the remaining original LegacyValidation items. Source changes committed after this package was frozen remain queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -3006,7 +3006,7 @@
     "replacement_builds_started": 0
   },
   "consolidated_windows_recovery_release": {
-    "status": "PASS_PACKAGED_MCP_AND_OWNED_INSTALL_PENDING_LIVE_CUTOVER",
+    "status": "PASS_PACKAGED_MCP_OWNED_INSTALL_AND_LIVE_CONNECTION",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-workflows-reconnect-20261119-r2",
     "source_commit": "693e8f0bb7cfdda9a5ea3f6ec99ae0b1faba59f6",
     "release_plan_sha256": "c5bbbd7daf1e7a88ccb1ca6ec2c2f291c9cd131afdcd047663d1df63b7a12a76",
@@ -3020,10 +3020,20 @@
     "owned_install_receipt": {"relative_path":"owned-install1/acceptance.json","sha256":"16c053609745a47a107f447aaa0170ba60fe17f19f3ab36cab31c6ff0707589e"},
     "cutover_pair_preflight": {"relative_path":"cutover-readonly-preflight.json","sha256":"38550f5bded5164b8e8ae8c3977b59d33bae13463e6a25ad3e760c4e10374d39"},
     "owned_forward_transition": {"relative_path":"owned-forward-transition1/receipt.json","sha256":"7bb5f1e1ff511cc68c56fd64490cfd446cd33b7daad6ac4fc02403bb372a93d0","checks":4},
-    "transition_scope": "Both manifest file sets and installed wrappers were verified. The sole packaged difference is the server binary. The source delta in the underlying index crate is limited to history read filters. An owned FTS index reopened at the same generation with identical SQL evidence and searchable VB source. Exact quiescent production-data and vector compatibility remain outside this proof.",
+    "transition_scope": "The installer verified both manifest file sets and preserved both client wrappers. The sole packaged runtime delta is the server binary. The underlying index crate changes only history read filters. The exact old and new binaries reopened an owned FTS index with identical generation and SQL evidence. Production registry and source selection remained stable across two pre-swap quiescent observations. Fresh installed MCP confirmed LegacyValidation generation 3222. The check establishes a scoped forward cutover. Production vector compatibility, full storage gate closure and downgrade remain separate.",
     "fixture_correction": "The initial review fixture exceeded Windows Git path limits. Shorter owned fixture paths passed with the same binary. The first attempt is retained. All accepted test processes and temporary fixtures closed.",
     "source_scope": "Preserve the interrupted batch, include the DBML, planning, recent history and bounded review inputs added since. Reuse the existing release checkout and shared artifacts. No full suite.",
-    "live_install": "Six same-install proxies and the normal daemon were present after verification. The installed binary remains 0f218770760226b4818d0cd71a72e3460792c4a1914f7ef55bc1aab2bd50d7d9."
+    "live_install": {
+      "status": "INSTALLED_AND_FRESH_MCP_CONNECTED",
+      "manifest_sha256": "3903e4b94b199d4bb139b25a2232b57abddc3624e29c34d923172bbed17ac9a9",
+      "previous_binary_sha256": "0f218770760226b4818d0cd71a72e3460792c4a1914f7ef55bc1aab2bd50d7d9",
+      "runtime_assets_verified": 215,
+      "selected_legacy_validation_generation": 3222,
+      "fresh_connection_tools": ["get_metrics", "project_info"],
+      "forward_transition": {"relative_path":"live-cutover1/forward-transition.json","sha256":"c711abb92e9fc6ac520d1dabe3ace7178fa5ce046dc800c0e067fd80e8449a7e"},
+      "acceptance": {"relative_path":"live-cutover1/installed-acceptance.json","sha256":"56b251ff3bf6a72fab9e1f6850e8d0715abc24b319c5539521902295239a21ad"},
+      "cutover_recovery": "The PowerShell installer returned multiple records. The wrapper exited when it treated the result as one record, after the package swap had succeeded. Its recovery block restarted Engram. A separate fresh-client check confirmed the new hashes, same generation and reachable MCP without another swap, restart or build. The planned post-swap quiescent capture was skipped. The old pair is retained at the path recorded in the installed acceptance receipt. Owned config and client fixtures were removed."
+    }
   },
   "dossier_explicit_schema_progress": {
     "original_requirement_id": "TODO-32",
