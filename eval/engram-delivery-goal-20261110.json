@@ -2832,7 +2832,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SOURCE_OUTCOMES_QUEUED_FOR_LATER_COMBINED_VALIDATION",
+    "status": "COMBINED_RELEASE_CANDIDATE_BUILD_RUNNING",
     "implementation_items_active": 0,
     "record": "eval/history-diff-path-filter-progress-20261119.json",
     "original_requirement_id": "EG-20",
@@ -2840,7 +2840,10 @@
     "implementation_files": ["crates/engram_index/src/hybrid.rs", "crates/engram_server/src/models/requests.rs"],
     "acceptance": "Public text history with ordinary LegacyValidation-style file paths returns matching diff-backed commit evidence and honors excluded diff paths. Unfiltered history and explicit indexed-key filters stay callable.",
     "full_original_goal_complete": false,
-    "next_action": "Prepare one combined release candidate for the three queued changes. Verify against owned MCP fixtures with the normal daemon left online.",
+    "candidate_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-schema-review-batch-20261119",
+    "candidate_source_commit": "5847d32f4080bf976af6dfd4ce73a4df683ab449",
+    "candidate_build_session": 95367,
+    "next_action": "Read the owned release1 receipt and candidate1/receipt.json once the live build and automatic public verifier exit. Review candidate results before any activation. Leave the installed daemon and client processes running.",
     "pending_source_outcomes": 3
   },
   "history_webmethod_business_batch_delivery": {
