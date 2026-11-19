@@ -2799,12 +2799,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "record": "eval/ask-review-date-progress-20261119.json",
+    "status": "DOCUMENTATION_RECONCILIATION_COMPLETE_SOURCE_QUEUE_RETAINED",
+    "record": "eval/tool-contract-reconciliation-delivery-20261119.json",
     "implementation_items_active": 0,
     "pending_source_outcomes": 1,
     "full_original_goal_complete": false,
-    "next_action": "Keep this single source outcome queued. Select another ready original LegacyValidation improvement from a different original requirement; no compile until at least3independent source outcomes. Do not replay the baseline or delivered direct review checks."
+    "next_action": "Advance another ready original LegacyValidation requirement. Keep the one TODO28 source outcome queued; do not compile for it alone or add filler to reach the floor. Do not rerun completed catalog/acceptance or expand the closed direct review/packaging contracts."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3114,17 +3114,12 @@
     "does_not_pause_or_replace_goal": true
   },
   "active_source_implementation": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement_id": "TODO-28",
-    "source_commit": "ff90d3cb646adfa3c0839d5d0b5a5d2ae9294725",
-    "progress": "eval/ask-review-date-progress-20261119.json",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-date-20261119\\contract.json",
-    "native_target": null,
-    "native_cases_expected": 0,
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-review-date-20261119\\verify-public.py",
-    "public_assertions_expected": 7,
-    "counting_rule": "One original existing natural-language prior-review question outcome. Date forwarding, source scope, current defaults, JSON/Markdown and dated history recovery are acceptance aspects, not separate independent deliverables.",
-    "implementation_items_active": 0
+    "status": "DOCUMENTED_CONTRACTS_RECONCILED_NO_RUNTIME_CHANGE",
+    "original_requirement_id": "EG-26",
+    "progress": "eval/tool-contract-reconciliation-progress-20261119.json",
+    "implementation_items_active": 0,
+    "compile_queue_outcomes": 0,
+    "delivery_record": "eval/tool-contract-reconciliation-delivery-20261119.json"
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -4134,8 +4129,8 @@
   },
   "current_goal_turn_classification": {
     "status": "PROGRESS",
-    "at_utc": "2026-11-19T01:51:00.421312+00:00",
-    "reason": "Closed original bounded EG10/EG19 requirements from retained installed evidence without new builds/tests. Reproduced and implemented TODO28 explicit prior-review date forwarding; source committed,7public checks queued and no Cargo invoked."
+    "at_utc": "2026-11-19T02:03:08.255317+00:00",
+    "reason": "Original EG26 dated documentation/schema reconciliation completed:125metadata-onlytool descriptions bound to source/decorators,19review gates/141flags verified; wrong gate name and false undeployed roadmap labels corrected. No build, suite, project/provider call or queued-source deployment."
   },
   "previous_runtime_before_review_memory_history_20261118": {
     "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
@@ -4285,6 +4280,10 @@
     "EG-19": {
       "record": "eval/review-parser-original-requirements-closure-20261119.json",
       "status": "ORIGINAL_BOUNDED_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
+    },
+    "EG-26": {
+      "record": "eval/tool-contract-reconciliation-delivery-20261119.json",
+      "status": "ORIGINAL_DATED_DOCUMENTATION_CONTRACT_RECONCILIATION_COMPLETE"
     }
   },
   "corpus_refresh_results_source_progress_20261118": {
@@ -4641,5 +4640,6 @@
     "original_eg26_complete": false
   },
   "review_bootstrap_parser_batch_delivery_20261119": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
-  "ask_review_date_source_progress_20261119": "eval/ask-review-date-progress-20261119.json"
+  "ask_review_date_source_progress_20261119": "eval/ask-review-date-progress-20261119.json",
+  "tool_contract_reconciliation_20261119": "eval/tool-contract-reconciliation-delivery-20261119.json"
 }

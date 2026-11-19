@@ -1,0 +1,145 @@
+{
+  "status": "DOCUMENTED_CONTRACTS_RECONCILED_NO_RUNTIME_CHANGE",
+  "at_utc": "2026-11-19T02:02:15.503851+00:00",
+  "original_requirement_id": "EG-26",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-contract-reconciliation-20261119",
+  "source_commit": "52be11e05c5dc6d5078d7e6da74ad2157fccb481",
+  "installed_server_sha256": "532126d9b4d6301d76532ddd30024bef1166c676d64e0ea237e93d8c6cf137fc",
+  "recorder": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-contract-reconciliation-20261119\\reconcile.py",
+    "sha256": "49a2b893a050b82ea102456f210564c8f8b291a9b9fad2eed0a90baf28f80fc5"
+  },
+  "catalog": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-contract-reconciliation-20261119\\catalog1\\tools.json",
+    "sha256": "cc855452b724021f27f831c20d0b8bd3351467e3690a1b880b0420182eb80e60"
+  },
+  "capture_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-contract-reconciliation-20261119\\catalog1\\receipt.json",
+    "sha256": "ec4e5b0600caee45990c473152b824e831a7bdaea8533b4824b02c1ce42a9180"
+  },
+  "source_contract_binding": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-contract-reconciliation-20261119\\source-contract-binding1.json",
+    "sha256": "6894d547af460875827c40859401ae00707d6d9cb26c285be189b71f227f4a31"
+  },
+  "advertised_tools": 125,
+  "registered_review_gates": 19,
+  "changes": [
+    "README review gate now uses the actual blast_radius request name.",
+    "Roadmap EG04/EG13 distinguish deployed lineage from old candidate observations and preserve the unmet original storage19gates.",
+    "Capability matrix remains exact flag-derived implementation status, separate from runtime advertisement and readiness."
+  ],
+  "source_descriptions_and_existing_decorators_match": true,
+  "capability_matrix_matches_source": true,
+  "original31findings_and19gates_preserved": true,
+  "failed_task_results_preserved": {
+    "legacy_validation-current-task-check-outcome-20261113.json": {
+      "reference": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-current-task-check-outcome-20261113.json",
+        "sha256": "8ffd78990ba5f8a153a324f9108e6c200828e0158056c69bf754bfea4c03f1fd"
+      },
+      "preserved_status": "COMMAND_IMPLEMENTED_VALIDATED_CURRENT_RUN_COMPLETED_QUALITY_FAILED"
+    },
+    "legacy_validation-archive-task-check-outcome-20261114.json": {
+      "reference": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-archive-task-check-outcome-20261114.json",
+        "sha256": "f121f0acc12ec6b809424fddd5f5f8385a2b370fa47e4cc88ef13337289f40d0"
+      },
+      "preserved_status": "BOUNDED_SOURCE_ISOLATION_DELIVERED_ARCHIVE_COMPARISON_COMPLETED_QUALITY_FAILED"
+    },
+    "legacy_validation-invoice-task-outcome-20261115.json": {
+      "reference": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-invoice-task-outcome-20261115.json",
+        "sha256": "eca7f6f4ed8e72be08c06fb538146203cf29da104ce704915162b9fc19a0c602"
+      },
+      "preserved_status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED"
+    },
+    "legacy_validation-sync-event-task-outcome-20261115.json": {
+      "reference": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-sync-event-task-outcome-20261115.json",
+        "sha256": "c6c4166e7e460d48b5e700910e64aff6fe59c5d05c8d7e966bb0adfdd45a74ab"
+      },
+      "preserved_status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED"
+    }
+  },
+  "new_builds": 0,
+  "new_tests": 0,
+  "model_calls": 0,
+  "product_project_calls": 0,
+  "queued_todo28_change_included_in_runtime_claim": false,
+  "original_required_behavior_complete": true,
+  "general_task_usefulness_established": false,
+  "full_original_goal_complete": false,
+  "limitations": [
+    "This is a dated contract/documentation reconciliation, not behavioral verification of all125tools or a general readiness score.",
+    "The private no-project Full catalog does not prove project-specific preset applicability or normal provider availability; normal config was observed as Full and unchanged.",
+    "Source-only changes after the deployed commit are explicitly excluded. Future schema/description/status changes need their own reconciliation.",
+    "Original storage/resource gates, task usefulness, hosted CI, human ownership decisions and held investigations/deletion remain unfinished."
+  ],
+  "temporary_resources": {
+    "new_project_fixtures": 0,
+    "catalog_private_fixture_removed": true,
+    "catalog_owner_and_reader_closed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-contract-reconciliation-20261119",
+    "retention": "Retain catalog, exact source excerpts, before-documents, script and receipts. No normal daemon was started/stopped or preexisting folder deleted."
+  },
+  "required_behavior": [
+    "Reconcile actual schemas, tool descriptions, README gates, roadmap labels and dated evaluation claims.",
+    "An implemented capability flag is not measured readiness and historical retrieval numbers are not current results."
+  ],
+  "requirement_evidence": {
+    "EG-26.1": {
+      "schemas_and_descriptions": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-contract-reconciliation-20261119\\source-contract-binding1.json",
+        "sha256": "6894d547af460875827c40859401ae00707d6d9cb26c285be189b71f227f4a31"
+      },
+      "README_review_gates": {
+        "count": 19,
+        "name": "blast_radius"
+      },
+      "roadmap_labels": "EG04/EG13 and the deployment boundary corrected; other original31finding statuses retain existing dated delivery and held-scope references.",
+      "capability_matrix_flags": 141
+    },
+    "EG-26.2": {
+      "failed_and_negative_task_records": {
+        "legacy_validation-current-task-check-outcome-20261113.json": {
+          "reference": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-current-task-check-outcome-20261113.json",
+            "sha256": "8ffd78990ba5f8a153a324f9108e6c200828e0158056c69bf754bfea4c03f1fd"
+          },
+          "preserved_status": "COMMAND_IMPLEMENTED_VALIDATED_CURRENT_RUN_COMPLETED_QUALITY_FAILED"
+        },
+        "legacy_validation-archive-task-check-outcome-20261114.json": {
+          "reference": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-archive-task-check-outcome-20261114.json",
+            "sha256": "f121f0acc12ec6b809424fddd5f5f8385a2b370fa47e4cc88ef13337289f40d0"
+          },
+          "preserved_status": "BOUNDED_SOURCE_ISOLATION_DELIVERED_ARCHIVE_COMPARISON_COMPLETED_QUALITY_FAILED"
+        },
+        "legacy_validation-invoice-task-outcome-20261115.json": {
+          "reference": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-invoice-task-outcome-20261115.json",
+            "sha256": "eca7f6f4ed8e72be08c06fb538146203cf29da104ce704915162b9fc19a0c602"
+          },
+          "preserved_status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED"
+        },
+        "legacy_validation-sync-event-task-outcome-20261115.json": {
+          "reference": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-sync-event-task-outcome-20261115.json",
+            "sha256": "c6c4166e7e460d48b5e700910e64aff6fe59c5d05c8d7e966bb0adfdd45a74ab"
+          },
+          "preserved_status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED"
+        }
+      },
+      "readiness_scope": "Capability flags are explicitly implementation status; current/private125tool advertisement and dated historical measurements are not behavioral readiness or productivity."
+    }
+  },
+  "normal_config_and_protected_wip9_unchanged": true,
+  "corrected_documents": {
+    "README.md": {
+      "sha256": "bf550398ba1e0e06d56b7254039df41f3589e5bc92920da1720043e1744364d0"
+    },
+    "docs/ROADMAP.md": {
+      "sha256": "0e8a3df1ae56a7ea60f5f66427c2287cf1187282c057cfd32dd0b8396be45128"
+    }
+  }
+}
