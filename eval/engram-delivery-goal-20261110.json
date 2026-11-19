@@ -3103,7 +3103,15 @@
       "acceptance": "For an explicit recent-changes question with a project-relative file path, show bounded first-parent commit evidence from the same history basis as search_history recent. Keep the commit IDs, author, timestamps and path, give exact patch and older-history follow-ups, and disclose the scan bound or an empty window. Preserve the existing as_of source route.",
       "verification": "A focused executable used the exact new provider and the existing Git history walker/scanner against the actual LegacyValidation repository. Three Quick-mode commit IDs and timestamps matched git log --first-parent on origin/master in order, headed by a1581c1f875192da74c7c381c40cbcb81f7fd8d3. It checked the pinned patch action and older-window action. The installed search_history patch endpoint accepted the produced file/commit/tip combination. Candidate ask_codebase MCP through the normal handler and installation remain pending. No Cargo build or full suite ran."
     },
-    "next_action": "Advance the next remaining original LegacyValidation item. The recent-file ask route and scoped Git-driven instruction maintenance are queued for a later package. Preserve previous package identities and the existing rollback proof requirements."
+    "webforms_load_complete": {
+      "status": "IMPLEMENTED_FOCUSED_ACTUAL_GIT_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-31 WebForms page to handler and downstream source trace",
+      "observed_gap": "Installed scoped trace for the LegacyValidation task-management page showed Page_Load but omitted the explicitly bound LoadComplete handler that updates the bulk edit control. Git identifies the binding and call at taskmanagement.aspx.vb:603-604 and the control implementation in ctrl_bulk_edit_tasks.ascx.vb:15-19.",
+      "implementation": "Existing request_trace handler binding selection and lifecycle coverage descriptions.",
+      "acceptance": "An ordinary load trace surfaces the admitted explicit LoadComplete handler, its source position and authored call alongside Page_Load. Preserve explicit event selection and source admission, and keep AutoEventWireup=false behavior.",
+      "verification": "The focused executable used the exact binding selector and tokenizer on actual LegacyValidation Git blobs. The ordinary load selects both handlers, with LoadComplete at line 603 and the call at line 604. Exact Page_Load selection remains scoped. The installed MCP baseline omitted the LoadComplete handler in the ordinary trace and returned it and its call in an explicit method trace; the current scoped graph did not resolve its control implementation. Extended the existing lifecycle integration fixture for ordinary load and control-event traces. Full combined candidate MCP and deployment remain pending. No Cargo build or full suite ran."
+    },
+    "next_action": "Prepare and verify one combined release for the completed source changes in EG-31, TODO-28 and TODO-31. Check the actual public maintenance, file history and task-management trace behaviors before deployment."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",

@@ -255,7 +255,9 @@ pub(super) fn handler_bindings(
                 let event = binding[2].text.as_str();
                 if (lifecycle_context
                     && matches!(control.to_ascii_lowercase().as_str(), "me" | "mybase")
-                    && (event.eq_ignore_ascii_case("preinit") || event.eq_ignore_ascii_case("init") || event.eq_ignore_ascii_case("load") || event.eq_ignore_ascii_case("prerender")))
+                    && ["PreInit", "Init", "Load", "LoadComplete", "PreRender"]
+                        .iter()
+                        .any(|phase| event.eq_ignore_ascii_case(phase)))
                     || click.is_some_and(|target| {
                         control.eq_ignore_ascii_case(target) && event.eq_ignore_ascii_case("click")
                     })
@@ -402,7 +404,7 @@ fn add_master_context<'a>(graph:&Arc<GraphStore>,project:&str,result:&mut PageTr
         let Some(master)=sources.iter().find(|source|source.path==path) else {continue};
         let Some(code)=control_codebehind(*master,sources,&mut plan.gaps) else {continue};
         if !super::control_routes::admitted(graph,project,&code,selected)? {
-            plan.gaps.push(format!("{}: master code-behind revision/hash not admitted; PreInit/Init/Load/PreRender entries withheld",code.path));continue;
+            plan.gaps.push(format!("{}: master code-behind revision/hash not admitted; lifecycle entries withheld",code.path));continue;
         }
         let mut methods=graph.query_nodes_in_file(project,Some("function"),code.path,MAX_METHODS+1)?;
         if methods.len()>MAX_METHODS {methods.truncate(MAX_METHODS);plan.truncated=true;plan.gaps.push(format!("{}: master method inventory capped at{MAX_METHODS}",code.path));}
@@ -474,7 +476,7 @@ fn trace_control_instances<'a>(
         }
     }
     if routes.terminals.is_empty() {result.gaps.push("No complete admitted control-instance route; inspect control_routes gaps".into());}
-    if chosen.is_empty() {result.gaps.push("No admitted page/control PreInit/Init/Load/PreRender or terminal event entry found".into());}
+    if chosen.is_empty() {result.gaps.push("No admitted page/control lifecycle or terminal event entry found".into());}
     add_master_context(graph,project,&mut result,page,&mut chosen,sources,selected)?;
     result.control_routes=Some(routes);
     trace_selected(graph,project,result,chosen,include_db,sources,selected)

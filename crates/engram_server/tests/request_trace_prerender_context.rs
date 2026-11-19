@@ -25,7 +25,7 @@ impl Fixture {
         let files: Vec<(String, String)> = vec![
             ("Site/Global.asax".into(), "<%@ Application %>\n".into()),
             ("Site/Host.aspx".into(), format!("<%@ Page CodeFile='Host.aspx.vb' MasterPageFile='~/Layout.master' AutoEventWireup='{automatic}' %>\n<%@ Register Src='Child.ascx' TagPrefix='uc' TagName='Widget' %>\n<uc:Widget ID='widget' runat='server' />\n")),
-            ("Site/Host.aspx.vb".into(), "Public Class Host\nPublic Sub RootPreRender() Handles Me.PreRender\nDim db As New DataContext()\ndb.ExecuteCommand(\"UPDATE dbo.Audit SET Prepared=1\")\nEnd Sub\nPublic Sub RootLoad() Handles Me.Load\nEnd Sub\nPublic Sub Page_PreRender()\nDim conventionalSetup = True\nEnd Sub\nEnd Class\n".into()),
+            ("Site/Host.aspx.vb".into(), "Public Class Host\nPublic Sub RootPreRender() Handles Me.PreRender\nDim db As New DataContext()\ndb.ExecuteCommand(\"UPDATE dbo.Audit SET Prepared=1\")\nEnd Sub\nPublic Sub RootLoad() Handles Me.Load\nEnd Sub\nPublic Sub Page_PreRender()\nDim conventionalSetup = True\nEnd Sub\nPublic Sub FinishLoad() Handles Me.LoadComplete\nDim completed = True\nEnd Sub\nEnd Class\n".into()),
             ("Site/Child.ascx".into(), "<%@ Control CodeFile='Child.ascx.vb' %>\n<asp:Button ID='save' runat='server' OnClick='Save' />\n".into()),
             ("Site/Child.ascx.vb".into(), "Public Class Child\nPublic Sub ChildPreRender() Handles MyBase.PreRender\nDim prepared = True\nEnd Sub\nPublic Sub ChildLoad() Handles Me.Load\nEnd Sub\nPublic Sub Save()\nEnd Sub\nEnd Class\n".into()),
             ("Site/Layout.master".into(), "<%@ Master CodeFile='Layout.master.vb' %>\n".into()),
@@ -55,6 +55,7 @@ impl Fixture {
                     ("RootPreRender", 2, 5),
                     ("RootLoad", 6, 7),
                     ("Page_PreRender", 8, 10),
+                    ("FinishLoad", 11, 13),
                 ],
                 "Site/Child.ascx.vb" => &[
                     ("ChildPreRender", 2, 4),
@@ -127,6 +128,7 @@ fn response_preparation_context_keeps_page_control_master_and_database_evidence(
         for name in [
             "RootPreRender",
             "RootLoad",
+            "FinishLoad",
             "ChildPreRender",
             "ChildLoad",
             "MasterPreRender",
@@ -199,6 +201,10 @@ fn prerender_convention_requires_authored_automatic_wiring() -> Result<()> {
             ensure!(
                 handler(&value, "RootPreRender").is_some() && handler(&value, "RootLoad").is_some()
             );
+            let completed = handler(&value, "FinishLoad")
+                .expect("authored LoadComplete handler in the load trace");
+            ensure!(completed["binding"] == "Handles Me.LoadComplete");
+            ensure!(completed["file"] == "Site/Host.aspx.vb" && completed["line"] == 11);
             ensure!(
                 handler(&value, "Page_PreRender").is_some() == automatic,
                 "Automatic binding ignored authored value {automatic}: {value}"
