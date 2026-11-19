@@ -2982,7 +2982,23 @@
     "user_outcome": "Explicit opening and visiting questions for relative and site-root ASPX pages reuse the existing static lifecycle trace and recovery action.",
     "implementation": "crates/engram_server/src/services/ask_engine/request_trace.rs",
     "acceptance": "An ask_codebase question about opening /Area/Entry.aspx selects the fixture's authored LoadPage handler and returns a callable trace_user_request action for that same entry. Existing HTTP and control event selection continue sharing the same cap.",
-    "verification": "Exact parser compiled against cached dependencies and passed eight focused checks. Packaged MCP verification and deployment remain pending. No Engram rebuild."
+    "verification": "Exact parser compiled against cached dependencies and passed eight focused checks. The baseline package returns the authored VB LoadPage handler for an explicit GET and no trace for the ordinary question. Verification of the patched package and deployment remain pending.",
+    "baseline_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-page-opening-20261119\\baseline1\\receipt.json",
+      "sha256": "97cf5c76660b8535eb143c348540e4ef0f93d0e7ceb48052705a11f7b6c371d5",
+      "owned_fixture_removed": true
+    },
+    "packaged_verifier": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-page-opening-20261119\\verify-public.py",
+      "sha256": "8145711890417a2f28e8c1b0d32960c8046b1132b51c628ae9ee972f111b7098",
+      "candidate_checks": 4
+    },
+    "queued_rust_integration": {
+      "base_tree": "846ae652fe0be4917cba1bb3ae2732799013a3d9",
+      "tree": "74507b92ce4170f4544dfafd1088df480e970075",
+      "source_commit": "623e7273",
+      "builds_started": 0
+    }
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
