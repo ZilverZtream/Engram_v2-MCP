@@ -19,6 +19,7 @@ const TOOLS: &[&str] = &[
     "index_git_history",
     "ingest_zip_history",
     "ingest_quality_gates",
+    "ingest_review_verdicts",
     "list_projects",
     "list_advanced_tools",
     "project_info",
@@ -115,7 +116,7 @@ fn returned_operation(tool: &str) -> bool {
 }
 
 fn maintenance_operation(tool: &str) -> bool {
-    matches!(tool, "repair_project" | "index_git_history" | "ingest_zip_history" | "ingest_quality_gates")
+    matches!(tool, "repair_project" | "index_git_history" | "ingest_zip_history" | "ingest_quality_gates" | "ingest_review_verdicts")
 }
 
 const MAINTENANCE_DELIVERY_INSTRUCTION: &str = "Recover the original returned outcome; do not repeat this repair, history import or ownership operation to recover its response. A queued acknowledgement is not completion; poll its returned job_id separately. Delivery does not establish rollback, current freshness or policy approval.";
