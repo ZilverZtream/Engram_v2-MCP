@@ -4292,6 +4292,14 @@
     "EG-04": {
       "record": "eval/watcher-cache-original-requirements-closure-20261119.json",
       "status": "ORIGINAL_BOUNDED_CORRECTNESS_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
+    },
+    "EG-01": {
+      "record": "eval/guidance-changeset-original-requirements-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_DELIVERY_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
+    },
+    "EG-02": {
+      "record": "eval/guidance-changeset-original-requirements-closure-20261119.json",
+      "status": "ORIGINAL_BOUNDED_DELIVERY_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE"
     }
   },
   "corpus_refresh_results_source_progress_20261118": {

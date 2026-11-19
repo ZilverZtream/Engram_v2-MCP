@@ -257,7 +257,7 @@
     {
       "id": "EG-01",
       "finding": "Applicable authored guidance missed by planning/retrieval/review",
-      "ledger_disposition": "Fixed in `0a82ea8`",
+      "ledger_disposition": "Original bounded scoped-guidance/change-set delivery verified complete; semantic compliance and task-usefulness gates remain separate",
       "existing_evidence_and_next_gate": "Scoped guidance acceptance tests and isolated MCP verification; prose compliance is still agent-reviewed.",
       "required_behavior": [
         "Same applicable complete policy set reaches planning, editing, retrieval and review in JSON and Markdown.",
@@ -324,12 +324,17 @@
         "record": "eval/planning-contract-batch-delivery-20261119.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
+      },
+      "original_requirement_closure_20261119": {
+        "record": "eval/guidance-changeset-original-requirements-closure-20261119.json",
+        "original_required_behavior_complete": true,
+        "general_task_usefulness_established": false
       }
     },
     {
       "id": "EG-02",
       "finding": "Large change sets lose actionable context",
-      "ledger_disposition": "Fixed in `0a82ea8`",
+      "ledger_disposition": "Original bounded scoped-guidance/change-set delivery verified complete; semantic compliance and task-usefulness gates remain separate",
       "existing_evidence_and_next_gate": "Bounded manifests retain identities and provide exact hash-bound recovery.",
       "required_behavior": [
         "The entire serialized response fits its budget, preserving every mandatory reconciliation identity and omission count.",
@@ -356,6 +361,11 @@
         "record": "eval/ask-authority-batch-recovery-delivery-20261118.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
+      },
+      "original_requirement_closure_20261119": {
+        "record": "eval/guidance-changeset-original-requirements-closure-20261119.json",
+        "original_required_behavior_complete": true,
+        "general_task_usefulness_established": false
       }
     },
     {

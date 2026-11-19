@@ -1,0 +1,544 @@
+{
+  "status": "ORIGINAL_SCOPED_GUIDANCE_AND_CHANGESET_DELIVERY_REQUIREMENTS_VERIFIED_COMPLETE",
+  "at_utc": "2026-11-19T02:23:12.248578+00:00",
+  "original_requirement_ids": [
+    "EG-01",
+    "EG-02"
+  ],
+  "required_behavior": {
+    "EG-01": [
+      "Same applicable complete policy set reaches planning, editing, retrieval and review in JSON and Markdown.",
+      "More than eight sources, exclusions, new files, case/separator forms, oversized recovery and changed source hashes remain correct.",
+      "Historical requests never substitute live policy; prose delivery is distinguished from semantic enforcement."
+    ],
+    "EG-02": [
+      "The entire serialized response fits its budget, preserving every mandatory reconciliation identity and omission count.",
+      "Recovery reconstructs exact immutable UTF-8 bytes and hashes after subsequent source changes."
+    ]
+  },
+  "original_required_behavior_complete": true,
+  "recorder": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-changeset-original-requirements-20261119\\record-closure.py",
+    "sha256": "9e82fc6dd0dad5a966d881cf189e5b89cdf8646a1ce7461efb1587dc4b31e0c0"
+  },
+  "requirement_evidence": {
+    "EG-01.1": {
+      "installed_direct_consumers": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\eg01-installed-policy-delivery-20261111.json",
+        "sha256": "b34fa421365d78c20b333754bfe49985d8e8480d5dfa821ec493a7f5e056fc06"
+      },
+      "independent_oracle": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\independent-oracle.json",
+        "sha256": "888e33fdf0c9c103ae7e330fdcb4f9fae86c982239e9545c5502ec711f2f4183"
+      },
+      "installed_edit_bookends": {
+        "record": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-edit-session-policy-delivery-20261113.json",
+          "sha256": "c694006c22963fe91b75f1ff32ba35f58e3ff939eafb0ec91655bc2a3082024f"
+        },
+        "installed": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy\\installed1\\acceptance.json",
+          "sha256": "1513e44067565e0a7b0e0dd486c34f9e8f02bd4cdd872b2a871e0c7236da5039"
+        },
+        "checks": {
+          "planned_unindexed_scope": true,
+          "complete_hash_bound_policy": true,
+          "current_actual_scope": true,
+          "changed_hash": true,
+          "oversized_recovery": true,
+          "explicit_no_edits": true,
+          "authored_sources_preserved": true
+        }
+      },
+      "latest_validated_prospective_vb_ts_sql_paths": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-final-guidance-20261118\\installed1\\receipt.json",
+        "sha256": "31a4519d8fa44d889b3dd9e4dfc94934996369fb4d9b7ca76101f57b04f14c0f",
+        "exit_code": 0,
+        "status": "PASS",
+        "owned_fixture_removed": true
+      }
+    },
+    "EG-01.2": {
+      "retained_native_and_no_vector": [
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg01-eg02-typed-source-final.json",
+            "sha256": "b1343b472759b3a108498a00cf6a91b7c2aa29bd4e332022f0e1719643892292"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg01-eg02-typed-source-final.log",
+            "sha256": "8b67d6ee75f0e48e7993f50490e3fa998757f5ecbdc606081c73fb2962369e13"
+          },
+          "passed": 22,
+          "relevant_cases": [
+            "structured_output_includes_hash_bound_repository_policy_without_prior_ingestion",
+            "original_eg01_guidance_does_not_change_citations_or_weaken_missing_source_refusal",
+            "original_eg01_root_and_spaced_source_paths_retain_their_authored_guidance",
+            "original_eg01_same_guidance_reaches_planning_editing_retrieval_and_review",
+            "change_set_routes_live_topics_and_preserves_policy_in_both_formats",
+            "historical_change_set_reports_unavailable_policy_without_future_content",
+            "oversized_dossier_recovers_exact_receipt_and_original_policy_after_checkout_changes",
+            "pre_commit_review_supplies_scoped_guidance_without_claiming_prose_enforcement",
+            "topic_guidance_remains_discoverable_in_a_large_legacy_source_directory"
+          ],
+          "no_vector": false,
+          "reexecuted": false
+        },
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg01-eg02-typed-source-unit-final.json",
+            "sha256": "9a6809fe0522284da8cd8144e29a8009e31c31b73dbee8c2be79b88298c74ed7"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg01-eg02-typed-source-unit-final.log",
+            "sha256": "cb462a7ae0dbbe8cbb4f60f0fb8f8e3b0fc8a8ede22b66cb1ab7ec377bdcaa07"
+          },
+          "passed": 50,
+          "relevant_cases": [
+            "services::project_policy::tests::complete_sources_or_explicit_hash_bound_recovery_never_cut_exceptions",
+            "services::project_policy::tests::global_topic_scope_applies_even_before_candidate_files_are_known",
+            "services::project_policy::tests::invalid_source_scope_is_explicit_without_granting_outside_policy_authority",
+            "services::project_policy::tests::live_scopes_select_late_topic_and_ancestors_without_indexing",
+            "services::project_policy::tests::malformed_scopes_are_unresolved_and_cannot_become_global",
+            "services::project_policy::tests::nested_guidance_cannot_expand_its_authority_through_global_frontmatter",
+            "services::project_policy::tests::rereads_hashes_and_historical_context_does_not_claim_live_policy",
+            "services::project_policy::tests::shared_glob_parser_handles_lists_braces_and_directory_boundaries",
+            "services::project_policy::tests::windows_discovery_deduplicates_index_path_casing"
+          ],
+          "no_vector": false,
+          "reexecuted": false
+        },
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg01-eg02-typed-source-public-final.json",
+            "sha256": "46c9ec740c8712ddf8670a5951126c913454c3f0de8d4f4a756a93240f948bc8"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg01-eg02-typed-source-public-final.log",
+            "sha256": "ffdc7deee4920392dd9a3dbdc53fbed02ad98d7cab785397f8281768079eb9ad"
+          },
+          "passed": 22,
+          "relevant_cases": [
+            "structured_output_includes_hash_bound_repository_policy_without_prior_ingestion",
+            "original_eg01_guidance_does_not_change_citations_or_weaken_missing_source_refusal",
+            "original_eg01_root_and_spaced_source_paths_retain_their_authored_guidance",
+            "original_eg01_same_guidance_reaches_planning_editing_retrieval_and_review",
+            "change_set_routes_live_topics_and_preserves_policy_in_both_formats",
+            "historical_change_set_reports_unavailable_policy_without_future_content",
+            "oversized_dossier_recovers_exact_receipt_and_original_policy_after_checkout_changes",
+            "pre_commit_review_supplies_scoped_guidance_without_claiming_prose_enforcement",
+            "topic_guidance_remains_discoverable_in_a_large_legacy_source_directory"
+          ],
+          "no_vector": true,
+          "reexecuted": false
+        },
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg01-eg02-typed-source-unit-final.json",
+            "sha256": "28cbb6b29d25d5381c83d49d5f1da5c554f54cb094b659ba35ffe782b89b8307"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg01-eg02-typed-source-unit-final.log",
+            "sha256": "808a89ec6b2c950dc33897083816c44b70ee845e10cd873d59e193c65029c4cc"
+          },
+          "passed": 50,
+          "relevant_cases": [
+            "services::project_policy::tests::complete_sources_or_explicit_hash_bound_recovery_never_cut_exceptions",
+            "services::project_policy::tests::global_topic_scope_applies_even_before_candidate_files_are_known",
+            "services::project_policy::tests::invalid_source_scope_is_explicit_without_granting_outside_policy_authority",
+            "services::project_policy::tests::live_scopes_select_late_topic_and_ancestors_without_indexing",
+            "services::project_policy::tests::malformed_scopes_are_unresolved_and_cannot_become_global",
+            "services::project_policy::tests::nested_guidance_cannot_expand_its_authority_through_global_frontmatter",
+            "services::project_policy::tests::rereads_hashes_and_historical_context_does_not_claim_live_policy",
+            "services::project_policy::tests::shared_glob_parser_handles_lists_braces_and_directory_boundaries",
+            "services::project_policy::tests::windows_discovery_deduplicates_index_path_casing"
+          ],
+          "no_vector": true,
+          "reexecuted": false
+        }
+      ],
+      "fourteen_planning_guidance_sources": {
+        "json": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\plan-recovered.json",
+          "sha256": "1338c024e77e69840bf10311c5c74abeb84175aa45b1c54215c0b63628c46d89"
+        },
+        "markdown": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\plan-recovered.md",
+          "sha256": "f3985e4a6dcab832f54b3f1acdc17d23e964717501ab9c4a822cdd370f2373f3"
+        },
+        "json_acceptance": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\plan-recovery-rest\\acceptance.json",
+          "sha256": "8ca86ee8146d0e6874424e9e9bfccd291773510bbdabbe64b1d2275467edb630"
+        },
+        "markdown_acceptance": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\plan-md-recovery\\acceptance.json",
+          "sha256": "68878b521af2161908d856fdb9fa33f03181069952151b1b10e7ab2320ee5b84"
+        }
+      },
+      "changed_hashes_and_unindexed_paths": {
+        "record": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-edit-session-policy-delivery-20261113.json",
+          "sha256": "c694006c22963fe91b75f1ff32ba35f58e3ff939eafb0ec91655bc2a3082024f"
+        },
+        "installed": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy\\installed1\\acceptance.json",
+          "sha256": "1513e44067565e0a7b0e0dd486c34f9e8f02bd4cdd872b2a871e0c7236da5039"
+        },
+        "checks": {
+          "planned_unindexed_scope": true,
+          "complete_hash_bound_policy": true,
+          "current_actual_scope": true,
+          "changed_hash": true,
+          "oversized_recovery": true,
+          "explicit_no_edits": true,
+          "authored_sources_preserved": true
+        }
+      }
+    },
+    "EG-01.3": {
+      "installed_revision_guidance": {
+        "record": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-historical-policy-delivery-20261113.json",
+          "sha256": "bbce6f5142e24c3fcb00a8bda944277e61503ab093cc39c76e2d670ce39a4da1"
+        },
+        "installed": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\installed1\\acceptance.json",
+          "sha256": "2c2a113229b0a0176275a8f25989dc26521254b0c46868fe4b3953c0c053b417"
+        },
+        "checks": {
+          "pinned_revision": true,
+          "deleted_policy_recovered": true,
+          "exact_source_hash": true,
+          "scope_preserved": true,
+          "future_policy_withheld": true,
+          "markdown_revision_and_policy": true,
+          "date_only_does_not_guess_revision": true,
+          "authored_files_unchanged": true
+        }
+      },
+      "retained_historical_and_prose_qualification_cases": [
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg01-eg02-typed-source-final.json",
+            "sha256": "b1343b472759b3a108498a00cf6a91b7c2aa29bd4e332022f0e1719643892292"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg01-eg02-typed-source-final.log",
+            "sha256": "8b67d6ee75f0e48e7993f50490e3fa998757f5ecbdc606081c73fb2962369e13"
+          },
+          "passed": 22,
+          "relevant_cases": [
+            "structured_output_includes_hash_bound_repository_policy_without_prior_ingestion",
+            "original_eg01_guidance_does_not_change_citations_or_weaken_missing_source_refusal",
+            "original_eg01_root_and_spaced_source_paths_retain_their_authored_guidance",
+            "original_eg01_same_guidance_reaches_planning_editing_retrieval_and_review",
+            "change_set_routes_live_topics_and_preserves_policy_in_both_formats",
+            "historical_change_set_reports_unavailable_policy_without_future_content",
+            "oversized_dossier_recovers_exact_receipt_and_original_policy_after_checkout_changes",
+            "pre_commit_review_supplies_scoped_guidance_without_claiming_prose_enforcement",
+            "topic_guidance_remains_discoverable_in_a_large_legacy_source_directory"
+          ],
+          "no_vector": false,
+          "reexecuted": false
+        },
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg01-eg02-typed-source-unit-final.json",
+            "sha256": "9a6809fe0522284da8cd8144e29a8009e31c31b73dbee8c2be79b88298c74ed7"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg01-eg02-typed-source-unit-final.log",
+            "sha256": "cb462a7ae0dbbe8cbb4f60f0fb8f8e3b0fc8a8ede22b66cb1ab7ec377bdcaa07"
+          },
+          "passed": 50,
+          "relevant_cases": [
+            "services::project_policy::tests::complete_sources_or_explicit_hash_bound_recovery_never_cut_exceptions",
+            "services::project_policy::tests::global_topic_scope_applies_even_before_candidate_files_are_known",
+            "services::project_policy::tests::invalid_source_scope_is_explicit_without_granting_outside_policy_authority",
+            "services::project_policy::tests::live_scopes_select_late_topic_and_ancestors_without_indexing",
+            "services::project_policy::tests::malformed_scopes_are_unresolved_and_cannot_become_global",
+            "services::project_policy::tests::nested_guidance_cannot_expand_its_authority_through_global_frontmatter",
+            "services::project_policy::tests::rereads_hashes_and_historical_context_does_not_claim_live_policy",
+            "services::project_policy::tests::shared_glob_parser_handles_lists_braces_and_directory_boundaries",
+            "services::project_policy::tests::windows_discovery_deduplicates_index_path_casing"
+          ],
+          "no_vector": false,
+          "reexecuted": false
+        },
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg01-eg02-typed-source-public-final.json",
+            "sha256": "46c9ec740c8712ddf8670a5951126c913454c3f0de8d4f4a756a93240f948bc8"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg01-eg02-typed-source-public-final.log",
+            "sha256": "ffdc7deee4920392dd9a3dbdc53fbed02ad98d7cab785397f8281768079eb9ad"
+          },
+          "passed": 22,
+          "relevant_cases": [
+            "structured_output_includes_hash_bound_repository_policy_without_prior_ingestion",
+            "original_eg01_guidance_does_not_change_citations_or_weaken_missing_source_refusal",
+            "original_eg01_root_and_spaced_source_paths_retain_their_authored_guidance",
+            "original_eg01_same_guidance_reaches_planning_editing_retrieval_and_review",
+            "change_set_routes_live_topics_and_preserves_policy_in_both_formats",
+            "historical_change_set_reports_unavailable_policy_without_future_content",
+            "oversized_dossier_recovers_exact_receipt_and_original_policy_after_checkout_changes",
+            "pre_commit_review_supplies_scoped_guidance_without_claiming_prose_enforcement",
+            "topic_guidance_remains_discoverable_in_a_large_legacy_source_directory"
+          ],
+          "no_vector": true,
+          "reexecuted": false
+        },
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg01-eg02-typed-source-unit-final.json",
+            "sha256": "28cbb6b29d25d5381c83d49d5f1da5c554f54cb094b659ba35ffe782b89b8307"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg01-eg02-typed-source-unit-final.log",
+            "sha256": "808a89ec6b2c950dc33897083816c44b70ee845e10cd873d59e193c65029c4cc"
+          },
+          "passed": 50,
+          "relevant_cases": [
+            "services::project_policy::tests::complete_sources_or_explicit_hash_bound_recovery_never_cut_exceptions",
+            "services::project_policy::tests::global_topic_scope_applies_even_before_candidate_files_are_known",
+            "services::project_policy::tests::invalid_source_scope_is_explicit_without_granting_outside_policy_authority",
+            "services::project_policy::tests::live_scopes_select_late_topic_and_ancestors_without_indexing",
+            "services::project_policy::tests::malformed_scopes_are_unresolved_and_cannot_become_global",
+            "services::project_policy::tests::nested_guidance_cannot_expand_its_authority_through_global_frontmatter",
+            "services::project_policy::tests::rereads_hashes_and_historical_context_does_not_claim_live_policy",
+            "services::project_policy::tests::shared_glob_parser_handles_lists_braces_and_directory_boundaries",
+            "services::project_policy::tests::windows_discovery_deduplicates_index_path_casing"
+          ],
+          "no_vector": true,
+          "reexecuted": false
+        }
+      ]
+    },
+    "EG-02.1": {
+      "installed_bounded_json_and_markdown": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\change-set-delivery-acceptance.json",
+        "sha256": "a37ce15f10a0707d7187f12c7e50da29029e68f06f7058b1b462a3d1609f5156"
+      },
+      "original_sizes_and_identity_counts": [
+        {
+          "format": "json",
+          "original_bytes": 147800,
+          "response_id": "4f31c14ec22bd1a1eaf13abfc4ae10320a57768653aafadf0d07fb188c6fac65",
+          "frames": 9,
+          "maximum_compact_rpc_envelope_bytes": 26609,
+          "budget_bytes": 40960,
+          "mandatory_rows": 63,
+          "reconciliation_receipt": "sha256:1057fb85956c3ab70fd43f9d9b24fe6a3af691eff3ed7eb90c9a01eb7ff0869e",
+          "omitted_candidates": 33,
+          "configured_hard_rules": 0
+        },
+        {
+          "format": "md",
+          "original_bytes": 98400,
+          "response_id": "21af8d0bf054733d58032da28811f9804e08cb8a9bfdb79cdeede7c64f6f5a3d",
+          "frames": 6,
+          "maximum_compact_rpc_envelope_bytes": 21913,
+          "budget_bytes": 40960,
+          "mandatory_rows": 64,
+          "reconciliation_receipt": "sha256:2f5e92194596941738c84788c60361b8bcc2cc4363b4439ad0edbd90d9ca547c",
+          "omitted_candidates": 32,
+          "configured_hard_rules": 0
+        }
+      ],
+      "nonempty_checkpoint_identity_cases": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-peer-refresh-publication-recovery-and-cutoff-batch-import-fix.json",
+          "sha256": "bc39c01375b33542b4ceb5e4f9a2c989492da0efba919b77760708b3f583bc98"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-peer-refresh-publication-recovery-and-cutoff-batch-import-fix.log",
+          "sha256": "8439ccc5d80fdcf1e4084f63d1accff05a80a1c257aeab4f692e3e66fdea12f2"
+        },
+        "individual_passed_cases": [
+          "handlers::planning_tools::change_set_delivery::tests::bounded_delivery_preserves_identities_and_recovers_exact_unicode_json",
+          "handlers::planning_tools::change_set_delivery::tests::cache_retention_is_project_scoped_and_preserves_the_latest_capture",
+          "handlers::planning_tools::change_set_delivery::tests::deeply_nested_data_directory_preserves_exact_response_recovery",
+          "handlers::planning_tools::change_set_delivery::tests::invalid_utf8_offset_is_rejected_without_recomputing_evidence",
+          "handlers::planning_tools::change_set_delivery::tests::large_checkpoint_is_recoverable_without_losing_mandatory_identities",
+          "handlers::planning_tools::change_set_delivery::tests::markdown_and_small_outputs_keep_their_delivery_contract",
+          "handlers::planning_tools::change_set_delivery::tests::raw_markdown_with_control_characters_and_unicode_recovers_exactly",
+          "handlers::planning_tools::change_set_delivery::tests::repeated_capture_refreshes_expired_evidence_without_changing_identity"
+        ],
+        "parent_run_exit_code": 101,
+        "parent_run_pass_claim": false,
+        "failure_context": "Eight delivery cases passed inside a mixed run whose later unrelated historical-precedent fixture failed. The failure and corrected isolated followup remain recorded; this is not an overall green-run claim."
+      }
+    },
+    "EG-02.2": {
+      "checkout_change_immutable_recovery_cases": [
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg01-eg02-typed-source-final.json",
+            "sha256": "b1343b472759b3a108498a00cf6a91b7c2aa29bd4e332022f0e1719643892292"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg01-eg02-typed-source-final.log",
+            "sha256": "8b67d6ee75f0e48e7993f50490e3fa998757f5ecbdc606081c73fb2962369e13"
+          },
+          "passed": 22,
+          "relevant_cases": [
+            "structured_output_includes_hash_bound_repository_policy_without_prior_ingestion",
+            "original_eg01_guidance_does_not_change_citations_or_weaken_missing_source_refusal",
+            "original_eg01_root_and_spaced_source_paths_retain_their_authored_guidance",
+            "original_eg01_same_guidance_reaches_planning_editing_retrieval_and_review",
+            "change_set_routes_live_topics_and_preserves_policy_in_both_formats",
+            "historical_change_set_reports_unavailable_policy_without_future_content",
+            "oversized_dossier_recovers_exact_receipt_and_original_policy_after_checkout_changes",
+            "pre_commit_review_supplies_scoped_guidance_without_claiming_prose_enforcement",
+            "topic_guidance_remains_discoverable_in_a_large_legacy_source_directory"
+          ],
+          "no_vector": false,
+          "reexecuted": false
+        },
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg01-eg02-typed-source-unit-final.json",
+            "sha256": "9a6809fe0522284da8cd8144e29a8009e31c31b73dbee8c2be79b88298c74ed7"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg01-eg02-typed-source-unit-final.log",
+            "sha256": "cb462a7ae0dbbe8cbb4f60f0fb8f8e3b0fc8a8ede22b66cb1ab7ec377bdcaa07"
+          },
+          "passed": 50,
+          "relevant_cases": [
+            "services::project_policy::tests::complete_sources_or_explicit_hash_bound_recovery_never_cut_exceptions",
+            "services::project_policy::tests::global_topic_scope_applies_even_before_candidate_files_are_known",
+            "services::project_policy::tests::invalid_source_scope_is_explicit_without_granting_outside_policy_authority",
+            "services::project_policy::tests::live_scopes_select_late_topic_and_ancestors_without_indexing",
+            "services::project_policy::tests::malformed_scopes_are_unresolved_and_cannot_become_global",
+            "services::project_policy::tests::nested_guidance_cannot_expand_its_authority_through_global_frontmatter",
+            "services::project_policy::tests::rereads_hashes_and_historical_context_does_not_claim_live_policy",
+            "services::project_policy::tests::shared_glob_parser_handles_lists_braces_and_directory_boundaries",
+            "services::project_policy::tests::windows_discovery_deduplicates_index_path_casing"
+          ],
+          "no_vector": false,
+          "reexecuted": false
+        },
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg01-eg02-typed-source-public-final.json",
+            "sha256": "46c9ec740c8712ddf8670a5951126c913454c3f0de8d4f4a756a93240f948bc8"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg01-eg02-typed-source-public-final.log",
+            "sha256": "ffdc7deee4920392dd9a3dbdc53fbed02ad98d7cab785397f8281768079eb9ad"
+          },
+          "passed": 22,
+          "relevant_cases": [
+            "structured_output_includes_hash_bound_repository_policy_without_prior_ingestion",
+            "original_eg01_guidance_does_not_change_citations_or_weaken_missing_source_refusal",
+            "original_eg01_root_and_spaced_source_paths_retain_their_authored_guidance",
+            "original_eg01_same_guidance_reaches_planning_editing_retrieval_and_review",
+            "change_set_routes_live_topics_and_preserves_policy_in_both_formats",
+            "historical_change_set_reports_unavailable_policy_without_future_content",
+            "oversized_dossier_recovers_exact_receipt_and_original_policy_after_checkout_changes",
+            "pre_commit_review_supplies_scoped_guidance_without_claiming_prose_enforcement",
+            "topic_guidance_remains_discoverable_in_a_large_legacy_source_directory"
+          ],
+          "no_vector": true,
+          "reexecuted": false
+        },
+        {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg01-eg02-typed-source-unit-final.json",
+            "sha256": "28cbb6b29d25d5381c83d49d5f1da5c554f54cb094b659ba35ffe782b89b8307"
+          },
+          "log": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg01-eg02-typed-source-unit-final.log",
+            "sha256": "808a89ec6b2c950dc33897083816c44b70ee845e10cd873d59e193c65029c4cc"
+          },
+          "passed": 50,
+          "relevant_cases": [
+            "services::project_policy::tests::complete_sources_or_explicit_hash_bound_recovery_never_cut_exceptions",
+            "services::project_policy::tests::global_topic_scope_applies_even_before_candidate_files_are_known",
+            "services::project_policy::tests::invalid_source_scope_is_explicit_without_granting_outside_policy_authority",
+            "services::project_policy::tests::live_scopes_select_late_topic_and_ancestors_without_indexing",
+            "services::project_policy::tests::malformed_scopes_are_unresolved_and_cannot_become_global",
+            "services::project_policy::tests::nested_guidance_cannot_expand_its_authority_through_global_frontmatter",
+            "services::project_policy::tests::rereads_hashes_and_historical_context_does_not_claim_live_policy",
+            "services::project_policy::tests::shared_glob_parser_handles_lists_braces_and_directory_boundaries",
+            "services::project_policy::tests::windows_discovery_deduplicates_index_path_casing"
+          ],
+          "no_vector": true,
+          "reexecuted": false
+        }
+      ],
+      "exact_unicode_and_control_character_recovery": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-peer-refresh-publication-recovery-and-cutoff-batch-import-fix.json",
+          "sha256": "bc39c01375b33542b4ceb5e4f9a2c989492da0efba919b77760708b3f583bc98"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-peer-refresh-publication-recovery-and-cutoff-batch-import-fix.log",
+          "sha256": "8439ccc5d80fdcf1e4084f63d1accff05a80a1c257aeab4f692e3e66fdea12f2"
+        },
+        "individual_passed_cases": [
+          "handlers::planning_tools::change_set_delivery::tests::bounded_delivery_preserves_identities_and_recovers_exact_unicode_json",
+          "handlers::planning_tools::change_set_delivery::tests::cache_retention_is_project_scoped_and_preserves_the_latest_capture",
+          "handlers::planning_tools::change_set_delivery::tests::deeply_nested_data_directory_preserves_exact_response_recovery",
+          "handlers::planning_tools::change_set_delivery::tests::invalid_utf8_offset_is_rejected_without_recomputing_evidence",
+          "handlers::planning_tools::change_set_delivery::tests::large_checkpoint_is_recoverable_without_losing_mandatory_identities",
+          "handlers::planning_tools::change_set_delivery::tests::markdown_and_small_outputs_keep_their_delivery_contract",
+          "handlers::planning_tools::change_set_delivery::tests::raw_markdown_with_control_characters_and_unicode_recovers_exactly",
+          "handlers::planning_tools::change_set_delivery::tests::repeated_capture_refreshes_expired_evidence_without_changing_identity"
+        ],
+        "parent_run_exit_code": 101,
+        "parent_run_pass_claim": false,
+        "failure_context": "Eight delivery cases passed inside a mixed run whose later unrelated historical-precedent fixture failed. The failure and corrected isolated followup remain recorded; this is not an overall green-run claim."
+      },
+      "later_owned_deep_path_and_restart": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\eg12-original-requirement-closure-20261118.json",
+        "sha256": "62d61f4914505e507950fe567cb15835242887d9d9f21191e748b3c1018d4d98"
+      }
+    }
+  },
+  "current_source_binding": {
+    "compiled_source_commit": "52be11e05c5dc6d5078d7e6da74ad2157fccb481",
+    "sources": {
+      "crates/engram_server/src/services/project_policy.rs": {
+        "matches_current_deployed_source": true,
+        "sha256_normalized": "945ebb4519d116ff3b363673e8395b51e5777aa6fa218c351a3ba0b66715ef5e"
+      },
+      "crates/engram_server/src/services/project_policy/historical.rs": {
+        "matches_current_deployed_source": true,
+        "sha256_normalized": "8bc6824399eb13fbaf567588561633165d1f25b0e5a12b9602e0b0fd14ed0f3a"
+      },
+      "crates/engram_server/src/services/project_policy/linked_sources.rs": {
+        "matches_current_deployed_source": true,
+        "sha256_normalized": "a03e74fc15767d60d4316ae836f3e1e68dfb87197058e63d8843406e1e6f9b02"
+      },
+      "crates/engram_server/src/handlers/change_set_delivery.rs": {
+        "matches_current_deployed_source": true,
+        "sha256_normalized": "143ef066bb7a137d9cb73076bda3f23612cc9c6961e00d95e30783e92580b3a5"
+      },
+      "crates/engram_server/src/handlers/feature_plan_tools.rs": {
+        "matches_current_deployed_source": true,
+        "sha256_normalized": "95552d3aa9362c17cf0b61d6cc5d8def4aee7cde5baef62b35367b24b30a2ab8"
+      }
+    }
+  },
+  "corrected_old_test_filter_accounting": "The old50case unit totals are41planning+9policy cases; their incorrect response-delivery selector matched zero. The actual separately selected eight cases are linked with their failed-parent-run context. No zero-case run is used as delivery evidence.",
+  "new_builds": 0,
+  "new_tests_or_models": 0,
+  "new_product_source_changes": 0,
+  "general_task_usefulness_established": false,
+  "full_original_goal_complete": false,
+  "limitations": [
+    "This closes the original bounded delivery requirements from dated executions; it is not a new feature or a replay of all cases on the latest executable.",
+    "Scope matching selects guidance documents; it does not establish semantic applicability, prose compliance or permission to override exceptions.",
+    "The installed LegacyValidation captures had zero configured hard rules. Nonempty checkpoint pressure and source-mutation behavior use separate retained local evidence; JSON and Markdown are distinct captures.",
+    "Later recovery preserves the exact original captured result within its documented retention/content limits. Candidate relevance, atomic multi-read snapshots, complete implementations and general task usefulness remain separate.",
+    "The queued natural-language date fix is excluded; no original storage/resource/ownership/task gates are closed by these delivery requirements."
+  ],
+  "temporary_resources": {
+    "new_fixtures_or_product_processes": 0,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-changeset-original-requirements-20261119",
+    "retention": "Retain this reconciliation and existing receipts/raw response/source captures. Existing managed snapshots retain their advertised lifecycle; original failed attempts/holds remain intact. No authored LegacyValidation source/Q access, new fixture or preexisting deletion."
+  }
+}
