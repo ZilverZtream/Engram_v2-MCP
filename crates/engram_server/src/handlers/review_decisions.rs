@@ -143,7 +143,7 @@ fn valid_hex(s: &str, lengths: &[usize]) -> bool {
     lengths.contains(&s.len()) && s.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
-fn valid_iso_date(value: &str) -> bool {
+pub(crate) fn valid_iso_date(value: &str) -> bool {
     if value.len() != 10
         || value.as_bytes()[4] != b'-'
         || value.as_bytes()[7] != b'-'
@@ -289,8 +289,21 @@ pub(crate) fn relevant_to_paths(event: &ReviewDecision, selected: &[String]) -> 
 /// rationale. Those rows remain recoverable by exact ID through the public tool.
 pub(crate) fn discover(
     state: &crate::state::AppState, pid: &str, max_candidates: usize,
+    relevant: impl FnMut(&ReviewDecision) -> bool,
+) -> Result<DecisionDiscovery, String> {
+    discover_at(state, pid, max_candidates, None, relevant)
+}
+
+/// Apply an explicit source-date cutoff before choosing each finding's latest
+/// event. A later event must not hide an earlier eligible ruling in a replay.
+pub(crate) fn discover_at(
+    state: &crate::state::AppState, pid: &str, max_candidates: usize,
+    exclusive_date: Option<&str>,
     mut relevant: impl FnMut(&ReviewDecision) -> bool,
 ) -> Result<DecisionDiscovery, String> {
+    if exclusive_date.is_some_and(|date| !valid_iso_date(date)) {
+        return Err("historical review cutoff must be YYYY-MM-DD".into());
+    }
     let page = state.registry.list_meta_prefix_bounded(
         pid, IDENTITY_PREFIX, DISCOVERY_RECORDS, 256, 32 * 1024,
     ).map_err(|e| e.to_string())?;
@@ -300,6 +313,7 @@ pub(crate) fn discover(
     let mut unrelated_current_events = 0usize;
     let mut candidate_omissions = 0usize;
     let mut record_bytes_read = 0usize;
+    let mut excluded_by_date = 0usize;
     let mut issue_ids = Vec::new();
     for (stored_key, review_id) in page.entries {
         if identity_key(&review_id).as_deref() != Ok(stored_key.as_str()) {
@@ -324,7 +338,13 @@ pub(crate) fn discover(
             }
         };
         let mut latest = std::collections::BTreeMap::new();
-        for event in &events { latest.insert(&event.finding_id, event); }
+        for event in &events {
+            if exclusive_date.is_some_and(|date| !event_precedes_date(event, date)) {
+                excluded_by_date += 1;
+                continue;
+            }
+            latest.insert(&event.finding_id, event);
+        }
         for event in latest.values() {
             if !relevant(event) {
                 unrelated_current_events += 1;
@@ -343,7 +363,7 @@ pub(crate) fn discover(
             });
         }
     }
-    Ok(DecisionDiscovery { candidates, coverage: serde_json::json!({
+    let mut coverage = serde_json::json!({
         "status":"partial", "identity_records_inspected":page.inspected,
         "identity_record_scan_cap":DISCOVERY_RECORDS, "identity_scan_has_more":page.has_more,
         "identity_values_omitted":page.omitted_values, "invalid_identity_records":invalid_identities,
@@ -356,7 +376,13 @@ pub(crate) fn discover(
         "legacy_identity_coverage":"Unknown: older hashed rows without identity companions cannot be discovered. Read by the original review_id, or record the unchanged original events with that exact ID to add a companion. No IDs are inferred and no old arrays are migrated by discovery.",
         "relevance":"Explicit scope must intersect a selected path; legacy events require a complete selected relative path in the rationale or finding ID. Declared scope and text relevance do not authenticate authority or establish semantic applicability.",
         "observation_scope":"Independent current metadata observations, not an atomic corpus snapshot or historical replay. Missing, malformed, oversized and uninspected records establish no absence of decisions."
-    }) })
+    });
+    if let Some(date) = exclusive_date {
+        coverage["exclusive_source_date_cutoff"] = serde_json::json!(date);
+        coverage["excluded_future_or_unparseable_events"] = serde_json::json!(excluded_by_date);
+        coverage["observation_scope"] = serde_json::json!("Independent current records filtered by imported source dates before latest-event selection; not authenticated dates or an atomic historical corpus snapshot. Missing, malformed, oversized and uninspected records establish no absence of decisions.");
+    }
+    Ok(DecisionDiscovery { candidates, coverage })
 }
 
 /// Older imports used AcceptedException for a workflow/LLM disposition. Keep
@@ -500,8 +526,7 @@ pub(crate) fn snapshot_before(
     let events = all
         .into_iter()
         .filter(|event| {
-            let date = event.recorded_at.get(..10);
-            let included = date.is_some_and(|date| valid_iso_date(date) && date < exclusive_date);
+            let included = event_precedes_date(event, exclusive_date);
             if !included {
                 invalid_or_future += 1;
             }
@@ -534,6 +559,11 @@ pub(crate) fn snapshot_before(
         "current": current,
         "events": events,
     }))
+}
+
+fn event_precedes_date(event: &ReviewDecision, exclusive_date: &str) -> bool {
+    event.recorded_at.get(..10)
+        .is_some_and(|date| valid_iso_date(date) && date < exclusive_date)
 }
 
 impl Engram {

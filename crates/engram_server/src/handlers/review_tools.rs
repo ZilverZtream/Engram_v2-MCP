@@ -30,6 +30,12 @@ impl Engram {
         req: PreCommitReviewRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if req.review_decisions_before.as_deref()
+            .is_some_and(|date| !super::review_decisions::valid_iso_date(date))
+        {
+            return Err(McpError::invalid_params(
+                "review_decisions_before must be an exclusive YYYY-MM-DD source-date cutoff", None));
+        }
         let budget = response_delivery::budget(req.max_tokens)?;
         if let Some(id) = req.response_id.as_deref() {
             let body = super::planning_tools::change_set_delivery::recover_review(
@@ -138,7 +144,8 @@ impl Engram {
 
         // Evidence is collected after gate findings have been produced. It
         // cannot suppress, downgrade or silently reconcile those findings.
-        let prior_input = prior_context::Input::from_diff(&parsed, &source_before);
+        let prior_input = prior_context::Input::from_diff(&parsed, &source_before)
+            .with_recorded_before(req.review_decisions_before.clone());
         let prior_state = self.state.clone();
         let prior_search = source_runtime.search.clone();
         let prior_pid = req.project_id.clone();

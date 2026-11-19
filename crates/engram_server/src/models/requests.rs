@@ -4692,6 +4692,12 @@ fn default_review_detail_level() -> String {
 #[serde(deny_unknown_fields)]
 pub struct PreCommitReviewRequest {
     pub project_id: String,
+    /// Exclusive YYYY-MM-DD cutoff on imported prior-decision source dates.
+    /// Selects the latest eligible event per finding; undated current indexed
+    /// summaries are withheld with explicit coverage. Review gates and source
+    /// comparisons still examine the current worktree, not historical execution.
+    #[serde(default)]
+    pub review_decisions_before: Option<String>,
     /// Optional Git worktree whose staged/unstaged/HEAD diff and current file
     /// bytes should be reviewed. The directory must belong to the same Git
     /// repository as the indexed project.
