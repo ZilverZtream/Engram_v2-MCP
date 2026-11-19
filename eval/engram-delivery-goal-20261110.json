@@ -2922,6 +2922,8 @@
     "candidate_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-schema-review-batch-20261119",
     "candidate_source_commit": "5847d32f4080bf976af6dfd4ce73a4df683ab449",
     "candidate_build_session": 95367,
+    "candidate_public_checks": 20,
+    "candidate_vector_history_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-diff-path-filter-20261119-vector\\contract.json",
     "next_action": "Read the owned release1 receipt and candidate1/receipt.json once the live build and automatic public verifier exit. Review candidate results before any activation. Leave the installed daemon and client processes running.",
     "pending_source_outcomes": 3
   },
