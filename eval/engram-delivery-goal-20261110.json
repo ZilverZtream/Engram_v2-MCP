@@ -3049,6 +3049,16 @@
       "implementation": "crates/engram_server/src/handlers/review_decisions.rs and review_tools prior context and finding links",
       "acceptance": "Admit exact current finding IDs only with path relevance, prioritize them through the existing discovery and report caps, and give admitted exact matches their own bounded context item. The annotation identifies a matching ID while retaining scope/conditions and the current verdict. The focused selection and annotation check passed. The extended actual review integration path remains queued for package verification. This extends the same EG-19 outcome as deferred finding IDs."
     },
+    "following_combined_mcp_baseline": {
+      "status": "INSTALLED_BASELINE_OBSERVED_CANDIDATE_VALIDATION_PENDING",
+      "case": "sql-history-review-20261119",
+      "eligible_original_requirements": ["TODO-28", "EG-20", "EG-19"],
+      "source_reviewed_through": "38949da2a11fee0275b731fb3163ecd345d29c99",
+      "baseline_binary_sha256": "e31a6c084b1b8c5ed3ce4645c50c2a5eedc01292ea0ef1273db07de2567f0f10",
+      "verifier": {"relative_path":"verify-public.py","sha256":"bdf33222ddb1ff166f411ae9269a6277d9bbd04ebe3815812fd68ca061198730"},
+      "baseline": {"relative_path":"baseline/receipt.json","sha256":"609fe869fc9f46b34296aac1aaa35ce6ace59bb6409d8c195657fd1adeaea013","checks":6},
+      "acceptance": "The public installed-binary baseline returned both SQL declarations after four examinations, the expected Git author/date/body, and the unchanged review severity and verdict. Its review omitted the exact prior event behind twenty-four same-file events and lacked the stable ID in the deferred ledger. Candidate acceptance requires two SQL examinations, unchanged Git evidence, both restored review identities with source restrictions, and exact recovery. Both runtime and scratch fixture closed. No build started."
+    },
     "next_action": "Advance the remaining original LegacyValidation items. The single-scan SQL comparison committed after the installed package was frozen remains queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
   },
   "windows_reconnect_release_interruption": {
