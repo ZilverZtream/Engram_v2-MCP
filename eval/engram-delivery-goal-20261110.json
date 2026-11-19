@@ -2955,16 +2955,17 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "CUMULATIVE_CANDIDATE_BUILD_RUNNING",
+    "status": "CUMULATIVE_CANDIDATE_VERIFIED_AND_PACKAGED",
     "implementation_items_active": 0,
     "verified_base_record": "eval/history-schema-review-candidate-20261119.json",
+    "record": "eval/cumulative-agent-workflows-candidate-20261119.json",
     "full_original_goal_complete": false,
     "candidate_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\follow-on-agent-workflows-20261119",
     "candidate_source_commit": "1915f24cc7b9b0606ff016a0710f48d80912abc3",
     "candidate_build_session": 72691,
     "candidate_public_checks": 29,
     "pending_source_outcomes": 5,
-    "next_action": "Wait on this owned release and its automatic candidate verifier and packager. File-scoped history and SQL source stay in the cumulative binary. Keep the live daemon online until a coordinated cutover."
+    "next_action": "Use the verified cumulative package for one coordinated Windows cutover. A running MCP proxy was observed. Preserve the live service until the user chooses a cutover or clients close. Do not rebuild the verified artifact."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

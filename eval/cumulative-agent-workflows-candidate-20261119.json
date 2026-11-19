@@ -1,0 +1,46 @@
+{
+  "status": "CUMULATIVE_CANDIDATE_VERIFIED_AND_PACKAGED",
+  "source_commit": "1915f24cc7b9b0606ff016a0710f48d80912abc3",
+  "verified_base": "eval/history-schema-review-candidate-20261119.json",
+  "verified_outcomes": [
+    "Historical change sets require recorded work-item text.",
+    "Prior-review questions honor the requested path scope and preserve dated history actions.",
+    "Mixed batch reads accept recorded review decisions with independent errors and readback.",
+    "Pinned freshness detects untracked entries and check_disk=false avoids a separate generation-inventory scan.",
+    "Nonempty native review reports offer callable reviews of observed alternate Git diff scopes.",
+    "Maintenance catalog describes Git-derived changed paths and prior guidance."
+  ],
+  "build": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\follow-on-agent-workflows-20261119\\release1.json",
+    "sha256": "9a07be256f59c604dea198cef80bdee97be49041a1ea9bb7ae3cfae5488cd849",
+    "seconds": 3432.232087299999,
+    "optimized_builds": 1,
+    "full_or_debug_suites": 0,
+    "owned_temporary_removed": true
+  },
+  "candidate": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\follow-on-agent-workflows-20261119\\candidate1\\receipt.json",
+    "sha256": "7fc751bfa38e79565dbca500c370ac4c0ba2a7eb84571d8cc27666506118e5f7",
+    "checks": 29,
+    "seconds": 29.512596000000485,
+    "owned_fixtures_removed": true,
+    "server_sha256": "0e4cb3c164c9dfcb82d4924613554ff5cf6a6e636ee0d0e503aa9198d52ba346"
+  },
+  "bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\follow-on-agent-workflows-20261119\\Engram-win-x64-candidate.zip",
+    "sha256": "523c9ff5554b384fefa45417a6b782c734ac90ff8506b7be248bf180d4588179",
+    "entries": 219,
+    "runtime_assets": 215,
+    "receipt_sha256": "dc0086d6a5c5939b8e0cdd42b00d3396a11897e3a1aeb4924c4f5ea28ae16cdc"
+  },
+  "runtime": {
+    "status": "LIVE_CUTOVER_PENDING",
+    "observed_daemon_pid": 47508,
+    "observed_client_proxy_pids": [
+      19684
+    ],
+    "installed_binary_sha256": "0f218770760226b4818d0cd71a72e3460792c4a1914f7ef55bc1aab2bd50d7d9",
+    "reason": "A running client proxy holds the installed executable. No live process was stopped."
+  },
+  "retention": "Retain the verified cumulative staged pair, ZIP and receipts for the managed cutover. No source or index writes on the live LegacyValidation project."
+}
