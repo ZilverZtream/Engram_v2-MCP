@@ -18,13 +18,16 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-text-revision-20261119\\baseline1\\receipt.json",
     "sha256": "0c6458333f2b3171bde3b86a122380069d6a2b806f4dab83f58aca413c3a8c76"
   },
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "runtime_deployed": false,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "runtime_deployed": true,
   "original_requirement": "EG-20 usable lexical history with selected revision scope. Original bounded closure retained.",
   "observed_gap": "Installed text history enforces the published cutoff but omits its exact Git revision. Source resolved the moving ref twice, independently for filtering and folding.",
   "behavior": "Resolve Git reachability once and reuse it for filtering, publisher folding and output. Report the exact Git cutoff and how to reuse it with as_of_rev on later pages. No claim of fixed ranking or immutable index state.",
   "configuration_relevance": "Text and lexical history already verified on LegacyValidation. The movement check uses an owned VB repository and ordinary Git refs.",
-  "verification": "Installed baseline confirmed cutoff filtering and missing exact revision. Changed Rust parsed with rustfmt; later candidate and installed checks will move the owned origin ref and query an offset under the pinned cutoff.",
+  "verification": "The installed baseline omitted the Git cutoff. Five focused checks passed on both binaries, including a branch move and a follow-up page using the original cutoff.",
   "temporary_resources": "Owned MCP server and reader closed before removing Git, runtime and VB fixture. Driver and wire evidence remain in the recorded case.",
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "delivery": "eval/agent-history-trace-planning-batch-delivery-20261119.json",
+  "runtime_server_sha256": "a099d7e85b2d7b91699993b5242c7fa9917dd32f54a847f3980561aa13e91e74",
+  "public_checks_passed_per_artifact": 5
 }

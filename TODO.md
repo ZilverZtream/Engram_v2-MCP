@@ -485,6 +485,7 @@ proposals that duplicate the existing surface:
 `find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
+  Installed: Named SQL trigger questions report qualified source declarations, events and callable clarification. [Delivery](eval/agent-history-trace-planning-batch-delivery-20261119.json).
   Installed: Relative WebForms page and HTTP questions invoke existing source tracing with the original action and callable follow-up. VB codebehind filenames remain source mentions. [Delivery](eval/webforms-integrity-batch-delivery-20261119.json).
   Installed November18: explicit prospective-file instruction questions retain scoped authored guidance; explicit prior-review questions retain complete scoped decision events, conditions, provenance and callable history with advisory authority. Source appSettings changes select only dependent guidance. No effective-value, compliance or approval claim. [Delivery](eval/planned-config-review-batch-delivery-20261118.json).
   Installed November19: explicit prior-review questions containing before YYYY-MM-DD preserve the exclusive source-date cutoff and dated history actions. Seven public checks passed per candidate/installed binary. [Delivery](eval/review-metadata-view-batch-delivery-20261119.json).
@@ -750,6 +751,7 @@ proposals that duplicate the existing surface:
   selection. [Delivery](eval/instruction-update-source-batch-delivery-20261117.json).
 
 - [~] **32. `one_shot_feature_plan` (spec 42-1)** (L)
+  Installed: WebForms feature planning passes the caller's semantic history budget through to change-set retrieval. [Delivery](eval/agent-history-trace-planning-batch-delivery-20261119.json).
   Compiles a full pre-edit dossier for a feature request (relevant files, patterns,
   safety, test plan). Build after #28/#30 exist to compose them.
   WebForms/VB.NET implementation installed 2026-11-13 with bounded source evidence,
@@ -780,6 +782,7 @@ proposals that duplicate the existing surface:
   establish model compliance. [Delivery](eval/planning-contract-batch-delivery-20261119.json).
 
 - [x] **33. Batch/multi-get endpoints** (M) — *delivered 2026-11-12.*
+  Installed: Bounded read batches accept ordinary WebForms request traces with complete result recovery. [Delivery](eval/agent-history-trace-planning-batch-delivery-20261119.json).
   Installed November16: typed memory-section batches retain project/user content, provenance,
   raw hashes, citation guards, independent errors and whole-result recovery.
   [Delivery](eval/job-history-memory-batch-delivery-20261116.json).

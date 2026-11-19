@@ -1,0 +1,96 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-19T11:47:29.904202+00:00",
+  "original_requirement_ids": [
+    "TODO-28",
+    "EG-20",
+    "TODO-33",
+    "TODO-32"
+  ],
+  "delivered_behaviors": {
+    "TODO-28": "Named SQL trigger questions report qualified source declarations, events and callable clarification.",
+    "EG-20": "Text history returns the exact Git cutoff for subsequent pages and uses one resolved revision throughout.",
+    "TODO-33": "Bounded read batches accept ordinary WebForms request traces with complete result recovery.",
+    "TODO-32": "WebForms feature planning passes the caller's semantic history budget through to change-set retrieval."
+  },
+  "runtime": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-history-trace-planning-batch-20261119\\package1",
+    "server_sha256": "a099d7e85b2d7b91699993b5242c7fa9917dd32f54a847f3980561aa13e91e74",
+    "manifest_sha256": "a5a339b850606c7c614849a259be84502f44ac90698084e1ea783e89e54f88df",
+    "old_server_sha256": "555507b44dd79bed189786f36a7e0efb3f5207bd781ad13886b0d3293949b45a",
+    "old_manifest_sha256": "617a5cfec859c8b6fc8171a3a0aba46a0088071c43fd6c474e22df555e841f06",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-history-trace-planning-batch-20261119\\release1.json",
+      "sha256": "0b99d028db9d9f2c31265adfeca9e0c20d86e06fde54984782a49945b32e7d4e"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "617a5cfec859c8b6fc8171a3a0aba46a0088071c43fd6c474e22df555e841f06"
+    },
+    "source_commit": "7657c22710cb85de6bd841d97865bedbab3a3525"
+  },
+  "source_preparation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-history-trace-planning-batch-20261119\\source-preparation1.json",
+    "sha256": "ea326cf1e4a6668012fc8944a2de0c7bef258fc950fb67124db2860525a7819b"
+  },
+  "windows_bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-history-trace-planning-batch-20261119\\bundle1.json",
+    "sha256": "b80016e8ca8a2a29e433be71db452ea1ff3436ddb4dd6587dae4516e3bc3e78e"
+  },
+  "public_receipts": {
+    "candidate1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-history-trace-planning-batch-20261119\\candidate1\\acceptance.json",
+      "sha256": "67cc80a55a65a6bdcb439b2818ca1f8684be8b65ff3f102ff6b5fbb1a4480b37",
+      "checks": 28,
+      "seconds": 20.348671599989757
+    },
+    "installed1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-history-trace-planning-batch-20261119\\installed1\\acceptance.json",
+      "sha256": "360629b58a6a2970937a375413d12ef26cb15b4a508370a0b56c44bb5e0cc9e8",
+      "checks": 28,
+      "seconds": 19.997995900004753
+    }
+  },
+  "installed_assets_verified": 215,
+  "build_accounting": {
+    "optimized_builds": 1,
+    "seconds": 2980.2204149000027,
+    "unit_debug_or_full_suites": 0,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-history-trace-planning-batch-20261119\\release1.json",
+      "sha256": "0b99d028db9d9f2c31265adfeca9e0c20d86e06fde54984782a49945b32e7d4e"
+    }
+  },
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\agent-history-trace-planning-batch-20261119\\restored-runtime\\receipt.json",
+    "sha256": "e8f1a192b71cb33bf03332c3f8a568db127085d37887c5a1b1685ba752bd88d1"
+  },
+  "selected_generation": 3180,
+  "previous_runtime_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\webforms-navigation-triggers-batch-delivery-20261119.json",
+    "sha256": "fc571fe1099eb29ebcaf2995004e8a5206acb1d9d7c9f05915058867f58f17cb"
+  },
+  "full_original_goal_complete": false,
+  "temporary_resources": {
+    "owned_build_temp_removed": true,
+    "fixture_checks_closed": true,
+    "owned_config_removed": true,
+    "managed_rollback_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-c36eb41937fb442791fa8147836820d8",
+      "cleanup_condition": "Retain for an explicit rollback or retirement decision."
+    }
+  },
+  "limitations": [
+    "SQL trigger source evidence leaves deployment and activation unverified.",
+    "The Git cutoff fixes reachability while index and ranking can still change across pages.",
+    "Mixed reads retain their ordinary scope. The batch is sequential.",
+    "The optional budget applies to semantic history retrieval. End-to-end LegacyValidation latency and generated-plan quality remain unverified."
+  ]
+}
