@@ -36,6 +36,9 @@ mod state;
 #[path = "ask_request_trace.rs"]
 mod request_trace;
 
+#[path = "ask_interfaces.rs"]
+mod interfaces;
+
 /// Round-2 audit P1-4: the dreamer-insight arm is OFF unless the caller asks
 /// for it (`include_insights: true`) — the ablation showed no measurable
 /// effect, so the default must not spend retrieval budget on it.
@@ -156,13 +159,16 @@ impl Engram {
             generation: gen_,
             source_view: source_view.clone(),
         };
-        let ((mut raw, mut providers), mut schema_evidence, mut settings_evidence, mut state_evidence, mut request_evidence, mut review_evidence) = tokio::join!(
+        let ((mut raw, mut providers), mut schema_evidence, mut settings_evidence, mut state_evidence,
+            mut request_evidence, mut review_evidence, mut interface_evidence) = tokio::join!(
             retrieval::gather_evidence_selected_source(&ctx, &plan, &req.question, depth, deadline, cancel, source_selection),
             schema::gather(self, &req.project_id, &req.question, &plan, gen_, source_view.clone(), deadline),
             settings::gather(self, &req.project_id, &plan, gen_, source_view.clone(), deadline),
             state::gather(self, &req.project_id, &req.question, &plan, gen_, source_view.clone(), deadline),
             request_trace::gather(self, &req, &plan, gen_, source_view.clone(), deadline),
             review_decisions::gather(self, &req.project_id, &req.question, &plan.qualifiers.path_prefixes, deadline),
+            interfaces::gather(ctx.graph.clone(), &req.project_id, &rec.directory, source_view.clone(),
+                &plan.qualifiers.path_prefixes, &req.question, gen_, deadline),
         );
         if let Some(schema) = &mut schema_evidence {
             raw.append(&mut schema.items);
@@ -188,6 +194,9 @@ impl Engram {
         }
         if let Some(review) = &review_evidence {
             providers.push(review.provider.clone());
+        }
+        if let Some(interface) = &interface_evidence {
+            providers.push(interface.provider.clone());
         }
         // Round-2 audit P0-4c (owner 2026-08-30): one bounded call-graph hop
         // from the files the first pass cited — the answer to "how does X get
@@ -502,6 +511,9 @@ impl Engram {
                 evidence.push(item);
             }
         }
+        if let Some(interface) = &mut interface_evidence {
+            evidence.append(&mut interface.items);
+        }
         let conflicts = ranking::detect_conflicts(&evidence, gen_);
         let snapshot = status::build_snapshot(
             &ctx,
@@ -535,6 +547,7 @@ impl Engram {
         let st = settings_evidence.iter().fold(st, |status, settings| settings.qualify_status(status));
         let st = state_evidence.iter().fold(st, |status, state| state.qualify_status(status));
         let st = request_evidence.as_ref().map_or(st, |request| request.qualify_status(st));
+        let st = interface_evidence.as_ref().map_or(st, |interface| interface.qualify(st));
         let st = if review_evidence.is_some() && st == status::AnswerStatus::Answered {
             status::AnswerStatus::Partial
         } else { st };

@@ -3060,6 +3060,14 @@
       "build": {"session":4885,"driver_pid":39320,"optimized_builds":1,"full_test_suites":0,"verification":"The same session packages this artifact after all six affected public MCP checks pass."},
       "acceptance": "The public installed-binary baseline returned both SQL declarations after four examinations, the expected Git author/date/body, and the unchanged review severity and verdict. Its review omitted the exact prior event behind twenty-four same-file events and lacked the stable ID in the deferred ledger. Candidate acceptance requires two SQL examinations, unchanged Git evidence, both restored review identities with source restrictions, and exact recovery. The baseline runtime and fixture closed."
     },
+    "next_vb_interface_implementers": {
+      "status": "IMPLEMENTED_FOCUSED_SOURCE_AND_CACHED_TYPE_CHECKS_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-9 direct interface implementation navigation for LegacyValidation VB.NET and TODO-28 natural-language source questions",
+      "observed_gap": "The installed ask_codebase baseline cited the actual IWebhookVetroService and VetroService files separately and reported answered without returning their implementation relationship. Ordinary query_graph_nodes and the existing incoming Implements edge verified both indexed endpoints.",
+      "baseline": {"case":"legacy_validation-interface-question-baseline","relative_path":"receipt.json","sha256":"9cd351acb060116e3dd1401cf38379e49a2b95da1f3eff5c27c7ef7eb119105b"},
+      "implementation": "crates/engram_server/src/handlers/ask_interfaces.rs, ask_tools.rs and services/ask_engine/report.rs",
+      "acceptance": "An explicit implementer question returns the current indexed VB class edge and cites the exact Implements line and both source identities. Reject stale, ambiguous and unselected endpoints with explicit coverage. Keep the direct declaration separate from runtime dispatch. A focused check used the actual LegacyValidation VB line and confirmed unrelated interface exclusion, and the exact provider type-checked against cached Engram core/index/graph libraries. Full handler and packaged MCP verification remain pending. This source is outside the currently frozen release."
+    },
     "next_action": "Advance the remaining original LegacyValidation items. The single-scan SQL comparison committed after the installed package was frozen remains queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
   },
   "windows_reconnect_release_interruption": {
