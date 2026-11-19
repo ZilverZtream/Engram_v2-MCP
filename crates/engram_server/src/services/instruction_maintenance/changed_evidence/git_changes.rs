@@ -1,7 +1,7 @@
 //! Git supplies candidate paths; the existing collector owns complete snapshots.
 use super::*;
 
-pub(super) fn paths_since(root: &Path, base_commit: &str) -> Result<Vec<String>> {
+pub(super) fn paths_since(root: &Path, base_commit: &str, scopes: &[String]) -> Result<Vec<String>> {
     let root = std::fs::canonicalize(root)?;
     let repo = git2::Repository::open(&root)
         .context("Git-driven maintenance needs this project's Git repository")?;
@@ -20,6 +20,12 @@ pub(super) fn paths_since(root: &Path, base_commit: &str) -> Result<Vec<String>>
         .include_untracked(true)
         .recurse_untracked_dirs(true)
         .include_typechange(true);
+    if !scopes.is_empty() {
+        options.disable_pathspec_match(true);
+        for scope in scopes {
+            options.pathspec(scope);
+        }
+    }
     let diff = repo.diff_tree_to_workdir_with_index(Some(&tree), Some(&mut options))?;
     let mut selected = BTreeSet::new();
     for delta in diff.deltas() {
@@ -35,7 +41,7 @@ pub(super) fn paths_since(root: &Path, base_commit: &str) -> Result<Vec<String>>
             selected.insert(path.replace('\\', "/"));
             ensure!(
                 selected.len() <= GIT_EVIDENCE_PATH_LIMIT,
-                "Git comparison exceeds{GIT_EVIDENCE_PATH_LIMIT} changed files; use explicit changed_paths for a bounded review slice or reduce the comparison. No files were silently omitted."
+                "Git comparison exceeds{GIT_EVIDENCE_PATH_LIMIT} changed files; narrow git_path_prefixes or use explicit changed_paths for a bounded review slice. No files were silently omitted."
             );
         }
     }

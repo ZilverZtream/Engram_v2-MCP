@@ -223,6 +223,7 @@ mod tests {
             let engram = Engram::new(state);
             let request = MaintenanceRequest {
                 use_git_changes: false,
+                git_path_prefixes: Vec::new(),
                 changed_paths: Vec::new(),
                 area_context: None,
                 new_instruction_targets: Vec::new(),

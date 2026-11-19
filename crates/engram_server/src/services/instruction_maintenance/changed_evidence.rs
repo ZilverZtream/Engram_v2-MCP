@@ -46,7 +46,7 @@ pub(super) fn validate(req: &MaintenanceRequest) -> Result<Vec<String>> {
 pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection> {
     let mut evidence: BTreeSet<_> = validate(req)?.into_iter().collect();
     let changed = if req.use_git_changes {
-        git_changes::paths_since(root, &req.base_commit)?
+        git_changes::paths_since(root, &req.base_commit, &req.git_path_prefixes)?
     } else {
         paths(&req.changed_paths, 16)?
     };
@@ -61,7 +61,9 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
         "Changes and evidence_paths exceed{evidence_limit} distinct files; use explicit changed_paths for a bounded review slice or reduce the comparison. No files were silently omitted."
     );
     let evidence: Vec<_> = evidence.into_iter().collect();
-    let basis = if req.use_git_changes {
+    let basis = if !req.git_path_prefixes.is_empty() {
+        "git_base_to_current_worktree_within_path_scope"
+    } else if req.use_git_changes {
         "git_base_to_current_worktree"
     } else {
         "current_guidance_discovery_for_explicit_changed_paths"
@@ -72,12 +74,14 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
         "Changed paths are caller-declared inputs, not an exhaustive Git diff."
     };
     if changed.is_empty() {
+        let mut context = json!({"basis":basis,"changed_paths":[],"status":"no_git_changes_observed",
+            "sources":[],"omissions":[],"notes":[],"interpretation":format!("{interpretation} No current instruction candidates were selected. This does not establish that guidance is semantically correct or needs no maintenance. No index or authored file is changed.")});
+        disclose_git_scope(&mut context, req);
         return Ok(Selection {
             instructions: Vec::new(),
             evidence,
             prior_source_bytes: 0,
-            context: json!({"basis":basis,"changed_paths":[],"status":"no_git_changes_observed",
-                "sources":[],"omissions":[],"notes":[],"interpretation":format!("{interpretation} No current instruction candidates were selected. This does not establish that guidance is semantically correct or needs no maintenance. No index or authored file is changed.")}),
+            context,
         });
     }
     let policy = project_policy::resolve_with_budget(
@@ -137,7 +141,7 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
         || prior.context.coverage != "complete"
         || !prior.context.omissions.is_empty()
         || prior.observations.iter().any(|row| row["status"].as_str().is_some_and(|status| status.contains("unavailable") || status.contains("not_supplied")));
-    let context = json!({
+    let mut context = json!({
         "basis":basis,
         "changed_paths":changed,
         "status":if incomplete {"instruction_selection_incomplete"} else if prior.requires_review {"historical_guidance_requires_review"} else if instructions.is_empty() {"no_current_instruction_candidates_observed"} else {"current_instruction_candidates_collected"},
@@ -153,10 +157,18 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
             "scope":"Current conventional guidance inventory, bounded literal Markdown links and direct inline-code symbol mentions, including names inside authored code expressions. Ordinary prose observations remain in the manifest but do not drive inverse symbol selection. Symbol declarations are parsed once from complete before/current copies of the caller-selected VB/JS/TS/SQL and appSettings configuration changed files only; no codebase inventory, graph or model. Unchanged observed method bytes alone do not select an instruction. References retain their own snapshot hashes; instruction_manifest reports captured dependency freshness. Name matches and review selection do not establish bindings, semantic impact or expanded scope authority. Listing, discovery and final packet capture are separate observations."},
         "interpretation":format!("{interpretation} Discovery selects current scoped guidance, directly changed conventional guides, bounded prior applicable guidance and literal-reference maintenance candidates. A review candidate does not gain authority over files outside its current scope. Prior guidance is explicitly revision-pinned and cannot substitute for current policy. Discovery remains bounded, does not infer semantic impact, accept policy or establish that no guidance change is warranted. Each selected current instruction and evidence file retains exact base-commit and current snapshots; linked-reference coverage is reported by instruction_manifest and prior_guidance. Explicit instruction_paths remain available for otherwise undiscovered current guidance. No index or authored file is changed.")
     });
+    disclose_git_scope(&mut context, req);
     Ok(Selection {
         instructions,
         evidence,
         context,
         prior_source_bytes: prior.retained_bytes,
     })
+}
+
+fn disclose_git_scope(context: &mut Value, req: &MaintenanceRequest) {
+    if !req.git_path_prefixes.is_empty() {
+        context["git_path_prefixes"] = json!(req.git_path_prefixes);
+        context["git_path_scope"] = json!("Git-derived changes cover only the requested literal file and directory scopes. Changes elsewhere are unknown. Explicit evidence_paths can add supplemental files without expanding the Git comparison.");
+    }
 }

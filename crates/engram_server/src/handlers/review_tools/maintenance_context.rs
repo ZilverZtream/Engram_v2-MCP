@@ -53,6 +53,7 @@ pub(super) fn collect(
     }
     let request = MaintenanceRequest {
         use_git_changes: false,
+        git_path_prefixes: Vec::new(),
         changed_paths: paths,
         area_context: None,
         instruction_paths: Vec::new(),

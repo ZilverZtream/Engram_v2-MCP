@@ -74,7 +74,17 @@ fn multi_file_feature_retains_every_before_after_source_and_late_file_stale_guar
         "base_commit":base,"use_git_changes":true
     }))
     .unwrap();
+    std::fs::create_dir(root.join("SiteArchive")).unwrap();
+    for index in 0..130 {
+        std::fs::write(root.join(format!("SiteArchive/record{index:03}.ts")), "export const archived = true;\n").unwrap();
+    }
+    let unscoped = maintenance::review(&root, "owned-volume", &request).unwrap_err();
+    assert!(unscoped.to_string().contains("Git comparison exceeds"));
+    request.git_path_prefixes = vec!["Site".into()];
     let collected = maintenance::review(&root, "owned-volume", &request).unwrap();
+    let context = collected.packet.change_context.as_ref().unwrap();
+    assert_eq!(context["git_path_prefixes"], json!(["Site"]));
+    assert_eq!(context["basis"], "git_base_to_current_worktree_within_path_scope");
     assert_eq!(collected.packet.evidence.len(), 35);
     for i in 0..35 {
         let (path, before) = source(i, 1);

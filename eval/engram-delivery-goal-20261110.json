@@ -3079,6 +3079,13 @@
       "prior_candidate_retained": "sql-history-review-20261119/candidate/receipt.json",
       "acceptance": "Recheck the one failed scoped-review workflow, including deferred finding identity and unchanged severity and verdict. Run the added public VB interface check against the same corrected binary. Referenced SQL and history evidence remains tied to the previous binary, with the pertinent source unchanged. Follow the managed cutover only after the affected candidate checks pass. No full test suite."
     },
+    "next_instruction_maintenance_git_scope": {
+      "status": "IMPLEMENTED_FOCUSED_GIT_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "EG-31 evidence-driven instruction maintenance over a caller-selected area",
+      "observed_gap": "Automatic Git selection would reject any comparison larger than 128 changed files before an agent could scope it to the affected VB.NET/WebForms, JS/TS and SQL area. Enumerating changed_paths manually has a different sixteen-file limit.",
+      "implementation": "The existing MaintenanceRequest and Git-driven changed-evidence reader. The health and pre-push observation models share the new git_path_prefixes field.",
+      "acceptance": "In a real Git fixture, the unscoped change count exceeds the cap. A literal Site scope includes its modified VB, deleted SQL and new TypeScript files and excludes 130 files from SiteArchive. Exact-file and empty scopes also passed with the production Git selector. The maintenance integration fixture now verifies the retained before/after packet and stale guard under that scope. Full MCP verification remains pending, independently of the running correction package."
+    },
     "next_action": "Advance the remaining original LegacyValidation items. The single-scan SQL comparison committed after the installed package was frozen remains queued for a later package. The former installed pair is retained and is subject to the existing rollback proof requirements."
   },
   "windows_reconnect_release_interruption": {

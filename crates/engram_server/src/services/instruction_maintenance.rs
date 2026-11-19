@@ -28,6 +28,11 @@ pub struct MaintenanceRequest {
     /// A clean comparison selects no instructions and proves no policy intent.
     #[serde(default)]
     pub use_git_changes: bool,
+    /// Optional literal project-relative file or directory scopes for Git-derived
+    /// changes. Apply before the changed-file limit. Requires use_git_changes.
+    /// Explicit evidence_paths may supply files outside these scopes.
+    #[serde(default)]
+    pub git_path_prefixes: Vec<String>,
     /// Discover current applicable guidance and bounded literal-reference review
     /// candidates for1..16 explicit changed files. Referencing guidance does not
     /// gain authority outside its own scope. Capture Git-before/disk-after evidence. May not
@@ -232,6 +237,14 @@ fn paths(input: &[String], limit: usize) -> Result<Vec<String>> {
     Ok(unique.into_iter().collect())
 }
 
+fn validate_git_path_scope(req: &MaintenanceRequest) -> Result<()> {
+    if !req.git_path_prefixes.is_empty() {
+        ensure!(req.use_git_changes, "git_path_prefixes requires use_git_changes=true");
+        paths(&req.git_path_prefixes, 16)?;
+    }
+    Ok(())
+}
+
 fn snapshot(bytes: Vec<u8>, remaining: &mut usize, file_limit: usize) -> Result<Snapshot> {
     ensure!(
         bytes.len() <= file_limit && bytes.len() <= *remaining,
@@ -355,6 +368,7 @@ fn optional_consumer(area: Option<&area_evidence::AreaEvidence>, path: &str) -> 
 /// Pure request validation: callers can reject malformed observation requests
 /// before starting an update, without reading or writing project files.
 pub fn validate_observation_request(req: &MaintenanceRequest) -> Result<()> {
+    validate_git_path_scope(req)?;
     ensure!(
         req.area_context.is_none(),
         "Collect area evidence through pre_push_audit"
@@ -394,6 +408,7 @@ fn capture_with_area(
     req: &MaintenanceRequest,
     area: Option<&area_evidence::AreaEvidence>,
 ) -> Result<Packet> {
+    validate_git_path_scope(req)?;
     ensure!(
         req.base_commit.len() == 40 && req.base_commit.bytes().all(|b| b.is_ascii_hexdigit()),
         "base_commit must be an exact full commit ID"

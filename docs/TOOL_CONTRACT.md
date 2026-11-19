@@ -217,6 +217,9 @@ committed after the base, staged/unstaged changes and nonignored untracked files
 the after snapshot is current disk, not a separate staged view. A clean comparison
 returns `no_git_changes_observed`, which establishes no semantic policy conclusion.
 Explicit `changed_paths` remains available and cannot be mixed with this option.
+In Git mode, `git_path_prefixes: ["Site/modules/system"]` restricts discovery
+to that literal path before the changed-file limit. Use `evidence_paths` to
+include specific supplemental files outside the Git scope.
 Installed November16: automatic Git selection allows up
 to128 distinct changed and supplemental evidence paths, so ordinary multi-file
 features do not require hand-splitting at16 files. Explicit `changed_paths` lists
