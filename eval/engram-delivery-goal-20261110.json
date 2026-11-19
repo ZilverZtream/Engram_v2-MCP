@@ -2976,6 +2976,14 @@
     "pending_source_outcomes": 5,
     "next_action": "Use the verified cumulative package for one coordinated Windows cutover. A running MCP proxy was observed. Preserve the live service until the user chooses a cutover or clients close. Do not rebuild the verified artifact."
   },
+  "review_diff_input_budget_progress": {
+    "original_requirement_id": "S14",
+    "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",
+    "observed_gap": "An ordinary pre-commit review reads patch files to EOF, renders native Git diffs without a byte bound, and holds the unparsed text through the full review.",
+    "implementation_files": ["crates/engram_server/src/services/pre_commit_review_service.rs", "crates/engram_server/src/handlers/review_tools.rs"],
+    "acceptance": "Oversized inline, file and Git-rendered diff inputs return an explicit error before gates run. A complete in-budget diff keeps the same review and diff hash. The native Git error points to existing path scopes.",
+    "verification": "The exact resolver and Git renderer passed the focused fixture against cached Engram and Git2 dependencies. The 4 MiB cap follows the existing pre-push file-input cap. Packaged MCP verification is pending. No additional full build."
+  },
   "dbml_model_associations_progress": {
     "original_requirement_id": "TODO-35",
     "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",

@@ -96,7 +96,7 @@ impl Engram {
         let indexed_project_dir = PathBuf::from(rec.directory.clone());
         let start = std::time::Instant::now();
         let root = indexed_project_dir.clone();
-        let (req, project_dir, review_source, diff_text, parsed, head_before, source_before) =
+        let (req, project_dir, review_source, diff_blake3, parsed, head_before, source_before) =
             tokio::task::spawn_blocking(move || {
                 let (project_dir, review_source) =
                     resolve_review_directory(&root, req.working_directory.as_deref())
@@ -107,9 +107,12 @@ impl Engram {
                 let parsed = std::sync::Arc::new(
                     crate::services::pre_commit_review_service::parse_unified_diff(&diff_text),
                 );
+                let diff_blake3 = (!diff_text.trim().is_empty())
+                    .then(|| blake3::hash(diff_text.as_bytes()).to_hex().to_string());
+                drop(diff_text);
                 let head = head_commit(&project_dir);
                 let source = source_snapshot(&project_dir, &parsed);
-                Ok::<_, McpError>((req, project_dir, review_source, diff_text, parsed, head, source))
+                Ok::<_, McpError>((req, project_dir, review_source, diff_blake3, parsed, head, source))
             })
             .await
             .map_err(|error| McpError::internal_error(error.to_string(), None))??;
@@ -122,7 +125,7 @@ impl Engram {
                 serde_json::json!(req.path_prefixes))
         };
 
-        if diff_text.trim().is_empty() {
+        if diff_blake3.is_none() {
             let status = if native_diff {
                 let scopes = req.path_prefixes.clone();
                 tokio::task::spawn_blocking(move || {
@@ -295,7 +298,7 @@ impl Engram {
             "alternate_diff_scope_status":alternate_scope_status,
             "staged_files_with_unstaged_edits":staged_worktree_drift,
             "source_snapshot_complete":!snapshot_unavailable,
-            "diff_blake3":blake3::hash(diff_text.as_bytes()).to_hex().to_string(),
+            "diff_blake3":diff_blake3,
             "source_before":source_before,"source_after":source_after,
             "source_scope":"bounded current-file snapshots; supplied diff is not certified to match current files",
             "provider_coverage":"see gate_status and source_scope; not_applicable means that provider does not support the submitted source. Failed, skipped and degraded gates are not passing evidence",

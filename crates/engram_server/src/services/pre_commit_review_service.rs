@@ -804,14 +804,26 @@ fn parse_hunk_header(line: &str) -> Option<DiffHunk> {
 ///
 /// Uses `git2` (already a dep via `engram_git`) — no shell calls.
 pub fn resolve_diff_source(project_dir: &Path, diff_input: &str) -> anyhow::Result<String> {
-    resolve_review_diff(project_dir, diff_input, &[])
+    resolve_diff(project_dir, diff_input, &[], usize::MAX)
 }
 
+const MAX_REVIEW_DIFF_BYTES: usize = 4 * 1024 * 1024;
+
 pub(crate) fn resolve_review_diff(project_dir: &Path, diff_input: &str, scopes: &[String]) -> anyhow::Result<String> {
+    resolve_diff(project_dir, diff_input, scopes, MAX_REVIEW_DIFF_BYTES)
+}
+
+fn ensure_diff_size(bytes: usize, limit: usize) -> anyhow::Result<()> {
+    anyhow::ensure!(bytes <= limit,
+        "Review diff exceeds {limit} bytes. Narrow a native Git diff with path_prefixes or split the submitted patch by file. No review ran.");
+    Ok(())
+}
+
+fn resolve_diff(project_dir: &Path, diff_input: &str, scopes: &[String], limit: usize) -> anyhow::Result<String> {
     match diff_input.trim() {
-        "staged" => git_diff_staged(project_dir, scopes),
-        "unstaged" => git_diff_unstaged(project_dir, scopes),
-        "head" => git_diff_head(project_dir, scopes),
+        "staged" => git_diff_staged(project_dir, scopes, limit),
+        "unstaged" => git_diff_unstaged(project_dir, scopes, limit),
+        "head" => git_diff_head(project_dir, scopes, limit),
         _ if !scopes.is_empty() => anyhow::bail!("path_prefixes requires staged, unstaged or head diff"),
         path if !path.contains(['\r', '\n'])
             && (path.ends_with(".patch") || path.ends_with(".diff")) => {
@@ -819,7 +831,7 @@ pub(crate) fn resolve_review_diff(project_dir: &Path, diff_input: &str, scopes: 
             // Multiline unified diffs may themselves end in a patch filename.
             // Only a single-line path uses file input, scoped to this project.
             anyhow::ensure!(!path.contains('\0'), "diff patch path contains a NUL byte");
-            let mut file = engram_core::safe_open_read(project_dir, path)?;
+            let file = engram_core::safe_open_read(project_dir, path)?;
             // Legacy codebases routinely contain non-UTF-8 bytes (a single
             // cp1252/latin-1 curly-quote byte in a vendored JS bundle is
             // enough). `read_to_string` hard-fails on the FIRST such byte
@@ -828,33 +840,52 @@ pub(crate) fn resolve_review_diff(project_dir: &Path, diff_input: &str, scopes: 
             // replacement) instead. A mangled character in one hunk beats
             // no review at all.
             let mut bytes = Vec::new();
-            file.read_to_end(&mut bytes)
+            file.take(limit.saturating_add(1) as u64).read_to_end(&mut bytes)
                 .map_err(|e| anyhow::anyhow!("failed to read diff file {path:?}: {e}"))?;
-            Ok(String::from_utf8_lossy(&bytes).into_owned())
+            ensure_diff_size(bytes.len(), limit)?;
+            let text = String::from_utf8_lossy(&bytes);
+            ensure_diff_size(text.len(), limit)?;
+            Ok(text.into_owned())
         }
-        other => Ok(other.to_string()),
+        other => {
+            ensure_diff_size(other.len(), limit)?;
+            Ok(other.to_owned())
+        }
     }
 }
 
-fn diff_to_patch_text(diff: &git2::Diff<'_>) -> anyhow::Result<String> {
+fn diff_to_patch_text(diff: &git2::Diff<'_>, limit: usize) -> anyhow::Result<String> {
     let mut text = String::new();
-    diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
+    let mut next_size = 0;
+    let printed = diff.print(git2::DiffFormat::Patch, |_delta, _hunk, line| {
         let origin = line.origin();
         // `git2` passes single-byte origin markers for content lines
         // (` `, `+`, `-`) and letters (`F`, `H`, ...) for headers — the
         // letters would corrupt the diff output if we wrote them, so
         // only prepend the real content prefixes.
-        match origin {
-            ' ' | '+' | '-' => text.push(origin),
-            _ => {}
+        let prefixed = matches!(origin, ' ' | '+' | '-');
+        let content_start = text.len().saturating_add(usize::from(prefixed));
+        next_size = content_start.saturating_add(line.content().len());
+        if next_size > limit {
+            return false;
         }
         // Lossy on purpose: a non-UTF-8 byte in one file's hunk must not
         // silently DROP that diff line (the old `from_utf8` + `if let Ok`
         // skipped it entirely) — decode with U+FFFD so line accounting
         // stays correct for legacy sources.
-        text.push_str(&String::from_utf8_lossy(line.content()));
+        let content = String::from_utf8_lossy(line.content());
+        next_size = content_start.saturating_add(content.len());
+        if next_size > limit {
+            return false;
+        }
+        if prefixed {
+            text.push(origin);
+        }
+        text.push_str(&content);
         true
-    })?;
+    });
+    ensure_diff_size(next_size, limit)?;
+    printed?;
     Ok(text)
 }
 
@@ -919,26 +950,26 @@ fn review_diff_options(scopes: &[String]) -> git2::DiffOptions {
     opts
 }
 
-fn git_diff_staged(project_dir: &Path, scopes: &[String]) -> anyhow::Result<String> {
+fn git_diff_staged(project_dir: &Path, scopes: &[String], limit: usize) -> anyhow::Result<String> {
     let repo = git2::Repository::discover(project_dir)?;
     let head_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
     let mut opts = review_diff_options(scopes);
     opts.include_untracked(false);
     let diff = repo.diff_tree_to_index(head_tree.as_ref(), None, Some(&mut opts))?;
-    diff_to_patch_text(&diff)
+    diff_to_patch_text(&diff, limit)
 }
 
-fn git_diff_unstaged(project_dir: &Path, scopes: &[String]) -> anyhow::Result<String> {
+fn git_diff_unstaged(project_dir: &Path, scopes: &[String], limit: usize) -> anyhow::Result<String> {
     let repo = git2::Repository::discover(project_dir)?;
     let mut opts = review_diff_options(scopes);
     opts.include_untracked(true)
         .recurse_untracked_dirs(true)
         .show_untracked_content(true);
     let diff = repo.diff_index_to_workdir(None, Some(&mut opts))?;
-    diff_to_patch_text(&diff)
+    diff_to_patch_text(&diff, limit)
 }
 
-fn git_diff_head(project_dir: &Path, scopes: &[String]) -> anyhow::Result<String> {
+fn git_diff_head(project_dir: &Path, scopes: &[String], limit: usize) -> anyhow::Result<String> {
     let repo = git2::Repository::discover(project_dir)?;
     let head_commit = repo.head()?.peel_to_commit()?;
     let parent = head_commit.parent(0).ok();
@@ -946,7 +977,7 @@ fn git_diff_head(project_dir: &Path, scopes: &[String]) -> anyhow::Result<String
     let old_tree = parent.as_ref().and_then(|p| p.tree().ok());
     let mut opts = review_diff_options(scopes);
     let diff = repo.diff_tree_to_tree(old_tree.as_ref(), Some(&new_tree), Some(&mut opts))?;
-    diff_to_patch_text(&diff)
+    diff_to_patch_text(&diff, limit)
 }
 
 // ─── Structured conventions ─────────────────────────────────────────────────
@@ -3692,6 +3723,25 @@ interface IProduct { id: number; }
     }
 
     // ── P0: lossy decode on non-UTF-8 file content ──────────────────────
+
+    #[test]
+    fn review_rejects_oversized_patch_inputs_without_returning_a_prefix() {
+        let temp = tempfile::tempdir().unwrap();
+        let raw = "diff --git a/invoice.vb b/invoice.vb\n--- a/invoice.vb\n+++ b/invoice.vb\n@@ -1 +1 @@\n-Old\n+New";
+        let patch = format!("{raw}\n");
+        std::fs::write(temp.path().join("invoice.patch"), &patch).unwrap();
+        assert_eq!(resolve_diff(temp.path(), raw, &[], raw.len()).unwrap(), raw);
+        assert_eq!(resolve_diff(temp.path(), "invoice.patch", &[], patch.len()).unwrap(), patch);
+        for input in [raw, "invoice.patch"] {
+            let error = resolve_diff(temp.path(), input, &[], 32).unwrap_err();
+            assert!(error.to_string().contains("No review ran"), "{error}");
+        }
+        let git = git2::Diff::from_buffer(patch.as_bytes()).unwrap();
+        let rendered = diff_to_patch_text(&git, usize::MAX).unwrap();
+        assert!(rendered.contains("+New"));
+        let error = diff_to_patch_text(&git, rendered.len() - 1).unwrap_err();
+        assert!(error.to_string().contains("No review ran"), "{error}");
+    }
 
     #[test]
     fn resolve_diff_source_lossy_decodes_invalid_utf8_patch_file() {

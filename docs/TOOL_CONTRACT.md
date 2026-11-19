@@ -1832,6 +1832,10 @@ Git worktree-relative directories before review gates run. Scope is visible in
 the result and carried into alternate-diff calls. Omit the field to review the
 whole selected diff. Raw unified-diff and patch-file inputs already specify
 their own file set.
+
+Reviews accept up to 4 MiB of complete patch text. If the diff exceeds that
+limit, narrow the native review with `path_prefixes` or split the patch by file.
+The tool returns an error before review gates run.
 - With `expected_git_commit`, `get_index_freshness` reports tracked changes and
   non-ignored untracked entries. With `check_disk: false`, generation coverage can
   use published source membership while current disk coverage stays unknown.
