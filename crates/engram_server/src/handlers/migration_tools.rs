@@ -2088,7 +2088,7 @@ impl Engram {
         req: AnalyzeDatabaseIntelligenceRequest,
     ) -> Result<CallToolResult, McpError> {
         super::validate_project_id(&req.project_id)?;
-        if let Some(body) = database_report_delivery::recover(&self.state.cfg.data_dir, &req)? {
+        if let Some(body) = database_report_delivery::recover(&self.state.cfg.data_dir, &req).await? {
             return Ok(CallToolResult::success(vec![Content::text(body)]));
         }
         let rec = self.ensure_project_record(&req.project_id).await?;

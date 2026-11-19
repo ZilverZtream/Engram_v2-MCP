@@ -10,10 +10,18 @@ pub(super) fn budget(tokens: Option<usize>) -> Result<usize, McpError> {
     Ok(token_bytes(tokens)?.unwrap_or(65_536))
 }
 
-pub(super) fn recover(data: &Path, req: &AnalyzeDatabaseIntelligenceRequest) -> Result<Option<String>, McpError> {
+pub(super) async fn recover(data: &Path, req: &AnalyzeDatabaseIntelligenceRequest) -> Result<Option<String>, McpError> {
     let limit = budget(req.max_tokens)?;
-    if let Some(id) = req.response_id.as_deref() {
-        return snapshots::recover_database_report(data, &req.project_id, id, req.response_offset, limit).map(Some);
+    if let Some(id) = req.response_id.clone() {
+        let data = data.to_path_buf();
+        let project = req.project_id.clone();
+        let offset = req.response_offset;
+        return tokio::task::spawn_blocking(move || {
+            snapshots::recover_database_report(&data, &project, &id, offset, limit)
+        })
+        .await
+        .map_err(|error| McpError::internal_error(error.to_string(), None))?
+        .map(Some);
     }
     if req.response_offset != 0 {
         return Err(McpError::invalid_params("response_offset requires response_id from database report recovery", None));
@@ -50,8 +58,8 @@ pub(super) fn finish(data: &Path, req: &AnalyzeDatabaseIntelligenceRequest, body
 mod tests {
     use super::*;
 
-    #[test]
-    fn both_report_formats_recover_exact_original_with_warnings_and_small_reply_compatibility() {
+    #[tokio::test]
+    async fn both_report_formats_recover_exact_original_with_warnings_and_small_reply_compatibility() {
         let temporary = tempfile::tempdir().unwrap();
         for output_json in [false, true] {
             let mut req: AnalyzeDatabaseIntelligenceRequest = serde_json::from_value(json!({
@@ -71,7 +79,7 @@ mod tests {
             let mut original = String::new();
             loop {
                 req.response_offset = original.len();
-                let raw = recover(temporary.path(), &req).unwrap().unwrap();
+                let raw = recover(temporary.path(), &req).await.unwrap().unwrap();
                 assert!(raw.len() <= 4096);
                 let page: Value = serde_json::from_str(&raw).unwrap();
                 original.push_str(page["content"].as_str().unwrap());
@@ -87,15 +95,15 @@ mod tests {
         }
     }
 
-    #[test]
-    fn invalid_controls_and_too_small_budget_create_no_cache() {
+    #[tokio::test]
+    async fn invalid_controls_and_too_small_budget_create_no_cache() {
         let temporary = tempfile::tempdir().unwrap();
         let mut req: AnalyzeDatabaseIntelligenceRequest = serde_json::from_value(json!({"project_id":"project", "max_tokens":0})).unwrap();
-        assert!(recover(temporary.path(), &req).is_err());
+        assert!(recover(temporary.path(), &req).await.is_err());
         req.max_tokens = Some(1);
         assert!(finish(temporary.path(), &req, "large report".into(), json!({})).is_err());
         req.response_offset = 1;
-        assert!(recover(temporary.path(), &req).is_err());
+        assert!(recover(temporary.path(), &req).await.is_err());
         assert_eq!(std::fs::read_dir(temporary.path()).unwrap().count(), 0);
     }
 }

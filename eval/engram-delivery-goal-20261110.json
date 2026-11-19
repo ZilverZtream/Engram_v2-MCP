@@ -2981,6 +2981,13 @@
     "candidate_build_session": 65456,
     "candidate_public_checks": 37,
     "candidate_owned_install_checks": 7,
+    "queued_sql_report_recovery": {
+      "status": "IMPLEMENTED_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGE_VERIFICATION",
+      "requirement": "EG-02 bounded and complete report recovery for SQL workflows",
+      "observed_gap": "Each SQL database-report page performed synchronous snapshot I/O and full content verification on a Tokio async worker.",
+      "implementation": "crates/engram_server/src/handlers/database_report_delivery.rs and migration_tools.rs",
+      "acceptance": "The existing focused checks passed for exact JSON and Markdown pagination, reply budgets, and rejection of invalid controls. The recovery path now uses Tokio's blocking pool. No Engram package was built or deployed for this change."
+    },
     "next_action": "Use this verified ZIP for the coordinated Windows cutover when clients close or the user authorizes their disconnection. Preserve the older installed pair for rollback. Source changes committed after this frozen build remain queued independently."
   },
   "windows_reconnect_release_interruption": {
