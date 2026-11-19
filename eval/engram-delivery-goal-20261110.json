@@ -2981,8 +2981,8 @@
     "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",
     "observed_gap": "Path-and-date history questions require a lexical or semantic query even when the caller only needs the most recent matching changes.",
     "implementation_files": ["crates/engram_server/src/handlers/git_tools.rs", "crates/engram_server/src/handlers/history_response.rs", "crates/engram_server/src/models/requests.rs"],
-    "acceptance": "Recent mode lists matching first-parent changes in order, uses no text-generation or embedding call, and keeps the first omitted eligible commit reachable with the same filters after HEAD moves. Card paths keep their existing capped non-generated coverage and complete Git commit recovery.",
-    "verification": "The exact recent renderer passed a focused cached-dependency test for ordering, model status and continuation arguments. The Git-backed handler acceptance is added and remains pending with packaged MCP validation. Current release source stays frozen."
+    "acceptance": "Recent mode lists matching first-parent changes in order, uses no text-generation or embedding call, and keeps the first omitted eligible commit reachable with the same filters after HEAD moves. Literal Git paths are filtered before the preview cap, including in large commits and for generated companions.",
+    "verification": "The exact recent renderer passed ordering, model status and continuation checks. The exact source scanner retained the chosen generated VB path in a real fixture with 44 changed files, excluded the unrelated paths and kept the preview capped. Git-backed public MCP acceptance remains pending. Current release source stays frozen."
   },
   "review_diff_input_budget_progress": {
     "original_requirement_id": "S14",

@@ -1825,8 +1825,9 @@ MCP tool schemas before using them with an existing installation.
   `mode="recent"`, `query=""`, and filters such as
   `file_filter="Site/App_Code/"`. This walks the selected first-parent history
   from newest to oldest without model calls. Follow `next_history_window`
-  after reading the current page. Commit recovery provides the full Git diff
-  cohort when the capped change-card path preview is insufficient.
+  after reading the current page. Recent mode applies path filters before
+  capping the file preview, including generated paths. Commit recovery provides
+  the full changed-file cohort.
 - Add `get_review_decisions` to `batch_read` with its usual path, date or discussion
   selector. Each read keeps its own result or error and a callable refresh action.
 - Follow `pre_commit_review.review_next_calls` when the report identifies an

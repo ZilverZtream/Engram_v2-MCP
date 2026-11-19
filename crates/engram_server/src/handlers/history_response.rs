@@ -65,15 +65,16 @@ pub(super) fn recent(
             card.oid, card.author, card.title, json!(files)));
         rows.push(json!({"commit":card.oid,"author":card.author,"timestamp":card.timestamp,
             "message":card.title,"files":files,"file_count":card.file_count,
-            "files_truncated":card.file_count>files.len(),"recovery":recovery}));
+            "files_truncated":card.file_count>files.len(),"files_scope":"changed paths matching the requested Git path filters","recovery":recovery}));
     }
     let scan = json!({"max_commits":max_commits,"commits_scanned":window.commits_scanned,
         "older_history_not_scanned":window.next_revision.is_some()});
     let header = format!("Recent changes ({scope}), newest on the first-parent line first. No model calls.\n\
-        File previews use capped non-generated change cards. Follow commit recovery for the full cohort.\n\
+        Path filters apply to the Git changes before the file preview cap. Follow commit recovery for the full cohort.\n\
         History acquisition: {scan}\nnext_history_window: {}\n", json!(next_window));
     finish(req, header, &blocks, &rows, json!({"mode":"recent", "scope":scope,
         "resolved_revision":revision.to_string(),"history_scan":scan,"next_history_window":next_window,
+        "file_filter":req.file_filter,"exclude_paths":req.exclude_paths,
         "semantic_retrieval":"not_run","rerank":"not_run","ranked_matches_before_limit":matches}))
 }
 
@@ -125,7 +126,7 @@ pub(super) fn finish(req: &SearchHistoryRequest, header: String, blocks: &[Strin
         } else if metadata["mode"]=="commit" {
             "One exact Git commit in the selected revision scope. Complete original UTF-8 message and first-parent changed-file cohort, including generated paths; no patch body or rename inference. No indexed search, embedding or LLM call. Use complete_capture or retain_response=true with output_json=true for immutable full-result recovery when the complete row exceeds a reply budget."
         } else if metadata["mode"]=="recent" {
-            "Newest-first first-parent change cards in the scanned window. Path predicates use capped non-generated card paths. Recover any commit for its complete Git changed-file cohort. Older windows may contain more matches. No model calls."
+            "Newest-first first-parent changes in the scanned window. Path filters apply to Git tree deltas, including generated paths. File previews are capped. Recover any commit for its complete Git changed-file cohort. Older windows may contain more matches. No model calls."
         } else {
             "Selected ranking window only. Text matched-file lists are drawn from retrieved documents, not the complete commit. Precedent descriptions and non-generated file lists are capped at 1500 characters and 40 paths before previews. Git recovery includes generated paths. No corpus completeness or snapshot guarantee; LLM reranking and mutable inputs can reorder pages."
         });

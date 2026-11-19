@@ -2289,8 +2289,8 @@ pub struct SearchHistoryRequest {
     /// Without vectors, precedent mode uses a disclosed lexical baseline.
     /// Projection providers are disclosed as degraded trigram ranking.
     /// `recent`: pass an empty query. Lists matching first-parent changes from
-    /// newest to oldest without embeddings or reranking. Uses the same bounded
-    /// change cards and author/date/path filters as precedent. Follow the returned
+    /// newest to oldest without embeddings or reranking. Filters literal Git
+    /// paths before capping the file preview. Follow the returned
     /// older-window action or recover an individual complete commit.
     /// `commit`: query is an exact40hex Git commit ID. Returns the complete
     /// UTF-8 message and first-parent changed-file cohort, including generated

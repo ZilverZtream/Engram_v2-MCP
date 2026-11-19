@@ -31,6 +31,7 @@ mod cache;
 mod metadata_cache;
 mod extraction;
 use extraction::{describe, MAX_CARD_FILES, MAX_DESCRIPTION};
+pub(crate) use extraction::recent_window;
 #[cfg(test)]
 use extraction::is_generated;
 pub(crate) use extraction::parse_pr_identity;
@@ -215,9 +216,10 @@ pub struct ChangeCard {
     pub description: String,
     pub author: String,
     pub timestamp: u64,
-    /// Non-generated changed files (capped at MAX_CARD_FILES).
+    /// Changed-path preview. Precedent cards show capped non-generated paths.
+    /// Recent history shows capped matches from the Git tree delta.
     pub files: Vec<String>,
-    /// Count of non-generated changed files before the cap.
+    /// Number of eligible changed paths before the preview cap.
     pub file_count: usize,
     pub vector: Vec<f32>,
 }

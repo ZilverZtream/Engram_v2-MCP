@@ -1,13 +1,79 @@
 //! Git-to-card extraction and its persistent-cache identity inputs.
 //! Keep ranking, provider, response and cache-maintenance code outside this
 //! module: changing those callers must not rebuild unchanged Git metadata.
-use super::ChangeCard;
+use super::{CardFilter, ChangeCard, MetadataWindow};
 use git2::{Oid, Repository};
 use regex::Regex;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 
 pub(super) const MAX_DESCRIPTION: usize = 1500;
 pub(super) const MAX_CARD_FILES: usize = 40;
+
+/// Read recent first-parent changes from Git paths before applying any preview cap.
+pub(crate) fn recent_window(
+    root: &std::path::Path,
+    tip: Oid,
+    filter: &CardFilter,
+    max_commits: usize,
+    max_matches: usize,
+) -> anyhow::Result<MetadataWindow> {
+    let repo = Repository::discover(root)?;
+    let mut options = git2::DiffOptions::new();
+    if let Some(prefix) = &filter.file_prefix {
+        options.disable_pathspec_match(true).pathspec(prefix.trim_end_matches('/'));
+    }
+    let mut cards = Vec::new();
+    let mut next_revision = Some(tip);
+    let mut commits_scanned = 0;
+    while commits_scanned < max_commits && cards.len() < max_matches {
+        let Some(oid) = next_revision else { break };
+        let commit = repo.find_commit(oid)?;
+        next_revision = commit.parent_ids().next();
+        commits_scanned += 1;
+        let author = commit.author();
+        let author = author.name().unwrap_or("");
+        let timestamp = commit.time().seconds().max(0) as u64;
+        if !filter.admits_identity(author, timestamp) {
+            continue;
+        }
+        let tree = commit.tree()?;
+        let parent = next_revision.map(|id| repo.find_commit(id)?.tree()).transpose()?;
+        let diff = repo.diff_tree_to_tree(parent.as_ref(), Some(&tree), Some(&mut options))?;
+        let mut files = Vec::new();
+        let mut file_count = 0;
+        for delta in diff.deltas() {
+            let old = delta.old_file();
+            let new = delta.new_file();
+            let path = new.path().or_else(|| old.path())
+                .and_then(std::path::Path::to_str)
+                .ok_or_else(|| anyhow::anyhow!("Changed Git path is not valid UTF-8"))?;
+            if filter.excluded_prefixes.iter().any(|excluded| {
+                let prefix = excluded.trim_end_matches('/');
+                path == prefix || path.strip_prefix(prefix).is_some_and(|tail| tail.starts_with('/'))
+            }) {
+                continue;
+            }
+            file_count += 1;
+            if files.len() < 12 {
+                files.push(path.to_owned());
+            }
+        }
+        if file_count > 0 {
+            cards.push(Arc::new(ChangeCard {
+                oid: oid.to_string(),
+                title: commit.summary().unwrap_or("").chars().take(MAX_DESCRIPTION).collect(),
+                description: String::new(),
+                author: author.to_owned(),
+                timestamp,
+                files,
+                file_count,
+                vector: Vec::new(),
+            }));
+        }
+    }
+    cards.reverse();
+    Ok(MetadataWindow { cards, commits_scanned, next_revision })
+}
 
 /// Build output and dependency files that say nothing about a change's intent.
 pub(super) fn is_generated(path: &str) -> bool {

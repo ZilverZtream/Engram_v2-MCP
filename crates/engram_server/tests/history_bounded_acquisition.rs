@@ -137,6 +137,21 @@ async fn recent_lists_matching_history_in_order_and_keeps_older_matches_reachabl
     let older = fixture.search(next.clone()).await?;
     ensure!(older["results"][0]["commit"] == fixture.commits[4]);
     ensure!(older["results"][0]["commit"] != newest);
+
+    for index in 0..41 {
+        std::fs::write(fixture.root.join(format!("Area{index:02}.ts")), "export const value = 1;\n")?;
+    }
+    for folder in ["zBilling", "zBillingArchive"] {
+        std::fs::create_dir(fixture.root.join(folder))?;
+        std::fs::write(fixture.root.join(folder).join("Invoice.designer.vb"), "Public Class Invoice\nEnd Class\n")?;
+    }
+    std::fs::write(fixture.root.join("zBilling/Ignore.sql"), "SELECT 1;\n")?;
+    let wide = commit(&fixture.root, 7)?;
+    let scoped = fixture.search(json!({"project_id":fixture.pid,"query":"","mode":"recent",
+        "as_of_rev":wide,"file_filter":"zBilling","exclude_paths":["zBilling/Ignore.sql"],
+        "max_commits":1,"limit":1,"output_json":true})).await?;
+    ensure!(scoped["results"][0]["files"] == json!(["zBilling/Invoice.designer.vb"]));
+    ensure!(scoped["results"][0]["file_count"] == 1);
     fixture.close()
 }
 

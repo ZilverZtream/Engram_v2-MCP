@@ -1930,12 +1930,22 @@ impl Engram {
         // out embedder must not turn known matching history into an empty success.
         let max_commits = req.validated_max_commits()
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
-        let window = cards::metadata_for_line_window_cached(
-            &dir, tip, &self.state.registry, filter.clone(), max_commits,
-        ).await.map_err(|e| McpError::internal_error(format!("change metadata: {e}"), None))?;
         if recent {
+            if filter.file_prefix.iter().chain(&filter.excluded_prefixes).any(|path| {
+                path.contains(':') || path.chars().any(char::is_control)
+                    || path.trim_end_matches('/').split('/').any(|part| part.is_empty() || part == "." || part == "..")
+            }) {
+                return Err(McpError::invalid_params("recent mode requires literal repository-relative paths", None));
+            }
+            let window = tokio::task::spawn_blocking(move || {
+                cards::recent_window(&dir, tip, &filter, max_commits, limit + 1)
+            }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::internal_error(format!("recent Git history: {e}"), None))?;
             return history_response::recent(&req, &label, tip, max_commits, window);
         }
+        let window = cards::metadata_for_line_window_cached(
+            &dir, tip, &self.state.registry, filter, max_commits,
+        ).await.map_err(|e| McpError::internal_error(format!("change metadata: {e}"), None))?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let prefixes = cards::EmbedPrefixes::for_model(self.state.cfg.embedding_model.as_deref());
         let canonical_dir = tokio::task::spawn_blocking(move || std::fs::canonicalize(dir))
