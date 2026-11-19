@@ -2826,7 +2826,7 @@
     "status": "OPTIMIZED_BUILD_RUNNING",
     "implementation_items_active": 0,
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119",
-    "next_action": "Observe existing owned build session82098/driver69464. Never restart from an observation timeout. On terminal PASS verify build source/artifact pins, package once and run the19frozen candidate/installed public assertions. No unit/debug/full-suite build or model/task replay.",
+    "next_action": "Poll observer session82347 and its exact process32556/creation pin. It waits for build driver69464 then runs package/candidate/install/installed/restore once. Do not independently start those stages while this observer is live.",
     "full_original_goal_complete": false
   },
   "history_webmethod_business_batch_delivery": {
@@ -3040,7 +3040,10 @@
     "owner_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\release1-owner.json",
     "live_cargo_pid_observed": 64556,
     "live_rustc_pid_observed": 77596,
-    "full_original_goal_complete": false
+    "full_original_goal_complete": false,
+    "observer_session_id": 82347,
+    "observer_pid": 32556,
+    "observer_owner_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-metadata-view-batch-20261119\\release-observer-owner1.json"
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
