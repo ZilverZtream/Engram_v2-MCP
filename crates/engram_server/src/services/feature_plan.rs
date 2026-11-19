@@ -151,6 +151,11 @@ pub fn validate_request(req: &OneShotFeaturePlanRequest) -> Result<()> {
     for hint in [&req.area_hint, &req.model_after].into_iter().flatten() {
         ensure!(hint.len() <= 2048, "Planning hint exceeds 2 KiB");
     }
+    ensure!(req.schema_tables.len() <= 8, "schema_tables accepts at most eight names");
+    for name in &req.schema_tables {
+        super::schema_query::input_name(name)
+            .map_err(|error| anyhow::anyhow!("Invalid schema_tables entry {name:?}: {error}"))?;
+    }
     Ok(())
 }
 

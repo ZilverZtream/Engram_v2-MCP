@@ -50,10 +50,11 @@ impl Engram {
     /// Preserve the planner's existing complete-context size gate. A deferred
     /// public report is not a schema fact and must not enter its evidence slot.
     pub(super) async fn query_schema_for_planning(
-        &self, req: QuerySchemaRequest,
+        &self, req: QuerySchemaRequest, generation: u64,
+        view: std::sync::Arc<engram_index::SourceSnapshotGuard>,
     ) -> Result<CallToolResult, McpError> {
         let budget = req.max_tokens.or(Some(16_384));
-        let original = self.query_schema_evidence(req).await?;
+        let original = self.query_schema_selected(req, generation, view).await?;
         let text = original.content.first().and_then(|part| part.as_text())
             .ok_or_else(|| McpError::internal_error("Schema evidence returned no text", None))?;
         super::search_tools::response_budget::bounded_message(text.text.clone(), budget)?;

@@ -551,9 +551,18 @@ impl Engram {
         output["source_coverage"] = json!({"file_cap":MAX_SOURCE_FILES, "primary_file_cap":plan::MAX_FILES, "composition_host_cap":MAX_COMPOSITION_HOSTS,
             "composition":composition, "candidate_files":paths.len(), "admitted_files":evidence.len(), "omitted_paths":omitted_paths, "gaps":gaps,
             "excerpt_limit":"One lexical window of at most 100 lines / 12 KiB per file; at most 192 KiB total; unshown lines are unexamined",
-            "recovery":{"tool":"get_change_set","arguments":{"project_id":req.project_id,"story":story,"output_json":true,"detail":"full","concepts":retrieval_concepts}}});
+            "recovery":{"tool":"get_change_set","arguments":{"project_id":req.project_id,"story":story,"output_json":true,"detail":"full","concepts":retrieval_concepts,"history_semantic_timeout_ms":req.history_semantic_timeout_ms}}});
         let mut schema = Vec::new();
-        for name in intent.iter().flat_map(|intent| &intent.schema_names) {
+        let schema_names = if req.schema_tables.is_empty() {
+            intent.as_ref().map_or(&[][..], |intent| intent.schema_names.as_slice())
+        } else {
+            req.schema_tables.as_slice()
+        };
+        let mut seen = BTreeSet::new();
+        for name in schema_names {
+            if !seen.insert(name) {
+                continue;
+            }
             let result = self
                 .query_schema_for_planning(QuerySchemaRequest {
                     project_id: req.project_id.clone(),
@@ -564,7 +573,7 @@ impl Engram {
                     max_tokens: Some(4096),
                     response_id: None,
                     response_offset: 0,
-                })
+                }, generation, view.clone())
                 .await
                 .and_then(body);
             schema.push(match result {
@@ -591,7 +600,11 @@ impl Engram {
             }
             output["status"] = json!("SOURCE_DOSSIER_READY");
             output["source_freshness"] = json!("CURRENT_AT_RETURN");
-            output["planning_context"]["schema_status"] = json!("NOT_INFERRED_IN_DOSSIER_MODE");
+            output["planning_context"]["schema_status"] = json!(if req.schema_tables.is_empty() {
+                "NOT_INFERRED_IN_DOSSIER_MODE"
+            } else {
+                "EXPLICIT_SCHEMA_REQUESTS_REPORTED"
+            });
             output["edit_safety_status"] = json!("NOT_ASSESSED_NO_PROPOSED_EDITS");
             return response(output);
         }

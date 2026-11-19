@@ -843,6 +843,11 @@ pub struct OneShotFeaturePlanRequest {
     /// safety verdict or generated implementation plan is produced. Default false.
     #[serde(default)]
     pub dossier_only: bool,
+    /// Up to eight explicit schema table names to include in the planning context.
+    /// Dossier mode reads only the named tables. Generated plans use model-selected
+    /// names only when the caller leaves this list empty.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub schema_tables: Vec<String>,
     /// Budget for semantic retrieval in the change-set history arm only
     /// (default 5000 ms). Zero keeps lexical history and skips its embeddings.
     /// Other discovery, source reads and plan generation are outside this budget.

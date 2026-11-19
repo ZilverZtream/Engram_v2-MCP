@@ -2976,6 +2976,14 @@
     "pending_source_outcomes": 5,
     "next_action": "Use the verified cumulative package for one coordinated Windows cutover. A running MCP proxy was observed. Preserve the live service until the user chooses a cutover or clients close. Do not rebuild the verified artifact."
   },
+  "dossier_explicit_schema_progress": {
+    "original_requirement_id": "TODO-32",
+    "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",
+    "observed_gap": "A model-free feature dossier has no control for explicitly named SQL tables. Existing planning schema lookups can independently select a newer source generation.",
+    "implementation_files": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/services/feature_plan.rs", "crates/engram_server/src/handlers/feature_plan_tools.rs", "crates/engram_server/src/handlers/schema_tools.rs"],
+    "acceptance": "With dossier_only and schema_tables, an owned LegacyValidation-shaped WebForms/SQL fixture returns the requested table and exact citation under the same generation with zero server text-generation calls. Change-set recovery retains the selected history budget.",
+    "verification": "Exact request validation and identifier parsing passed a focused cached-dependency check. The public dossier check is pending. Generated-plan semantic acceptance remains open. No additional release build."
+  },
   "recent_filtered_history_progress": {
     "original_requirement_id": "EG-20",
     "status": "SOURCE_VALIDATED_AWAITING_PACKAGED_MCP",

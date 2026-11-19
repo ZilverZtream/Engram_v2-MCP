@@ -21,6 +21,7 @@ impl Fixture {
         let root = owned.path().join("source");
         std::fs::create_dir_all(root.join("widgets"))?;
         std::fs::write(root.join("web.config"), "<configuration />\n")?;
+        std::fs::write(root.join("Settings.sql"), "CREATE TABLE dbo.Settings (Threshold int NOT NULL);\n")?;
         std::fs::write(
             root.join("Settings.aspx"),
             "<%@ Page Language='VB' %>\n<%@ Register Src='~/widgets/Threshold.ascx' TagName='Threshold' TagPrefix='u' %>\n<u:Threshold runat='server' />\n",
@@ -79,10 +80,16 @@ async fn unindexed_registered_control_retains_its_gap_and_returns_executable_cur
     .await?;
     let reply=fixture.server.handle_one_shot_feature_plan(serde_json::from_value(json!({
         "project_id":fixture.project,"feature_description":"Adjust Threshold settings editor",
-        "model_after":"Settings.aspx","target_stack":"webforms_vbnet","detail_level":"Detailed","dossier_only":true
+        "model_after":"Settings.aspx","target_stack":"webforms_vbnet","detail_level":"Detailed","dossier_only":true,
+        "schema_tables":["dbo.Settings"],"history_semantic_timeout_ms":0
     }))?).await?;
     let dossier: Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text)?;
     ensure!(dossier["provenance"]["provider_calls"] == 0);
+    let schema = &dossier["planning_context"]["schema"][0];
+    ensure!(schema["name"] == "dbo.Settings" && schema["result"]["active_generation"] == generation);
+    let table = &schema["result"]["results"][0]["table"];
+    ensure!(table["columns"][0]["name"] == "Threshold" && table["citation"]["path"] == "Settings.sql");
+    ensure!(dossier["source_coverage"]["recovery"]["arguments"]["history_semantic_timeout_ms"] == 0);
     ensure!(
         !dossier["source_evidence"]
             .as_array()

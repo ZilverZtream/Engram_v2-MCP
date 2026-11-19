@@ -136,6 +136,11 @@ continuation and read limits. It does not add that source to the captured dossie
 or certify indexed freshness; refresh indexing and request a new dossier where
 needed. Dossier admission, generation calls and planner semantics are unchanged.
 
+Supply `schema_tables` on `one_shot_feature_plan` to attach source-backed table
+lookups to the planning context. Dossier mode reads those explicit names without
+calling a model. The lookups use the dossier's selected source generation, with
+ordinary schema coverage and source citations.
+
 Installed November16: standalone `check_edit_safety`
 adds current scoped authored guidance for the canonical selected method file.
 Its verdict, confidence, evidence and unknown coverage retain their existing
