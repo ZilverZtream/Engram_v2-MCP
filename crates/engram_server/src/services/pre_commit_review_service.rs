@@ -853,24 +853,40 @@ fn diff_to_patch_text(diff: &git2::Diff<'_>) -> anyhow::Result<String> {
     Ok(text)
 }
 
-/// Working-tree paths with staged, unstaged or untracked changes (ignored files
-/// excluded), sorted. An empty review names these so that "no changes in the
-/// requested diff" is never read as "nothing to review".
-pub fn working_tree_changes(project_dir: &Path) -> anyhow::Result<Vec<String>> {
+/// Scope of changed files when the requested review diff was empty.
+#[derive(Default)]
+pub(crate) struct WorkingTreeChanges {
+    pub paths: Vec<String>,
+    pub staged: bool,
+    pub unstaged: bool,
+}
+
+pub(crate) fn working_tree_changes(project_dir: &Path) -> anyhow::Result<WorkingTreeChanges> {
     let repo = git2::Repository::discover(project_dir)?;
     let mut opts = git2::StatusOptions::new();
     opts.include_untracked(true)
         .recurse_untracked_dirs(true)
         .include_ignored(false);
-    let mut paths: Vec<String> = repo
-        .statuses(Some(&mut opts))?
-        .iter()
-        .filter(|entry| !entry.status().is_ignored())
-        .filter_map(|entry| entry.path().map(|p| p.replace('\\', "/")))
-        .collect();
-    paths.sort();
-    paths.dedup();
-    Ok(paths)
+    use git2::Status;
+    let index_changes = Status::INDEX_NEW | Status::INDEX_MODIFIED | Status::INDEX_DELETED
+        | Status::INDEX_RENAMED | Status::INDEX_TYPECHANGE;
+    let worktree_changes = Status::WT_NEW | Status::WT_MODIFIED | Status::WT_DELETED
+        | Status::WT_RENAMED | Status::WT_TYPECHANGE;
+    let mut changes = WorkingTreeChanges::default();
+    for entry in repo.statuses(Some(&mut opts))?.iter() {
+        let status = entry.status();
+        if status.is_ignored() {
+            continue;
+        }
+        if let Some(path) = entry.path() {
+            changes.paths.push(path.replace('\\', "/"));
+        }
+        changes.staged |= status.intersects(index_changes);
+        changes.unstaged |= status.intersects(worktree_changes);
+    }
+    changes.paths.sort();
+    changes.paths.dedup();
+    Ok(changes)
 }
 
 fn git_diff_staged(project_dir: &Path) -> anyhow::Result<String> {

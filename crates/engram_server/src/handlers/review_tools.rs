@@ -84,26 +84,50 @@ impl Engram {
         let source_before = source_snapshot(&project_dir, &parsed);
 
         if diff_text.trim().is_empty() {
-            let unexamined = if matches!(req.diff.trim(), "staged" | "unstaged" | "head") {
-                crate::services::pre_commit_review_service::working_tree_changes(&project_dir).unwrap_or_default()
-            } else { Vec::new() };
-            let note = if unexamined.is_empty() {
+            let mode = req.diff.trim();
+            let status = if matches!(mode, "staged" | "unstaged" | "head") {
+                crate::services::pre_commit_review_service::working_tree_changes(&project_dir)
+            } else {
+                Ok(Default::default())
+            };
+            let status_available = status.is_ok();
+            let changes = status.unwrap_or_default();
+            let review_next_calls: Vec<_> = [("staged", changes.staged), ("unstaged", changes.unstaged)]
+                .into_iter()
+                .filter(|(other, available)| *available && *other != mode)
+                .map(|(other, _)| {
+                    let mut args = req.clone();
+                    args.diff = other.to_owned();
+                    serde_json::json!({"tool":"pre_commit_review","arguments":args})
+                })
+                .collect();
+            let unexamined = changes.paths;
+            let note = if !status_available {
+                "The requested diff is empty and Git status is unavailable. No gates ran. Check the intended worktree and diff before treating it as reviewed.".to_owned()
+            } else if unexamined.is_empty() {
                 "No changes in the requested diff; review gates were not run. This does not certify the working tree as unchanged or reviewed.".to_string()
             } else {
-                format!("The requested diff ({}) is empty, but the working tree has {} changed file(s) that were not examined: {}. Rerun with diff=\"unstaged\" to review them.",
-                    req.diff.trim(), unexamined.len(), unexamined.iter().take(20).cloned().collect::<Vec<_>>().join(", "))
+                let advice = if review_next_calls.is_empty() {
+                    "Inspect the unexamined changes before relying on this review."
+                } else {
+                    "Use the supplied review calls to inspect the observed alternate diff scopes."
+                };
+                format!("The requested diff ({mode}) is empty, but the working tree has {} changed file(s) that were not examined: {}. {advice}",
+                    unexamined.len(), unexamined.iter().take(20).cloned().collect::<Vec<_>>().join(", "))
             };
+            let nothing_detected = status_available && unexamined.is_empty();
             let payload = serde_json::json!({
-                "verdict":if unexamined.is_empty() {"NO_CHANGES"} else {"NOT_REVIEWED"},
+                "verdict":if nothing_detected {"NO_CHANGES"} else {"NOT_REVIEWED"},
                 "findings":[], "gate_status":[],
                 "summary":{"files_analysed":0,"gates_run":0,"total_findings":0},
                 "coverage":{"submitted_files":[],"textual_diff_files":[],"unexamined_files":unexamined,
                     "static_analysis":"not_run","compilation":"not_run","test_execution":"not_run"},
-                "note":note
+                "note":note,"review_next_calls":review_next_calls
             });
             let body = if req.output_json { payload.to_string() }
-                else if unexamined.is_empty() { "No changes detected in the requested diff. Nothing to review.".into() }
-                else { format!("Not reviewed. {note}") };
+                else if nothing_detected { "No changes detected in the requested diff. Nothing to review.".into() }
+                else if review_next_calls.is_empty() { format!("Not reviewed. {note}") }
+                else { format!("Not reviewed. {note}\n\nreview_next_calls: {}", payload["review_next_calls"]) };
             return response_delivery::finish(&req, &self.state.cfg.data_dir, body, &payload);
         }
 
