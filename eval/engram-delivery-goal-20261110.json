@@ -3190,6 +3190,17 @@
     "full_original_goal_complete": false,
     "record": "eval/sql-review-navigation-batch-delivery-20261119.json"
   },
+  "next_source_batch_preflight": {
+    "status": "CHANGES_APPLY_CLEANLY_TO_VERIFIED_CANDIDATE",
+    "verified_base": "1915f24cc7b9b0606ff016a0710f48d80912abc3",
+    "combined_tree": "846ae652fe0be4917cba1bb3ae2732799013a3d9",
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\next-workflow-source-preflight-20261119\\receipt.json",
+    "receipt_sha256": "0ae54edf33770c3651a3460a0df298976728dcc0c459a89d0a6078e93b7f416b",
+    "independent_source_outcomes": 4,
+    "public_assertions": 24,
+    "builds_started": 0,
+    "retention": "Temporary Git index removed. Keep the receipt for the next combined validation after the staged release is resolved."
+  },
   "next_source_batch_pending": [
     {
       "original_requirement_id": "EG-20",
