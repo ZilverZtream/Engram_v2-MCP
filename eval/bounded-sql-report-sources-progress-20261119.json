@@ -21,14 +21,14 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\bounded-sql-report-sources-20261119\\baseline2\\receipt.json",
     "sha256": "027a4a1f662e8ab674011b0c8d1ccdb0c52c4cd083efb1a891301ce2a8c03db5"
   },
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "runtime_deployed": false,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "runtime_deployed": true,
   "original_requirement": "S14 reserve SQL source reads before allocation across the shared TODO-59 database report input path.",
   "observed_gap": "Installed database reports used a file-count limit without reserving source buffers. Trigger inventory also used its own loader and refused sql_file_path.",
   "behavior": "Share the dynamic SQL buffer reservations and 64 MiB total scope across analyze_database_intelligence, get_sp_details and list_triggers. Preserve explicit-file requests and add sql_file_path to the trigger inventory so it can recover from an over-limit project scan.",
   "configuration_relevance": "Retained LegacyValidation acceptance uses explicit source files from its SQL project. No production source or storage workload was run.",
   "limitations": "This bounds raw SQL buffers for the three shared-loader tools. Parser/product allocations, application caller inventory and the broader S14 matrix remain open.",
-  "verification": "Installed baseline confirmed ordinary report behavior and the unavailable trigger file selector. Changed Rust parsed with rustfmt. Candidate and installed verification remain queued.",
+  "verification": "Installed baseline confirmed ordinary report behavior and the unavailable trigger file selector. Changed Rust parsed with rustfmt. The subsequent release passed all 7 focused checks on candidate and installed binaries.",
   "temporary_resources": "Owned MCP server and reader closed before removal. Verifier and wire evidence stay in this case.",
   "full_original_goal_complete": false,
   "prerequisite_source_commits": [
@@ -37,5 +37,8 @@
   "prior_source_checkpoint": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\bounded-sql-report-sources-20261119\\contract.json",
     "sha256": "1cd488ec42eb43bd773802eb9df69dfb8f45813d46add34c91cc377c5adf3e1f"
-  }
+  },
+  "delivery": "eval/sql-review-navigation-batch-delivery-20261119.json",
+  "runtime_server_sha256": "0f218770760226b4818d0cd71a72e3460792c4a1914f7ef55bc1aab2bd50d7d9",
+  "public_checks_passed_per_artifact": 7
 }

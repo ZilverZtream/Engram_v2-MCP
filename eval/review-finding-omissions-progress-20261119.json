@@ -18,13 +18,16 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-omissions-20261119\\baseline1\\receipt.json",
     "sha256": "58d2f5f8a6b65aad52e140802d5023456e82429e8c325f0704dcd7509c4a81ac"
   },
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "runtime_deployed": false,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "runtime_deployed": true,
   "original_requirement": "TODO-4 transparent response limits and omissions for bounded agent reports.",
   "observed_gap": "The installed review evaluates three authored rule findings and returns one under max_findings=1 without a finding-selection omission in the gate coverage.",
   "behavior": "Count otherwise eligible normalized findings before the per-gate and overall selection limits. Disclose the exact omitted count per gate using the existing caps field, in JSON, Markdown and the bounded report ledger. Selection order and result counts remain.",
   "configuration_relevance": "Installed LegacyValidation uses Git review on VB source. The baseline uses an owned WebForms/VB fixture and three authored constraints.",
-  "verification": "Installed baseline reproduced the missing cap explanation. Changed Rust parsed with rustfmt. Public candidate and installed proof remain queued.",
+  "verification": "Installed baseline reproduced the missing cap explanation. Changed Rust parsed with rustfmt. The subsequent release passed all 5 focused checks on candidate and installed binaries.",
   "temporary_resources": "Owned server and reader closed before fixture removal. Retain driver and wire evidence in the recorded case.",
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "delivery": "eval/sql-review-navigation-batch-delivery-20261119.json",
+  "runtime_server_sha256": "0f218770760226b4818d0cd71a72e3460792c4a1914f7ef55bc1aab2bd50d7d9",
+  "public_checks_passed_per_artifact": 5
 }

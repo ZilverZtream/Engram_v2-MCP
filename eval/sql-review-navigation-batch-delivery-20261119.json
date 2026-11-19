@@ -1,0 +1,101 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-19T12:43:07.202538+00:00",
+  "original_requirement_ids": [
+    "TODO-59",
+    "TODO-34",
+    "TODO-4",
+    "TODO-28"
+  ],
+  "delivered_behaviors": {
+    "TODO-59": "SQL report tools reserve source buffers and bound the scan. Trigger inventory can inspect one source file.",
+    "TODO-34": "An empty pre-commit review offers callable staged or unstaged follow-ups for observed alternate changes.",
+    "TODO-4": "Review gate coverage reports how many eligible findings the display limit omitted.",
+    "TODO-28": "Navigation-only ask_codebase request traces skip SQL and DBML and preserve the option in follow-up calls."
+  },
+  "runtime": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-review-navigation-batch-20261119\\package1",
+    "server_sha256": "0f218770760226b4818d0cd71a72e3460792c4a1914f7ef55bc1aab2bd50d7d9",
+    "manifest_sha256": "5fa95f6b2dc25e16ee9cd5941181bd8d5999c22a7ba7b5c558ec5adbdb37b871",
+    "old_server_sha256": "a099d7e85b2d7b91699993b5242c7fa9917dd32f54a847f3980561aa13e91e74",
+    "old_manifest_sha256": "a5a339b850606c7c614849a259be84502f44ac90698084e1ea783e89e54f88df",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-review-navigation-batch-20261119\\release1.json",
+      "sha256": "151e7fa8f9385456db2043544fa1be3959ad86a49286e40680369bf0e02ad241"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "a5a339b850606c7c614849a259be84502f44ac90698084e1ea783e89e54f88df"
+    },
+    "source_commit": "d8eee59307329dcf29a1b88032011afcb4ad687d"
+  },
+  "source_preparation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-review-navigation-batch-20261119\\source-preparation1.json",
+    "sha256": "27c8f8c4fcce64dbd288ca2edb1239c519e82397d4a2a10f6575b73425ef8a2b"
+  },
+  "windows_bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-review-navigation-batch-20261119\\bundle1.json",
+    "sha256": "48ef07d7e0e16a5a6ccbba38415b9802776c50f5cc8ab366a452c06384e98991"
+  },
+  "public_receipts": {
+    "candidate1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-review-navigation-batch-20261119\\candidate1\\acceptance.json",
+      "sha256": "9d2ea948edcfa90a35b2c2443b47a482a6f9022d67a5871c5eecc519f634b694",
+      "checks": 21,
+      "seconds": 16.35911489999853
+    },
+    "installed1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-review-navigation-batch-20261119\\installed1\\acceptance.json",
+      "sha256": "74eb87406d2adaebb28e1dbd153ff139f0d99f1b2ce1d9b99241d8ea94391e83",
+      "checks": 21,
+      "seconds": 15.503780899991398
+    }
+  },
+  "installed_assets_verified": 215,
+  "build_accounting": {
+    "optimized_builds": 1,
+    "seconds": 2671.9590345999895,
+    "unit_debug_or_full_suites": 0,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-review-navigation-batch-20261119\\release1.json",
+      "sha256": "151e7fa8f9385456db2043544fa1be3959ad86a49286e40680369bf0e02ad241"
+    }
+  },
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "normal_runtime_restored": true,
+  "normal_runtime_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-review-navigation-batch-20261119\\restored-runtime\\receipt.json",
+    "sha256": "d896cdde491edbc31bccfebf13f4ab1d762b42b456f831970617e3553ce2f0ce"
+  },
+  "selected_generation": 3182,
+  "previous_runtime_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\agent-history-trace-planning-batch-delivery-20261119.json",
+    "sha256": "5ca83c2e032f4c97d541a21f76572ef7b4af056d64190d4d5c307efaf3ab79e2"
+  },
+  "full_original_goal_complete": false,
+  "temporary_resources": {
+    "owned_build_temp_removed": true,
+    "fixture_checks_closed": true,
+    "owned_config_removed": true,
+    "managed_rollback_pair": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-3bfce4a61f174c25b552628e01a93179",
+      "cleanup_condition": "Retain for an explicit rollback or retirement decision."
+    }
+  },
+  "limitations": [
+    "The SQL limit covers raw source buffers. Application caller and parser allocation limits remain separate.",
+    "Alternate review calls reflect observed Git status. The worktree can change before a follow-up.",
+    "Review omission counts cover otherwise eligible normalized findings produced by gates.",
+    "Navigation-only scope applies to the request trace arm. Other ask evidence and production latency remain separate."
+  ],
+  "connection_after_upgrade": {
+    "observed": "Upgrade stopped the shared Engram daemon and its MCP proxies. The normal runtime was restored and a new proxy returned MCP metrics.",
+    "existing_codex_connection": "Existing connector still returned Transport closed after the fresh proxy was verified.",
+    "other_clients": "User reported the same failure in Claude and Copilot. Those client sessions were not independently reopened."
+  }
+}

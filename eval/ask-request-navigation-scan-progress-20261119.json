@@ -17,13 +17,16 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-request-navigation-scan-20261119\\baseline1\\receipt.json",
     "sha256": "6ccad6b258253cb3f2fb8db8188031cbc4d517b3e79a1059f75e5cbf8862d92e"
   },
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "runtime_deployed": false,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "runtime_deployed": true,
   "original_requirement": "TODO-28 natural-language WebForms request navigation through the ordinary trace.",
   "observed_gap": "Installed ask_codebase composes WebForms traces with database evidence enabled and rejects the explicit opt-out.",
   "behavior": "Accept request_trace_include_db=false for the request-trace arm and preserve that choice in the ordinary trace follow-up. Default evidence remains unchanged.",
   "configuration_relevance": "Verified against the installed runtime on an owned WebForms/VB/SQL fixture. No production latency measured.",
-  "verification": "Installed baseline returned the handler and source trigger by default, and rejected the caller opt-out. Changed Rust parsed with rustfmt; candidate and installed proof remain queued.",
+  "verification": "Installed baseline returned the handler and source trigger by default, and rejected the caller opt-out. Changed Rust parsed with rustfmt; the release contains the runtime verification. The subsequent release passed all 4 focused checks on candidate and installed binaries.",
   "temporary_resources": "Owned MCP server and reader closed; sealed receipt and wire evidence remain in the recorded case.",
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "delivery": "eval/sql-review-navigation-batch-delivery-20261119.json",
+  "runtime_server_sha256": "0f218770760226b4818d0cd71a72e3460792c4a1914f7ef55bc1aab2bd50d7d9",
+  "public_checks_passed_per_artifact": 4
 }
