@@ -2815,7 +2815,17 @@
     "combined_delivery_record": "eval/method-schema-area-batch-delivery-20261116.json",
     "reconciliation": "The linked progress and installed batch receipts already prove this delivery, whose frozen source is an ancestor of current WORK. Retain prior acceptance and stated limits; do not reimplement or replay to refresh this status. This is a bookkeeping correction, not another deliverable or a reason to compile."
   },
-  "following_batch_pending": [],
+  "following_batch_pending": [
+    {
+      "original_requirement_id": "EG-24",
+      "source_commit": "93450b5fc5fa9bb8fe0a7063585c5fcafc77157a",
+      "status": "SOURCE_IMPLEMENTED_RUNTIME_VALIDATION_PENDING",
+      "observed_gap": "An as_of_rev-only change-set request could force Git evidence into the past while automatically retrieving the current Azure DevOps work item. The existing date cutoff already disabled that fetch.",
+      "user_outcome": "Both revision and date cutoffs require recorded work_item_text for an ID-targeted story and give an explicit intake error when it is missing. Supplied text and normal live intake retain their existing paths.",
+      "finite_acceptance": "Cover both historical cutoffs, live intake and supplied work-item text in the existing focused predicate case. On an owned local Git fixture, verify revision-only missing-text intake identifies the historical requirement, and the same revision with recorded text generates a dossier containing that exact text. Use no live Azure DevOps credentials or data for acceptance.",
+      "verification": "Rust source parsed and the changed files passed git diff --check. This commit is outside the frozen history/schema/review candidate and has not been built. It does not finish regular evaluation or establish a leakage-free source/index fixture by itself."
+    }
+  ],
   "method_schema_area_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/method-schema-area-batch-delivery-20261116.json",
