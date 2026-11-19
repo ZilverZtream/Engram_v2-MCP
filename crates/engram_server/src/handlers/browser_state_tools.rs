@@ -182,6 +182,16 @@ impl Engram {
         if original.is_error == Some(true) {
             return Ok(original);
         }
+        // This wrapper owns browser-specific coverage. Keep the legacy state
+        // reader's indexed-position and runtime qualifications intact.
+        for part in &mut original.content {
+            if let rmcp::model::RawContent::Text(text) = &mut part.raw {
+                text.text = text.text.replace(
+                    "Literal getItem/setItem/removeItem calls are covered; dynamic keys, aliases, property access and clear-all effects remain unresolved.",
+                    "The current extractor supports literal getItem/setItem/removeItem calls and dot/literal-bracket property access. Refresh older JS/TS extraction with update_project. Source-admitted clear() candidates follow separately; dynamic keys, aliases, destructuring and runtime effects remain unresolved.",
+                );
+            }
+        }
         let record = self.ensure_project_record(&project).await?;
         let runtime = self.ensure_project_runtime(&project).await?;
         let (_, view) = self

@@ -12,6 +12,7 @@ pub(super) fn extract(
     };
     for &node in nodes {
         if node.kind() != "call_expression" {
+            extract_property(script, node, root, out);
             continue;
         }
         let Some(callee) = node.child_by_field_name("function") else {
@@ -81,4 +82,85 @@ pub(super) fn extract(
             }
         }
     }
+}
+
+fn property_key(node: Node<'_>, source: &str) -> Option<String> {
+    match node.kind() {
+        "member_expression" => {
+            let property = node.child_by_field_name("property")?;
+            (property.kind() == "property_identifier").then(|| text(property, source).into())
+        }
+        "subscript_expression" => literal(node.child_by_field_name("index")?, source),
+        _ => None,
+    }
+}
+
+fn storage_object(node: Node<'_>, source: &str) -> Option<(String, &'static str)> {
+    let (base, storage) = if node.kind() == "identifier" {
+        let name = text(node, source);
+        (name, name.to_owned())
+    } else {
+        let object = node.child_by_field_name("object")?;
+        if object.kind() != "identifier" {
+            return None;
+        }
+        let base = text(object, source);
+        if !matches!(base, "window" | "globalThis") {
+            return None;
+        }
+        (base, property_key(node, source)?)
+    };
+    let category = match storage.as_str() {
+        "localStorage" => "LocalStorage",
+        "sessionStorage" => "SessionStorage",
+        _ => return None,
+    };
+    Some((base.to_owned(), category))
+}
+
+fn extract_property(
+    script: &typescript_modules::Extraction<'_>,
+    node: Node<'_>,
+    root: Node<'_>,
+    out: &mut Output<'_>,
+) {
+    if !matches!(node.kind(), "member_expression" | "subscript_expression") {
+        return;
+    }
+    let Some(object) = node.child_by_field_name("object") else {
+        return;
+    };
+    let Some((base, category)) = storage_object(object, out.source) else {
+        return;
+    };
+    if script.state_binding_shadowed(node, &base, root, false) {
+        return;
+    }
+    let Some(key) = property_key(node, out.source) else {
+        out.issues.insert(format!(
+            "browser_storage_dynamic_property_unresolved:{category}:{}",
+            node.start_position().row + 1
+        ));
+        return;
+    };
+    // These properties expose the Storage API itself rather than a named item.
+    // Keys with these spellings remain available through getItem/setItem.
+    if matches!(
+        key.as_str(),
+        "length" | "key" | "getItem" | "setItem" | "removeItem" | "clear"
+    ) {
+        return;
+    }
+    let deleted = node.parent().is_some_and(|parent| {
+        parent.kind() == "unary_expression"
+            && parent
+                .child_by_field_name("operator")
+                .is_some_and(|operator| text(operator, out.source) == "delete")
+    });
+    let (reads, writes) = if deleted {
+        (false, true)
+    } else {
+        direction(node)
+    };
+    out.emit(node, category, &key, reads, writes);
 }

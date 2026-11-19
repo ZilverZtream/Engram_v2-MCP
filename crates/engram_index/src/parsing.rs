@@ -1378,7 +1378,8 @@ impl SymbolExtractor {
                 let mut facts: serde_json::Value = serde_json::from_str(&coverage)
                     .expect("modern state extraction serializes its own JSON");
                 facts["browser_storage_clear_contract"] = serde_json::json!(1);
-                facts["browser_storage"] = serde_json::json!("literal_getItem_setItem_removeItem_and_unshadowed_store_wide_clear_candidates; dynamic_keys_aliases_property_access_and_runtime_context_unresolved");
+                facts["browser_storage_property_contract"] = serde_json::json!(1);
+                facts["browser_storage"] = serde_json::json!("literal_getItem_setItem_removeItem_dot_and_bracket_properties_and_unshadowed_store_wide_clear_candidates; dynamic_keys_aliases_destructuring_and_runtime_context_unresolved");
                 coverage = facts.to_string();
             }
             if let Some(file) = symbols.iter_mut().find(|symbol| symbol.kind == "file") {

@@ -922,13 +922,16 @@ as proof of their missing evidence. Follow their stated revision/refetch guidanc
 returns indexed JavaScript/TypeScript readers and writers of a literal browser
 storage key. `getItem` reads; `setItem` and `removeItem` write. Direct globals and
 `window`/`globalThis` forms are recognized when the browser global is not shadowed.
+Dot and literal-bracket properties use the same key identity: property reads read,
+assignments and `delete` write, and compound assignments read and write. The
+Storage API's own methods and `length` are not named-item property accesses.
 The two stores remain distinct. The existing `limit` bounds readers and writers.
 
 Access evidence carries the indexed file hash and source position. These are
 project-local static matches: common origin, session/tab, runtime execution and
 stored values are not proven. Dynamic keys and runtime `clear()` effects are
 unresolved; source coverage observations accompany admitted accesses.
-Aliases and property-style access are outside this extraction. Missing keys do
+Aliases, dynamic properties and destructuring are outside this extraction. Missing keys do
 not establish absence of runtime access. Run `update_project` after upgrading to
 acquire the browser-storage facts for previously indexed JS/TS files.
 
