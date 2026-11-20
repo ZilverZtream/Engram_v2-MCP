@@ -9,7 +9,7 @@
 
 use serde::Deserialize;
 use std::{
-    collections::{BTreeMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashSet},
     path::Path,
 };
 
@@ -321,7 +321,8 @@ pub(crate) fn load_matching_planning_rules(
     story: &str,
     paths: &[String],
     knowledge_before: Option<&str>,
-) -> (Vec<PlanningContractRuleMatch>, Vec<String>) {
+    history_leads: &BTreeSet<String>,
+) -> (Vec<PlanningContractRuleMatch>, Vec<String>, BTreeMap<String, String>) {
     let sources = [
         (
             data_dir.join("rules/planning-contract-rules.yaml"),
@@ -359,21 +360,48 @@ pub(crate) fn load_matching_planning_rules(
             Err(error) => notes.push(error),
         }
     }
+    let scope_paths = paths.iter().filter(|path| !history_leads.contains(*path))
+        .cloned().collect::<Vec<_>>();
+    let mut qualified_leads = BTreeMap::new();
     let matched = merged
         .into_values()
-        .filter(|rule| matches(rule, story, paths))
-        .map(|rule| PlanningContractRuleMatch {
-            id: format!("RULE-{}", rule.id.to_ascii_uppercase()),
-            title: rule.title,
-            requirement: rule.requirement,
-            severity: rule.severity,
-            oracle_guard: rule.oracle_guard,
-            source: rule.source,
-            introduced_at: rule.introduced_at,
-            provenance: rule.provenance,
+        .filter_map(|rule| {
+            let id = format!("RULE-{}", rule.id.to_ascii_uppercase());
+            // A path-only rule governs a file once selected. A rule that also
+            // names this type of task can establish why the file belongs here.
+            let mut promoted = Vec::new();
+            if rule.severity != "advisory"
+                && (!rule.story_all.is_empty() || !rule.story_any.is_empty())
+                && matches(&rule, story, paths)
+            {
+                for path in paths.iter().filter(|path| history_leads.contains(*path)) {
+                    let lower = path.to_ascii_lowercase();
+                    if rule.path_all.iter().chain(&rule.path_any).any(|term| lower.contains(term))
+                        && rule.path_none.iter().all(|term| !lower.contains(term))
+                    {
+                        promoted.push(path);
+                    }
+                }
+            }
+            if promoted.is_empty() && !matches(&rule, story, &scope_paths) {
+                return None;
+            }
+            for path in promoted {
+                qualified_leads.entry(path.clone()).or_insert_with(|| id.clone());
+            }
+            Some(PlanningContractRuleMatch {
+                id,
+                title: rule.title,
+                requirement: rule.requirement,
+                severity: rule.severity,
+                oracle_guard: rule.oracle_guard,
+                source: rule.source,
+                introduced_at: rule.introduced_at,
+                provenance: rule.provenance,
+            })
         })
         .collect();
-    (matched, notes)
+    (matched, notes, qualified_leads)
 }
 
 #[cfg(test)]
@@ -415,8 +443,8 @@ rules:
         )
         .unwrap();
 
-        let (matched, notes) =
-            load_matching_planning_rules(&data, &project, "change password", &[], None);
+        let (matched, notes, _) =
+            load_matching_planning_rules(&data, &project, "change password", &[], None, &BTreeSet::new());
         assert!(notes.is_empty(), "{notes:?}");
         assert_eq!(matched.len(), 1);
         assert_eq!(matched[0].id, "RULE-CONTINUITY");
@@ -437,8 +465,8 @@ rules:
 "#,
         )
         .unwrap();
-        let (reloaded, notes) =
-            load_matching_planning_rules(&data, &project, "change password", &[], None);
+        let (reloaded, notes, _) =
+            load_matching_planning_rules(&data, &project, "change password", &[], None, &BTreeSet::new());
         assert!(notes.is_empty(), "{notes:?}");
         assert_eq!(reloaded[0].requirement, "updated without rebuilding");
     }
@@ -473,12 +501,13 @@ rules:
         )
         .unwrap();
 
-        let (matched, notes) = load_matching_planning_rules(
+        let (matched, notes, _) = load_matching_planning_rules(
             &data,
             &project,
             "session lifecycle",
             &[],
             Some("2020-06-01"),
+            &BTreeSet::new(),
         );
         assert_eq!(
             matched

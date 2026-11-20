@@ -8933,7 +8933,9 @@ pub(crate) fn change_set_rows(
     // Server rows with one more signal). The rest keeps its evidence order.
     let mut heads: Vec<usize> = Vec::new();
     for li in 0..=CHANGE_SET_LAYERS.len() {
-        if let Some(i) = all.iter().position(|it| it.3 == li && it.2 <= 1)
+        if let Some(i) = all.iter().position(|it| {
+            it.3 == li && it.2 <= 1 && !it.1.contains("optional_history_lead")
+        })
             && !heads.contains(&i)
         {
             heads.push(i);
@@ -8948,7 +8950,9 @@ pub(crate) fn change_set_rows(
         if heads.contains(&i) {
             continue;
         }
-        if it.2 <= CHANGE_SET_PRIMARY_MAX_TIER && primary.len() < CHANGE_SET_PRIMARY_CAP {
+        if !it.1.contains("optional_history_lead")
+            && it.2 <= CHANGE_SET_PRIMARY_MAX_TIER && primary.len() < CHANGE_SET_PRIMARY_CAP
+        {
             primary.push(it);
         } else {
             rest.push(it);
@@ -8969,7 +8973,7 @@ pub(crate) fn change_set_rows(
     });
     let signals = |sigs: &BTreeSet<&'static str>| -> Vec<&'static str> {
         sigs.iter()
-            .filter(|s| !matches!(**s, "family" | "specific"))
+            .filter(|s| !matches!(**s, "family" | "specific" | "optional_history_lead"))
             .map(|s| {
                 if *s == "vtop" {
                     "vector"
@@ -9457,10 +9461,9 @@ fn render_change_set(
         concepts.join(", ")
     ));
     s.push_str(
-        "Ranked by corroboration — git CO-CHANGE / history first (files that \
-         historically shipped together with this kind of work), then concept/graph. \
-         A starting map, not exhaustive: verify each against the code and add the \
-         files it misses. Before planning, reconcile every primary candidate and every \
+        "Ranked by corroboration from source, history and retrieval. \
+         Verify the candidates against the code and add any missing files. \
+         Before planning, reconcile every primary candidate and every \
          dependency row below into one consumer ledger with an explicit include, \
          conditional or evidence-backed exclude disposition.\n\n",
     );
@@ -9469,9 +9472,8 @@ fn render_change_set(
     // dropped). Spell out what each tag proves and raise the bar for
     // skipping the evidence-backed ones.
     s.push_str(
-        "Signal legend — [cochange]: this file SHIPPED TOGETHER with other \
-         candidates in past MERGED changes of this kind (strongest evidence; \
-         skipping one requires POSITIVE evidence of irrelevance grounded in the code - and a .ts with its committed .js bundle listed together is part of the change until PROVEN otherwise (a live A/B dismissed exactly that pair as bleed-through; it was real)). [history]: past \
+        "Signal legend — [cochange]: this file shipped with other candidates in past \
+         changes. Use current source or a scoped rule to check its role in this change. [history]: past \
          commits in this story's domain touched it. [entity]: a code-shaped identifier \
          written in the story resolved to this current file or symbol. [concept]: name/content \
          matches the story's concepts. [semantic]: embedding; [graph]: statically extracted include/bundle or \
@@ -9587,6 +9589,9 @@ fn render_change_set(
          fix delivers.\n\n",
     );
     let _ = LAYERS; // layers now come from the shared model (CHANGE_SET_LAYERS)
+    if prov.values().any(|signals| signals.contains("optional_history_lead")) {
+        s.push_str("For this source-anchored story, co-change-only leads in Possible companions are optional research. Inspect them if the change needs more scope.\n\n");
+    }
     let (rows, omissions) = change_set_rows(prov);
     // Round-2 audit P0-3: a ranked PRIMARY set across layers, then
     // layer-grouped companions. Critical files must land in the primary set.
@@ -9661,7 +9666,12 @@ fn render_change_set(
         } else {
             ""
         };
-        let row = format!("- `{}`  [{}]{hist}\n", r.path, r.signals.join("|"));
+        let optional = if prov.get(&r.path).is_some_and(|signals| signals.contains("optional_history_lead")) {
+            " (optional historical lead)"
+        } else {
+            ""
+        };
+        let row = format!("- `{}`  [{}]{optional}{hist}\n", r.path, r.signals.join("|"));
         // A layer header is only worth its bytes if a row follows it, so charge
         // them together and stop before emitting a heading with nothing under it.
         let cost = row.len() + header.as_ref().map_or(0, |h| h.len());
@@ -11621,22 +11631,45 @@ impl Engram {
 
         // Imported history can spell the same path differently from the
         // active graph. Merge those aliases before they compete for ranks.
-        let indexed_paths = self
-            .state
-            .graph
-            .list_file_node_metadata(&req.project_id)
-            .map(|rows| {
-                rows.into_iter()
-                    .map(|(path, _)| path.as_str().replace('\\', "/"))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
         canonicalize_change_set_evidence(
             &mut prov,
             &mut why,
             &mut historical,
-            indexed_paths,
+            index_paths.iter().cloned(),
         );
+
+        let mut history_leads = BTreeSet::new();
+        if prov.values().any(|signals| signals.contains("entity")) {
+            let linked_paths: HashSet<&str> = asset_dependencies.iter().map(|row| row.path.as_str())
+                .chain(caller_dependencies.iter().map(|row| row.path.as_str()))
+                .collect();
+            history_leads.extend(prov.iter().filter_map(|(path, signals)| {
+                (signals.len() == 1 && signals.contains("cochange") && !linked_paths.contains(path.as_str()))
+                    .then(|| path.clone())
+            }));
+        }
+        let mut checkpoint_paths = change_set_rows(&prov).0.into_iter()
+            .filter(|row| !row.omitted)
+            .map(|row| row.path)
+            .collect::<Vec<_>>();
+        checkpoint_paths.extend(asset_dependencies.iter().map(|row| row.path.clone()));
+        checkpoint_paths.extend(caller_dependencies.iter().map(|row| row.path.clone()));
+        checkpoint_paths.sort();
+        checkpoint_paths.dedup();
+        let (configured_contract_rules, configured_contract_rule_notes, qualified_leads) =
+            load_matching_planning_rules(
+                &self.state.cfg.data_dir, &project_root, req.story.trim(),
+                &checkpoint_paths, req.merged_before.as_deref(), &history_leads,
+            );
+        for (path, rule_id) in qualified_leads {
+            history_leads.remove(&path);
+            why.entry(path).or_default().push(format!("scoped planning rule {rule_id} applies to this story and path"));
+        }
+        for path in &history_leads {
+            if let Some(signals) = prov.get_mut(path) {
+                signals.insert("optional_history_lead");
+            }
+        }
 
         cov.stages
             .insert("before_render".into(), t_all.elapsed().as_millis());
@@ -11711,20 +11744,10 @@ impl Engram {
         reconciliation_rows.extend(caller_dependencies.iter().enumerate().map(|(index, row)| {
             serde_json::json!({"row_id": format!("C{:03}", index + 1), "path": row.path})
         }));
-        let mut checkpoint_paths = receipt_rows.iter().filter(|row| !row.omitted)
-            .map(|row| row.path.clone()).collect::<Vec<_>>();
-        checkpoint_paths.extend(asset_dependencies.iter().map(|row| row.path.clone()));
-        checkpoint_paths.extend(caller_dependencies.iter().map(|row| row.path.clone()));
-        checkpoint_paths.sort();
-        checkpoint_paths.dedup();
-        let (configured_contract_rules, configured_contract_rule_notes) = load_matching_planning_rules(
-            &self.state.cfg.data_dir, &project_root, req.story.trim(),
-            &checkpoint_paths, req.merged_before.as_deref(),
-        );
         let contract_checkpoint = change_set_contract_checkpoint(&configured_contract_rules);
         let policy_paths = reconciliation_rows.iter()
             .filter_map(|row| row["path"].as_str().map(str::to_string))
-            .chain(prov.keys().cloned())
+            .chain(prov.keys().filter(|path| !history_leads.contains(*path)).cloned())
             .collect::<Vec<_>>();
         let project_policy_sources = if let Some(history) = &as_of {
             let root = project_root.clone();
@@ -11882,6 +11905,7 @@ impl Engram {
             // filter are unchanged from where this used to sit; only the position.
             let mut rule_paths = visible_rows
                 .iter()
+                .filter(|row| !history_leads.contains(&row.path))
                 .map(|row| row.path.clone())
                 .collect::<Vec<_>>();
             rule_paths.extend(asset_dependencies.iter().map(|row| row.path.clone()));
@@ -11927,16 +11951,17 @@ impl Engram {
             // Every fingerprint in one transaction rather than a lookup per row.
             // Generation travels with each node, so a file re-indexed after this
             // request pinned its snapshot is refused by name instead of trusted.
-            let fingerprints: HashMap<String, (Option<serde_json::Value>, u64)> = self
-                .state
-                .graph
-                .list_file_node_metadata_with_generation(&req.project_id)
-                .unwrap_or_default()
-                .into_iter()
-                .map(|(path, metadata, generation)| {
-                    (path.as_str().replace('\\', "/"), (metadata, generation))
-                })
-                .collect();
+            let fingerprints: HashMap<String, (Option<serde_json::Value>, u64)> = if rule_specs.is_empty() {
+                HashMap::new()
+            } else {
+                self.state.graph.list_file_node_metadata_with_generation(&req.project_id)
+                    .unwrap_or_default()
+                    .into_iter()
+                    .map(|(path, metadata, generation)| {
+                        (path.as_str().replace('\\', "/"), (metadata, generation))
+                    })
+                    .collect()
+            };
             let mut construct_evidence: HashMap<String, serde_json::Value> = HashMap::new();
             let mut construct_scanned = 0usize;
             let mut construct_governed_total = 0usize;
@@ -12130,6 +12155,10 @@ impl Engram {
                 "concepts": concepts,
                 "row_guidance": row_guidance,
                 "files": files,
+                "optional_history_leads": history_leads.iter().take(if full_detail { usize::MAX } else { 8 }).map(|path| {
+                    serde_json::json!({"path": path, "why": ranked_change_set_reasons(&why, path, 1)})
+                }).collect::<Vec<_>>(),
+                "optional_history_leads_total": history_leads.len(),
                 "coverage": output_coverage,
                 "omissions": output_omissions,
                 "omission_summary": omission_summary,

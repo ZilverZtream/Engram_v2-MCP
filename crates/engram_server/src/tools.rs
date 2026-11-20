@@ -452,7 +452,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Use to scope a user story before choosing edits. Returns ranked behavioral/historical/structural file candidates, deployable families, direct caller/assets, scoped hash-bound authored instructions and explicit omissions. Configured planning rules produce hard_items and a workflow_scaffold; resolve every MISSING field. Copy/classify every P/A/C row and preserve its SHA-256 reconciliation receipt before planning; candidates are not mandatory edits or complete scope. detail=reconciled returns the complete receipt-bound planning payload; full is diagnostic. history_semantic_timeout_ms bounds only hybrid history retrieval (0 uses lexical); fallback remains partial and does not bound Git/metadata, other arms or lexical work. Follow response_id/response_offset recovery through all pages. Use get_method_edit_context once a specific method is selected."
+        description = "Use to scope a story before editing. Returns ranked files, source dependencies, applicable hash-bound instructions and coverage. For stories with resolved source anchors, co-change-only leads are optional unless a scoped planning rule requires them. Copy and classify every P/A/C row and preserve its SHA-256 receipt. Resolve configured hard_items and MISSING scaffold fields. detail=reconciled returns the complete receipt-bound plan; full includes diagnostic evidence and all retained historical leads. Follow response_id/response_offset for saved pages. history_semantic_timeout_ms bounds hybrid history retrieval only (0 uses lexical). Use get_method_edit_context for a known method."
     )]
     pub async fn get_change_set(
         &self,
