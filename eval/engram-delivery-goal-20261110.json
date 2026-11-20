@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "ask_pinned_recent_history": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-28 natural-language access to source-backed, revision-scoped history",
+      "observed_gap": "At the parent of the latest DownloadFile.aspx.vb change, installed ask_codebase returns a pinned source blob and no commits for an explicit recent changes question. Git first-parent history shows two earlier changes.",
+      "implementation": ["crates/engram_server/src/handlers/ask_recent_history.rs", "crates/engram_server/src/handlers/ask_tools.rs", "crates/engram_server/src/services/ask_engine/historical.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs"],
+      "acceptance": "The explicit file/folder history question resolves the existing as_of selector once and uses only that revision's first-parent history. Results and callable patch/commit/older-window actions retain the resolved basis. Unresolvable pins refuse and other historical questions retain their source-blob path.",
+      "source_commit": "5196d1f6f4f34ed4354916bcfb265245528f3c27",
+      "verification": "The live baseline returned one historical_source blob and no commit evidence at c481dfa3. Two focused checks compiled the actual provider and scanner, matched both independent LegacyValidation first-parent commits in order and excluded later a1581c1f. The generated patch request ran on installed MCP and returned 3,781 bytes at the exact older basis. An invalid revision refused. The public ask regression fixture also exercises the existing historical source path. Packaged public ask acceptance remains pending; no release build or full suite ran.",
+      "retention": "Keep the reproduction and numeric/commit receipt in current-task-check/pinned-ask-history-20261120 through combined delivery. Owned compiler scratch was removed."
+    },
     "working_tree_review": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "requirement": "EG-19 bounded prior-decision evidence over the actual reviewed change scope",
@@ -3592,7 +3602,7 @@
       "acceptance": "Write admission tolerates brief parser ownership without using another parser identity, and reports a bounded busy refusal if ownership persists. Read-only admission and the publication fence retain their existing behavior.",
       "verification": "The retained actual rollback MCP runs showed a busy refusal before generation advance, with a successful subsequent edit after retry. A focused executable compiled the exact changed lock code and committed regression test. With the original mutex held, reader admission refused, a sustained short writer wait returned busy, and a writer waited and acquired the same coordinator after release. The incremental scan now captures parser authority once in its existing blocking worker before stat-cache or publication work. The candidate already awaiting quiescence predates this change. No Cargo build or live write ran."
     },
-    "next_action": "Advance the next ready unfinished original requirement. The VB admission, saved dossier and WebForms event release is installed with public acceptance."
+    "next_action": "Validate the queued settings paging, working-tree review and pinned history outcomes together in one release. The preceding VB admission, saved dossier and WebForms event package is installed."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -4040,6 +4050,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "e4e4fbc03670afdf6b1a9bad7e925ec9ce6b0394",
       "acceptance_contract": "Run a working_tree review through MCP for scoped current VB and SQL with a split staged/unstaged file and untracked companion. Confirm exact submitted paths, complete scoped guidance and advisory prior decisions, separate staged action, and the native basis in initial and recovered output."
+    },
+    {
+      "original_requirement_id": "TODO-28",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "5196d1f6f4f34ed4354916bcfb265245528f3c27",
+      "acceptance_contract": "Through public ask_codebase, verify recent changes to a literal file at an older as_of revision are identical to first-parent Git evidence, exclude the later edit and expose a patch action pinned to the requested basis. An unrelated pinned source question still returns its original blob."
     }
   ],
   "dossier_webforms_history_source_batch_20261120": [
