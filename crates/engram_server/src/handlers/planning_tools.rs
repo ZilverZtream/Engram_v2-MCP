@@ -13701,7 +13701,9 @@ impl Engram {
                     "Referenced by the dossier but NOT in your edit set — address \
                      each or state why it doesn't apply:\n",
                 );
-                for (section, file) in unmet.iter().take(30) {
+                // The complete lifecycle report already has a byte budget
+                // and immutable recovery. Preserve all candidates before delivery.
+                for (section, file) in unmet {
                     out.push_str(&format!("- `{file}` [{section}]\n"));
                 }
             }

@@ -398,6 +398,10 @@ The provider reads one current snapshot with the existing4MiB raw-file cap. JSON
 - `begin_edit_session(project_id, planned_files, story=null, session_id=null, max_tokens=null, output_json=false, response_id=null, response_offset=0)` — opens a session and returns its lifecycle token, the expectation brief and current authored guidance for the declared planned paths, including new files. Complete policy sources retain hashes and exceptions; oversized or unresolved sources carry recovery instructions.
 - `complete_edit_session(project_id, session_id=null, session_revision=null, edited_files=null, dossier=null, dossier_response_id=null, max_tokens=null, output_json=false, response_id=null, response_offset=0)` — checks the declared edited scope and refreshes authored guidance for that scope before closing the session. Omitted `edited_files` uses the planned set; explicit `[]` declares no edits and skips completeness/policy applicability analysis. Use the returned session identity/revision to select the correct lifecycle. Guidance is advisory evidence, not semantic enforcement, approval or proof that edits comply.
 
+The original completion report retains every recognized untouched dossier
+reference. If it exceeds the reply budget, follow the saved report continuation
+to recover those advisory candidates without completing the edit session again.
+
   To reconcile a deferred `get_change_set` dossier, pass its
   `response_delivery.response_id` as `dossier_response_id` in the same project.
   Supply either this ID or inline `dossier` text. Engram verifies the retained
