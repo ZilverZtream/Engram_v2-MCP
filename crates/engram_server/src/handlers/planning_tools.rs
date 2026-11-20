@@ -12223,11 +12223,15 @@ impl Engram {
                 "snapshot_generation": snapshot_generation,
                 "coverage": {"status": "DEFERRED_CONTEXT", "intake_complete": false},
             });
+            let response_json = if full_detail {
+                serde_json::to_string_pretty(&payload)
+            } else {
+                serde_json::to_string(&payload)
+            }.map_err(|error| McpError::internal_error(error.to_string(), None))?;
             let text = change_set_delivery::bounded_with_budget(
                 &self.state.cfg.data_dir,
                 &req.project_id,
-                serde_json::to_string_pretty(&payload)
-                    .map_err(|error| McpError::internal_error(error.to_string(), None))?,
+                response_json,
                 true,
                 manifest,
                 response_budget,
