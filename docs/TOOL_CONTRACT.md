@@ -360,7 +360,14 @@ The provider reads one current snapshot with the existing4MiB raw-file cap. JSON
 
 ## Cognitive / agent
 - `begin_edit_session(project_id, planned_files, story=null, session_id=null, max_tokens=null, output_json=false, response_id=null, response_offset=0)` — opens a session and returns its lifecycle token, the expectation brief and current authored guidance for the declared planned paths, including new files. Complete policy sources retain hashes and exceptions; oversized or unresolved sources carry recovery instructions.
-- `complete_edit_session(project_id, session_id=null, session_revision=null, edited_files=null, dossier=null, max_tokens=null, output_json=false, response_id=null, response_offset=0)` — checks the declared edited scope and refreshes authored guidance for that scope before closing the session. Omitted `edited_files` uses the planned set; explicit `[]` declares no edits and skips completeness/policy applicability analysis. Use the returned session identity/revision to select the correct lifecycle. Guidance is advisory evidence, not semantic enforcement, approval or proof that edits comply.
+- `complete_edit_session(project_id, session_id=null, session_revision=null, edited_files=null, dossier=null, dossier_response_id=null, max_tokens=null, output_json=false, response_id=null, response_offset=0)` — checks the declared edited scope and refreshes authored guidance for that scope before closing the session. Omitted `edited_files` uses the planned set; explicit `[]` declares no edits and skips completeness/policy applicability analysis. Use the returned session identity/revision to select the correct lifecycle. Guidance is advisory evidence, not semantic enforcement, approval or proof that edits comply.
+
+  To reconcile a deferred `get_change_set` dossier, pass its
+  `response_delivery.response_id` as `dossier_response_id` in the same project.
+  Supply either this ID or inline `dossier` text. Engram verifies the retained
+  report's BLAKE3 identity and reconciles its complete original file references.
+  An unavailable or invalid snapshot leaves the session open. Use `response_id`
+  when recovering an already returned closing report.
 
   Installed ([delivery](../eval/edit-review-history-batch-delivery-20261117.json)): opening
   sessions retain hash-only guidance observations. Completion compares fresh
@@ -638,6 +645,13 @@ Concatenate content in byte order and verify its BLAKE3 against `response_id`.
 Recovery uses the saved response without re-reading the checkout. Snapshots last
 at most 24 hours or 32 newer project trace snapshots. Small replies are unchanged;
 a budget too small for the complete navigation view still reports the minimum.
+
+An explicit `event controlID.EventName` action can follow a direct single-line
+VB `AddHandler controlID.EventName, AddressOf Handler` subscription in the
+selected code-behind. The trace includes the subscription in `vb_subscriptions`
+with its source file, line and BLAKE3, and shows the matching admitted method as
+a candidate. Compact replies keep the citation and defer its excerpt to full
+recovery. The source evidence leaves branch reachability and execution unverified.
 
 `trace_user_request` also returns `project_policy_sources` for the returned source
 files in its loaded selected inventory, including route registrations, markup,
