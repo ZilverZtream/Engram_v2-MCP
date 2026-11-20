@@ -1170,6 +1170,9 @@ from an earlier generation. The report contains counts and, within the key
 comparison limits, the number of matching vector identities. An absent path,
 disabled vectors, and counts-only coverage have separate statuses. This call
 observes one file and cannot request auto-repair or assess project-wide health.
+With vectors disabled, exact-file and `source_keys` reports still count
+published Tantivy memory rows. Vector counts and matching identities are
+unavailable. Paths outside the selected source view have no reported row count.
 
 `check_integrity` returns `retained_namespaces` alongside the existing published
 `source_generation` observation. Non-memory namespaces compare all retained

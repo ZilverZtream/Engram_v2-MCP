@@ -4801,7 +4801,8 @@ impl Engram {
         let (generation, view) = self.pin_active_source_generation(project, &runtime.search).await?;
         let selected = view.selected_file_revisions();
         let revision = path.as_deref().and_then(|path| selected?.get(path)).copied();
-        let embeddings = !matches!(self.state.cfg.embedding_backend.as_str(), "" | "fts_only");
+        let embeddings = cfg!(feature = "vector")
+            && !matches!(self.state.cfg.embedding_backend.as_str(), "" | "fts_only");
         let rows = if embeddings {
             match path.as_deref() {
                 Some(path) => runtime.search.observe_selected_source_file(project, generation, &view, path).await,
@@ -4809,6 +4810,12 @@ impl Engram {
             }.map_err(|error| McpError::internal_error(error.to_string(), None))?
         } else {
             None
+        };
+        let lexical_count = if embeddings {
+            rows.map(|row| row.lexical_count)
+        } else {
+            runtime.search.count_selected_source_lexical_rows(project, generation, &view, path.as_deref())
+                .await.map_err(|error| McpError::internal_error(error.to_string(), None))?
         };
         let status = match rows {
             Some(row) if row.lexical_count != row.vector_count => "count_mismatch",
@@ -4826,10 +4833,15 @@ impl Engram {
         } else {
             ("selected_source_keys", "Read-only comparison of all published memory rows, including inherited revisions. Identity checks are bounded to 65536 selected rows and 16 MiB of lexical key text. A counts_only result completed the counts comparison. This check does not establish project health, working-tree freshness or vector quality.")
         };
+        let coverage = if !embeddings {
+            "Read-only Tantivy memory count for the published source selection. Vector comparison is unavailable. This count does not establish project health or working-tree freshness."
+        } else {
+            coverage
+        };
         let report = serde_json::json!({
             "scope":scope, "project_id":project, "source_file":path,
             "active_generation":generation, "physical_revision":revision, "status":status,
-            "tantivy_doc_count":rows.map(|row| row.lexical_count),
+            "tantivy_doc_count":lexical_count,
             "vector_doc_count":rows.map(|row| row.vector_count),
             "matching_vector_ids":rows.and_then(|row| row.matching_vector_ids),
             "repairs_attempted":[],

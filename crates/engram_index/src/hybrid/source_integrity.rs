@@ -24,14 +24,12 @@ impl IdentityBudget {
     pub(super) const EXPANDED: Self = Self { rows: 65_536, key_bytes: 16 * 1024 * 1024 };
 }
 
-#[cfg(feature = "vector")]
 #[derive(Clone)]
 pub(super) struct FileScope {
     pub path: String,
     pub revision: u64,
 }
 
-#[cfg(feature = "vector")]
 impl FileScope {
     pub(super) fn lexical_query(
         &self,
@@ -51,6 +49,7 @@ impl FileScope {
         ]))
     }
 
+    #[cfg(feature = "vector")]
     pub(super) fn vector_filter(&self) -> String {
         format!(
             "namespace = 'memory' AND path = '{}' AND generation = {}",

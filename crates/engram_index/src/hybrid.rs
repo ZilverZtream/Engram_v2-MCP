@@ -2950,6 +2950,56 @@ impl HybridSearchEngine {
         }
     }
 
+    /// Count published memory rows independently of vector backend availability.
+    pub async fn count_selected_source_lexical_rows(
+        &self,
+        project_id: &str,
+        generation: u64,
+        view: &SourceSnapshotGuard,
+        path: Option<&str>,
+    ) -> anyhow::Result<Option<usize>> {
+        self.validate_source_snapshot_guard(project_id, generation, view)?;
+        let Some(files) = view.selected_file_revisions() else {
+            return Ok(None);
+        };
+        let file = match path {
+            Some(path) => {
+                let Some(&revision) = files.get(path) else {
+                    return Ok(None);
+                };
+                Some(source_integrity::FileScope { path: path.to_owned(), revision })
+            }
+            None => None,
+        };
+        let snapshot = view._snapshot.clone();
+        let lexical = self.clone();
+        let project = project_id.to_owned();
+        tokio::task::spawn_blocking(move || {
+            let query = lexical.selected_source_lexical_query(&project, &snapshot, file.as_ref());
+            let reader = lexical.tantivy_index.reader()?;
+            Ok(Some(reader.searcher().search(&query, &tantivy::collector::Count)?))
+        }).await?
+    }
+
+    fn selected_source_lexical_query(
+        &self,
+        project_id: &str,
+        snapshot: &snapshots::Lease,
+        file: Option<&source_integrity::FileScope>,
+    ) -> BooleanQuery {
+        let term = |term| Box::new(TermQuery::new(term, IndexRecordOption::Basic))
+            as Box<dyn tantivy::query::Query>;
+        let source = file.map_or_else(
+            || snapshot.query(&self.fields),
+            |scope| scope.lexical_query(self.fields.path, self.fields.generation),
+        );
+        BooleanQuery::new(vec![
+            (Occur::Must, term(Term::from_field_text(self.fields.project_id, project_id))),
+            (Occur::Must, term(Term::from_field_text(self.fields.namespace, "memory"))),
+            (Occur::Must, source),
+        ])
+    }
+
     #[cfg(feature = "vector")]
     async fn observe_selected_source_rows(
         &self,
@@ -2963,20 +3013,12 @@ impl HybridSearchEngine {
         let lexical = self.clone();
         let project = project_id.to_owned();
         let (lexical_count, lexical_keys) = tokio::task::spawn_blocking(move || {
-            let term = |term| Box::new(TermQuery::new(term, IndexRecordOption::Basic))
-                as Box<dyn tantivy::query::Query>;
-            let mut clauses = vec![
-                (Occur::Must, term(Term::from_field_text(lexical.fields.project_id, &project))),
-                (Occur::Must, term(Term::from_field_text(lexical.fields.namespace, "memory"))),
-            ];
-            let source = lexical_file.as_ref().map_or_else(
-                || lexical_snapshot.query(&lexical.fields),
-                |scope| scope.lexical_query(lexical.fields.path, lexical.fields.generation),
+            let query = lexical.selected_source_lexical_query(
+                &project, &lexical_snapshot, lexical_file.as_ref(),
             );
-            clauses.push((Occur::Must, source));
             let reader = lexical.tantivy_index.reader()?;
             source_integrity::lexical_rows(
-                &reader.searcher(), &BooleanQuery::new(clauses), lexical.fields.pk, identity_budget,
+                &reader.searcher(), &query, lexical.fields.pk, identity_budget,
             )
         }).await??;
         let epoch = self.pin_vector_epoch(project_id)?;

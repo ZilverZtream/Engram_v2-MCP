@@ -2981,6 +2981,18 @@
   "current_execution_focus": {
     "status": "WORKFLOW_CANDIDATE_VERIFIED_AND_QA_SOURCE_READY",
     "implementation_items_active": 0,
+    "source_integrity_lexical_observation": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "TODO-39 published source integrity and original EG-13 checks with and without vectors",
+      "observed_gap": "Selected-source integrity pins the correct managed source revisions, yet returns a null Tantivy count in lexical-only mode. A selected file with zero lexical rows is indistinguishable from a populated file in this report.",
+      "implementation": ["crates/engram_index/src/hybrid.rs", "crates/engram_index/src/hybrid/source_integrity.rs", "crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Compare lexical-only exact-file and selected-source reports against independently enumerated memory rows on an owned VB/WebForms and JavaScript fixture. Keep vector fields unavailable, unselected files distinct, and the vector-enabled comparison contract intact.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/lexical-source-integrity-20261120",
+      "baseline": {"path": "baseline-observed/receipt.json", "sha256": "000056abeed11364d737181d04151402f1a20584952e292c8373923cf9dbd18c"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "be2318bc87903a8bfc679d7069bc697c84b909d2e51b4542d9f6775df2c8fe7d"},
+      "evidence": "Read-only project integrity reported three lexical memory rows in the owned first revision. Public FTS independently identified three separate documents across one VB, one WebForms and one JavaScript file. Exact-file and whole-selected reports returned null for every count while preserving selected revisions. The change shares the managed Tantivy query between lexical counting and native comparison, keeps vector fields unavailable in lexical-only mode, and never repairs. Syntax and whitespace checks passed. Candidate runtime verification remains pending.",
+      "retention": "Keep the candidate verifier and baseline wire files until combined delivery. Both baseline fixture directories were removed and the subprocesses closed."
+    },
     "webforms_response_body_evidence": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "TODO-31 trace a WebForms request through the response",
