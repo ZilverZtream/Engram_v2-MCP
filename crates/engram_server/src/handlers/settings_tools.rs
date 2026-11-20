@@ -495,7 +495,16 @@ impl Engram {
                 None,
             ));
         }
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let source_runtime = self.ensure_project_runtime(&req.project_id).await;
+        let pinned = match source_runtime.as_ref() {
+            Ok(runtime) => self.pin_active_source_generation(&req.project_id, &runtime.search)
+                .await.map_err(|error| error.message.to_string()),
+            Err(error) => Err(error.message.to_string()),
+        };
+        let (gen_, matrix_view, source_selection_note) = match pinned {
+            Ok((generation, view)) => (generation, Some(std::sync::Arc::new(view)), None),
+            Err(note) => (self.get_active_generation(&req.project_id).await?, None, Some(note)),
+        };
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
         let files: Vec<String> = req.files.iter().map(|f| f.replace('\\', "/")).collect();
@@ -536,6 +545,8 @@ impl Engram {
         let source_chunk_target = self.state.cfg.max_chunks_per_file;
         let allow_current_settings = req.knowledge_before.is_none();
         let current_settings_budget = self.state.memory_budget.clone();
+        let axis_view = matrix_view.clone();
+        let axis_selection_note = source_selection_note.clone();
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
         let (settings_axis, setting_labels, indexed_setting_ids, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, unresolved, coverage_notes, companion_context, member_observations, constructor_context) =
@@ -550,6 +561,10 @@ impl Engram {
                 let mut identity_batch_axes: Axis = BTreeMap::new();
                 let mut unresolved: Vec<String> = Vec::new();
                 let mut coverage_notes = configured_risk_notes;
+                if let Some(note) = axis_selection_note {
+                    coverage_notes.push(format!("Published source unavailable; indexed axes withheld: {note}"));
+                }
+                let selected = axis_view.as_ref().and_then(|view| view.selected_file_revisions());
                 let mut source_bytes = 0;
                 let mut companion_context = Vec::new();
                 let mut member_observations = std::collections::BTreeSet::new();
@@ -585,15 +600,16 @@ impl Engram {
                     }
                     let expected = if needs_vb { vb_extraction.as_ref().expect("VB expectation captured") }
                         else { &extraction };
-                    let (usable, note, snapshot) = super::test_derivation::axis_source(
+                    let (usable, note, snapshot) = if axis_view.is_some() { super::test_derivation::axis_source(
                         &graph,
                         &pid,
                         &axis_root,
                         gen_,
+                        selected,
                         expected.as_ref().map_err(String::as_str),
                         &file,
                         &mut source_bytes,
-                    );
+                    ) } else { (false, None, None) };
                     if let Some(note) = note {
                         coverage_notes.push(note);
                     }
@@ -626,9 +642,17 @@ impl Engram {
                     if !usable {
                         continue;
                     }
+                    let selected_revision = selected.and_then(|files| files.get(&file)).copied();
                     let scoped_ranges=if let Some(scopes)=&method_scopes {
                         match graph.query_nodes_in_file(&pid,Some("function"),&file,1025)
-                            .and_then(|nodes|{anyhow::ensure!(nodes.len()<=1024,"Method inventory exceeds1024 declarations");crate::services::method_scope::declarations(&nodes,&file,scopes).map(|selected|selected.iter().map(|n|(n.start_line,n.end_line)).collect::<Vec<_>>())}) {
+                            .and_then(|mut nodes|{
+                                anyhow::ensure!(nodes.len()<=1024,"Method inventory exceeds1024 declarations");
+                                if let Some(revision) = selected_revision {
+                                    nodes.retain(|node| node.generation == revision);
+                                }
+                                crate::services::method_scope::declarations(&nodes,&file,scopes)
+                                    .map(|selected|selected.iter().map(|n|(n.start_line,n.end_line)).collect::<Vec<_>>())
+                            }) {
                             Ok(ranges)=>Some(ranges),
                             Err(error)=>{coverage_notes.push(format!("{file}: method scope unresolved: {error}; no inferred axes admitted for this file."));continue;}
                         }
@@ -712,6 +736,9 @@ impl Engram {
                     if symbols.len() > 2_000 {
                         coverage_notes.push(format!("{file}: symbols truncated at 2000"));
                         symbols.truncate(2_000);
+                    }
+                    if let Some(revision) = selected_revision {
+                        symbols.retain(|node| node.generation == revision);
                     }
                     if symbols.is_empty() {
                         unresolved.push(file.clone());
@@ -955,12 +982,14 @@ impl Engram {
 
         let max_source_cases = req.max_source_cases.clamp(1, 40);
         let max_coverage_notes = req.max_coverage_notes.clamp(5, 100);
-        let (rule_cases, rule_notes) = match self.ensure_project_runtime(&req.project_id).await {
-            Ok(runtime) => {
+        let (rule_cases, rule_notes) = match (source_runtime, matrix_view.as_ref()) {
+            (Ok(runtime), Some(view)) => {
                 let search = runtime.search.clone();
+                let view = view.clone();
                 let pid = req.project_id.clone();
                 let root = std::path::PathBuf::from(_rec.directory);
                 match tokio::task::spawn_blocking(move || {
+                    let _selected_source = view;
                     super::test_derivation::collect_scoped(
                         &search,
                         &pid,
@@ -981,10 +1010,11 @@ impl Engram {
                     ),
                 }
             }
-            Err(error) => (
+            (Err(error), _) => (
                 Vec::new(),
                 vec![format!("rule provider unavailable: {error}")],
             ),
+            (_, None) => (Vec::new(), vec!["Published source could not be pinned; indexed rule cases withheld.".into()]),
         };
 
         let mut out = format!("# Test matrix — {} requested file(s)\n", req.files.len());

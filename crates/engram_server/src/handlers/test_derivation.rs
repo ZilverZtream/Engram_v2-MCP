@@ -988,6 +988,7 @@ pub(super) fn axis_source(
     pid: &str,
     root: &Path,
     source_generation: u64,
+    selected: Option<&std::collections::BTreeMap<String, u64>>,
     extraction: Result<&engram_index::SourceExtractionExpectation, &str>,
     file: &str,
     bytes_read: &mut u64,
@@ -997,6 +998,12 @@ pub(super) fn axis_source(
         let node = graph
             .get_node(pid, &format!("file:{file}"))
             .map_err(|e| e.to_string())?;
+        if let Some(selected) = selected {
+            let revision = selected.get(file).ok_or("file is outside the published source selection")?;
+            if node.as_ref().is_none_or(|node| node.generation != *revision) {
+                return Err("file graph metadata does not match the selected physical revision".into());
+            }
+        }
         if node.as_ref().is_some_and(|node| node.generation > source_generation) {
             return Err("indexed axes belong to newer, live graph metadata than the selected source generation; retry after publication".into());
         }
@@ -1547,13 +1554,22 @@ mod tests {
             let expected = engram_index::SourceExtractionExpectation::for_paths(600, ["source.rs"])?;
             let mut read = 0;
             let (usable, note, snapshot) = axis_source(&graph, "owned-axes", &root, 1,
-                Ok(&expected), "source.rs", &mut read);
+                None, Ok(&expected), "source.rs", &mut read);
             anyhow::ensure!(!usable && snapshot.is_none() && read == 0);
             anyhow::ensure!(note.is_some_and(|note| note.contains("newer, live graph metadata")));
             // After publication the same exact file is valid evidence; no
             // permanent quarantine or fabricated stale-content error.
             let (usable, note, snapshot) = axis_source(&graph, "owned-axes", &root, 2,
-                Ok(&expected), "source.rs", &mut read);
+                None, Ok(&expected), "source.rs", &mut read);
+            anyhow::ensure!(usable && note.is_none() && snapshot.as_deref() == Some(bytes.as_slice()));
+            let mut selected = std::collections::BTreeMap::from([("source.rs".into(), 3)]);
+            let (usable, note, snapshot) = axis_source(&graph, "owned-axes", &root, 3,
+                Some(&selected), Ok(&expected), "source.rs", &mut read);
+            anyhow::ensure!(!usable && snapshot.is_none());
+            anyhow::ensure!(note.is_some_and(|note| note.contains("does not match the selected physical revision")));
+            selected.insert("source.rs".into(), 2);
+            let (usable, note, snapshot) = axis_source(&graph, "owned-axes", &root, 3,
+                Some(&selected), Ok(&expected), "source.rs", &mut read);
             anyhow::ensure!(usable && note.is_none() && snapshot.as_deref() == Some(bytes.as_slice()));
             Ok(())
         })();

@@ -623,6 +623,12 @@ literal getter observation without combining same-name entries. The QA preset
 includes the reader. Ordinary name searches and exact-file literal searches
 remain available.
 
+The matrix pins the published source selection while collecting indexed
+axes. For managed projects, file metadata and method declarations must match
+the selected physical revision, including inherited revisions. If that
+evidence is unavailable, the matrix reports the gap and keeps applicable
+authored guidance and separately qualified current-source observations.
+
 `plan_user_story` uses the same actions for omitted guidance bound to the
 observed concept candidates. Recheck guide applicability for the final edit
 paths.

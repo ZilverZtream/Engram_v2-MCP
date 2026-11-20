@@ -2981,6 +2981,14 @@
   "current_execution_focus": {
     "status": "STAGED_REVIEW_AND_RELATED_SOURCE_WORK_READY",
     "implementation_items_active": 0,
+    "qa_selected_revision_evidence": {
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "requirement": "S06 source-reader ownership and EG-24 QA source evidence",
+      "observed_gap": "The test matrix checks that graph metadata is not newer than the published generation, but does not pin the selected source view or verify that the file and symbols actually belong to the selected physical revision.",
+      "implementation": ["crates/engram_server/src/handlers/settings_tools.rs", "crates/engram_server/src/handlers/test_derivation.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Preserve matrix evidence for a still-selected inherited VB file. Refuse indexed axes when its file record or symbols differ from the held physical revision. Preserve authored guidance and explicitly qualified current literal fallback.",
+      "evidence": "The matrix now holds the selected source guard across indexed providers and response rendering. The existing test for unpublished graph metadata also exercises older unselected and inherited selected physical revisions under the same head. Syntax and source review passed. The expanded test and packaged MCP verification remain pending; the running debug candidate predates this change."
+    },
     "qa_exact_setting_followup": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "EG-18 callable QA dependencies and LegacyValidation setting-aware tests",
