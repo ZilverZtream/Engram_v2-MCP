@@ -2973,6 +2973,15 @@
   "current_execution_focus": {
     "status": "HISTORY_TRACE_BROWSER_ANSWER_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "verified_method_edit_context_release": {
+      "status": "SOURCE_COMPLETE_OWNED_BASELINE_MCP_VERIFIED",
+      "source_tip": "5753d8fd2e74a7834b9d8304ec89ea403cbf2bd3",
+      "requirements": ["S06", "S06 caller evidence", "EG-01"],
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/verified-method-edit-context-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "06aca68b850fb99623b8ef8be5271c9f5e6af48fe02a06a79c3fd7a1a6260035", "binary_sha256": "e5777ce6240df733692d972ebdd3201df587a45b4a11b9859964b58dec86d7f2"},
+      "candidate_verifier": {"path": "verify-public.py", "sha256": "87a39c41a000c60cddd6baee9d370c37162fa13718c5b6f009853e3754c7690d"},
+      "evidence": "One owned project uses the exact LegacyValidation FileLayerZoomPolicy source with a separate VB caller and distinct scoped guides. Installed MCP verified all three old gaps with a positive VB Thread.Sleep detection control. The owned process and project fixture closed and were removed. Next verify the fixed behavior against the candidate and installed package, and compare live target raw hashes with independent source."
+    },
     "edit_context_source_scoped_caller_policy": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "source_commit": "5753d8fd2e74a7834b9d8304ec89ea403cbf2bd3",
