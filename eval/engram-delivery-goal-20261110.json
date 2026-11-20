@@ -2971,8 +2971,19 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "S02_VECTOR_RECOVERY_AND_FEATURE_DOSSIER_SOURCE_READ_READY_FOR_COMBINED_VALIDATION",
+    "status": "VECTOR_RECOVERY_DOSSIER_AND_COMBINED_REVIEW_READY_FOR_VALIDATION",
     "implementation_items_active": 0,
+    "review_combined_diff_guidance": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "TODO-34 and EG-02 complete scoped pre-commit review",
+      "observed_gap": "A staged review with additional in-scope working edits and new SQL offers an unstaged review against the index but leaves the caller to construct the existing combined HEAD-to-worktree action.",
+      "implementation": ["crates/engram_server/src/handlers/review_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "A scoped staged review with divergent same-file VB edits and a new SQL file emits a working_tree action with the same scope and review options. Execute it and verify the final VB and new SQL are submitted once, an out-of-scope change is excluded, and Git index and source remain unchanged.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/review-combined-diff-guidance-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "4443ab844cbb0acd86451efd9c8775eacc92c0eed9ec2e1d8deb1a9bfb6f2410"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "cb965358e275a426e6e9f25dd5d9be693aabc6fbddc3b6a5a4fa365beaf58ab5"},
+      "verification": "The installed public staged review kept its original file and unstaged action but omitted the net working-tree action. A manually supplied combined call returned exactly the two authored VB/SQL files and preserved both Git versions. The candidate check executes the returned action and verifies scope and controls. The owned fixture was removed."
+    },
     "feature_dossier_source_read": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "EG-02 bounded complete source evidence and TODO-32 WebForms pre-edit dossier",

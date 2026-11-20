@@ -1983,7 +1983,9 @@ MCP tool schemas before using them with an existing installation.
 - Add `get_review_decisions` to `batch_read` with its usual path, date or discussion
   selector. Each read keeps its own result or error and a callable refresh action.
 - Follow `pre_commit_review.review_next_calls` when the report identifies an
-  additional staged or unstaged diff you need to review. Each call covers its own diff.
+  additional staged or unstaged diff you need to review. When both types of
+  change are observed in scope, the report also offers a `working_tree` call
+  with the same review controls so you can inspect the final net change once.
 
 `pre_commit_review` accepts `path_prefixes` on native `staged`, `unstaged`,
 `working_tree` and `head` reviews. For example, `["Site/App_Code", "Site/ts"]` selects literal

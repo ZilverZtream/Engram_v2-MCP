@@ -34,14 +34,18 @@ fn alternate_review_calls(
     } else {
         (changes.staged, changes.unstaged)
     };
-    [("staged", staged), ("unstaged", unstaged)]
+    [("staged", staged), ("unstaged", unstaged), ("working_tree", staged && unstaged)]
         .into_iter()
         .filter(|(candidate, available)| *available && *candidate != mode)
         .map(|(mode, _)| {
             let mut args = request.clone();
             args.diff = mode.to_owned();
-            serde_json::json!({"tool":"pre_commit_review","arguments":args,
-                "reason":"Inspect this observed Git diff scope if it has not already been reviewed."})
+            let reason = if mode == "working_tree" {
+                "Review the net change from HEAD to the final working tree in one pass, including non-ignored untracked files in scope."
+            } else {
+                "Inspect this observed Git diff scope if it has not already been reviewed."
+            };
+            serde_json::json!({"tool":"pre_commit_review","arguments":args,"reason":reason})
         })
         .collect()
 }
