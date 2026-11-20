@@ -495,8 +495,10 @@ impl Engram {
         } else {
             let policy_root = axis_root.clone();
             let policy_files = files.clone();
+            let policy_project = req.project_id.clone();
             tokio::task::spawn_blocking(move || {
                 crate::services::project_policy::resolve(&policy_root, &policy_files, &[])
+                    .with_source_recovery(&policy_project)
             })
             .await
             .map_err(|error| McpError::internal_error(error.to_string(), None))?

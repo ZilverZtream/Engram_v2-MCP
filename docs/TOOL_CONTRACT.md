@@ -594,6 +594,11 @@ language extraction contracts are unchanged.
 
 `query_business_logic`, quality-rule retrieval in `pre_push_audit`, and the business-rule source-anchor arm of `get_change_set` retry failed hybrid retrieval through local lexical search. Replies disclose the fallback and potentially missing semantic matches; source freshness, applicability, namespace and result limits still apply. Planning marks that arm partial. This does not bound provider latency or make retrieved rules verified mandates; successful subsequent requests use normal hybrid retrieval.
 
+Current `derive_test_matrix` reports include hash-bound source actions for
+omitted authored guidance and linked documents with a recorded fingerprint.
+Follow the file excerpts through EOF for the full text. Historical matrices
+continue to withhold current policy.
+
 ## Intelligence Amplification (Phase 37)
 - `analyze_full_project_migration` — enhanced with `use_llm=false` parameter. When `use_llm=true` and an LLM backend is configured, deterministic business logic summaries are upgraded with LLM-powered step-by-step explanations as an async post-processing pass, validated against static analysis for confidence scoring (High/Medium/Low)
 
