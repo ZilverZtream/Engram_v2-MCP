@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "working_tree_review": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "EG-19 bounded prior-decision evidence over the actual reviewed change scope",
+      "observed_gap": "Agents reviewing an entire in-progress change have to submit their own combined patch or run separate staged and unstaged gates. An installed scoped working_tree review refused an actual changed LegacyValidation VB file before analysis.",
+      "implementation": ["crates/engram_server/src/services/pre_commit_review_service.rs", "crates/engram_server/src/handlers/review_tools.rs", "crates/engram_server/src/handlers/review_tools/maintenance_context.rs", "crates/engram_server/src/handlers/review_tools/response_delivery.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs"],
+      "acceptance": "One bounded literal-scope working_tree review covers the net HEAD-to-disk changes, including non-ignored untracked files, and feeds those same paths into existing policy and prior-decision evidence. Same-file split edits use final lines and preserve a separate staged follow-up. JSON, Markdown and deferred coverage disclose the diff basis.",
+      "source_commit": "e4e4fbc03670afdf6b1a9bad7e925ec9ce6b0394",
+      "verification": "The installed MCP refused the scoped mode for a changed LegacyValidation VB file. The focused executable compiled the current resolver and parser, matched Git's exact parsed added and removed lines for BundleConfig.vb, and independently checked a disposable VB/SQL/TypeScript repository. The net patch retained only final VB and new SQL, excluded the staged intermediate and out-of-scope or ignored files, and refused output over the existing byte cap. The separate staged path retained the staged intermediate. Full MCP review output, policy, prior decisions and recovery remain pending. No release build or full suite ran.",
+      "retention": "Keep the reproduction script and numeric receipt under current-task-check/working-tree-review-20261120 through combined MCP acceptance. Owned temporary fixture closed and was removed. The LegacyValidation checkout was read only."
+    },
     "settings_catalog_pagination": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "requirement": "TODO-4 bounded response delivery and pagination across existing tools",
@@ -4024,6 +4034,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "2384613b688cc0a39445e9a10086e59f63833284",
       "acceptance_contract": "Follow callable list_settings continuations in a scoped fixture with more than one page per category. Verify exact row coverage, remaining counts and no cross-scope rows. Run generated continuation from recovered bounded reply and preserve exact current-source mode."
+    },
+    {
+      "original_requirement_id": "EG-19",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "e4e4fbc03670afdf6b1a9bad7e925ec9ce6b0394",
+      "acceptance_contract": "Run a working_tree review through MCP for scoped current VB and SQL with a split staged/unstaged file and untracked companion. Confirm exact submitted paths, complete scoped guidance and advisory prior decisions, separate staged action, and the native basis in initial and recovered output."
     }
   ],
   "dossier_webforms_history_source_batch_20261120": [
