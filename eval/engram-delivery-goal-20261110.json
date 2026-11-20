@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "webforms_vb_event_subscription": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-31 trace from a WebForms action to its source-declared handler and downstream evidence",
+      "observed_gap": "Installed LegacyValidation generation 3222 responds to event ctrlBulkEditTasks.TasksUpdated with page-load context but no event receiver. The source explicitly subscribes ctrlBulkEditTasks_TasksUpdated at line 29 of taskmanagement.aspx.vb.",
+      "implementation": ["crates/engram_server/src/services/request_trace/control_events.rs", "crates/engram_server/src/services/request_trace/execution.rs", "crates/engram_server/src/handlers/request_trace_delivery.rs"],
+      "acceptance": "The explicit event returns the source-cited VB subscription and admitted handler at line 33, preserving ordinary load context. Unrelated, commented and string examples are excluded. Compact and recovered reports preserve the subscription identity. No runtime execution inference.",
+      "source_commit": "c40ee73678f1c44e4ae5dda7cb4f21875bf4391a",
+      "verification": "Installed MCP at generation 3222 reproduced the omission. A focused build of the current request trace module with cached dependencies ran four changed or neighboring validations. With exact LegacyValidation Git blobs and owned admitted graph evidence, the event selected the receiver at line 33 and the subscription cited the exact source line 29 and BLAKE3. The compact record retained line, handler and hash, with the excerpt deferred. Separately authored fixtures covered independent load/markup/Handles entries, unrelated and commented subscriptions, and stale handler source. Public MCP delivery and exact recovery on the compiled release are pending.",
+      "retention": "Retain the small reproduction script and numeric receipt under current-task-check/webforms-vb-event-subscription-20261120 until combined MCP acceptance is recorded. Owned graph and compiler fixtures were closed and removed. No live project files were changed."
+    },
     "edit_session_saved_change_set": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "requirement": "TODO-29 edit-session advisory reconciliation using the complete change-set report preserved by EG-02",
@@ -3479,7 +3489,7 @@
       "acceptance": "Write admission tolerates brief parser ownership without using another parser identity, and reports a bounded busy refusal if ownership persists. Read-only admission and the publication fence retain their existing behavior.",
       "verification": "The retained actual rollback MCP runs showed a busy refusal before generation advance, with a successful subsequent edit after retry. A focused executable compiled the exact changed lock code and committed regression test. With the original mutex held, reader admission refused, a sustained short writer wait returned busy, and a writer waited and acquired the same coordinator after release. The incremental scan now captures parser authority once in its existing blocking worker before stat-cache or publication work. The candidate already awaiting quiescence predates this change. No Cargo build or live write ran."
     },
-    "next_action": "Continue ready source work for the following release. The method, integrity and folder history package is installed and verified."
+    "next_action": "Validate the three queued original outcomes together through the normal public MCP entry points using one combined release. The preceding method, integrity and folder history package is installed and verified."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -3907,6 +3917,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "284dc9cc1e20f7eabe8ef69a0604d3879bc5ec83",
       "acceptance_contract": "Use a real bounded get_change_set response from a disposable VB.NET/WebForms and SQL project. Close an edit session by dossier_response_id and verify the advisory references match inline completion with the recovered original. A wrong dossier ID must leave the first lifecycle retryable. Verify closing response recovery independently when the completion report is deferred."
+    },
+    {
+      "original_requirement_id": "TODO-31",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "c40ee73678f1c44e4ae5dda7cb4f21875bf4391a",
+      "acceptance_contract": "Trace the actual LegacyValidation TasksUpdated event from the pinned selected WebForms source. Verify the admitted receiver at line 33, the direct VB subscription at line 29, matching source fingerprints, ordinary load context, and compact citation plus exact immutable recovery."
     }
   ],
   "dossier_webforms_history_source_batch_20261120": [
