@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "SOURCE_REFRESH_BROWSER_DOWNLOAD_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "history_trace_browser_answer_release": {
+      "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
+      "frozen_source_commit": "7b71b74ed987cbf9f227d776826bd892113b4c02",
+      "requirements": ["TODO-36/TODO-55", "TODO-4/TODO-31", "TODO-28/TODO-27"],
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/history-trace-browser-answer-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "a53900853224cbbf9bbb39c436ce2020d1141ecc5d0ade3cf6cf56215f192765"},
+      "evidence": "Installed MCP verified normal source publication while both Git limits still warmed co-change, that an undersized compact trace returned only a budget error, and that the source-hash-matched ordinary browser answer showed one indexed writer site. The owned process closed and its fixture was removed.",
+      "active_processes": "Release, candidate and idle-live-install drivers are bound in pipeline-owner.json. Use exact current process identities or terminal receipts before making any retry.",
+      "next_acceptance": "Run the queued public candidate checks and install its exact package when idle. Verify the same historical live 40 KiB failure through exact recovery and both actual LegacyValidation browser writer sites and source guard on fresh MCP.",
+      "temporary_resources": "Build and public fixture owners close and remove their own resources. Retain package, plans and terminal receipts in the case."
+    },
     "ask_browser_multiple_access_sites": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "requirement": "TODO-28 ordinary questions and TODO-27 shared browser-storage evidence preserve actual LegacyValidation operations",
