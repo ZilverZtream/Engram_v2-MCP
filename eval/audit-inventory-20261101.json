@@ -1612,7 +1612,8 @@
       "required_behavior": "Complete immutable multi-chunk revisions survive shrinking, deletion, rename and partial extraction/vector failure.",
       "state": "Partial: native and actual no-vector public multi-chunk shrink8to2/delete, complete held initial/intermediate bodies, unchanged sibling physical identity and cold reopen now pass against deployed runtime source. Retained public rename and later embedding/extraction-failure retry evidence remains. Partial native-storage upsert failure is not established by provider failure; no full19 closure.",
       "current_evidence": "execution_evidence_20261101.s02_complete_revision_rename_and_failures_20261103",
-      "public_shrink_delete_validation_20261111": "eval/s02-public-revision-completeness-validation-20261111.json"
+      "public_shrink_delete_validation_20261111": "eval/s02-public-revision-completeness-validation-20261111.json",
+      "installed_webforms_shrink_delete_20261120": "eval/engram-delivery-goal-20261110.json#current_execution_focus.s02_installed_webforms_shrink_delete"
     },
     {
       "id": "S03",
