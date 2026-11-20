@@ -2697,6 +2697,13 @@
       "TODO-28"
     ],
     "implementation_items_active": 0,
+    "legacy_validation_quickstart_exact_source": {
+      "status": "DOCUMENTED_AND_LIVE_MCP_VERIFIED",
+      "requirement": "TODO-54 first verified query and EG-26 current tool contract",
+      "implementation": ["docs/QUICKSTART.md"],
+      "receipt": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/legacy_validation-quickstart-exact-read-20261120/receipt.json", "sha256": "86f4808587d4f9d61070f71fc2b17c40a608d8b81786ff6e0e8afeee7fa95fd4"},
+      "evidence": "Fresh installed LegacyValidation MCP returned the task-management code-behind from lexical search. Exact source freshness matched indexed and independently read disk BLAKE3 at generation 3231, and the guard-pinned reader returned lines 549–606 exactly. This updates the existing-project quickstart. No model call, reindex, build or application write was required."
+    },
     "native_target": "maintenance_history_interaction_batch",
     "expected_native_cases": 13,
     "native_label": "native3",

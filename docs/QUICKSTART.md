@@ -9,14 +9,22 @@ machine and repository.
 ## If LegacyValidation is already registered
 
 Use the existing Engram connection. Call `list_projects` with `{}` and copy the
-project ID for the correct LegacyValidation directory. Call `get_index_freshness` with that
-ID before relying on indexed results. Reuse the existing registration and runtime
-configuration; the separate sample setup below is for a first connection.
+project ID for the correct LegacyValidation directory. Reuse the existing registration and
+runtime configuration.
 
-For the first search, choose a function name you can see in the current checkout.
-Use `search_memory` with that name, `semantic: false` and `include_content: true`.
-Check the returned path and source, then use its `doc_id` with `get_chunk` if you
-need the stored source. An empty search does not establish that a function is absent.
+If you need to locate a file, call `search_memory` with the project ID, a known
+function name in `query`, `semantic: false`, `include_content: true` and
+`output_json: true`. Use the hit's `path` and `line_start` to locate the source.
+An empty search leaves the function's presence unknown.
+
+For a known file, call `get_index_freshness` with the project ID and its exact
+project-relative path in `source_files`. When the file reports
+`matching_fingerprint`, pass that path as `file_path` and the returned
+`disk_blake3` as `expected_file_blake3` to `get_full_method_body`. Use the
+hit's `line_start` or start at line 1, and set `context_lines: 0`. The hash guard
+refuses the read if the bytes changed. A matching fingerprint verifies the
+file bytes for that selected revision. A parser change may still require a
+refresh.
 
 ## From a method to a QA plan
 
