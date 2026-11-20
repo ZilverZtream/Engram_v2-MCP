@@ -12,7 +12,7 @@ use std::panic::AssertUnwindSafe;
 
 const LOCAL: &str = "export function save() { localStorage.setItem('K', '1'); }\nexport function read() { return localStorage.getItem('K'); }\nexport function remove() { localStorage.removeItem('K'); }\n";
 const CLEAR: &str = "function clearLocal() { localStorage.clear(); }\n";
-const SESSION: &str = "export function readSession() { return sessionStorage.getItem('K'); }\nexport function clearSession() { sessionStorage.clear(); }\n";
+const SESSION: &str = "// K is handed back from the callback.\nconst value = sessionStorage.getItem('K');\nexport function clearSession() { sessionStorage.clear(); }\n";
 const GUIDE: &str = "Exception: read-only previews never submit.\n";
 
 fn body(result: &CallToolResult) -> &str {
@@ -181,11 +181,22 @@ async fn ordinary_browser_questions_keep_key_roles_and_separate_store_wide_clear
         let session = fixture
             .ask("Where is sessionStorage.getItem('K') read?")
             .await?;
+        let session_rows = facts(&session);
+        let read = session_rows
+            .iter()
+            .find(|row| row["roles"] == json!(["reader"]))
+            .ok_or_else(|| anyhow::anyhow!("Missing top-level SessionStorage read"))?;
+        let site = &read["access_sites"][0];
+        let range = site["byte_range"].as_array().unwrap();
+        let start = range[0].as_u64().unwrap() as usize;
+        let end = range[1].as_u64().unwrap() as usize;
+        ensure!(read["source_scope"] == "file" && read["declaration_lines"].is_null());
+        ensure!(site["role"] == "reader" && site["line"] == 2);
+        ensure!(SESSION.get(start..end) == Some("sessionStorage.getItem('K')"));
+        ensure!(site["excerpt"] == "sessionStorage.getItem('K')");
+        ensure!(read["source_recovery"]["arguments"]["line_start"] == 2);
         ensure!(
-            !facts(&session).is_empty()
-                && facts(&session)
-                    .iter()
-                    .all(|row| row["state_type"] == "SessionStorage")
+            session_rows.iter().all(|row| row["state_type"] == "SessionStorage")
         );
         let clear_only = fixture
             .ask("What can clear localStorage key 'NeverAccessedLiterally'?")

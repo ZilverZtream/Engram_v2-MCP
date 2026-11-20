@@ -8,7 +8,50 @@ use regex::Regex;
 use serde_json::{Value, json};
 use std::sync::LazyLock;
 
-pub const INTERPRETATION: &str = "Indexed browser-storage reader/writer candidates whose source matches the held selected revision and raw file hash. Key-specific excerpts are literal-key windows in indexed declarations, not verified access-site or compiler bindings. Clear operations are separately source-admitted store-wide candidates. Project membership does not prove a shared browser origin, tab/session, script inclusion, built-in binding, execution order or stored value. Dynamic keys and unsupported extraction remain unknown; source reads and graph observations are not an atomic snapshot.";
+pub const INTERPRETATION: &str = "Indexed browser-storage reader/writer candidates with access spans in hash-matched selected source. Each relationship may retain a single observation per role. Clear operations are separately source-admitted store-wide candidates. Project membership does not prove a shared browser origin, tab/session, script inclusion, built-in binding, execution order or stored value. Dynamic keys and unsupported extraction remain unknown; source reads and graph observations are not an atomic snapshot.";
+
+#[derive(serde::Serialize)]
+pub(super) struct AccessSite<'a> {
+    role: &'a str,
+    pub line: u32,
+    pub end_line: u32,
+    byte_column: usize,
+    byte_range: [usize; 2],
+    pub excerpt: String,
+    pub excerpt_truncated: bool,
+}
+
+pub(super) fn access_site<'a>(
+    metadata: Option<&Value>,
+    source: &str,
+    role: &'a str,
+) -> Option<AccessSite<'a>> {
+    let metadata = metadata?;
+    let number = |field| metadata.get(field)?.as_str()?.parse::<usize>().ok();
+    let start = number("state_access_byte")?;
+    let end = number("state_access_end_byte")?;
+    let access = source.get(start..end)?;
+    if access.is_empty() {
+        return None;
+    }
+    let preceding = &source.as_bytes()[..start];
+    let line = preceding.iter().filter(|&&byte| byte == b'\n').count() + 1;
+    let column = preceding.iter().rev().take_while(|&&byte| byte != b'\n').count() + 1;
+    if line != number("state_access_line")? || column != number("state_access_column")? {
+        return None;
+    }
+    let end_line = line + access.trim_end_matches('\n').bytes().filter(|&byte| byte == b'\n').count();
+    let excerpt: String = access.chars().take(2048).collect();
+    Some(AccessSite {
+        role,
+        line: line as u32,
+        end_line: end_line as u32,
+        byte_column: column,
+        byte_range: [start, end],
+        excerpt_truncated: excerpt.len() < access.len(),
+        excerpt,
+    })
+}
 static MENTIONS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
     r#"(?i)\b(localStorage|sessionStorage)(?:\s*\.\s*(?:getItem|setItem|removeItem)\s*\(\s*|\s+(?:key\s+)?)(?:"([^"\r\n]{1,512})"|'([^'\r\n]{1,512})'|`([^`\r\n]{1,512})`)"#

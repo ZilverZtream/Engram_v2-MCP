@@ -1,5 +1,6 @@
 //! Exact legacy state mentions reuse indexed relationships and current source evidence.
 use super::{
+    browser_state,
     evidence::{Authority, EvidenceItem, EvidenceKind},
     status::{AnswerStatus, ProviderReport, ProviderStatus},
 };
@@ -161,6 +162,7 @@ pub fn collect(
     out.provider.truncated = requested.len() > 3;
     for query in requested.iter().take(3) {
         let state_id = engram_core::ids::NodeId::state(query.state_type, &query.key).0;
+        let browser = matches!(query.state_type, "LocalStorage" | "SessionStorage");
         for (kind, role) in [
             (EdgeKind::WritesState, "writer"),
             (EdgeKind::ReadsState, "reader"),
@@ -205,33 +207,62 @@ pub fn collect(
                     missing += 1;
                     continue;
                 };
-                let lines: Vec<_> = source.lines().collect();
                 let file_level = node.node_type == "file" && node.node_id == format!("file:{path}");
-                if !file_level
-                    && (node.start_line == 0
-                        || node.end_line < node.start_line
-                        || node.end_line as usize > lines.len())
-                {
-                    missing += 1;
-                    continue;
-                }
-                let (start, end) = if file_level {
-                    (0, lines.len())
+                let site = if browser {
+                    let Some(site) = browser_state::access_site(edge.metadata.as_ref(), source, role)
+                    else {
+                        missing += 1;
+                        continue;
+                    };
+                    Some(site)
                 } else {
-                    (node.start_line as usize - 1, node.end_line as usize)
+                    None
                 };
-                let Some(offset) = lines[start..end]
-                    .iter()
-                    .position(|line| line.contains(&query.key))
-                else {
-                    missing += 1;
-                    continue;
+                let (citation, recovery_line, source_excerpt, excerpt_truncated) = if let Some(site) = &site {
+                    (
+                        Some((site.line, site.end_line)),
+                        site.line as usize,
+                        json!(site.excerpt),
+                        site.excerpt_truncated,
+                    )
+                } else {
+                    let lines: Vec<_> = source.lines().collect();
+                    let declaration = if file_level {
+                        Some(lines.as_slice())
+                    } else {
+                        (node.start_line as usize).checked_sub(1)
+                            .and_then(|start| lines.get(start..node.end_line as usize))
+                    };
+                    let Some((declaration, offset)) = declaration.and_then(|declaration| {
+                        let offset = declaration.iter().position(|line| line.contains(&query.key))?;
+                        Some((declaration, offset))
+                    }) else {
+                        missing += 1;
+                        continue;
+                    };
+                    if file_level {
+                        (None, 1, Value::Null, false)
+                    } else {
+                        let low = offset.saturating_sub(2);
+                        let high = (offset + 4).min(declaration.len());
+                        let window = declaration[low..high].join("\n");
+                        let excerpt: String = window.chars().take(2048).collect();
+                        (
+                            Some((node.start_line + low as u32, node.start_line + high as u32 - 1)),
+                            node.start_line as usize + low,
+                            json!(excerpt),
+                            excerpt.len() < window.len(),
+                        )
+                    }
                 };
                 let identity = format!("{}:{}:{}", query.state_type, query.key, node.node_id);
                 if let Some(position) = positions.get(&identity) {
                     let item = &mut out.items[*position];
                     let mut content: Value = serde_json::from_str(&item.content)?;
                     content["roles"].as_array_mut().unwrap().push(json!(role));
+                    if let Some(site) = site {
+                        content["access_sites"].as_array_mut().unwrap().push(json!(site));
+                    }
                     item.content = content.to_string();
                     continue;
                 }
@@ -239,46 +270,38 @@ pub fn collect(
                     out.provider.truncated = true;
                     continue;
                 }
-                let low = if file_level {
-                    0
-                } else {
-                    (start + offset).saturating_sub(2).max(start)
-                };
-                let high = if file_level {
-                    0
-                } else {
-                    (start + offset + 4).min(end)
-                };
-                let window = lines[low..high].join("\n");
-                let excerpt_truncated = window.chars().count() > 2048;
-                let excerpt: String = window.chars().take(2048).collect();
                 if !out.matched_names.contains(&query.key) {
                     out.matched_names.push(query.key.clone());
                 }
-                out.file_scoped_count += usize::from(file_level);
-                let warnings = if file_level {
+                let unlocalized = file_level && site.is_none();
+                out.file_scoped_count += usize::from(unlocalized);
+                let warnings = if unlocalized {
                     vec![INTERPRETATION.into(), FILE_SCOPE.into()]
                 } else {
                     vec![INTERPRETATION.into()]
                 };
                 positions.insert(identity.clone(), out.items.len());
+                let mut content = json!({"evidence_kind":"legacy_state_access_candidate","state_type":query.state_type,
+                    "state_key":query.key,"roles":[role],"indexed_symbol_id":node.node_id,"indexed_declaration":node.name,
+                    "source_scope":if file_level {"file"} else {"indexed_declaration"},
+                    "declaration_lines":if file_level {Value::Null} else {json!([node.start_line,node.end_line])},"raw_blake3":hash,
+                    "source_excerpt":source_excerpt,"excerpt_truncated":excerpt_truncated,
+                    "source_recovery":{"tool":"get_full_method_body","arguments":{"project_id":project,
+                        "file_path":path,"line_start":recovery_line,"context_lines":0,"output_json":true,"expected_file_blake3":hash}},
+                    "interpretation":INTERPRETATION});
+                if let Some(site) = site {
+                    content["access_sites"] = json!([site]);
+                }
                 out.items.push(EvidenceItem {
                     memory_record: None,
                     evidence_id: format!("legacy_state_{}", out.items.len() + 1),
                     document_id: None, document_namespace: None,
                     source_verification: Some(format!("CURRENT_FILE_HASH_MATCH:{hash}")),
                     kind: EvidenceKind::GraphRelation, authority: Authority::CurrentCode,
-                    path: Some(path.into()), lines: (!file_level).then_some((low as u32 + 1, high as u32)),
+                    path: Some(path.into()), lines: citation,
                     symbol_id: Some(format!("legacy_state:{identity}")),
                     title: Some(format!("{}(\"{}\") indexed state candidate: {}", query.state_type, query.key, node.name)),
-                    content: json!({"evidence_kind":"legacy_state_access_candidate","state_type":query.state_type,
-                        "state_key":query.key,"roles":[role],"indexed_symbol_id":node.node_id,"indexed_declaration":node.name,
-                        "source_scope":if file_level {"file"} else {"indexed_declaration"},
-                        "declaration_lines":if file_level {Value::Null} else {json!([node.start_line,node.end_line])},"raw_blake3":hash,
-                        "source_excerpt":if file_level {Value::Null} else {json!(excerpt)},"excerpt_truncated":excerpt_truncated,
-                        "source_recovery":{"tool":"get_full_method_body","arguments":{"project_id":project,
-                            "file_path":path,"line_start":low+1,"context_lines":0,"output_json":true,"expected_file_blake3":hash}},
-                        "interpretation":INTERPRETATION}).to_string(),
+                    content: content.to_string(),
                     generation: Some(node.generation), commit: None, timestamp: None,
                     confidence: 0.85, relevance: 1.0, extraction_method: "selected_source_indexed_state".into(),
                     warnings, provider: "legacy_state".into(), score: None, directness: Some(1.0),

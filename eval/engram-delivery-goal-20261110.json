@@ -3238,7 +3238,15 @@
       "acceptance": "Retain the published selection through cancellation and output, reuse one verified target read for body and diagnostics, and withhold unselected target/caller file revisions. Preserve exact method selection and legacy fingerprint qualifications. Do not claim live graph or policy atomicity.",
       "verification": "Installed LegacyValidation baseline returned the exact authored bulk-edit call in the task-management LoadComplete method, without selected-source generation or fingerprint status. The focused executable used the exact source verifier, real selected Tantivy revisions and GraphStore with actual LegacyValidation Git bytes. It retained inherited revision 1 at published generation 2 and refused future caller and file observations with unchanged bytes. The existing handler regression fixture now tests equivalent public behavior. Source content is read once per target or admitted caller. A worker owns the pinned lookup, and the public request retains the view through reply construction. Candidate MCP and installation remain pending. No Cargo build."
     },
-    "next_action": "Advance a separate ready original requirement. Implementation-context source admission is queued for combined packaged MCP verification; other S06 consumers remain open."
+    "browser_storage_access_citations": {
+      "status": "IMPLEMENTED_FOCUSED_ACTUAL_SOURCE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-27 browser-storage state tracking and TODO-28 source-backed answers for existing LegacyValidation workflows",
+      "observed_gap": "Installed ask_codebase identifies the LegacyValidation authcallback_status writer and reader, but localizes them only to a declaration window at line 51 and the beginning of login.js. Independent Git source and trace_state_usage agree on the indexed write at line 52 and read at line 8.",
+      "implementation": ["crates/engram_server/src/services/ask_engine/literal_state.rs", "crates/engram_server/src/services/ask_engine/browser_state.rs", "crates/engram_server/tests/ask_browser_storage.rs"],
+      "acceptance": "For the existing browser question, cite the indexed read and write spans in hash-matched selected source and make source recovery open the access line. Disclose stale or unproved access evidence. Keep store-wide clear candidates separate and preserve legacy state behavior.",
+      "verification": "Installed baseline returned reader recovery line 1 and writer recovery line 51. The focused executable compiled the changed collector/provider against cached dependencies with an owned GraphStore. It used the two immutable LegacyValidation files with Git checkout filters, matched the independently observed installed raw hashes and indexed positions, recovered the read at line 8 and the write at line 52, and withheld only the changed read file. Owned test resources closed. The fixture first exposed LF Git blob versus indexed CRLF checkout differences and was corrected without a Cargo build. The public server fixture is updated; packaged MCP and installation remain pending."
+    },
+    "next_action": "Advance a separate ready original requirement. Implementation-context source admission and browser citations are queued for combined packaged MCP verification."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
