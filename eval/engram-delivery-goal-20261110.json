@@ -2660,7 +2660,7 @@
       "verification": "Verified five allowed build/test argument forms and six refusals, including workspace-wide and unfiltered library suites. The real dry-run entry point returned exit 2 with the scope error before launch. No Cargo process or live installation started.",
       "coverage": "This applies to the existing delivery entry point. The preceding compiler profile trial did not establish a speedup and this change makes no latency claim."
     },
-    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-trace-integrity-candidate-20261120",
+    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-qa-job-workflows-candidate-20261120",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "incremental_codegen": {
@@ -2986,8 +2986,18 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "QA_TRACE_INTEGRITY_PACKAGE_VERIFIED_ACTIVE_CLIENT_PRESERVED",
+    "status": "SOURCE_QA_JOB_WORKFLOWS_COMBINED_CANDIDATE_RUNNING",
     "implementation_items_active": 0,
+    "source_qa_job_workflows_candidate": {
+      "status": "FROZEN_COMBINED_RELEASE_CANDIDATE_RUNNING",
+      "source_commit": "5dd6977a3c7c424112713439100b172303790a50",
+      "plan_sha256": "4a220b9967f0e59a32316253ff9d1355967119403f53dc6a36cfc9608462007b",
+      "execution_session_id": 7378,
+      "owner": {"driver_pid": 3952, "relay_pid": 37352, "path": "release1-owner.json", "sha256": "8aeaa5bb3dbda789b1e733056ee5fd68b95ea6b113603d0db1902af76b4d2090"},
+      "driver": {"path": "run-candidate.py", "sha256": "84cfa4ad696a0c816aaae9a66970f6176348b17dc2fa8089c2474cd5a9ebc8f5"},
+      "acceptance": "Eight bounded public cases for nine cumulative source changes across six original requirements. Compare exact files to pinned Git blobs; exercise unchanged refresh, setting identities and reads, LegacyValidation bulk-copy trace and QA, and both queued job workflow changes. The queued job check also verifies handler-owned search and unknown-tool dispatch.",
+      "cadence": "One optimized shared-target build and package only after candidate checks. The prior verified Windows archive and current live client remain independent. No automatic live cutover or full test suite."
+    },
     "qa_setting_axis_source_identity": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "LegacyValidation setting-aware QA and S06 selected-source evidence",
@@ -5197,6 +5207,44 @@
     }
   ],
   "next_source_batch_pending": [
+    {
+      "original_requirement_id": "S16",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "15c5472d7a8a855294cb891f93b8d4fa94b9b35e",
+      "acceptance_contract": "Compare exact indexed and disk hashes against independently hashed Git blobs on LegacyValidation defaultProject.js."
+    },
+    {
+      "original_requirement_id": "S06",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "c649b22be3e06071db61cfd34051d6f4a6aa0081",
+      "acceptance_contract": "Expose typed same-label VB setting identities and follow revision-admitted, hash-guarded literal setting line actions."
+    },
+    {
+      "original_requirement_id": "TODO-55",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "f5be173f8dd4a54ceba0aafc73e54069195a70dc",
+      "acceptance_contract": "Opt-in unchanged exact JS skips new publication in sync and queued modes. Changed bytes and explicit force publish while an outside edit remains inherited."
+    },
+    {
+      "original_requirement_id": "TODO-31",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "f55e62bdef26d76934d372551d7254592a581911",
+      "acceptance_contract": "Trace and scope QA for the actual LegacyValidation bulk-copy destination; compare code lines and guarded reads against original source."
+    },
+    {
+      "original_requirement_id": "TODO-37",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "de8fd9ebf5921cbedcfb669c3d2780d4fcc20d9d",
+      "acceptance_contract": "Follow queued poll actions and verify no running notices or repeated terminal discovery notifications. Foreground update still notifies."
+    },
+    {
+      "original_requirement_id": "TODO-4",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "a6bab8bf1cb6ac10ad45e7e61f882441be26d129",
+      "acceptance_contract": "Registered schemas, handler-owned search, shared receipt delivery and unknown-tool dispatch use the single requested definition correctly."
+    }
+  ],
+  "qa_trace_integrity_packaged_source_batch_20261120": [
     {
       "original_requirement_id": "EG-18",
       "status": "CANDIDATE_PACKAGE_VERIFIED",
