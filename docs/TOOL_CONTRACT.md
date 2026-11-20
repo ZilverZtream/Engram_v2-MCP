@@ -2098,6 +2098,9 @@ green; empty metadata does not prove no mutation, cancellation or outbound call.
 Unsupported sync-hazard languages stay explicit. Paths and heuristic scores do not
 prove runtime safety or value flow; input producers may lie outside reverse impact.
 Same-class overloads require `line`. `include_caller_bodies=true` adds full source;
+`caller_expansion` explains per-caller omissions. An edited caller's indexed body
+is withheld while the selected target and other verified bodies are returned.
+The caller identity inventory remains in `method_info.called_by`.
 `include_history=false` omits history, and `merged_before` limits historical leads.
 Default downstream summaries retain counts, coverage, representative witnesses and
 bounded callable navigation. `downstream_detail=graph` changes presentation with the

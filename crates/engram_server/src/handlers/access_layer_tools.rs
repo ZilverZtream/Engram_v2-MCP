@@ -485,6 +485,8 @@ pub struct MethodEditContextResult {
     pub focused_checks: Vec<serde_json::Value>,
     pub full_source: Option<String>,
     pub caller_bodies: Vec<CallerBody>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub caller_expansion: Option<CallerExpansion>,
     pub caller_excerpts: Vec<super::caller_excerpts::CallerExcerpt>,
     pub unresolved_caller_leads: super::unresolved_callers::UnresolvedCallerLeads,
     /// Bounded shipped-file history leads, including explicit lookup failures.
@@ -2373,7 +2375,7 @@ fn compute_edit_safety(
         completeness,
         downstream_impact: None,
         target_source: None,
-        evidence_interpretation: "The blast_radius_score/risk_band and confidence are uncalibrated advisory heuristics, not measured probabilities of safe edits or a comprehensive safety assessment. Direct caller lists are live graph observations; caller bodies use current-disk/index checks and are not all validated against the downstream source selection. Downstream paths separately check indexed node/file/edge revisions under their named held generation. Static exposure is not proof of breakage or runtime safety.",
+        evidence_interpretation: "The blast_radius_score/risk_band and confidence are uncalibrated advisory heuristics, not measured probabilities of safe edits or a comprehensive safety assessment. Direct caller lists are live graph observations. Optional full caller bodies use the selected caller and edge revisions where managed selection is available. Caller excerpts are lexical leads checked separately against disk fingerprints. Downstream paths separately check indexed node/file/edge revisions under their named held generation. Static exposure is not proof of breakage or runtime safety.",
     }
 }
 
@@ -2785,6 +2787,23 @@ fn expand_caller_bodies(
     (bodies, expansion)
 }
 
+fn render_caller_expansion_markdown(expansion: &CallerExpansion, md: &mut String) {
+    md.push_str(&format!(
+        "## Caller Expansion\n\nRequested: {}; attempted: {}; status: {}; returned: {}; cap: {}; truncated: {}.\n\n{}\n\n",
+        expansion.requested, expansion.attempted, expansion.status, expansion.returned,
+        expansion.cap, expansion.truncated, expansion.coverage_interpretation,
+    ));
+    if let Some(reason) = &expansion.omission_reason {
+        md.push_str(&format!("Omission reason: {reason}\n\n"));
+    }
+    for omission in &expansion.omissions {
+        md.push_str(&format!("- {omission}\n"));
+    }
+    if let Some(action) = &expansion.next_action {
+        md.push_str(&format!("\nNext action: {action}\n\n"));
+    }
+}
+
 fn render_method_body_markdown(result: &MethodBodyResult) -> String {
     if let Some(page) = &result.file_excerpt {
         let mut longest = 0usize;
@@ -2856,21 +2875,7 @@ fn render_method_body_markdown(result: &MethodBodyResult) -> String {
     md.push_str(&result.source_code);
     md.push_str("\n```\n\n");
 
-    let expansion = &result.caller_expansion;
-    md.push_str(&format!(
-        "## Caller Expansion\n\nRequested: {}; attempted: {}; status: {}; returned: {}; cap: {}; truncated: {}.\n\n{}\n\n",
-        expansion.requested, expansion.attempted, expansion.status, expansion.returned,
-        expansion.cap, expansion.truncated, expansion.coverage_interpretation,
-    ));
-    if let Some(reason) = &expansion.omission_reason {
-        md.push_str(&format!("Omission reason: {reason}\n\n"));
-    }
-    for omission in &expansion.omissions {
-        md.push_str(&format!("- {omission}\n"));
-    }
-    if let Some(action) = &expansion.next_action {
-        md.push_str(&format!("\nNext action: {action}\n\n"));
-    }
+    render_caller_expansion_markdown(&result.caller_expansion, &mut md);
 
     if !result.caller_bodies.is_empty() {
         md.push_str("## Caller Bodies\n\n");
@@ -2996,6 +3001,9 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
 
     // Callers: compact identity lines by default; fenced bodies only when
     // the caller opted into include_caller_bodies (source_code non-empty).
+    if let Some(expansion) = &ctx.caller_expansion {
+        render_caller_expansion_markdown(expansion, &mut md);
+    }
     if !ctx.caller_bodies.is_empty() {
         let total = match &ctx.edit_safety.completeness.callers {
             ProviderStatus::Truncated {
@@ -4444,10 +4452,32 @@ impl Engram {
             validate_held_method_revision(&graph, &project_id, &node, membership.as_ref())?;
             let ev = assemble_edit_evidence(&graph, &project_id, &project_dir, node)?;
 
-            // Callers: identities always (from the same exact list the
-            // verdict used); full SOURCE only on request — a well-connected
-            // method returned tens of thousands of tokens from this section.
-            let mut caller_bodies: Vec<CallerBody> = Vec::new();
+            // Keep the advisory's caller identities. Optional body reads
+            // independently verify each caller and can withhold stale source.
+            let (caller_bodies, caller_expansion) = if include_caller_bodies {
+                let (bodies, expansion) = expand_caller_bodies(
+                    &graph,
+                    &project_id,
+                    &project_dir,
+                    Some(&ev.node),
+                    membership.as_ref(),
+                    true,
+                    max_callers.min(CALLER_CAP),
+                );
+                (bodies, Some(expansion))
+            } else {
+                let bodies = ev.method_info.called_by.iter().take(max_callers).map(|caller| {
+                    CallerBody {
+                        fqn: caller.fqn.clone(),
+                        file_path: caller.file_path.clone(),
+                        line_start: caller.line,
+                        line_end: caller.line_end,
+                        source_code: String::new(),
+                        how_it_calls: format!("{} edge → {}", caller.edge_kind, ev.node.name),
+                    }
+                }).collect();
+                (bodies, None)
+            };
             let mut caller_excerpts = Vec::new();
             let mut excerpt_budget = 64 * 1024 * 1024;
             for c in ev.method_info.called_by.iter().take(max_callers) {
@@ -4459,26 +4489,6 @@ impl Engram {
                     &ev.node.name,
                     &mut excerpt_budget,
                 ));
-                let source_code = if include_caller_bodies {
-                    verify_indexed_source_span(&graph, &project_id, &project_dir, &c.file_path)?;
-                    match safe_join(Path::new(&project_dir), &c.file_path)
-                        .ok()
-                        .and_then(|p| read_lines_from_file(&p, c.line, c.line_end, 0).ok())
-                    {
-                        Some((body, _)) => body,
-                        None => format!("(source unavailable: could not read {})", c.file_path),
-                    }
-                } else {
-                    String::new()
-                };
-                caller_bodies.push(CallerBody {
-                    fqn: c.fqn.clone(),
-                    file_path: c.file_path.clone(),
-                    line_start: c.line,
-                    line_end: c.line_end,
-                    source_code,
-                    how_it_calls: format!("{} edge → {}", c.edge_kind, ev.node.name),
-                });
             }
 
             let unresolved_caller_leads = super::unresolved_callers::lookup(
@@ -4507,6 +4517,7 @@ impl Engram {
                     None
                 },
                 caller_bodies,
+                caller_expansion,
                 caller_excerpts,
                 unresolved_caller_leads,
                 historical_changes: None,
