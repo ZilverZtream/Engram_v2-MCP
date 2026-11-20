@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "SOURCE_REFRESH_BROWSER_DOWNLOAD_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "ask_browser_multiple_access_sites": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-28 ordinary questions and TODO-27 shared browser-storage evidence preserve actual LegacyValidation operations",
+      "observed_gap": "Live ask_codebase for LegacyValidation defaultProjectId returns only the setLocalStorageProj writer site at line 27. The deployed index retains both the set and removal (lines 27 and 30), shown by trace_state_usage.",
+      "implementation": ["crates/engram_server/src/services/ask_engine/browser_state.rs", "crates/engram_server/src/services/ask_engine/literal_state.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Live public ask for defaultProjectId includes both admitted writer sites, their exact source spans and distinct role metadata. Reader/stores, existing hash-qualified recovery, outdated-state fallback and omitted-site disclosure remain.",
+      "source_commit": "1de13bb75078087da76e9dacac8ceb59c637edf7",
+      "verification": "Live baseline ordinary ask returned writer line 27 only, with both readers. The focused check used the exact amended span validator and actual live writer metadata/hash, verified setItem at line 27 and removeItem at line 30, rejected a wrong source line and retained older single-site data. Packaged provider integration and deployment remain pending.",
+      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/ask-browser-access-sites-20261120/focused-receipt.json",
+      "temporary_resources": "Owned probe files were removed. No Cargo build or full suite ran."
+    },
     "request_trace_navigation_recovery": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGED_MCP",
       "requirement": "TODO-4 bounded complete delivery and TODO-31 usable static request traces",
@@ -4548,6 +4559,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "c3b01724774ead98d279670a3b43c446ae12f022",
       "acceptance_contract": "Trace an LegacyValidation WebForms download at the prior failing caller budget and follow the exact original recovery action without replay. Verify path omission count, source hashes, response clues and runtime coverage in the original. Check normal compact replies and tiny-budget refusal."
+    },
+    {
+      "original_requirement_id": "TODO-28/TODO-27",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "1de13bb75078087da76e9dacac8ceb59c637edf7",
+      "acceptance_contract": "Use ordinary ask_codebase on actual LegacyValidation defaultProjectId. Verify both operations and exact indexed source bytes in one writer item, two reader locations, and hash-guarded source recovery. Check stale and older observations and per-role coverage with an owned fixture."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
