@@ -1696,7 +1696,11 @@ internal sealed class AstEmitter
             var targetName = SanitizeName(method?.ToDisplayString(BareQualifiedNameFormat) ?? callee.ToString());
             var invocationMetadata = new Dictionary<string, string>();
             if (method is null) invocationMetadata["unresolved"] = "true";
-            if (method is { } calledMethod
+            // The graph admits exact dispatch evidence only for function-to-function
+            // edges. Accessors are indexed under their containing property node.
+            if (kind == "property")
+                invocationMetadata["via"] = "property_accessor";
+            else if (method is { } calledMethod
                 && calledMethod.ContainingType.TypeKind == TypeKind.Interface)
             {
                 var locator = SourceInterfaceMember(calledMethod);
@@ -1751,7 +1755,6 @@ internal sealed class AstEmitter
             }
             invocationMetadata["call_site_line"] = Line(tree, site).ToString();
             invocationMetadata["args"] = (invocation?.ArgumentList?.Arguments.Count ?? 0).ToString();
-            if (kind == "property") invocationMetadata["via"] = "property_accessor";
             edges.Add(new EdgeDto
             {
                 SourceName = source, SourceKind = kind, SourceStartLine = startLine,

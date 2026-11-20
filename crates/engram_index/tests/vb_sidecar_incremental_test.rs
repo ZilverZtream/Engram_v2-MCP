@@ -102,7 +102,11 @@ impl Drop for Harness {
 fn parameterless_reads_are_calls_and_array_subscripts_are_not() {
     let Some(bin) = sidecar_path() else { return };
     let mut harness = Harness::start(&bin);
-    let source = r#"Public Class Report
+    let source = r#"Public Interface IScale
+    Function Factor() As Integer
+End Interface
+Public Class Report
+    Public Scale As IScale
     Public Function CurrentBatch() As Integer
         Return 3
     End Function
@@ -111,7 +115,7 @@ fn parameterless_reads_are_calls_and_array_subscripts_are_not() {
     End Function
     Public ReadOnly Property Batch As Integer
         Get
-            Return Me.CurrentBatch
+            Return Me.CurrentBatch + Scale.Factor()
         End Get
     End Property
 End Class"#;
@@ -121,11 +125,16 @@ End Class"#;
     let calls = reply["edges"].as_array().expect("parse must return edges").iter()
         .filter(|edge| edge["kind"] == "calls")
         .collect::<Vec<_>>();
-    assert_eq!(calls.len(), 3, "{calls:?}");
-    assert!(calls.iter().all(|edge| edge["target_name"] == "Report.CurrentBatch"));
+    assert_eq!(calls.len(), 4, "{calls:?}");
+    assert_eq!(calls.iter().filter(|edge| edge["target_name"] == "Report.CurrentBatch").count(), 3);
     assert_eq!(calls.iter().filter(|edge| edge["source_name"] == "Report.Read").count(), 2);
     assert!(calls.iter().any(|edge| edge["source_name"] == "Report.Batch"
-        && edge["metadata"]["via"] == "property_accessor"));
+        && edge["target_name"] == "IScale.Factor"));
+    for edge in calls.iter().filter(|edge| edge["source_name"] == "Report.Batch") {
+        assert_eq!(edge["metadata"]["via"], "property_accessor");
+        assert!(edge["metadata"].get("source_call_status").is_none());
+        assert!(edge["metadata"].get("interface_call_status").is_none());
+    }
 }
 
 const SOURCE_V1: &str = "Class Widget\n  Public Sub Alpha()\n  End Sub\nEnd Class\n";
