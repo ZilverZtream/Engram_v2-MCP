@@ -2971,7 +2971,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "CONTEXT_BROWSER_EVENT_RELEASE_INSTALLED_AND_MCP_VERIFIED",
+    "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "verified_base_record": "eval/history-schema-review-candidate-20261119.json",
     "record": "eval/cumulative-agent-workflows-candidate-20261119.json",
@@ -3299,31 +3299,31 @@
       "retention": "Owned build job, fixture runtimes and temporary directories closed. Keep release inputs, receipts and the prior installed pair for rollback and audit."
     },
     "feature_dossier_context_budget": {
-      "status": "IMPLEMENTED_FOCUSED_ACTUAL_REPORT_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "requirement": "TODO-32 bounded pre-edit planning dossier for the calling agent",
       "observed_gap": "Installed one_shot_feature_plan with dossier_only for the actual LegacyValidation marker-as-built export gathered sources, returned a recoverable report and set INCOMPLETE/planning_context_limit despite using no generation calls.",
       "implementation": ["crates/engram_server/src/handlers/feature_plan_tools.rs"],
       "acceptance": "The original large dossier returns SOURCE_DOSSIER_READY with zero generation calls, unchanged source admission/freshness checks and exact paged recovery. A generated proposal retains the planning-context input cap.",
-      "verification": "The installed baseline's 378614-byte MCP result was recovered byte-for-byte in three public pages under hash 04863c764d25e507fb3ff82591eb58acb6e19297536cc11ed12e787a948e41a9. Actual LegacyValidation source at generation 3222 supplied 19 admitted files and 206809 serialized planning-context bytes. The focused executable used the exact amended decision and current fingerprint check against that report and those checked-out files. It returned SOURCE_DOSSIER_READY with zero generation calls and unchanged admitted source, refused a changed generation, and retained planning_context_limit for proposal mode. No Cargo build or production source edit. Candidate and installed verification of the amended binary are pending."
+      "verification": "The installed baseline's 378614-byte MCP result was recovered byte-for-byte in three public pages under hash 04863c764d25e507fb3ff82591eb58acb6e19297536cc11ed12e787a948e41a9. Actual LegacyValidation source at generation 3222 supplied 19 admitted files and 206809 serialized planning-context bytes. The focused executable used the exact amended decision and current fingerprint check against that report and those checked-out files. It returned SOURCE_DOSSIER_READY with zero generation calls and unchanged admitted source, refused a changed generation, and retained planning_context_limit for proposal mode. No Cargo build or production source edit. Candidate and installed MCP verification passed in dossier_webforms_history_release."
     },
     "webforms_literal_script_resolution": {
-      "status": "IMPLEMENTED_FOCUSED_ACTUAL_SOURCE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "requirement": "TODO-31 WebForms client-side source navigation and declared hosting dependencies",
       "observed_gap": "Installed get_page_context omits Site/reporting-assets/legacy_validation-report.js, declared by Site/modules/dashboard/pages/public/producedq/producedq.aspx line 590 through a literal ResolveUrl application path. The same template script extractor supplies indexed hosting dependencies.",
       "implementation": ["crates/engram_index/src/webforms.rs", "crates/engram_index/tests/webforms_script_includes_test.rs"],
       "acceptance": "Resolve the actual application-relative literal in page composition and retain the correct source file and fingerprint. Preserve literal src behavior and exclude variable and concatenated expressions. Runtime execution and existing graph refresh are independently qualified.",
-      "verification": "The fresh installed get_page_context returned only the markup component. A focused executable compiled the changed WebForms module, existing page composition and neighboring script regression tests against cached dependencies. All 41 checks passed, including the exact immutable LegacyValidation page/script pair copied to an owned fixture: source edge line 590, client_script component with the authored page as declaring file and matching normalized fingerprint. Tests retained the dynamic exclusion with a variable input and covered concatenations and runat=server. No Cargo build, production write or reindex. Candidate and installed get_page_context verification remain pending."
+      "verification": "The fresh installed get_page_context returned only the markup component. A focused executable compiled the changed WebForms module, existing page composition and neighboring script regression tests against cached dependencies. All 41 checks passed, including the exact immutable LegacyValidation page/script pair copied to an owned fixture: source edge line 590, client_script component with the authored page as declaring file and matching normalized fingerprint. Tests retained the dynamic exclusion with a variable input and covered concatenations and runat=server. No Cargo build, production write or reindex. Candidate and installed MCP verification passed in dossier_webforms_history_release."
     },
     "exact_file_recent_history_patch": {
-      "status": "IMPLEMENTED_FOCUSED_ACTUAL_PATCH_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "requirement": "TODO-4 actionable bounded search_history results for the original usable-history workflow",
       "observed_gap": "Live recent history filtered to LegacyValidation Site/modules/system/DownloadFile.aspx.vb returns exact commits and paths. Each row offers whole-commit recovery but omits the callable exact-file MCP patch, requiring a second discovery step.",
       "implementation": ["crates/engram_server/src/handlers/history_response.rs", "crates/engram_server/tests/history_bounded_acquisition.rs"],
       "acceptance": "The requested file row supplies an executable exact patch pinned to the commit and resolved revision. Older windows preserve their own revision basis, and a directory filter adds no exact-file action. Existing complete commit recovery and budgets remain intact.",
-      "verification": "The installed recent-file rows omitted the exact patch action. Focused compiled report code composed the action from the real LegacyValidation file, commit a1581c1f and captured revision 0a9fbcfc, confirming JSON, rendered action, Windows path normalization and directory exclusion. The installed public patch tool executed those exact generated arguments. Its 8975-byte patch applied to the old Git blob in an owned repository and reconstructed the new blob byte-for-byte. The owned fixture closed. The history regression fixture now exercises the action after advancing HEAD and across an older result window. No Cargo build. Candidate and installed verification of the amended recent tool remain pending."
+      "verification": "The installed recent-file rows omitted the exact patch action. Focused compiled report code composed the action from the real LegacyValidation file, commit a1581c1f and captured revision 0a9fbcfc, confirming JSON, rendered action, Windows path normalization and directory exclusion. The installed public patch tool executed those exact generated arguments. Its 8975-byte patch applied to the old Git blob in an owned repository and reconstructed the new blob byte-for-byte. The owned fixture closed. The history regression fixture now exercises the action after advancing HEAD and across an older result window. No Cargo build. Candidate and installed MCP verification passed in dossier_webforms_history_release."
     },
     "dossier_webforms_history_release": {
-      "status": "FROZEN_OWNED_BASELINE_VERIFIED",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dossier-webforms-history-20261120",
       "source_commit": "d5c083b154c21a4ad4fa579c12b0048eeb1e33bc",
       "original_requirement_ids": [
@@ -3331,11 +3331,50 @@
         "TODO-31",
         "TODO-4"
       ],
-      "baseline_sha256": "e0bc7b1e96bbb5161c947aa18c10e7344e4786190ef32c6803b8aafe679e94d8",
-      "verifier_sha256": "9e29c8746a6867f14e73bade7bddd5f24d84696aba5ab088cc0aa3c05a10ccbb",
-      "retention": "Keep acceptance inputs and owned runner logs for release verification. The first baseline fixture omitted its authored codebehind, received an index error, and exited. The corrected baseline included the exact companion; owner and temporary resources closed."
+      "proof": {
+        "baseline_sha256": "e0bc7b1e96bbb5161c947aa18c10e7344e4786190ef32c6803b8aafe679e94d8",
+        "build_sha256": "40f50a9b97b946c0392fd1e018d26a0053295d32c098b819c73fc4690b8da599",
+        "package_sha256": "0d82f7c5ac8a6c77d832fe265a7a8ddd03eb287379b268e5eeb3b0087bda4200",
+        "candidate_public_sha256": "3b99ce70f1389bce86e660d6588f3dfe1e99582de791d9403348db044f949e4c",
+        "installed_public_sha256": "470003f12bd28061e96f52f25057fddf302e618ca6468c5f43b8b57a973310f2",
+        "live_cutover_sha256": "ea2ba06c4c816214a99d79398e70723a97819795f540f0cf94867e047640c9fe",
+        "forward_transition_sha256": "8c83f28fd3bd60f091d13b2e0e7f03889f01043e0b43a6bcdbc43f1baddedcb1",
+        "verifier_sha256": "9e29c8746a6867f14e73bade7bddd5f24d84696aba5ab088cc0aa3c05a10ccbb",
+        "live_verifier_sha256": "c4dea57330ea7d1e9daf3b5095892f63f99ab25cdf3f9ef00fdb0f8f92b0fdd8"
+      },
+      "build": {
+        "optimized_builds": 1,
+        "seconds": 546.6038107000022,
+        "full_test_suites": 0
+      },
+      "package": {
+        "binary_sha256": "526a384daad4522c0faa4aa0e7cee9f718e2b0d210d78f208460e5ad78360d07",
+        "manifest_sha256": "01bdc3218d4229ea4224dad19342b7e390d32e84cc242a90aa102a626796bf9b",
+        "archive_sha256": "b358b7f310d1e5e8b5ff743b721a6ec97f866a31ff64bb8a4d24c85109e0915f",
+        "sidecar_assets_unchanged": 214
+      },
+      "installed": {
+        "generation": 3222,
+        "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-1ae2c29e4bc1470699267752578e2980",
+        "daemon_pid": 45416,
+        "dossier_context_bytes": 210994,
+        "dossier_source_files": 20,
+        "dossier_generation_calls": 0,
+        "webforms_script": "Site/reporting-assets/legacy_validation-report.js",
+        "webforms_script_hash": "831ad7a94c75400a41f1db3a6accb23147a1035b067f69fcdf197ccb9913566d",
+        "history_file": "Site/modules/system/DownloadFile.aspx.vb",
+        "history_commit": "a1581c1f875192da74c7c381c40cbcb81f7fd8d3",
+        "history_patch_blake3": "32ed071d08b963e0bbb08124c16ea71d68e75b6355f191bdc397bef0fff9f8e2"
+      },
+      "acceptance": [
+        "Fresh LegacyValidation one_shot_feature_plan returned SOURCE_DOSSIER_READY for the real marker-as-built export, with 20 admitted files, 210994 planning-context bytes, zero generation calls, and hash-verified immutable paging. The same RPC was observed pending twice at 30-second observation intervals. No latency improvement is claimed.",
+        "Installed get_page_context identified the reporting client script for the actual produced-quantities page with a normalized source hash checked against the tracked file. The amended extractor separately returned the source declaration at line 590 in a focused check.",
+        "Installed search_history returned a callable exact-file patch pinned to the selected file, historical commit and scope revision. The actual patch reconstructed the next Git blob byte-for-byte in a new owned Git repository."
+      ],
+      "limits": "Generated-plan semantic acceptance, task-usefulness gates, runtime browser execution, previously indexed graph refresh and the full original backlog remain open.",
+      "retention": "Owned processes, temporary repositories and build resources closed. Keep release inputs, receipts and the prior package pair for rollback and audit. The corrected baseline included the authored companion fixture."
     },
-    "next_action": "Build one shared package and verify all three public workflows before recording installed delivery."
+    "next_action": "Advance the next ready original requirement. This release is installed and its three public checks are verified."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -3731,7 +3770,8 @@
     "builds_started": 0,
     "retention": "Temporary Git index removed. Keep the receipt for the next combined validation after the staged release is resolved."
   },
-  "next_source_batch_pending": [
+  "next_source_batch_pending": [],
+  "dossier_webforms_history_source_batch_20261120": [
     {
       "original_requirement_id": "TODO-32",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
