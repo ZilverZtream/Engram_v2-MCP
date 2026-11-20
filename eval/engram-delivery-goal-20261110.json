@@ -2971,7 +2971,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "HISTORY_TRACE_BROWSER_ANSWER_RELEASE_INSTALLED_AND_MCP_VERIFIED",
+    "status": "GIT_FRESHNESS_EDIT_SAFETY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "verified_method_edit_context_release": {
       "status": "OWNED_BASELINE_MCP_VERIFIED_RELEASE_INPUTS_QUEUED",
@@ -3017,7 +3017,7 @@
       "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/edit-advisory-target-source-focused-20261120.json"
     },
     "git_freshness_edit_safety_release": {
-      "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "frozen_source_commit": "9594a6b62f507b0d1fc27b83b5d0d3a4ec0e46b4",
       "requirements": ["TODO-5", "TODO-4/EG-09", "TODO-33/TODO-4"],
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/git-freshness-edit-safety-20261120",
@@ -3025,38 +3025,45 @@
       "candidate_verifier": {"path": "verify-public.py", "sha256": "b83d80747c8b2e7db514a0d959ac69c695fb61127a3075ffaa6f5b5e2c230dab"},
       "release_plan": {"path": "release-plan.json", "sha256": "eef0a23c3801af1ce8e9740e0aece2a08c172bcfa287a409d595b59f928e1d9f"},
       "evidence": "Installed owned MCP confirms the Git compare option and batched safety are refused, while standalone text shows the actual VB caller and JSON omits caller locations and freshness. The standalone server exited and its fixture was removed. The shared verifier owns its fixture and captures direct, saved and refreshed results against Git and source evidence.",
-      "active_processes": "Build, candidate and idle-live-install driver identities are recorded in pipeline-owner.json. Poll them or their terminal receipts. The existing shared release target and detached checkout were reused.",
+      "installed_binary_sha256": "0237ac67283d3431df48a9f64b4249b98b1bcba4858eb07c180d62668887a67b",
+      "installed_manifest_sha256": "df5101330fe078ed8d595e77c010d62de531452849b85e9b62e7bc5447e7d18d",
+      "installed_generation": 3223,
+      "candidate_receipt": {"path": "candidate/receipt.json", "sha256": "6b950b23a5c099ae00a9837ae00274f2f0532778ae1872bc3d1ab23286cadd66"},
+      "installed_owned_receipt": {"path": "installed/receipt.json", "sha256": "338c5af0822bb2bdd8363080f3e7bf22a5830b95fb2220fd2dc87489e04b10ac"},
+      "live_receipt": {"path": "live-cutover/status.json", "sha256": "56ed7bb54ea75bc40dd4251ea2ceb94bd28efd7b96f0526947508c550e456943"},
+      "delivery": "Candidate and installed owned MCP report absent, differing and matching local Git history tips through committed source edits and normal history indexing. Source generation advanced independently with exact SQL fingerprints. Standalone JSON recovered seven pages with caller identity and timestamp details. The batch recovered twelve pages with the exact source hash, freshness, advisory and separate method error. Live LegacyValidation local origin and indexed tips agree and Resolve is reported at declaration line 92.",
+      "build_seconds": 830.7,
       "verification_correction": "Before candidate execution, the verifier was corrected to expect a stale-source refusal after changing file bytes. It separately touches the original bytes to verify the timestamp warning. The previous verifier and its digest are retained. The frozen release source is unchanged.",
-      "next_acceptance": "Run the queued owned MCP and exact recovery checks against the candidate, then verify the installed pair and live LegacyValidation local origin tip and indexed VB caller. Package verification precedes idle-only cutover."
+      "temporary_resources": "The build, owned public fixtures and live verification processes terminated and cleaned their temporary directories. Release artifacts and receipts are retained. Managed installation retained the prior binary/sidecar pair."
     },
     "batched_edit_safety": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "9594a6b62f507b0d1fc27b83b5d0d3a4ec0e46b4",
       "requirement": "TODO-33 batched context acquisition and TODO-4 complete bounded read delivery",
       "observed_gap": "Installed batch_read refuses check_edit_safety with MCP invalid params before reading any requested evidence. Agents preparing an LegacyValidation WebForms edit cannot ask for source, freshness and the method safety advisory in the same read batch.",
       "implementation": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/handlers/batch_read_tools.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
       "acceptance": "Public MCP batch source, exact-file freshness and edit safety for the same actual LegacyValidation method. Preserve request order, independently observed safety errors and complete scoped policy, caller and freshness evidence through whole-result omission and exact saved recovery. Verify the single-call recovery arguments remain callable.",
-      "verification": "Installed MCP refused the new batch operation as an unknown variant. The focused exact request/schema check passed, preserving the source selector, output format, summary default and callable single-tool action. Temporary probe artifacts were removed; public integration is pending.",
+      "verification": "Candidate and installed public MCP preserve ordered source, freshness and safety results with one independent request error. The exact deferred result was recovered in twelve pages and the saved single-tool action was callable.",
       "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/batch-edit-safety-focused-20261120.json"
     },
     "structured_edit_safety_evidence": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "64cf166e7957f7d153ef87037687f395225f90c3",
       "requirement": "TODO-4 consistent structured evidence and the original source-backed LegacyValidation edit-safety workflow",
       "observed_gap": "Standalone check_edit_safety computes caller locations and a file-time qualification for Markdown, but returns early in JSON before including either. The same verdict therefore reaches automated callers without the direct-call leads or the freshness qualification available in ordinary text.",
       "implementation": ["crates/engram_server/src/handlers/access_layer_tools.rs", "docs/TOOL_CONTRACT.md"],
       "acceptance": "Compare JSON and Markdown for the same indexed VB method with a real caller, retaining the same verdict, declared caller location, caller display limit and freshness qualifiers. Verify ordinary authored policy stays scoped to the selected method and existing exact saved-result recovery retains the new fields.",
-      "verification": "Installed Markdown includes FileLayerZoomPolicy.Resolve at declaration line 92 for ClassifyAutomatic. Independent LegacyValidation Git shows Resolve's declaration at 92 and its invocation at 96. A focused check compiled the exact report and freshness types with cached dependencies, exercised a newer file warning and an omitted caller, and preserved the previous advisory fields. Temporary probe files were removed. Public candidate integration is pending.",
+      "verification": "Candidate and installed owned public MCP return the same declaration and verdict in text and JSON, preserve the scoped guide and recover the original advisory after the source changes. The controlled timestamp-only change warns and changed bytes refuse. Live LegacyValidation JSON reports FileLayerZoomPolicy.Resolve at 92.",
       "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/structured-edit-safety-focused-20261120.json"
     },
     "git_tip_in_index_freshness": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "7d3282f6dd2a191f7741db57191f16ffbfc7fcb1",
       "requirement": "TODO-5 freshness metadata and independent indexed Git history after source-only refresh",
       "observed_gap": "Live LegacyValidation get_index_freshness(check_disk=false) returns source generation 3223 and no indexed or target Git tip. Source-only updates can leave the Git history watermark behind while independently publishing source.",
       "implementation": ["crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/handlers/git_tools.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
       "acceptance": "An opt-in read reports the recorded Git tip and the same local default branch tip the forward indexer uses, distinguishes no indexed history, matching tips and differing tips without a worktree scan or commit walk, and preserves ordinary source freshness and exact-source API output.",
-      "verification": "Two focused checks compiled the exact functions with cached dependencies. Compared output with LegacyValidation's independently read local origin default ref and an owned no-origin Git repository. Covered absent, matching, differing, invalid, and unavailable target states. Owned temporary inputs and binaries were removed. Full MCP integration is pending.",
+      "verification": "Candidate and installed public MCP verified absent and differing tips, source-only advance with matching SQL fingerprint, and tip realignment after normal history indexing. Live LegacyValidation independently matches the local origin default ref at 0a9fbcfc3757da9c0f7754ca2d836805afdf83a6.",
       "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/git-tip-freshness-focused-20261120.json"
     },
     "history_trace_browser_answer_release": {
@@ -4669,27 +4676,27 @@
       "acceptance_contract": "Use ordinary ask_codebase on actual LegacyValidation defaultProjectId. Verify both operations and exact indexed source bytes in one writer item, two reader locations, and hash-guarded source recovery. Check stale and older observations and per-role coverage with an owned fixture."
     }
   ],
-  "next_source_batch_pending": [
+  "git_freshness_edit_safety_delivered_batch": [
     {
       "original_requirement_id": "TODO-5",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "7d3282f6dd2a191f7741db57191f16ffbfc7fcb1",
       "acceptance_contract": "From fresh MCP, call default, exact-source and project-wide opt-in freshness. In an owned WebForms Git fixture establish no indexed tip, index history, then publish a new source revision with max_commits zero. Compare the previous recorded tip, new local target and new source generation against independent Git and source evidence. Run positive history indexing and observe matching tips. Compare live LegacyValidation target tip with the local origin default ref."
     },
     {
       "original_requirement_id": "TODO-4/EG-09",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "64cf166e7957f7d153ef87037687f395225f90c3",
       "acceptance_contract": "Compare complete Markdown and JSON on actual LegacyValidation FileLayerZoomPolicy.ClassifyAutomatic, independently matching Resolve declaration at 92 and its invocation at 96. Verify scoped policy and unchanged advisory. Use an owned edit and caller fixture to show stale time status and bounded caller locations, then use the existing report recovery to retain the original after the edit."
     },
     {
       "original_requirement_id": "TODO-33/TODO-4",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "9594a6b62f507b0d1fc27b83b5d0d3a4ec0e46b4",
       "acceptance_contract": "Batch actual LegacyValidation source, exact-file freshness and edit safety with one distinct failed safety request. Confirm ordering, independent errors and scoped caller/freshness evidence, then recover complete original safety and failures through the shared budget using exact continuation. Check the recovery action remains callable."
     }
   ],
-  "following_source_batch_pending": [
+  "next_source_batch_pending": [
     {
       "original_requirement_id": "S06",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
