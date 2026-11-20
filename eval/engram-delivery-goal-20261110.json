@@ -2971,49 +2971,83 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SQL_FRESHNESS_WEBFORMS_TRACE_RELEASE_INSTALLED_AND_MCP_VERIFIED",
+    "status": "SOURCE_REFRESH_BROWSER_DOWNLOAD_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "source_refresh_browser_download_release": {
-      "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
+      "status": "INSTALLED_AND_FRESH_MCP_CONNECTED",
       "frozen_source_commit": "2fdaa270c472a487978222372de1dea84a4eea2d",
-      "requirements": ["TODO-36/TODO-55", "TODO-27", "TODO-31"],
+      "requirements": [
+        "TODO-36/TODO-55",
+        "TODO-27",
+        "TODO-31"
+      ],
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/source-refresh-browser-download-20261120",
-      "baseline": {"path": "baseline/receipt.json", "sha256": "c19162613b31c5f66f6943d23b42d6ee2d5cfffbb010e4c47f77718a4c5a0368"},
+      "baseline": {
+        "path": "baseline/receipt.json",
+        "sha256": "c19162613b31c5f66f6943d23b42d6ee2d5cfffbb010e4c47f77718a4c5a0368"
+      },
       "evidence": "One owned MCP fixture confirmed the prior zero-commit limit indexed the new commit, the browser writer kept one indexed access, and both LegacyValidation download traces lacked source response metadata. The baseline exited and the fixture was removed.",
-      "active_processes": "The single release, candidate stage and idle cutover drivers are bound in pipeline-owner.json. Consult the exact owner identities or terminal receipts before any retry.",
-      "next_acceptance": "The packaged check reopens a store seeded by the previous package, verifies fallback, refreshes source and tests both retained browser operations, the Git watermark and loopback provider boundary, and both source-cited download traces. Install only after the candidate passes and the live service is idle. The managed swap preserves the live selected generation. Validate the installed artifact and record current versus refreshed LegacyValidation browser evidence explicitly.",
-      "temporary_resources": "The build driver owns its compiler scratch and each MCP fixture owns its project/data/loopback endpoint. Retain the release package, manifests and receipts under this case."
+      "temporary_resources": "Release and public fixture owners removed their temporary directories. The prior package pair, archive and receipts remain retained. Wider storage and downgrade gates remain open.",
+      "binary_sha256": "374a8d39228f383c1d14d3a77af4c3b4ced355e9e88722f9c01d479f6ef106fe",
+      "manifest_sha256": "cfac6b02f3f30efdc47af85c64c4acf64c4aa63bb3857401c402e4a83bd9f17d",
+      "archive_sha256": "4c1d50e08df3278983ef94f2df7ef5b8867d663fda42645b8fb128730e7b5f2e",
+      "build": "One Cargo release, 15m26s compilation and 938.880s with runner cleanup. No extra build or full suite.",
+      "candidate_mcp": {
+        "path": "candidate/receipt.json",
+        "sha256": "0a206ba7d0b26550539387046b9ac94a0756127d7402b78e3f90a7c9eb4690c0"
+      },
+      "installed_mcp": {
+        "path": "installed/receipt.json",
+        "sha256": "c923bccebed7cd079d5153764f83eff01fd2aa6c9cb3887076b8066a2b954e14"
+      },
+      "live_readback": {
+        "path": "live-readback/receipt.json",
+        "sha256": "8c167691584d45f8d23eef16746ecf184f292f397b1be28c0d68f19d9cf2ce11",
+        "generation": 3222
+      },
+      "live_browser_refresh": {
+        "path": "live-browser-refresh/receipt.json",
+        "sha256": "aba56c435a95e4a0d71efc12cc0286be5a84b5bf884a7339450a96ab7d580fa0",
+        "generation": 3223
+      },
+      "forward_transition": {
+        "path": "live-cutover/forward-transition.json",
+        "sha256": "87b7e98387f99dc9a1e40679f62e91d30d09340cf2504943e3fb611b850554ff"
+      },
+      "acceptance": "Candidate and installed MCP passed the three workflows. The quiescent managed swap preserved generation 3222. Subsequent live readback verified both LegacyValidation download traces, and one authorized exact-file refresh advanced generation to 3223 and exposed both observed defaultProjectId writer sites. The unrelated sampled VB source retained revision 3159. No clients were disconnected.",
+      "fixture_corrections": "The first candidate verifier assumed a specific legacy representative and ordering. It was corrected to verify the two retained site identities regardless of ordering, using the exact same packaged binary. The first live trace request supplied a budget below the reported complete-navigation minimum. It was retried with 65,536 bytes through a fresh connection without repeating the swap or build. The first wire captures remain in the case.",
+      "next_action": "Advance another ready original requirement."
     },
     "webforms_http_response_trace": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "requirement": "TODO-31 trace_user_request retains authored response evidence along selected WebForms paths.",
       "observed_gap": "Live load-page trace of actual LegacyValidation DownloadFile.aspx selects Page_Load and the streaming helper, but both compact source members have zero displayed lines and omit the authored HTTP 401, dynamic content type and Content-Disposition response header. The installation report download similarly lacks separately cited application/pdf.",
       "implementation": ["crates/engram_server/src/services/request_trace/execution.rs", "crates/engram_server/src/services/request_trace/tests.rs", "crates/engram_server/src/handlers/request_trace_delivery.rs", "docs/TOOL_CONTRACT.md"],
       "acceptance": "Public MCP traces of the actual download files match their guarded source lines and hashes, retain 401, the dynamic MIME expression, Content-Disposition and literal application/pdf as applicable, and preserve metadata across compaction/exact recovery. No response execution, status propagation or dynamic header value is inferred.",
       "source_commit": "6f160697007ab5d7ae9771fed3aa88b0c53599e7",
-      "verification": "Live baseline selected DownloadFile.aspx lines 12–69 and 75–109 with zero shown lines and no metadata; actual report download selected lines 5–35. Four focused checks executed the exact tokenizer and parser against these actual bodies and independent raw source hashes, and validated comment/comparison rejection, literal/dynamic handling and existing redirect and startup-script behavior. Compact retention coverage added to the existing test. Public MCP and deployment await the combined release.",
+      "verification": "Candidate and installed MCP verified both actual LegacyValidation download source copies. Fresh live MCP verified identity and lines 19, 91 and 92 for status, dynamic MIME expression and header name, plus application/pdf at line 18 on the installation report. The compact live trace recovered exactly across seven pages after raising the budget.",
       "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/webforms-response-metadata-20261120/focused-receipt.json",
       "limits": "Cited lexical response statements only. Effective response status and HTTP execution remain unknown. The compiler fixture was removed and no Cargo build ran."
     },
     "browser_storage_multiple_access_sites": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "requirement": "TODO-27 agent-visible JS/TS browser state access evidence for LegacyValidation",
       "observed_gap": "Installed trace_state_usage for LegacyValidation defaultProjectId shows removeItem at line 30 but misses setItem at line 27, which shares the same containing function/key write relationship. The actual module-storage_pr_id trace similarly reports one of its two indexed writes.",
       "implementation": ["crates/engram_index/src/parsing/modern_state/browser_storage.rs", "crates/engram_index/src/parsing.rs", "crates/engram_index/src/source_contract.rs", "crates/engram_server/src/handlers/cognitive_tools/state_trace.rs"],
       "acceptance": "After a normal refresh, public trace of an owned copy of actual LegacyValidation code reports setItem and removeItem in the same indexed writer relationship with correct positions and source hash. Preserve key identity and reader separation, bound repeats and disclose omissions, and preserve explicit older-index fallback.",
       "source_commit": "d0e7db00b620cf35ff841f7afda9b3683434a558",
-      "verification": "Live installed MCP retained only line 30 for the actual defaultProjectId writer. A focused test executed the exact grouping function with the actual line 27/30 operations and checked eight retained sites, three reported omissions, legacy representative and separate reader. Added a parser regression for one JS owner setting and removing the same key. The per-file observation marker makes old JS/TS metadata eligible for normal refresh. Packaged extraction, graph publication and trace verification remain pending.",
+      "verification": "Candidate and installed MCP opened the previous package index, labeled its single observation, refreshed it and verified both actual writer calls plus separate readers/stores, exact raw source positions, and the eight-site cap with two reported omissions. Live targeted refresh of only defaultProject.js verified setItem at line 27 and removeItem at line 30 with the indexed LegacyValidation hash.",
       "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/browser-storage-access-sites-20261120/focused-receipt.json",
       "limits": "Indexed positions are bound to the indexed source hash. Runtime storage effects and dynamic keys remain unknown. Compiler fixtures were removed. No Cargo or release build ran."
     },
     "update_project_zero_history_budget": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "requirement": "Accepted TODO-36 bounded Git-history indexing cost and TODO-55 interactive source refresh tuning",
       "observed_gap": "The installed S11 WebForms fixture's real project-wide update_project(max_commits=0) still processed one newly committed change and sent its commit message and patches to the provider. Zero is clamped to one before refresh enrichment.",
       "implementation": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/handlers/git_tools.rs", "crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md", "docs/TUNING.md"],
       "acceptance": "Normal and queued updates with an exact zero limit reflect the new source/deletion and explicitly skip Git enrichment, with no new history messages, patches or watermark movement. An unchanged source refresh also skips pending commits. A later explicit positive history run indexes those commits. Default, positive limits and only_paths remain usable.",
       "source_commit": "4b92b2d181564433e1cb92efa336314139b89754",
-      "verification": "The prior installed S11 receipt demonstrates a full source update with max_commits zero nevertheless ingesting one Git commit and uploading its history message and patches to the owned loopback provider. A focused test of the actual amended clamp and skip path verified zero exits before repository access or writer setup and positive caps stay unchanged. Actual tool routing, job reporting and publication await packaged MCP checks.",
+      "verification": "Candidate and installed MCP published distinct VB.NET and SQL changes through synchronous and queued max_commits zero updates, with unchanged Git watermark and no history provider inputs. An unchanged refresh with pending commits skipped Git. Explicit positive history indexing subsequently processed all three pending commits.",
       "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/zero-history-source-refresh-20261120/focused-receipt.json",
       "resources": "Owned compiler scratch was removed. First focused link attempt lacked a Windows import library; equivalent standard-library probe then passed. No Cargo build or production mutation."
     },
@@ -4480,22 +4514,23 @@
       "acceptance_contract": "Index an owned VB/WebForms and TypeScript or SQL fixture, advance one file's revision, and verify MCP exact-file freshness matches inherited bytes and detects an equal-size disk edit. Compare live LegacyValidation selected physical revision to exact-file integrity and raw disk hash to independent source."
     }
   ],
-  "next_source_batch_pending": [
+  "next_source_batch_pending": [],
+  "source_refresh_browser_download_delivered_batch": [
     {
       "original_requirement_id": "TODO-36/TODO-55",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "4b92b2d181564433e1cb92efa336314139b89754",
       "acceptance_contract": "In one owned WebForms Git project, publish VB and SQL edits through synchronous and queued max_commits zero requests, and run an unchanged refresh with pending commits. Observe source fingerprints, explicit skip and no provider Git inputs or indexed watermark advance. Invoke normal positive history indexing and confirm pending commits appear."
     },
     {
       "original_requirement_id": "TODO-27",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "d0e7db00b620cf35ff841f7afda9b3683434a558",
       "acceptance_contract": "Index the actual LegacyValidation defaultProject.js with the old package. Open its owned store with the candidate, verify fallback, refresh the same source and trace both setItem and removeItem positions with one writer identity and the independently verified source hash. Verify bounded repeated sites with omission count and separate readers/stores."
     },
     {
       "original_requirement_id": "TODO-31",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "6f160697007ab5d7ae9771fed3aa88b0c53599e7",
       "acceptance_contract": "Trace both actual LegacyValidation download paths via MCP. Match source hashes and the exact lines for HTTP 401, Content-Disposition, unresolved dynamic MIME type and application/pdf. Recover compact original evidence and verify that no dynamic header values or runtime claims are supplied."
     }
