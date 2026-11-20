@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "settings_catalog_pagination": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-4 bounded response delivery and pagination across existing tools",
+      "observed_gap": "Live LegacyValidation settings catalog reported 2,023 indexed settings. Two categories exceed the 500-per-category maximum, leaving 745 rows inaccessible through list_settings. Existing deferred response recovery preserves only the rows selected for the current request.",
+      "implementation": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/handlers/settings_tools.rs", "crates/engram_server/src/tools.rs"],
+      "acceptance": "Each indexed category advances by the requested page size, retains its total and remaining count, and emits a callable same-scope continuation until all observed rows are reachable. Existing exact-source mode and bounded reply recovery remain usable.",
+      "source_commit": "2384613b688cc0a39445e9a10086e59f63833284",
+      "verification": "Live MCP recovered the 180,700-byte old catalog exactly in nine pages: 1,278 rows displayed, 745 omitted, and no catalog continuation. The focused compiled request, ordering and render code exercised independently seeded 2,023 rows: 1,278 on the first page and 745 more with no duplicates. Added a handler regression fixture for scope preservation and exhaustion. Packaged MCP remains pending. No release build or full suite ran.",
+      "limits": "Each page reads the current index. The actual LegacyValidation catalog scan hit its existing node cap, so 2,023 is an observed count only. Changing graph acquisition or expecting immutable cross-page consistency is outside this pagination change.",
+      "retention": "Retain the numeric receipt and focused script under current-task-check/settings-catalog-pagination-20261120 through packaged acceptance. The temporary compiler fixture closed and was removed."
+    },
     "webforms_vb_event_subscription": {
       "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "requirement": "TODO-31 trace from a WebForms action to its source-declared handler and downstream evidence",
@@ -4007,7 +4018,14 @@
       "acceptance_contract": "Trace the actual LegacyValidation TasksUpdated event from the pinned selected WebForms source. Verify the admitted receiver at line 33, the direct VB subscription at line 29, matching source fingerprints, ordinary load context, and compact citation plus exact immutable recovery."
     }
   ],
-  "next_source_batch_pending": [],
+  "next_source_batch_pending": [
+    {
+      "original_requirement_id": "TODO-4",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "2384613b688cc0a39445e9a10086e59f63833284",
+      "acceptance_contract": "Follow callable list_settings continuations in a scoped fixture with more than one page per category. Verify exact row coverage, remaining counts and no cross-scope rows. Run generated continuation from recovered bounded reply and preserve exact current-source mode."
+    }
+  ],
   "dossier_webforms_history_source_batch_20261120": [
     {
       "original_requirement_id": "TODO-32",
