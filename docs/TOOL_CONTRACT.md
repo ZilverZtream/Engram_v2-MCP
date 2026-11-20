@@ -1959,6 +1959,9 @@ For a deterministic question such as â€œWhat changed recently in Site/Reports/?â
 `as_of` sets the starting revision for the bounded first-parent history. Commit
 and file-patch follow-ups use the resolved commit, and an older-window action
 continues from an earlier first parent. An unavailable revision returns an error.
+Literal file paths with spaces may be double quoted, single quoted or
+backticked. A path with a directory and file extension can also be plain.
+Use a trailing slash for an unquoted directory containing spaces.
 `depth`, `output_format`, `deadline_ms` and complete-result recovery retain their
 existing schemas and semantics.
 

@@ -36,19 +36,28 @@ pub(super) fn requested_path(question: &str) -> Option<String> {
             .starts_with(prefix)
             .then(|| question[prefix.len()..].trim())
     })?;
-    let path = if let Some(quoted) = path.strip_prefix('\x60') {
-        quoted.strip_suffix('\x60')?
-    } else {
-        if path.chars().any(char::is_whitespace) {
-            return None;
-        }
-        path
+    let delimiter = path.chars().next().filter(|c| matches!(c, '\x60' | '"' | '\''));
+    let path = match delimiter {
+        Some(delimiter) => path.strip_prefix(delimiter)?.strip_suffix(delimiter)?,
+        None => path,
     };
     let path = path.replace('\\', "/");
     let normalized = path.strip_suffix('/').unwrap_or(&path);
-    let has_file_extension = Path::new(normalized)
-        .extension()
-        .is_some_and(|extension| !extension.is_empty());
+    let extension = Path::new(normalized).extension();
+    let has_file_extension = extension.is_some_and(|extension| !extension.is_empty());
+    let plain_file_path = path.contains('/')
+        && extension.and_then(|extension| extension.to_str()).is_some_and(|extension| {
+            !extension.is_empty() && extension.bytes().all(|byte| byte.is_ascii_alphanumeric())
+        });
+    // A bare spaced path needs a file extension or an explicit directory slash.
+    // This keeps a request with prose after the file name on the normal router.
+    if delimiter.is_none()
+        && path.chars().any(char::is_whitespace)
+        && !plain_file_path
+        && !path.ends_with('/')
+    {
+        return None;
+    }
     if path.len() > 1024
         || path.contains([':', '?', '\x60'])
         || path.chars().any(char::is_control)
@@ -71,6 +80,10 @@ mod tests {
             ("Show recent changes in Site\\Reports?", "Site/Reports"),
             ("What changed recently to `Site/Report Views/`?", "Site/Report Views/"),
             ("Show recent changes in Site/Reports/Page.aspx?", "Site/Reports/Page.aspx"),
+            ("What changed recently in db/dbo/Stored Procedures/GetTask.sql?", "db/dbo/Stored Procedures/GetTask.sql"),
+            ("What changed recently in \"db/dbo/Stored Procedures/GetTask.sql\"?", "db/dbo/Stored Procedures/GetTask.sql"),
+            ("Show recent changes in 'db/dbo/Stored Procedures/'?", "db/dbo/Stored Procedures/"),
+            ("Show recent changes in db\\dbo\\Stored Procedures\\?", "db/dbo/Stored Procedures/"),
         ] {
             assert_eq!(requested_path(question).as_deref(), Some(path));
         }
@@ -78,6 +91,8 @@ mod tests {
             "What changed recently in reporting?",
             "Show recent changes in /Site/Reports/",
             "Show recent changes in Site/../Reports/",
+            "What changed recently in Site/Report Views/Page.aspx before the fix?",
+            "What changed recently in \"Site/Report Views/Page.aspx?",
         ] {
             assert_eq!(requested_path(question), None);
         }
