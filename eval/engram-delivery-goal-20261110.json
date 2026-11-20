@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "GIT_FRESHNESS_EDIT_SAFETY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "batch_read_preset_saved_continuation": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "source_commit": "a7db038d84cf1812cf6b6712e3e7e8cf3c5ccedd",
+      "requirement": "EG-18 callable workflow dependencies and TODO-4 exact saved-read delivery",
+      "observed_gap": "On installed Development, a deferred SQL batch row saved 19,144 bytes but directed the caller to unadvertised query_schema. The previous change addressed fresh row actions only.",
+      "implementation": ["crates/engram_server/src/handlers/batch_read_tools.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Recover every page of that hidden SQL original through the returned batch row actions and verify its BLAKE3 without rerunning analysis or changing the original response. Discoverable operations keep their existing delivery actions.",
+      "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/verified-method-edit-context-20261120/limited-batch-inner-delivery-baseline/receipt.json", "sha256": "32c012b7e31926d3626ebfbcb4475fda480a3b7113887fdf862aa8d343a96677"},
+      "focused_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/batch-preset-saved-focused-20261120.json",
+      "verification": "Installed Development reproduced the unadvertised query_schema continuation. The focused check compiled the exact wrapper against its retained wire and confirmed the manifest and subsequent offset route preserve the original request and payload. Direct advertised operations remain unchanged. Owned temporary resources were removed; execute full packaged recovery before delivery."
+    },
     "batch_read_preset_recovery": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "source_commit": "8550141e306c072a5b03bea0b0cf3ff778d31537",
@@ -2983,7 +2994,7 @@
       "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/verified-method-edit-context-20261120/batch-preset-recovery-evidence.json", "sha256": "dde8344a0194c941aa93e7c49b4f6281cbd0f9d590879e1dfe6e5b562c40305c"},
       "focused_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/batch-preset-recovery-focused-20261120.json",
       "verification": "Owned installed QA and Development returned successful rows with hidden direct refresh actions. The focused compiled path preserved the exact request and its ID in advertised batch_read actions. It kept direct actions on Full and matching limited profiles. Owned fixtures and focused build artifacts were removed. The next packaged MCP check must execute these returned actions.",
-      "scope": "This fixes per-row fresh recovery. Previously captured tool payloads and their inner continuations remain exact."
+      "scope": "This adds callable per-row fresh recovery; the saved continuation delivery is tracked together under batch_read_preset_saved_continuation. Original tool payloads remain exact."
     },
     "verified_method_edit_context_release": {
       "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
@@ -4734,8 +4745,9 @@
     {
       "original_requirement_id": "EG-18/TODO-33",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "8550141e306c072a5b03bea0b0cf3ff778d31537",
-      "acceptance_contract": "In QA and Development, compare tools/list with the returned batch refresh action, execute it, and confirm unchanged VB and SQL evidence and row identity. Verify Full and matching limited presets still supply direct actions. Check exact saved results still recover separately."
+      "source_commit": "a7db038d84cf1812cf6b6712e3e7e8cf3c5ccedd",
+      "included_source_commit": "8550141e306c072a5b03bea0b0cf3ff778d31537",
+      "acceptance_contract": "In QA and Development, execute the returned discoverable batch refresh action and compare VB and SQL evidence and row identity. Recover every hidden SQL saved page through the row's next_call and validate the original BLAKE3. Full and matching limited presets retain direct actions. Outer batch recovery remains exact."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
