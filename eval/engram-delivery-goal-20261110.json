@@ -2971,7 +2971,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SELECTED_SOURCE_PLANNING_RELEASE_INSTALLED_AND_MCP_VERIFIED",
+    "status": "CONTEXT_BROWSER_EVENT_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "verified_base_record": "eval/history-schema-review-candidate-20261119.json",
     "record": "eval/cumulative-agent-workflows-candidate-20261119.json",
@@ -3231,31 +3231,31 @@
       "acceptance": "Fresh live LegacyValidation MCP verified the VetroController call to IWebhookVetroService at line 3. Exact-file integrity observed one matching published lexical/vector key for the controller at physical revision 3154. The candidate and installed owned checks retained an inherited TypeScript call after an unrelated VB.NET update; admitted the exact task-management sources in caller order, reported the missing requested path and retained authored guidance; and correctly reported a substituted vector for one inherited file, a healthy selected sibling and an absent file. Refusal of scoped auto-repair preserved the fixture mismatch. A fixture-only correction read the saved JSON-RPC error and reused the same compiled binary. The deferred dossier retained zero generation calls and exact response recovery. No production repair or generalized S16, task usefulness, disk freshness or runtime dispatch claim."
     },
     "implementation_context_source_lease": {
-      "status": "IMPLEMENTED_FOCUSED_ACTUAL_SOURCE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "requirement": "S06 source-reader lease through method evidence assembly and output",
       "observed_gap": "prepare_implementation_context resolves against the live graph and verifies a disk fingerprint before opening the target again for its body, VB traps, language diagnostics and sync hazards. Target or caller graph nodes outside the published source selection can therefore be presented with apparently valid current bytes.",
       "implementation": "prepare_implementation_context and its method evidence reads, using the existing selected revision guard and fingerprint verification.",
       "acceptance": "Retain the published selection through cancellation and output, reuse one verified target read for body and diagnostics, and withhold unselected target/caller file revisions. Preserve exact method selection and legacy fingerprint qualifications. Do not claim live graph or policy atomicity.",
-      "verification": "Installed LegacyValidation baseline returned the exact authored bulk-edit call in the task-management LoadComplete method, without selected-source generation or fingerprint status. The focused executable used the exact source verifier, real selected Tantivy revisions and GraphStore with actual LegacyValidation Git bytes. It retained inherited revision 1 at published generation 2 and refused future caller and file observations with unchanged bytes. The existing handler regression fixture now tests equivalent public behavior. Source content is read once per target or admitted caller. A worker owns the pinned lookup, and the public request retains the view through reply construction. Candidate MCP and installation remain pending. No Cargo build."
+      "verification": "Installed LegacyValidation baseline returned the exact authored bulk-edit call in the task-management LoadComplete method, without selected-source generation or fingerprint status. The focused executable used the exact source verifier, real selected Tantivy revisions and GraphStore with actual LegacyValidation Git bytes. It retained inherited revision 1 at published generation 2 and refused future caller and file observations with unchanged bytes. The existing handler regression fixture now tests equivalent public behavior. Source content is read once per target or admitted caller. A worker owns the pinned lookup, and the public request retains the view through reply construction. Candidate and installed MCP passed in context_browser_event_release. The earlier focused source check used cached dependencies."
     },
     "browser_storage_access_citations": {
-      "status": "IMPLEMENTED_FOCUSED_ACTUAL_SOURCE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "requirement": "TODO-27 browser-storage state tracking and TODO-28 source-backed answers for existing LegacyValidation workflows",
       "observed_gap": "Installed ask_codebase identifies the LegacyValidation authcallback_status writer and reader, but localizes them only to a declaration window at line 51 and the beginning of login.js. Independent Git source and trace_state_usage agree on the indexed write at line 52 and read at line 8.",
       "implementation": ["crates/engram_server/src/services/ask_engine/literal_state.rs", "crates/engram_server/src/services/ask_engine/browser_state.rs", "crates/engram_server/tests/ask_browser_storage.rs"],
       "acceptance": "For the existing browser question, cite the indexed read and write spans in hash-matched selected source and make source recovery open the access line. Disclose stale or unproved access evidence. Keep store-wide clear candidates separate and preserve legacy state behavior.",
-      "verification": "Installed baseline returned reader recovery line 1 and writer recovery line 51. The focused executable compiled the changed collector/provider against cached dependencies with an owned GraphStore. It used the two immutable LegacyValidation files with Git checkout filters, matched the independently observed installed raw hashes and indexed positions, recovered the read at line 8 and the write at line 52, and withheld only the changed read file. Owned test resources closed. The fixture first exposed LF Git blob versus indexed CRLF checkout differences and was corrected without a Cargo build. The public server fixture is updated; packaged MCP and installation remain pending."
+      "verification": "Installed baseline returned reader recovery line 1 and writer recovery line 51. The focused executable compiled the changed collector/provider against cached dependencies with an owned GraphStore. It used the two immutable LegacyValidation files with Git checkout filters, matched the independently observed installed raw hashes and indexed positions, recovered the read at line 8 and the write at line 52, and withheld only the changed read file. Owned test resources closed. The fixture first exposed LF Git blob versus indexed CRLF checkout differences and was corrected without a Cargo build. Candidate and installed MCP passed in context_browser_event_release."
     },
     "webforms_resource_attribute_event": {
-      "status": "IMPLEMENTED_FOCUSED_ACTUAL_SOURCE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "requirement": "TODO-31 trace_user_request source-declared WebForms event and click bindings",
       "observed_gap": "Installed trace_user_request for Site/modules/dashboard/Default.aspx, event chkActionStatus.CheckedChanged, returns zero markup bindings and omits chkActionStatus_CheckedChanged. LegacyValidation Git markup line 725 declares the event after a quoted resource expression containing >. The code-behind declares the handler at line 294 without a Handles clause.",
       "implementation": ["crates/engram_server/src/services/request_trace/control_events.rs", "crates/engram_server/src/services/request_trace/execution.rs", "crates/engram_server/tests/request_trace_control_events.rs"],
       "acceptance": "Trace the actual dashboard binding and exact admitted VB handler from selected source, and retain ordinary click handling after quoted > in the existing regression fixture. Attribute-looking text inside another value must not create a binding. Keep runtime execution and postback unproven.",
-      "verification": "Focused executable used the changed control markup reader and handler-selection function with immutable LegacyValidation source 6c4f23a5: exact markup line 725, VB line 294, one authored binding and selected handler, plus literal fixture click and exclusion of an apparent event attribute embedded in an unrelated attribute value. The executable reused cached dependencies. The existing trace regression fixture now exercises both public action spellings. Candidate MCP and installation remain pending."
+      "verification": "Focused executable used the changed control markup reader and handler-selection function with immutable LegacyValidation source 6c4f23a5: exact markup line 725, VB line 294, one authored binding and selected handler, plus literal fixture click and exclusion of an apparent event attribute embedded in an unrelated attribute value. The executable reused cached dependencies. The trace regression fixture covers both action spellings. Candidate and installed MCP passed in context_browser_event_release."
     },
     "context_browser_event_release": {
-      "status": "FROZEN_OWNED_BASELINE_VERIFIED",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\context-browser-event-20261120",
       "source_commit": "0550e57baf9e351ad3055621c1229c821abf7437",
       "original_requirement_ids": [
@@ -3263,11 +3263,42 @@
         "TODO-27",
         "TODO-31"
       ],
-      "baseline_sha256": "61a8351bdee97a0cfb38557d253804a21fd96b3bfaacb99f58c3eb04dacb11ca",
-      "verifier_sha256": "ac37a42a8743198bb44c5ddd4a9b90900cb246f30da7a58256023ade26fead53",
-      "retention": "Keep inputs and logs for package acceptance. The owned baseline fixture and process closed."
+      "proof": {
+        "baseline_sha256": "61a8351bdee97a0cfb38557d253804a21fd96b3bfaacb99f58c3eb04dacb11ca",
+        "build_sha256": "cf9e303fb16b13661d780f95a6f381b4a86bd1188d79cc51fc656088515cf9f9",
+        "package_sha256": "e2ac079a7ea9f71c69e04d412cc8ab4480045e2202cd0be2cf1732c63492f5f7",
+        "candidate_public_sha256": "dfb0f067d08a2298dcfe303b29e10c13c7b5cf70b29f3af31f6e92f13bf08ad9",
+        "installed_public_sha256": "1d1ecd55a76241a111801b6152ef7c5bd56945c525a05f02780056e36bab76b4",
+        "live_cutover_sha256": "9c2070e4f785b76e743962154e1bfcaf872665ec2de3c7a462fff5d06a33cad4",
+        "forward_transition_sha256": "da96a5cacba124608540f4445c4eaf41ab5c9c836b56f48a85128b415450249b",
+        "verifier_sha256": "ac37a42a8743198bb44c5ddd4a9b90900cb246f30da7a58256023ade26fead53",
+        "live_verifier_sha256": "b4b2d047cb14f16d0850101c44cd1798ce98899cab723a958f1a99ef79167531"
+      },
+      "build": {
+        "optimized_builds": 1,
+        "seconds": 622.6734063000004,
+        "full_test_suites": 0
+      },
+      "package": {
+        "binary_sha256": "46e799a4fdf036bc8d7e2ce417ad3bbed050c408f574115f1f0dd14820232b8d",
+        "manifest_sha256": "aff199f1742d30d2f1582a1d3373cd0a14d588256b51b1a2aa745feb02891cd7",
+        "archive_sha256": "829fe83740425dc92fcd979085432f4f9f124fe98e5429e07aa0a303675504a8",
+        "sidecar_assets_unchanged": 214
+      },
+      "installed": {
+        "generation": 3222,
+        "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-17c278574ffa41dba81e25ae1c5c36d7",
+        "daemon_pid_at_verification": 70000
+      },
+      "acceptance": [
+        "Fresh installed LegacyValidation MCP preserved the task-management bulk-edit call with selected source generation 3222 and a matching source fingerprint.",
+        "Browser ask results localized the LegacyValidation SessionStorage writer to authcallback.js line 52 and reader to login.js line 8. Both returned actions recovered the exact live source line and matched the raw file hashes. The owned MCP checks withheld the read after its file was edited and kept the writer.",
+        "The dashboard checkbox event returned source markup line 725 and the admitted VB handler line 294 in the installed public trace. Focused source checks exercised click action behavior and rejected an apparent event attribute inside an unrelated quoted value."
+      ],
+      "limits": "Static source evidence. Runtime browser/postback execution, atomic graph/disk isolation, broader S06 coverage and the full original backlog remain unverified.",
+      "retention": "Owned build job, fixture runtimes and temporary directories closed. Keep release inputs, receipts and the prior installed pair for rollback and audit."
     },
-    "next_action": "Build one shared release, verify all three public workflows in the packaged candidate, then verify and record installation."
+    "next_action": "Advance the next ready original requirement. This release is installed and its three public checks are verified."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -3663,7 +3694,8 @@
     "builds_started": 0,
     "retention": "Temporary Git index removed. Keep the receipt for the next combined validation after the staged release is resolved."
   },
-  "next_source_batch_pending": [
+  "next_source_batch_pending": [],
+  "context_browser_event_source_batch_20261120": [
     {
       "original_requirement_id": "S06",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
