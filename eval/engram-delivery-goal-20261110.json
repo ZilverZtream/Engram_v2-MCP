@@ -2697,28 +2697,6 @@
       "TODO-28"
     ],
     "implementation_items_active": 0,
-    "webforms_startup_script_trace": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGED_MCP",
-      "requirement": "TODO-31 trace_user_request surfaces authored response behavior along the selected WebForms handler path.",
-      "observed_gap": "Live LegacyValidation storage.aspx event ctrl_image_gallery/btnDownloadImg2.Click reaches btnDownloadImg_Click at lines 191–222, but its compact source member has zero shown lines and no structured evidence of the actual RegisterStartupScript call at line 219.",
-      "implementation": ["crates/engram_server/src/services/request_trace/execution.rs", "crates/engram_server/src/services/request_trace/tests.rs", "crates/engram_server/src/handlers/request_trace_delivery.rs", "docs/TOOL_CONTRACT.md"],
-      "acceptance": "Live and owned public MCP trace surface registration key downloadImage at the exact verified file and line, retain an unresolved interpolated script, and preserve the clue in compact output and original delivery. Other redirects still work. Comments and string examples do not become calls.",
-      "source_commit": "b52eade19cd23ae7275e564df76334f23a595e3c",
-      "verification": "Installed live MCP had a source-admitted method with matching reported hash, zero shown source lines after compaction and no registration field. Three focused checks passed for the exact parser and source-body acquisition pattern, including the actual LegacyValidation file at line 219, literal and interpolated calls, comment/string decoys, and redirect parity. The compact delivery regression now asserts that the field survives excerpt removal. Public packaged MCP and deployment are pending. No Cargo build ran.",
-      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/webforms-startup-script-trace-20261120/focused-receipt.json",
-      "limits": "Source registration metadata only. Generated script text, browser effects and execution are unverified. Focused compiler resources were removed; receipt retained for combined acceptance."
-    },
-    "batch_source_freshness": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
-      "requirement": "TODO-33 multi-read context and TODO-5 exact indexed source freshness for an agent preparing an edit",
-      "observed_gap": "Installed LegacyValidation get_index_freshness returns matching_fingerprint at physical revision 3159 for Site/App_Code/BundleConfig.vb. The same arguments inside batch_read fail as an unknown operation, requiring a separate MCP request.",
-      "implementation": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/handlers/batch_read_tools.rs", "crates/engram_server/src/tools.rs"],
-      "acceptance": "Batch an ordinary source read and exact freshness query, retaining selected fingerprints and revisions. Show a bad freshness request remains an independent error. Verify the fixed original freshness observation through shared response recovery after editing source, and verify a fresh call reports the later edit.",
-      "source_commit": "b113d9bab7cbcdddec62c9c66aeee2a5c08a7ee0",
-      "verification": "Live baseline confirmed direct matching_fingerprint and batch rejection. The focused probe compiled the amended freshness request and tagged batch variant against cached production schema and serialization dependencies. It checked the ordinary arguments, defaults, strict field validation, schema and callable recovery round-trip. The existing immutable-batch integration case was extended with valid and invalid freshness observations and a changed-file follow-up. Packaged public behavior and installation are pending.",
-      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/batch-source-freshness-20261120/focused-receipt.json",
-      "temporary_resources": "The focused compiler fixture was removed and the receipt retained for combined acceptance. No Cargo or release build ran."
-    },
     "native_target": "maintenance_history_interaction_batch",
     "expected_native_cases": 13,
     "native_label": "native3",
@@ -2993,28 +2971,81 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "DOSSIER_CORE_JOB_POLLING_RELEASE_INSTALLED_AND_MCP_VERIFIED",
+    "status": "SQL_FRESHNESS_WEBFORMS_TRACE_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "sql_freshness_webforms_trace_release": {
-      "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
+      "status": "INSTALLED_AND_FRESH_MCP_CONNECTED",
       "frozen_source_commit": "f568fb3904afdc7d4e021ea5814dd3d1587fd43a",
-      "requirements": ["TODO-28", "TODO-33/TODO-5", "TODO-31"],
+      "requirements": [
+        "TODO-28",
+        "TODO-33/TODO-5",
+        "TODO-31"
+      ],
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/sql-freshness-webforms-trace-20261120",
-      "baseline": {"path": "baseline/receipt.json", "sha256": "33fa455d9855d6dbaf171151601c8aa127068d0f6f8fd67e246ae4e71b7a9a14"},
-      "fixture_preflight": {"path": "fixture-preflight/receipt.json", "sha256": "a97fa965917028ee7df8939d0f2368638c8c69229f8a453e13171607b54c01ac"},
+      "baseline": {
+        "path": "baseline/receipt.json",
+        "sha256": "33fa455d9855d6dbaf171151601c8aa127068d0f6f8fd67e246ae4e71b7a9a14"
+      },
+      "fixture_preflight": {
+        "path": "fixture-preflight/receipt.json",
+        "sha256": "a97fa965917028ee7df8939d0f2368638c8c69229f8a453e13171607b54c01ac"
+      },
       "evidence": "The installed baseline reproduced the three gaps in one owned stdio MCP project using actual LegacyValidation source. Only the backtick path yielded the pinned SQL change, direct freshness worked but the batch refused it, and the image-download handler was reached without registration metadata. The baseline process exited naturally and the fixture was removed.",
-      "active_processes": "release1-owner.json binds the one shared-target release. stage-owner.json binds the candidate stage to that release, and install-owner.json binds the cutover driver to that exact stage. Inspect those actual owners or terminal receipts before retrying.",
-      "next_acceptance": "The candidate stage runs the public checks on the same build. After a passing candidate receipt the cutover driver attempts the managed install only with no connected clients or active jobs, then runs installed fixtures. Confirm fresh live LegacyValidation MCP and retained receipts. No separate full-suite invocation.",
-      "temporary_resources": "Compiler and public fixture owners release and remove their own directories. Retain only the frozen scripts, package and evidence under this case through installed verification."
+      "temporary_resources": "Release, candidate, installed and cutover fixtures closed and removed their owned temporary resources. The previous package pair and release evidence are retained.",
+      "binary_sha256": "a2d67c30e0b3f4ec983e807a02b0dd6924a6fc3821215f3ba41e2069a0d1526d",
+      "manifest_sha256": "14de9a4c9d01bb5511e2330b885ca8bd23d59763b794cf2547925f9c1c0c4659",
+      "archive_sha256": "9eb2fe044df470fdde5e3d361c2c442458f32fdbc03a77550efcd3abe96e632b",
+      "build": "One Cargo release, 13m51s compilation and 842.803s with runner cleanup. No separate build or full test suite.",
+      "candidate_mcp": {
+        "path": "candidate/receipt.json",
+        "sha256": "351d15aba89393c5f1c58673b91f6c8f038aef7d0426213bdac85a15a94f344e"
+      },
+      "installed_mcp": {
+        "path": "installed/receipt.json",
+        "sha256": "08ee58626b53ab941dc4f860ebbab1ef645f0c3c1667b20b313556787b6c881b"
+      },
+      "live_mcp": {
+        "path": "live-cutover/status.json",
+        "sha256": "721dc7f8a7c9634ea7d725db90c0b4a6f24f04466b2e8510f8aa8ce07a4e746a",
+        "generation": 3222
+      },
+      "forward_transition": {
+        "path": "live-cutover/forward-transition.json",
+        "sha256": "8df9f43784dacf33458de8fdb4825dcf1e67accd009bdf3e707230cbfbb5ac7d"
+      },
+      "acceptance": "Candidate and installed MCP both passed the three workflows. Fresh live MCP verified the actual 1884-byte pinned LegacyValidation SQL patch in all four path forms, the BundleConfig.vb selected fingerprint at physical revision 3159 and the downloadImage registration at source line 219 after excerpt compaction. No clients were stopped. Published source generation remained 3222.",
+      "next_action": "Advance another ready original requirement. Continue to account for open evaluation and storage requirements."
+    },
+    "batch_source_freshness": {
+      "status": "INSTALLED_MCP_VERIFIED",
+      "requirement": "TODO-33 multi-read context and TODO-5 exact indexed source freshness for an agent preparing an edit",
+      "observed_gap": "Installed LegacyValidation get_index_freshness returns matching_fingerprint at physical revision 3159 for Site/App_Code/BundleConfig.vb. The same arguments inside batch_read fail as an unknown operation, requiring a separate MCP request.",
+      "implementation": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/handlers/batch_read_tools.rs", "crates/engram_server/src/tools.rs"],
+      "acceptance": "Batch an ordinary source read and exact freshness query, retaining selected fingerprints and revisions. Show a bad freshness request remains an independent error. Verify the fixed original freshness observation through shared response recovery after editing source, and verify a fresh call reports the later edit.",
+      "source_commit": "b113d9bab7cbcdddec62c9c66aeee2a5c08a7ee0",
+      "verification": "Candidate and installed MCP reassembled the original evidence in eight pages after an edit, retained the independent invalid selector error, and executed the emitted recovery arguments to observe disk_differs. Live MCP matched independent BundleConfig.vb bytes at physical revision 3159.",
+      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/batch-source-freshness-20261120/focused-receipt.json",
+      "temporary_resources": "The focused compiler fixture was removed and the receipt retained for combined acceptance. No Cargo or release build ran."
+    },
+    "webforms_startup_script_trace": {
+      "status": "INSTALLED_MCP_VERIFIED",
+      "requirement": "TODO-31 trace_user_request surfaces authored response behavior along the selected WebForms handler path.",
+      "observed_gap": "Live LegacyValidation storage.aspx event ctrl_image_gallery/btnDownloadImg2.Click reaches btnDownloadImg_Click at lines 191–222, but its compact source member has zero shown lines and no structured evidence of the actual RegisterStartupScript call at line 219.",
+      "implementation": ["crates/engram_server/src/services/request_trace/execution.rs", "crates/engram_server/src/services/request_trace/tests.rs", "crates/engram_server/src/handlers/request_trace_delivery.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Live and owned public MCP trace surface registration key downloadImage at the exact verified file and line, retain an unresolved interpolated script, and preserve the clue in compact output and original delivery. Other redirects still work. Comments and string examples do not become calls.",
+      "source_commit": "b52eade19cd23ae7275e564df76334f23a595e3c",
+      "verification": "Candidate and installed MCP retained source line 219 and its hash in compact output, recovered the original registration in five pages, and verified a literal registration and redirect on a fixture page. Fresh live LegacyValidation retained downloadImage with an unresolved expression and six-page exact recovery.",
+      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/webforms-startup-script-trace-20261120/focused-receipt.json",
+      "limits": "Source registration metadata only. Generated script text, browser effects and execution are unverified. Focused compiler resources were removed; receipt retained for combined acceptance."
     },
     "recent_history_spaced_sql_paths": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "requirement": "TODO-28 and the original usable-history workflow require ordinary explicit file-history questions to reach pinned evidence and a callable patch.",
       "observed_gap": "Installed MCP returns unsupported for the plain or double-quoted LegacyValidation path db-legacy_validation.sql/dbo/Stored Procedures/aspnet_CheckSchemaVersion.sql at independently verified first-parent commit 5124f246c703591419d293f2a369e5069e25dcf1. The backtick form returns one commit and the pinned patch action.",
       "implementation": ["crates/engram_server/src/handlers/ask_recent_history.rs", "docs/TOOL_CONTRACT.md"],
       "acceptance": "Plain, double-quoted and backtick spellings of the actual SQL path return the same pinned Git commit and callable patch. Explicit spaced directory paths stay scoped. Generic questions, traversal and trailing prose remain outside this literal route.",
       "source_commit": "c85c60d936502e79ccf06210fbfc607b3f643524",
-      "verification": "Installed live MCP returned unsupported for two ordinary spellings and a pinned action for the backtick form. The existing patch endpoint returned the exact pinned SQL procedure change, 1884 bytes. Two focused tests executed the changed parser, including the actual path and independently selected Git commit, quoted and plain directories, and the previous rejection cases. Packaged MCP and installation remain pending.",
+      "verification": "Candidate and installed MCP verified all four spellings and scoped folder history. Fresh live LegacyValidation returned the exact pinned first-parent commit and identical executable 1884-byte patch for all four forms.",
       "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/recent-spaced-sql-history-20261120/focused-receipt.json",
       "temporary_resources": "The focused compiler fixture was removed. The receipt is retained for combined public acceptance. No Cargo or release build ran."
     },
@@ -4398,22 +4429,23 @@
       "acceptance_contract": "Index an owned VB/WebForms and TypeScript or SQL fixture, advance one file's revision, and verify MCP exact-file freshness matches inherited bytes and detects an equal-size disk edit. Compare live LegacyValidation selected physical revision to exact-file integrity and raw disk hash to independent source."
     }
   ],
-  "next_source_batch_pending": [
+  "next_source_batch_pending": [],
+  "sql_freshness_webforms_trace_delivered_batch": [
     {
       "original_requirement_id": "TODO-28",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "c85c60d936502e79ccf06210fbfc607b3f643524",
       "acceptance_contract": "Ask the same explicit recent-history question using the bare, quoted and backtick spellings of a spaced SQL path at the pinned LegacyValidation commit. Match first-parent Git and execute the identical emitted patch. Use a spaced folder question and preserve its scope."
     },
     {
       "original_requirement_id": "TODO-33/TODO-5",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "b113d9bab7cbcdddec62c9c66aeee2a5c08a7ee0",
       "acceptance_contract": "Public MCP batch combines source and exact freshness, retains an independent invalid selector error, and recovers the original fingerprint and revision after the files change. Execute its ordinary recovery arguments and verify current disk differs. Check a read-only LegacyValidation file against its independent current hash."
     },
     {
       "original_requirement_id": "TODO-31",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "b52eade19cd23ae7275e564df76334f23a595e3c",
       "acceptance_contract": "Trace the registered WebForms image download event with a budget that compacts source excerpts. Match the source line/hash, downloadImage key and unresolved script in compact and exact recovered outputs. Verify a literal registration and existing redirect in an owned fixture and repeat the read-only LegacyValidation trace on the installed package."
     }
