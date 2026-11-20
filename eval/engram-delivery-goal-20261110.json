@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "quoted_source_paths": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "EG-01 historical source answers use the requested Git revision and return the corresponding source and authored guidance",
+      "observed_gap": "Installed historical ask for the backtick-quoted LegacyValidation DownloadFile.aspx.vb path returned unrelated same-revision documents, while the unquoted path returned the requested file. The planner stores quoted text as Unknown, then drops the identical typed File mention during deduplication.",
+      "implementation": ["crates/engram_server/src/services/ask_engine/planner.rs", "crates/engram_server/tests/ask_historical_source_tests.rs"],
+      "acceptance": "A quoted code file uses the same typed normalized path as the unquoted form and reaches its complete requested Git blob and historical guidance. A path containing spaces remains one mention. Quoted prose remains untyped. Existing revision and response bounds apply.",
+      "source_commit": "956832d583f9be8167896b9e200fd3237ecc4438",
+      "verification": "Two focused checks used the compiled current planner and unchanged historical reader from cached dependencies. Exact LegacyValidation Git confirmed all 11,060 source bytes and identical policy for quoted and unquoted inputs at c481dfa3. An owned Git fixture selected the spaced path rather than the same-named root file and kept quoted prose untyped. The public MCP build and installation remain pending.",
+      "retention": "Retain the focused reproducer and numeric receipt under current-task-check/quoted-source-path-20261120 through combined release verification. The ephemeral compiled fixture and temporary repository were removed."
+    },
     "settings_review_history_release": {
       "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\settings-review-history-20261120",
@@ -4144,7 +4154,14 @@
       "acceptance_contract": "Through public ask_codebase, verify recent changes to a literal file at an older as_of revision are identical to first-parent Git evidence, exclude the later edit and expose a patch action pinned to the requested basis. An unrelated pinned source question still returns its original blob."
     }
   ],
-  "next_source_batch_pending": [],
+  "next_source_batch_pending": [
+    {
+      "original_requirement_id": "EG-01",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "956832d583f9be8167896b9e200fd3237ecc4438",
+      "acceptance_contract": "Send quoted and unquoted exact historical source asks through MCP at the same pinned LegacyValidation revision. Check both complete blobs against Git and verify the same scoped historical guidance. Verify an owned spaced filename remains one literal path."
+    }
+  ],
   "dossier_webforms_history_source_batch_20261120": [
     {
       "original_requirement_id": "TODO-32",
