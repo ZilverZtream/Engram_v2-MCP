@@ -1691,7 +1691,15 @@
       "evidence": [
         "native-public-git-revert-actual-source-citation-and-next-edit",
         "no-vector-public-git-revert-actual-source-citation-and-next-edit"
-      ]
+      ],
+      "installed_webforms_revert_20261120": {
+        "status": "PASS_INSTALLED_OWNED_PUBLIC_MCP",
+        "binary_sha256": "a2d67c30e0b3f4ec983e807a02b0dd6924a6fc3821215f3ba41e2069a0d1526d",
+        "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/s11-webforms-git-revert-20261120/installed-final/receipt.json",
+        "receipt_sha256": "558da2cea39b9531b0968673dbea51b007a0ede3b072324fe1a77e5e8d1845dc",
+        "observed": "Real Git revert restored the exact VB bytes and removed the added TypeScript file. Source generations were 1, 2, 3, then 4 after cold reopen, unchanged no-op and a subsequent SQL edit. Unchanged ASPX and JavaScript retained physical revision 1 and matching lexical/vector keys. Observed provider source inputs were 2, 0, 0 and 1 respectively, with Git-history and startup warm-up observed separately.",
+        "limits": "Owned WebForms fixture and deterministic loopback vectors at the installed LegacyValidation model width. No production mutation, registry rewind, downgrade or embedding quality claim."
+      }
     },
     {
       "id": "S12",

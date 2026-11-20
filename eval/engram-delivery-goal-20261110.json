@@ -2973,6 +2973,13 @@
   "current_execution_focus": {
     "status": "SQL_FRESHNESS_WEBFORMS_TRACE_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "s11_installed_webforms_revert": {
+      "status": "INSTALLED_OWNED_PUBLIC_MCP_PASS",
+      "requirement": "S11 supported Git revert, cold reopen and subsequent ordinary update preserve the correct selected source and vector identities.",
+      "verification": "The installed binary published generations 1, 2, 3 and 4 on an owned WebForms project. The actual revert restored VB source/citation bytes and removed the added TypeScript file, reopening preserved the selected state, a no-op kept generation 3, and the next SQL edit advanced only its physical revision. Every selected file matched lexical/vector key counts and independent source hashes.",
+      "evidence": "eval/audit-inventory-20261101.json S11 installed_webforms_revert_20261120",
+      "fixture_correction": "Early oracle attempts assumed provider source calls included all traffic. Separate observed Git-history documents and cache warm-up inputs, and admit cached source vectors only when the selected persisted identities and raw source agree. Keep the failed assertions and closed wire receipts. All owned temporary project directories were removed. No compiler invocation."
+    },
     "sql_freshness_webforms_trace_release": {
       "status": "INSTALLED_AND_FRESH_MCP_CONNECTED",
       "frozen_source_commit": "f568fb3904afdc7d4e021ea5814dd3d1587fd43a",
