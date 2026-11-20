@@ -439,6 +439,16 @@ async fn scan_source_files_with_parser_preflight(
     exts: &[&str],
     preflight: bool,
 ) -> anyhow::Result<Vec<PathBuf>> {
+    scan_source_inventory(state, root, exts, preflight, None).await
+}
+
+async fn scan_source_inventory(
+    state: &AppState,
+    root: &Path,
+    exts: &[&str],
+    preflight: bool,
+    selected_paths: Option<Vec<PathBuf>>,
+) -> anyhow::Result<Vec<PathBuf>> {
     let root = root.to_path_buf();
     let exts = exts.iter().map(|ext| ext.to_string()).collect::<Vec<_>>();
     let max_files = state.cfg.max_project_files;
@@ -453,7 +463,13 @@ async fn scan_source_files_with_parser_preflight(
         let excluded = canonical_storage.strip_prefix(&canonical_root).ok()
             .map(|relative| vec![relative.to_path_buf()]).unwrap_or_default();
         let refs = exts.iter().map(String::as_str).collect::<Vec<_>>();
-        let files = engram_index::ingest::iter_files_checked_excluding(&root, &refs, max_files, max_bytes, &excluded)?;
+        let files = if let Some(paths) = selected_paths {
+            engram_index::ingest::iter_selected_files_checked_excluding(
+                &root, &refs, max_files, max_bytes, &excluded, &paths,
+            )?
+        } else {
+            engram_index::ingest::iter_files_checked_excluding(&root, &refs, max_files, max_bytes, &excluded)?
+        };
         // Preflight unknown old-protocol parsers before source staging. No
         // registry flag/revision is written by read-only walks or health calls.
         if preflight {
@@ -1000,20 +1016,7 @@ fn select_reindex_paths(
     if requested.is_empty() {
         return Ok(());
     }
-    let mut normalized_paths = Vec::with_capacity(requested.len());
-    for raw in requested {
-        let normalized = raw.replace('\\', "/");
-        anyhow::ensure!(
-            !normalized.is_empty()
-                && !normalized.starts_with('/')
-                && !normalized.contains(':')
-                && normalized
-                    .split('/')
-                    .all(|p| !p.is_empty() && p != "." && p != ".."),
-            "reindex_paths requires exact project-relative paths: {raw}"
-        );
-        normalized_paths.push(normalized);
-    }
+    let normalized_paths = normalized_reindex_paths(requested)?;
     let mut remaining: std::collections::HashSet<_> =
         normalized_paths.iter().map(String::as_str).collect();
     let mut matched = std::collections::HashMap::with_capacity(remaining.len());
@@ -1046,6 +1049,16 @@ fn select_reindex_paths(
     Ok(())
 }
 
+fn normalized_reindex_paths(requested: &[String]) -> anyhow::Result<Vec<String>> {
+    requested.iter().map(|raw| {
+        let normalized = raw.replace('\\', "/");
+        anyhow::ensure!(!normalized.starts_with('/') && !normalized.contains(':')
+            && normalized.split('/').all(|part| !matches!(part, "" | "." | "..")),
+            "reindex_paths requires exact project-relative paths: {raw}");
+        Ok(normalized)
+    }).collect()
+}
+
 /// Admit an exclusive source refresh using metadata only outside the selected
 /// files. Do not certify unverified inheritance or adopt a foreign failed attempt.
 pub(crate) async fn exclusive_source_changes(
@@ -1061,23 +1074,45 @@ pub(crate) async fn exclusive_source_changes(
     anyhow::ensure!(requested.iter().all(|p| p.len() <= 2048 && !p.chars().any(char::is_control)),
         "only_paths contains an oversized or control-character path");
     let source = pin_source_generation(state, search, base.project_id(), base.generation())?;
-    let allowed = scan_source_files_with_parser_preflight(state, root, exts, false).await?;
+    let requested_paths = normalized_reindex_paths(requested)?;
+    let exact_walk = source.selected_file_revisions().is_some()
+        && !requested_paths.iter().any(|path| {
+            Path::new(path).extension().and_then(|extension| extension.to_str())
+                .is_some_and(|extension| extension.eq_ignore_ascii_case("vb"))
+        });
+    let exact_paths = exact_walk.then(|| {
+        requested_paths.iter().map(|path| PathBuf::from(path.as_str())).collect()
+    });
+    let allowed = scan_source_inventory(state, root, exts, false, exact_paths).await?;
     let mut changed = Vec::new();
     select_reindex_paths(root, &allowed, requested, &mut changed)?;
     let selected = changed.iter().filter_map(|p| engram_core::RelPath::from_relative(root, p))
         .collect::<std::collections::HashSet<_>>();
-    // An explicit source subset still inherits the compiler context of every
-    // admitted VB peer. Never mix new bindings with incompatible inherited ones.
-    let extraction = capture_source_extraction_for_files(state, root, &allowed).await?;
-    let inherited_extraction = extraction.clone();
+    // A non-VB update still validates inherited VB compiler context. Reuse the
+    // held selected and graph inventories; none of those files is re-extracted.
+    let selected_vb = source.selected_file_revisions().and_then(|files| {
+        files.keys().find(|path| engram_index::vb_extractor::requires_parser_provenance(path)).cloned()
+    });
+    let vb_source_files = admitted_vb_source_files(root, &allowed);
+    let root = root.to_path_buf();
+    let chunk_target = state.cfg.max_chunks_per_file;
     let graph = state.graph.clone();
     let registry = state.registry.clone();
     let token = base.clone();
-    tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+    let (extraction, vb_source_files) = tokio::task::spawn_blocking(move || {
         anyhow::ensure!(registry.source_head_is_current(&token)?, "Source head changed before exclusive admission");
         anyhow::ensure!(!registry.source_identity_needs_verification(token.project_id())?,
             "only_paths requires an already verified source identity; run a normal verified update first");
-        for (path, metadata, generation) in graph.list_file_node_metadata_with_generation(token.project_id())? {
+        let metadata_rows = graph.list_file_node_metadata_with_generation(token.project_id())?;
+        let graph_vb = metadata_rows.iter().find(|(path, _, _)| {
+            engram_index::vb_extractor::requires_parser_provenance(path.as_str())
+        }).map(|(path, _, _)| path.as_str());
+        let admitted_vb = vb_source_files.first().and_then(|path| engram_core::RelPath::from_relative(&root, path));
+        let extraction = engram_index::SourceExtractionExpectation::for_project_write(
+            &root, chunk_target, admitted_vb.as_ref().map(|path| path.as_str()).into_iter()
+                .chain(selected_vb.as_deref()).chain(graph_vb),
+        )?;
+        for (path, metadata, generation) in metadata_rows {
             if selected.contains(&path) {
                 anyhow::ensure!(generation <= token.generation().saturating_add(1),
                     "Selected graph revision is beyond the next source generation; recover before only_paths: {}", path.as_str());
@@ -1087,13 +1122,12 @@ pub(crate) async fn exclusive_source_changes(
                     "Unpublished or unproven outside source revision requires recovery before only_paths: {}", path.as_str());
                 anyhow::ensure!(!engram_index::vb_extractor::requires_parser_provenance(path.as_str())
                     || metadata.as_ref().is_some_and(|meta|
-                        inherited_extraction.metadata_is_compatible(meta, path.as_str())),
+                        extraction.metadata_is_compatible(meta, path.as_str())),
                     "Inherited VB source requires compiler-context migration before only_paths: {}; run ordinary update_project without only_paths first", path.as_str());
             }
         }
-        Ok(())
+        Ok((extraction, vb_source_files))
     }).await??;
-    let vb_source_files = admitted_vb_source_files(root, &allowed);
     drop(source);
     Ok(SourceChangeScan { changed, deleted:Vec::new(), extraction, vb_source_files, nonempty_disk_paths:None })
 }

@@ -2979,8 +2979,19 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "INCREMENTAL_REFRESH_AND_RELATED_SOURCE_WORK_READY",
+    "status": "EXACT_REFRESH_AND_RELATED_SOURCE_WORK_READY",
     "implementation_items_active": 0,
+    "exact_refresh_scoped_walk": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "TODO-55 interactive exact-file refresh with selected source identity guards",
+      "observed_gap": "A managed only_paths request for one non-VB file still walks all unrelated directories to select the file and discover VB peers. The selected managed snapshot already identifies inherited VB sources; this request cannot produce a new VB binding.",
+      "implementation": ["crates/engram_index/src/ingest.rs", "crates/engram_server/src/services/project_service.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Refresh an eligible exact JS file through the same path and ignore admission with unreadable ignore rules in an unrelated directory. Preserve inherited file revisions. Continue to refuse ignored targets and inherited VB compiler mismatches; keep full admitted VB inventory for writes that extract VB.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/exact-refresh-scoped-walk-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "e290f0580d0a4e15266e11e7a34f4b8f030eebd56c2267d94b152963571ad834"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "4e2fe703278a5873f71d4fa56cf0ce9fad55df251fdf6fea8a2816aaa072a98a"},
+      "evidence": "Installed MCP stopped the exact JS refresh at an unrelated directory's invalid ignore file. Removing that obstruction published only the selected JS revision and preserved the inherited VB revision. The new walker retains targets and ancestors while the project service keeps the inherited compiler-context validation. The revised path and timing still require packaged verification."
+    },
     "incremental_refresh_single_inventory": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_VERIFIED_AWAITING_COMBINED_VALIDATION",
       "requirement": "TODO-55 interactive refresh and S14 bounded source enumeration",

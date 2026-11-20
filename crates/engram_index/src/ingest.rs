@@ -83,6 +83,40 @@ pub fn iter_files_checked_excluding(
     max_bytes: Option<u64>,
     excluded_directories: &[PathBuf],
 ) -> anyhow::Result<Vec<PathBuf>> {
+    iter_files_checked_in_scope(root, exts, max_files, max_bytes, excluded_directories, None)
+}
+
+/// Admit only exact selected paths and their ancestors through the same
+/// checked walker. Never use this partial view to infer deletion.
+pub fn iter_selected_files_checked_excluding(
+    root: &Path,
+    exts: &[&str],
+    max_files: Option<u64>,
+    max_bytes: Option<u64>,
+    excluded_directories: &[PathBuf],
+    selected: &[PathBuf],
+) -> anyhow::Result<Vec<PathBuf>> {
+    let mut scope = std::collections::HashSet::new();
+    for path in selected {
+        anyhow::ensure!(!path.as_os_str().is_empty()
+            && path.components().all(|component| matches!(component, std::path::Component::Normal(_))),
+            "Selected source paths must be nonempty and project-relative");
+        for ancestor in path.ancestors() {
+            scope.insert(root.join(ancestor));
+        }
+    }
+    scope.insert(root.to_path_buf());
+    iter_files_checked_in_scope(root, exts, max_files, max_bytes, excluded_directories, Some(scope))
+}
+
+fn iter_files_checked_in_scope(
+    root: &Path,
+    exts: &[&str],
+    max_files: Option<u64>,
+    max_bytes: Option<u64>,
+    excluded_directories: &[PathBuf],
+    selected_and_ancestors: Option<std::collections::HashSet<PathBuf>>,
+) -> anyhow::Result<Vec<PathBuf>> {
     use anyhow::Context;
     use std::collections::BTreeSet;
 
@@ -126,7 +160,10 @@ pub fn iter_files_checked_excluding(
         .git_global(true);
     let mut files = Vec::new();
     let mut bytes = 0_u64;
-    builder.filter_entry(move |entry| !excluded.iter().any(|directory| entry.path().starts_with(directory)));
+    builder.filter_entry(move |entry| {
+        selected_and_ancestors.as_ref().is_none_or(|scope| scope.contains(entry.path()))
+            && !excluded.iter().any(|directory| entry.path().starts_with(directory))
+    });
     for result in builder.build() {
         let entry =
             result.with_context(|| format!("Incomplete source scan of {}", root.display()))?;

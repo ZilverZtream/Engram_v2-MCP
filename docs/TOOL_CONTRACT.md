@@ -2572,6 +2572,12 @@ with `get_job_status` for its phase, terminal outcome and any saved instruction
 observation. The job only publishes the selected files and inherits outside
 revisions. A job cancelled after publication reports the committed outcome.
 
+For a managed project, a non-VB `only_paths` refresh enumerates the requested
+files and their ancestor directories. Eligibility and ignore rules still
+apply. The existing selected revisions and graph metadata supply the inherited
+VB compiler-context check. An update that extracts VB keeps the full admitted
+VB inventory for compiler binding.
+
 `only_paths` forces re-extraction even when bytes match. For a freshness
 check on known files, call `get_index_freshness(source_files=[...])` first.
 A matching fingerprint establishes byte equality for that selected revision.
