@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "SOURCE_REFRESH_BROWSER_DOWNLOAD_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "zero_history_change_cache_warmup": {
+      "status": "SOURCE_COMPLETE_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-36/TODO-55 explicit zero-history source refresh avoids automatic history work",
+      "observed_gap": "Installed candidate verification showed a successful synchronous max_commits=0 refresh entering co_change_warm after source publication, despite skipping history ingestion. The warmer opens Git and may rebuild the retained planning cache.",
+      "implementation": ["crates/engram_server/src/handlers/project_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "A changed-source max_commits=0 full update reports the history skip and publishes source without entering co_change_warm. A positive update still enters the warm path. Run on the next combined candidate using the same public update fixture and stage logs.",
+      "source_commit": "588a9bedc55668d4561f4b86f4ed4d8c0e2fef6c",
+      "verification": "The retained installed/current/stderr.log from the source-refresh-browser-download case records co_change_warm begin/return during a successful zero history update. The amended branch gates that exact call on a positive history limit. Source and diff checks passed. Packaged MCP remains pending; no build ran.",
+      "limits": "Separate live defaultProject.js exact-file refresh took 59.485s, including 52.045s in index_files and 3.863s in graph_cleanup; it already skipped co-change warming. This change claims no improvement to that timing."
+    },
     "source_refresh_browser_download_release": {
       "status": "INSTALLED_AND_FRESH_MCP_CONNECTED",
       "frozen_source_commit": "2fdaa270c472a487978222372de1dea84a4eea2d",
@@ -4514,7 +4524,15 @@
       "acceptance_contract": "Index an owned VB/WebForms and TypeScript or SQL fixture, advance one file's revision, and verify MCP exact-file freshness matches inherited bytes and detects an equal-size disk edit. Compare live LegacyValidation selected physical revision to exact-file integrity and raw disk hash to independent source."
     }
   ],
-  "next_source_batch_pending": [],
+  "next_source_batch_pending": [
+    {
+      "original_requirement_id": "TODO-36/TODO-55",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "588a9bedc55668d4561f4b86f4ed4d8c0e2fef6c",
+      "acceptance_contract": "Run an owned changed-source max_commits zero update and a positive control. Confirm both publish verifiable source. Verify zero skips co_change_warm in the stage trace and the positive control still enters it.",
+      "baseline": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/source-refresh-browser-download-20261120/installed/current/stderr.log"
+    }
+  ],
   "source_refresh_browser_download_delivered_batch": [
     {
       "original_requirement_id": "TODO-36/TODO-55",
