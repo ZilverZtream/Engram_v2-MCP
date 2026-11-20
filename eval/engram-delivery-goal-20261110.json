@@ -2973,6 +2973,15 @@
   "current_execution_focus": {
     "status": "SOURCE_REFRESH_BROWSER_DOWNLOAD_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "git_freshness_edit_safety_release": {
+      "status": "SOURCE_COMPLETE_OWNED_BASELINE_MCP_VERIFIED",
+      "frozen_after_source_commit": "9594a6b62f507b0d1fc27b83b5d0d3a4ec0e46b4",
+      "requirements": ["TODO-5", "TODO-4/EG-09", "TODO-33/TODO-4"],
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/git-freshness-edit-safety-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "1e12deb7553133ce753be252c6125b9a356cb7842531655eeaba3286a8a81909", "verifier": "verify-baseline.py"},
+      "candidate_verifier": {"path": "verify-public.py", "sha256": "9f6606bc0338cd8292a7d75d1308596a3f14289671744e6803ded3d4d7b30b1f"},
+      "evidence": "Installed owned MCP confirms the Git compare option and batched safety are refused, while standalone text shows the actual VB caller and JSON omits caller locations and freshness. The standalone server exited and its fixture was removed. The shared next verifier owns its fixture and captures direct, saved and refreshed results against Git and source evidence."
+    },
     "batched_edit_safety": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "source_commit": "9594a6b62f507b0d1fc27b83b5d0d3a4ec0e46b4",
