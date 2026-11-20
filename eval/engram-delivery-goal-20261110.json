@@ -2971,7 +2971,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
+    "status": "DOSSIER_CORE_JOB_POLLING_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "s01_mixed_source_vector_update": {
       "status": "INSTALLED_OWNED_PUBLIC_MCP_PASS",
@@ -2982,43 +2982,51 @@
       "limits": "Selected persisted identity evidence with deterministic embeddings. Absolute physical storage writes and a real production-provider mutation remain outside the claim."
     },
     "dossier_core_job_polling_release": {
-      "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
+      "status": "INSTALLED_AND_FRESH_MCP_CONNECTED",
       "frozen_source_commit": "a1a43c1b24b059b3be066617a9db2e1d97b4ad3d",
       "requirements": ["TODO-32", "EG-18", "TODO-37/TODO-4"],
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/dossier-core-job-polling-20261120",
       "evidence": "baseline/receipt.json records the installed binary omitting the exact-source selector and the Core history schema, and wrapping the old untyped job response. Both owned MCP fixtures exited and their temporary project was removed.",
-      "active_processes": "release1-owner.json identifies the one shared-target release invocation. stage-owner.json binds the after-build stage and candidate MCP process to that exact release process identity. Consult their terminal receipts before any retry.",
-      "next_acceptance": "Use the scheduled candidate MCP results to validate the three fixed public workflows. Install the same verified artifact, confirm a fresh live MCP connection and exact LegacyValidation evidence, and record installed identity. No separate full-suite invocation.",
-      "temporary_resources": "The release runner owns its recorded compile temporary directory and removes it after the exact job and relay close. Public checks own their fixture directories and close MCP before teardown. Retain the frozen plan, wrappers, logs and receipts in the case directory until installed delivery is recorded."
+      "binary_sha256": "faaf7ed2cd4d02df372eb07d551fbb0a5d2a0bca1c4511b27266e71e37b6cebb",
+      "manifest_sha256": "24d96eeac46be1d79ef158ad20a751754ebb229395ff156863f5dd27e25bd144",
+      "archive_sha256": "0d121a51e42b06629b5b2744c24c9ec186291cae2593100ce0f405a554463232",
+      "build": "One Cargo release; Cargo reported 17m35s and the runner, including close and cleanup, recorded 1066.896s. Candidate and installed verification used the same binary. No full test suite or extra build.",
+      "candidate_mcp": {"path": "candidate/receipt.json", "sha256": "9bdb7d584d9f1d1c5dc38528994e76c2923c7d263348d4552af71bb579a55b91"},
+      "installed_mcp": {"path": "installed/receipt.json", "sha256": "0fae46e19517202931429bdf084979acb5d693906c87fd88c4fc538501806af3"},
+      "live_mcp": {"path": "live-cutover/status.json", "sha256": "c777d0811b4f153b635920d5a7d54042ffc568e185f8d48a8978de586a81f84e", "generation": 3222},
+      "forward_transition": {"path": "live-cutover/forward-transition.json", "sha256": "a1463d8a02d11694f43c7c884d26c3be9df0997782f471501243befe00f0febd"},
+      "acceptance": "Candidate and installed MCP both verify exact scoped source hashes and missing-path recovery, the emitted Core history patch, the advertised schemas of four limited presets and Full, and typed running/terminal job status with four-page immutable recovery. Fresh live MCP verified both exact LegacyValidation task-management file hashes and returned a typed terminal job at generation 3222. The package swapped with zero connected clients.",
+      "temporary_resources": "Compile, candidate, installed and cutover fixtures closed and were removed by their owners. Restore pair and receipts are retained. Full production-storage and downgrade gates remain separate.",
+      "next_action": "Advance another ready original requirement. Keep the broader task, evaluation and storage gaps open."
     },
     "typed_job_status": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "requirement": "TODO-37 agent-pollable indexing progress and TODO-4 structured report delivery",
       "observed_gap": "Installed MCP accepts get_job_status(output_json=true) but the envelope result has only content and isError. Agents must parse multiline text to recover even the durable job status.",
       "implementation": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/read_report_delivery.rs"],
       "acceptance": "Public MCP exposes the exact job ID, kind, project, status, message, timestamps and phase-only progress as job_status in the existing JSON envelope. Check a running and terminal job, explicit unknown phase estimates, unchanged default text, and exact captured recovery without polling again.",
       "source_commit": "c030da51e8b9267f93cfb61f0b12b779c1ee86f3",
-      "verification": "Installed MCP returned only content and isError inside the prior JSON envelope. The exact amended handler and progress formatter passed one focused test with a real owned registry and production rmcp serialization types. The check verified identical default text, multiline typed status fields, a running phase estimate, and null terminal ETA. The amended integration test covers the shared wrapper and exact snapshot recovery after deletion and restart. Combined native, packaged MCP and deployment are pending. No Cargo build or full suite ran; the owned compiler and registry fixtures were removed."
+      "verification": "The focused handler check verified text parity, multiline typed fields, a running phase estimate and null terminal ETA. Candidate and installed public MCP observed a real owned job running and done, verified default text and typed fields, and recovered its exact terminal observation in four pages. Fresh live MCP returned a typed done job. The separate native integration suite was not run."
     },
     "preset_history_followup_dependency": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "requirement": "EG-18 advertised workflow dependencies are discoverable and callable under limited MCP profiles",
       "observed_gap": "A current installed Core fixture returned a literal search_history patch action from ask_codebase, while the genuine tools/list omitted search_history. The recently added first-parent recent-history route offers that action in all presets. Normal LegacyValidation Full config remains verified and already exposes it.",
       "implementation": ["crates/engram_server/src/tool_surface.rs", "crates/engram_server/tests/workflow_tool_presets.rs", "docs/TOOL_CONTRACT.md"],
       "acceptance": "Core and inheriting presets advertise the same registered search_history schema as Full and can execute the emitted pinned patch action. Preserve all existing tools and Full defaults; update advertised maximum counts where they change.",
       "source_commit": "387ee3f6b49c9060707555e84cfc6c86789b7699",
-      "verification": "An owned real MCP Core config listed 31 capability-filtered tools and emitted a pinned search_history patch action for its VB file even though the tool was absent. The focused executable compared exact old/new membership for all limited presets, preserving every old member; Core, QA and Migration gain only search_history, Development is unchanged, and Full remains default. Added an owned handler test for executing the emitted patch action. The public packaged check remains pending. No release build or full suite ran.",
+      "verification": "The prior Core MCP emitted the action without advertising it. Candidate and installed Core both execute the exact emitted pinned action against an owned LegacyValidation VB.NET copy and return the 30,461-byte patch. The same search_history schema is present in Core, Development, QA, Migration and Full. The focused executable checked exact old/new preset membership.",
       "limits": "Configured maxima before capability filtering are now Core 35, Development 38, QA and Migration 41. The normal LegacyValidation Full configuration is unchanged and already advertised search_history.",
       "retention": "Keep the MCP baseline, focused reproducer and numeric receipts under current-task-check/core-history-dependency-20261120 through packaged acceptance. Owned MCP and compiler fixtures were removed."
     },
     "feature_dossier_exact_source_scope": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "requirement": "TODO-32 usable pre-edit source dossier for an agent working on known LegacyValidation WebForms files",
       "observed_gap": "Existing source_files prioritizes known paths but unconditionally reruns change-set retrieval and pattern discovery, then expands authored WebForms composition. The retained LegacyValidation dossier timings were roughly 54–60 seconds after batching. The installed schema rejects exact-only selection.",
       "implementation": ["crates/engram_server/src/handlers/feature_plan_tools.rs", "crates/engram_server/src/services/feature_plan.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs"],
       "acceptance": "Opt-in exact-source dossier runs only caller-selected source and policy acquisition with existing revision/hash guards, plus explicit schema reads if requested. It reports skipped discovery, preserves missing-source recovery, and keeps normal generated and discovery modes available.",
       "source_commit": "6e070bc964bbf0532606371838bfe3cdc4f23f6d",
-      "verification": "Installed MCP rejected source_files_only. Two focused checks of actual request validation and candidate selection passed. Explicit order, deduplication and the missing-path identity survived; the default still retained example and ranked candidates. Inspection confirmed source-only skips the change-set, pattern and registered-component calls. Added an owned handler regression case for actual scoped guidance and known registered child exclusion. Packaged MCP and elapsed time remain pending; no release build or full suite ran.",
+      "verification": "Candidate and installed MCP admitted the two requested LegacyValidation WebForms paths, with independently verified hashes and scoped guidance, explicitly omitted the missing path with recovery, recorded zero generation calls and skipped change-set, pattern and composition discovery. Installed elapsed time in the owned fixture was 9ms versus 92ms for the regular five-file dossier. Fresh live MCP verified the exact two actual LegacyValidation source hashes. Timings for the fixture do not estimate broader repository speedup.",
       "retention": "Keep the numeric receipt and focused reproducer under current-task-check/exact-source-dossier-20261120 through packaged acceptance. Owned compiler scratch was removed."
     },
     "scoped_source_workflows_release": {
@@ -4345,22 +4353,23 @@
       "acceptance_contract": "Index an owned VB/WebForms and TypeScript or SQL fixture, advance one file's revision, and verify MCP exact-file freshness matches inherited bytes and detects an equal-size disk edit. Compare live LegacyValidation selected physical revision to exact-file integrity and raw disk hash to independent source."
     }
   ],
-  "next_source_batch_pending": [
+  "next_source_batch_pending": [],
+  "dossier_core_job_polling_delivered_batch": [
     {
       "original_requirement_id": "TODO-32",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "6e070bc964bbf0532606371838bfe3cdc4f23f6d",
       "acceptance_contract": "Through MCP with dossier_only and source_files_only enabled, request exact LegacyValidation WebForms paths and one missing path. Verify source fingerprints, scoped authored guidance, skipped ranking and pattern/composition discovery, no generation requests, and explicit omitted-path recovery. Retain regular discovery behavior and report actual elapsed time for the scoped mode."
     },
     {
       "original_requirement_id": "EG-18",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "387ee3f6b49c9060707555e84cfc6c86789b7699",
       "acceptance_contract": "Start an owned preset-filtered MCP client. Verify Core tools/list advertises search_history, ask_codebase emits a pinned patch request for a VB file, and the client executes that exact request. Verify unchanged Development and Full availability and inherited QA and Migration history advertisement."
     },
     {
       "original_requirement_id": "TODO-37/TODO-4",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "c030da51e8b9267f93cfb61f0b12b779c1ee86f3",
       "acceptance_contract": "Use public MCP to poll an owned job with output_json=true while running and after settlement. Confirm typed job identity, phase/count/ETA, unchanged default text, and exact saved recovery of the original observation without another poll."
     }
