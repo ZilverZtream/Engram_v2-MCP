@@ -1,4 +1,5 @@
 ﻿using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.Operations;
 using Microsoft.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.VisualBasic;
 using Microsoft.CodeAnalysis.VisualBasic.Syntax;
@@ -982,78 +983,9 @@ internal sealed class AstEmitter
 
             foreach (var inv in collector.Invocations)
             {
-                var targetName = ResolveInvocationName(inv);
+                if (model.GetOperation(inv) is IArrayElementReferenceOperation) continue;
+                var targetName = EmitCall(inv, fqn, "function", methodStartLine);
                 var callSiteLine = Line(tree, inv);
-                var invocationMetadata = ResolveInvocationMetadata(inv) ?? new Dictionary<string, string>();
-                var invocationSymbol = model.GetSymbolInfo(inv);
-                if (invocationSymbol.Symbol is IMethodSymbol calledMethod
-                    && calledMethod.ContainingType.TypeKind == TypeKind.Interface)
-                {
-                    var locator = SourceInterfaceMember(calledMethod);
-                    invocationMetadata["interface_call_status"] = locator is null ? "unknown" : "source_located";
-                    if (locator is not null)
-                    {
-                        interfaceBindingsProduced++;
-                        invocationMetadata["interface_call_target_v1"] = LocatorJson(locator);
-                    }
-                    else { interfaceBindingsOmitted++; }
-                }
-                else if (invocationSymbol.CandidateSymbols.OfType<IMethodSymbol>()
-                    .Any(candidate => candidate.ContainingType.TypeKind == TypeKind.Interface)
-                    || (inv.Expression is MemberAccessExpressionSyntax access
-                        // A leading-dot invocation inside With has no explicit
-                        // receiver. Its resolved symbol above remains valid;
-                        // querying a null syntax node aborts the whole file.
-                        && access.Expression is { } receiver
-                        && model.GetTypeInfo(receiver).Type?.TypeKind == TypeKind.Interface))
-                {
-                    // An ambiguous interface call must not enter Rust's
-                    // generic name/arity resolver as an ordinary call.
-                    invocationMetadata["interface_call_status"] = "unknown";
-                    interfaceBindingsOmitted++;
-                }
-                else if (invocationSymbol.Symbol is IMethodSymbol selectedMethod)
-                {
-                    var original = (selectedMethod.ReducedFrom ?? selectedMethod).OriginalDefinition;
-                    if (original.Locations.Any(location => location.IsInSource))
-                    {
-                        var locator = SourceMethod(original);
-                        var payload = locator is null ? null : JsonSerializer.Serialize(
-                            locator, AppJsonContext.Default.SourceMemberLocatorDto);
-                        var payloadBytes = payload is null ? 0 : Encoding.UTF8.GetByteCount(payload);
-                        // Charge every emitted payload, including repeated targets.
-                        // Keep the byte budget separate from the hard work ceiling:
-                        // common short locators must not hide all later callers.
-                        var admitted = locator is not null
-                            && payloadBytes <= MaxSingleSourceCallLocatorBytes
-                            && sourceCallsProduced < MaxSourceCallLocators
-                            && payloadBytes <= MaxSourceCallLocatorBytes - sourceCallLocatorBytes;
-                        invocationMetadata["source_call_status"] = admitted ? "source_located" : "unknown";
-                        if (admitted)
-                        {
-                            sourceCallsProduced++;
-                            sourceCallLocatorBytes += payloadBytes;
-                            targetName = locator!.Name;
-                            invocationMetadata["source_call_target_v1"] = payload!;
-                        }
-                        else { sourceCallsOmitted++; }
-                    }
-                }
-                invocationMetadata["call_site_line"] = callSiteLine.ToString();
-                // TODO-13: argument count lets the resolver prefer the
-                // matching overload instead of the first name hit.
-                invocationMetadata["args"] = (inv.ArgumentList?.Arguments.Count ?? 0).ToString();
-                edges.Add(new EdgeDto
-                {
-                    SourceName = fqn,
-                    SourceKind = "function",
-                    SourceStartLine = methodStartLine,
-                    SourceLanguage = "vb",
-                    TargetName = targetName,
-                    TargetKind = "function",
-                    Kind = "calls",
-                    Metadata = invocationMetadata
-                });
 
                 if (IsSqlExecutionCall(targetName))
                 {
@@ -1351,6 +1283,7 @@ internal sealed class AstEmitter
                 }
             }
 
+            EmitImplicitCalls(node, fqn, "function", methodStartLine);
             EmitPropertyReferences(collector, fqn, "function", methodStartLine);
             foreach (var member in collector.MemberAccesses)
             {
@@ -1429,23 +1362,11 @@ internal sealed class AstEmitter
             collector.Visit(node);
             foreach (var invocation in collector.Invocations)
             {
-                var callSiteLine = Line(tree, invocation);
-                var invocationMetadata = ResolveInvocationMetadata(invocation) ?? new Dictionary<string, string>();
-                invocationMetadata["call_site_line"] = callSiteLine.ToString();
-                invocationMetadata["args"] = (invocation.ArgumentList?.Arguments.Count ?? 0).ToString();
-                invocationMetadata["via"] = "property_accessor";
-                edges.Add(new EdgeDto
-                {
-                    SourceName = fqn,
-                    SourceKind = "property",
-                    SourceStartLine = propertyStartLine,
-                    SourceLanguage = "vb",
-                    TargetName = ResolveInvocationName(invocation),
-                    TargetKind = "function",
-                    Kind = "calls",
-                    Metadata = invocationMetadata
-                });
+                if (model.GetOperation(invocation) is IArrayElementReferenceOperation) continue;
+                EmitCall(invocation, fqn, "property", propertyStartLine);
             }
+            foreach (var accessor in node.Accessors)
+                EmitImplicitCalls(accessor, fqn, "property", propertyStartLine);
 
             EmitPropertyReferences(collector, fqn, "property", propertyStartLine, fqn);
             foreach (var child in node.ChildNodes()) Walk(child);
@@ -1752,44 +1673,92 @@ internal sealed class AstEmitter
             return SanitizeName(string.Join('.', parts));
         }
 
-        string ResolveInvocationName(InvocationExpressionSyntax invocation)
+        void EmitImplicitCalls(SyntaxNode block, string source, string kind, int startLine)
         {
-            try
+            // VB can invoke a parameterless function using just its name. The
+            // operation distinguishes a call from a property read or method group.
+            if (model.GetOperation(block) is not { } body) return;
+            foreach (var operation in body.DescendantsAndSelf())
             {
-                var info = model.GetSymbolInfo(invocation);
-                var symbol = info.Symbol as IMethodSymbol;
-                if (symbol is not null)
-                {
-                    return SanitizeName(symbol.ToDisplayString(BareQualifiedNameFormat));
-                }
-
-                // Fall back to raw text when no resolved symbol.
-                return SanitizeName(invocation.Expression?.ToString() ?? "<unknown>");
-            }
-            catch
-            {
-                // Any Roslyn semantic lookup can throw on malformed trees.
-                // Degrade gracefully to raw text.
-                return SanitizeName(invocation.Expression?.ToString() ?? "<unknown>");
+                if (operation is IInvocationOperation call
+                    && call.Syntax is ExpressionSyntax site and (SimpleNameSyntax or MemberAccessExpressionSyntax))
+                    EmitCall(site, source, kind, startLine, call.TargetMethod);
             }
         }
 
-        Dictionary<string, string>? ResolveInvocationMetadata(InvocationExpressionSyntax invocation)
+        string EmitCall(ExpressionSyntax site, string source, string kind, int startLine,
+            IMethodSymbol? implicitTarget = null)
         {
-            try
+            var invocation = site as InvocationExpressionSyntax;
+            var callee = invocation?.Expression ?? site;
+            var symbolInfo = model.GetSymbolInfo(site);
+            var method = implicitTarget ?? symbolInfo.Symbol as IMethodSymbol;
+            var targetName = SanitizeName(method?.ToDisplayString(BareQualifiedNameFormat) ?? callee.ToString());
+            var invocationMetadata = new Dictionary<string, string>();
+            if (method is null) invocationMetadata["unresolved"] = "true";
+            if (method is { } calledMethod
+                && calledMethod.ContainingType.TypeKind == TypeKind.Interface)
             {
-                var info = model.GetSymbolInfo(invocation);
-                if (info.Symbol is IMethodSymbol)
+                var locator = SourceInterfaceMember(calledMethod);
+                invocationMetadata["interface_call_status"] = locator is null ? "unknown" : "source_located";
+                if (locator is not null)
                 {
-                    return null;
+                    interfaceBindingsProduced++;
+                    invocationMetadata["interface_call_target_v1"] = LocatorJson(locator);
+                }
+                else { interfaceBindingsOmitted++; }
+            }
+            else if (symbolInfo.CandidateSymbols.OfType<IMethodSymbol>()
+                .Any(candidate => candidate.ContainingType.TypeKind == TypeKind.Interface)
+                || (callee is MemberAccessExpressionSyntax access
+                    // A leading-dot invocation inside With has no explicit
+                    // receiver. Its resolved symbol above remains valid;
+                    // querying a null syntax node aborts the whole file.
+                    && access.Expression is { } receiver
+                    && model.GetTypeInfo(receiver).Type?.TypeKind == TypeKind.Interface))
+            {
+                // An ambiguous interface call must not enter Rust's
+                // generic name/arity resolver as an ordinary call.
+                invocationMetadata["interface_call_status"] = "unknown";
+                interfaceBindingsOmitted++;
+            }
+            else if (method is { } selectedMethod)
+            {
+                var original = (selectedMethod.ReducedFrom ?? selectedMethod).OriginalDefinition;
+                if (original.Locations.Any(location => location.IsInSource))
+                {
+                    var locator = SourceMethod(original);
+                    var payload = locator is null ? null : JsonSerializer.Serialize(
+                        locator, AppJsonContext.Default.SourceMemberLocatorDto);
+                    var payloadBytes = payload is null ? 0 : Encoding.UTF8.GetByteCount(payload);
+                    // Charge every emitted payload, including repeated targets.
+                    // Keep the byte budget separate from the hard work ceiling:
+                    // common short locators must not hide all later callers.
+                    var admitted = locator is not null
+                        && payloadBytes <= MaxSingleSourceCallLocatorBytes
+                        && sourceCallsProduced < MaxSourceCallLocators
+                        && payloadBytes <= MaxSourceCallLocatorBytes - sourceCallLocatorBytes;
+                    invocationMetadata["source_call_status"] = admitted ? "source_located" : "unknown";
+                    if (admitted)
+                    {
+                        sourceCallsProduced++;
+                        sourceCallLocatorBytes += payloadBytes;
+                        targetName = locator!.Name;
+                        invocationMetadata["source_call_target_v1"] = payload!;
+                    }
+                    else { sourceCallsOmitted++; }
                 }
             }
-            catch
+            invocationMetadata["call_site_line"] = Line(tree, site).ToString();
+            invocationMetadata["args"] = (invocation?.ArgumentList?.Arguments.Count ?? 0).ToString();
+            if (kind == "property") invocationMetadata["via"] = "property_accessor";
+            edges.Add(new EdgeDto
             {
-                // fall through
-            }
-
-            return new Dictionary<string, string> { ["unresolved"] = "true" };
+                SourceName = source, SourceKind = kind, SourceStartLine = startLine,
+                SourceLanguage = "vb", TargetName = targetName, TargetKind = "function",
+                Kind = "calls", Metadata = invocationMetadata
+            });
+            return targetName;
         }
 
         static string ExtractInvocationName(ExpressionSyntax expression) => expression switch

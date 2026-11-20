@@ -98,6 +98,36 @@ impl Drop for Harness {
     }
 }
 
+#[test]
+fn parameterless_reads_are_calls_and_array_subscripts_are_not() {
+    let Some(bin) = sidecar_path() else { return };
+    let mut harness = Harness::start(&bin);
+    let source = r#"Public Class Report
+    Public Function CurrentBatch() As Integer
+        Return 3
+    End Function
+    Public Function Read(rows As Integer()) As Integer
+        Return CurrentBatch() + CurrentBatch + rows(0)
+    End Function
+    Public ReadOnly Property Batch As Integer
+        Get
+            Return Me.CurrentBatch
+        End Get
+    End Property
+End Class"#;
+    let reply = harness.send(serde_json::json!({
+        "cmd": "parse", "standalone": true, "path": "Report.vb", "source": source
+    }));
+    let calls = reply["edges"].as_array().expect("parse must return edges").iter()
+        .filter(|edge| edge["kind"] == "calls")
+        .collect::<Vec<_>>();
+    assert_eq!(calls.len(), 3, "{calls:?}");
+    assert!(calls.iter().all(|edge| edge["target_name"] == "Report.CurrentBatch"));
+    assert_eq!(calls.iter().filter(|edge| edge["source_name"] == "Report.Read").count(), 2);
+    assert!(calls.iter().any(|edge| edge["source_name"] == "Report.Batch"
+        && edge["metadata"]["via"] == "property_accessor"));
+}
+
 const SOURCE_V1: &str = "Class Widget\n  Public Sub Alpha()\n  End Sub\nEnd Class\n";
 const SOURCE_V2: &str = "Class Widget\n  Public Sub Beta()\n  End Sub\nEnd Class\n";
 
