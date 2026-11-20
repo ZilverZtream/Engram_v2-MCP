@@ -2973,6 +2973,15 @@
   "current_execution_focus": {
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "typed_job_status": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-37 agent-pollable indexing progress and TODO-4 structured report delivery",
+      "observed_gap": "Installed MCP accepts get_job_status(output_json=true) but the envelope result has only content and isError. Agents must parse multiline text to recover even the durable job status.",
+      "implementation": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/read_report_delivery.rs"],
+      "acceptance": "Public MCP exposes the exact job ID, kind, project, status, message, timestamps and phase-only progress as job_status in the existing JSON envelope. Check a running and terminal job, explicit unknown phase estimates, unchanged default text, and exact captured recovery without polling again.",
+      "source_commit": "c030da51e8b9267f93cfb61f0b12b779c1ee86f3",
+      "verification": "Installed MCP returned only content and isError inside the prior JSON envelope. The exact amended handler and progress formatter passed one focused test with a real owned registry and production rmcp serialization types. The check verified identical default text, multiline typed status fields, a running phase estimate, and null terminal ETA. The amended integration test covers the shared wrapper and exact snapshot recovery after deletion and restart. Combined native, packaged MCP and deployment are pending. No Cargo build or full suite ran; the owned compiler and registry fixtures were removed."
+    },
     "preset_history_followup_dependency": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "requirement": "EG-18 advertised workflow dependencies are discoverable and callable under limited MCP profiles",
@@ -4330,6 +4339,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "387ee3f6b49c9060707555e84cfc6c86789b7699",
       "acceptance_contract": "Start an owned preset-filtered MCP client. Verify Core tools/list advertises search_history, ask_codebase emits a pinned patch request for a VB file, and the client executes that exact request. Verify unchanged Development and Full availability and inherited QA and Migration history advertisement."
+    },
+    {
+      "original_requirement_id": "TODO-37/TODO-4",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "c030da51e8b9267f93cfb61f0b12b779c1ee86f3",
+      "acceptance_contract": "Use public MCP to poll an owned job with output_json=true while running and after settlement. Confirm typed job identity, phase/count/ETA, unchanged default text, and exact saved recovery of the original observation without another poll."
     }
   ],
   "dossier_webforms_history_source_batch_20261120": [
