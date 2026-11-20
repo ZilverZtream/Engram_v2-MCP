@@ -413,7 +413,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "One setting's complete story: where it's declared, EVERY indexed usage site (containing symbol + file:line, grouped by edge kind), and test guidance (toggle-and-exercise sites, role/permission axis, literal-sweep fallback). Use after list_settings, or whenever a change touches code gated by a setting."
+        description = "Inspect a setting declaration and its bounded indexed usage, or a source-cited literal getter observation. Use an exact node_id from derive_test_matrix or list_settings to keep distinct indexed identities separate. Supply either node_id or name; exact source_files requires name. Indexed usage and getter names do not establish runtime binding or current values."
     )]
     pub async fn get_setting(
         &self,

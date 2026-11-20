@@ -1600,7 +1600,11 @@ pub struct GetSettingRequest {
     pub source_files: Option<Vec<String>>,
     /// Setting name (web.config key, connection string, Session/Application
     /// key, or settings-store member). Exact match preferred; substring ok.
-    pub name: String,
+    pub name: Option<String>,
+    /// Exact indexed setting node from a test matrix or settings inventory.
+    /// Mutually exclusive with name and source_files.
+    #[serde(default)]
+    pub node_id: Option<String>,
 }
 
 // -------------------- Merged-work corpus --------------------

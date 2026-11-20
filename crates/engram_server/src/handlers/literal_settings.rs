@@ -51,6 +51,15 @@ pub(super) fn lookup(
                 .join(", ")
         ));
     }
+    Ok(Some(render_observations(graph, pid, root, &candidates)?))
+}
+
+pub(super) fn render_observations(
+    graph: &GraphStore,
+    pid: &str,
+    root: &Path,
+    candidates: &[Node],
+) -> Result<String, String> {
     let mut out = format!(
         "# Literal setting: `{}`\n\n{} indexed call-site observation(s). These are name-shaped typed getter calls, not web.config declarations, compiler/store binding, current values or proof of execution. Observations with the same label do not prove one physical backing store.\n",
         candidates[0].name,
@@ -117,5 +126,5 @@ pub(super) fn lookup(
         );
     }
     out.push_str("\n## Test guidance\nInspect the getter and consuming conditions before choosing cases. GetText/GetInt/etc. are observed names, not verified return types; do not assume every setting is Boolean. Consider valid, missing and boundary values only where the actual task/source supports them. Independent source observations are not one atomic snapshot; no inferred business rule or test execution is supplied.\n");
-    Ok(Some(out))
+    Ok(out)
 }

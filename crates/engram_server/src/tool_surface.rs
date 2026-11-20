@@ -215,7 +215,7 @@ pub fn workflow_tools(preset: ToolPreset) -> &'static [&'static str] {
             "batch_read", "get_method_info", "pre_push_audit",
         ],
         ToolPreset::Qa => &[
-            "derive_test_matrix", "analyze_business_logic", "trace_state_usage",
+            "derive_test_matrix", "analyze_business_logic", "trace_state_usage", "get_setting",
             "query_schema", "batch_read", "pre_push_audit",
         ],
         ToolPreset::Migration => &[

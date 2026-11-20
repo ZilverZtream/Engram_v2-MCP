@@ -2981,6 +2981,17 @@
   "current_execution_focus": {
     "status": "STAGED_REVIEW_AND_RELATED_SOURCE_WORK_READY",
     "implementation_items_active": 0,
+    "qa_exact_setting_followup": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "EG-18 callable QA dependencies and LegacyValidation setting-aware tests",
+      "observed_gap": "The QA test matrix recommends get_setting but the QA preset omits it. Matrix rows include exact indexed node IDs, but get_setting only accepts a name, which can combine same-label literal observations from distinct files.",
+      "implementation": ["crates/engram_server/src/handlers/settings_tools.rs", "crates/engram_server/src/handlers/literal_settings.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tool_surface.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "An owned QA profile publishes exact per-node setting read actions for visible indexed rows. Follow a literal action for one of two same-label VB getters and verify exact file/line, current-source qualifications and no coalescing. Preserve ordinary name lookup and reject non-setting IDs.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/qa-exact-setting-handoff-20261120",
+      "baseline": {"path": "baseline-observed/receipt.json", "sha256": "e7836951043c41d812b3a537acc777697d6c38274da92cde3bb8ce1992ba42bf"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "76581aea0e1986533293fbfd3d6e3c80d4305d49ec0ebf9afcd0a1e9a93a6c15"},
+      "evidence": "The installed QA profile returned both authored VB getter sites in a test matrix, but omitted get_setting from tools/list and offered no exact callable action. The revised source preserves indexed identities, keeps current-source qualification, and filters the action through the active preset. The frozen debug candidate predates this change."
+    },
     "combined_debug_candidate": {
       "status": "ONE_DEBUG_CANDIDATE_BUILD_RUNNING",
       "source_commit": "839892761dc3a0b842fc719cbd1155e2927585d4",

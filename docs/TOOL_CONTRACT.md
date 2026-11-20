@@ -617,6 +617,12 @@ omitted authored guidance and linked documents with a recorded fingerprint.
 Follow the file excerpts through EOF for the full text. Historical matrices
 continue to withhold current policy.
 
+QA and Full matrices also supply `get_setting(node_id=...)` actions for
+displayed indexed settings. Use the action to inspect that declaration or
+literal getter observation without combining same-name entries. The QA preset
+includes the reader. Ordinary name searches and exact-file literal searches
+remain available.
+
 `plan_user_story` uses the same actions for omitted guidance bound to the
 observed concept candidates. Recheck guide applicability for the final edit
 paths.

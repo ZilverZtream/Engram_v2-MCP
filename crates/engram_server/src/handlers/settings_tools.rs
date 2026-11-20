@@ -306,15 +306,22 @@ impl Engram {
         req: crate::models::GetSettingRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        let name = match (&req.name, &req.node_id) {
+            (Some(name), None) if !name.trim().is_empty() => name.clone(),
+            (None, Some(id)) if !id.trim().is_empty() && id.len() <= 4096
+                && !id.chars().any(char::is_control) && req.source_files.is_none() => String::new(),
+            _ => return Err(McpError::invalid_params(
+                "Supply a nonblank setting name or one exact node_id. source_files requires name.",
+                None,
+            )),
+        };
         if let Some(files) = &req.source_files {
             super::current_settings::validate(files).map_err(|e| McpError::invalid_params(e.to_string(),None))?;
-            if req.name.trim().is_empty() { return Err(McpError::invalid_params("setting name must not be blank",None)); }
         }
         let _rec = self.ensure_project_record(&req.project_id).await?;
         if let Some(files) = req.source_files {
             let root = std::path::PathBuf::from(_rec.directory);
             let pid = req.project_id;
-            let name = req.name;
             let budget = self.state.memory_budget.clone();
             let report = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
                 Ok(serde_json::to_string_pretty(&super::current_settings::collect(&root,&pid,&files,Some(&name),200,&budget)?)?)
@@ -325,14 +332,30 @@ impl Engram {
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
-        let name_q = req.name.clone();
+        let node_id = req.node_id;
 
         let literal_graph = graph.clone();
         let literal_pid = pid.clone();
-        let literal_query = name_q.clone();
+        let literal_query = name.clone();
         let root = std::path::PathBuf::from(&_rec.directory);
-        let literal = tokio::task::spawn_blocking(move ||
-            super::literal_settings::lookup(&literal_graph, &literal_pid, &root, &literal_query))
+        let (literal, selected_node) = tokio::task::spawn_blocking(move || -> Result<_, String> {
+            if let Some(id) = node_id {
+                let node = literal_graph.get_node(&literal_pid, &id)
+                    .map_err(|error| format!("Setting node lookup failed: {error}"))?
+                    .filter(|node| category(node).is_some())
+                    .ok_or_else(|| "The supplied node_id is not an indexed setting for this project".to_string())?;
+                let report = if node.node_type == "setting_key" {
+                    Some(super::literal_settings::render_observations(
+                        &literal_graph, &literal_pid, &root, std::slice::from_ref(&node),
+                    )?)
+                } else {
+                    None
+                };
+                Ok((report, Some(node)))
+            } else {
+                Ok((super::literal_settings::lookup(&literal_graph, &literal_pid, &root, &literal_query)?, None))
+            }
+        })
             .await.map_err(|e| McpError::internal_error(e.to_string(), None))?
             .map_err(|e| McpError::invalid_params(e, None))?;
         if let Some(mut text) = literal {
@@ -341,7 +364,7 @@ impl Engram {
         }
 
         let result = tokio::task::spawn_blocking(move || {
-            let node = resolve_setting(&graph, &pid, &name_q)?;
+            let node = if let Some(node) = selected_node { node } else { resolve_setting(&graph, &pid, &name)? };
             let mut warnings = vec!["Locations are indexed containing-symbol declarations; current source positions and runtime enforcement are unverified.".to_string()];
             let incoming = graph
                 .find_incoming_edges_with_kind(&pid, None, &node.node_id, 501)
@@ -515,10 +538,11 @@ impl Engram {
         let current_settings_budget = self.state.memory_budget.clone();
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
-        let (settings_axis, setting_labels, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, unresolved, coverage_notes, companion_context, member_observations, constructor_context) =
+        let (settings_axis, setting_labels, indexed_setting_ids, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, unresolved, coverage_notes, companion_context, member_observations, constructor_context) =
             tokio::task::spawn_blocking(move || {
                 let mut settings_axis: Axis = BTreeMap::new();
                 let mut setting_labels: BTreeMap<String, String> = BTreeMap::new();
+                let mut indexed_setting_ids = std::collections::BTreeSet::new();
                 let mut roles_axis: Axis = BTreeMap::new();
                 let mut state_axis: Axis = BTreeMap::new();
                 let mut runtime_axes: Axis = BTreeMap::new();
@@ -704,6 +728,7 @@ impl Engram {
                     let mut nullable_observations = BTreeMap::new();
                     for n in &symbols {
                         if n.node_type == "setting_key" {
+                            indexed_setting_ids.insert(n.node_id.clone());
                             setting_labels.insert(n.node_id.clone(), setting_label(n));
                             settings_axis.entry(n.node_id.clone()).or_default().push(format!(
                                 "{}:{} (literal-key read in requested source; whether it governs this task requires source review)",
@@ -769,7 +794,12 @@ impl Engram {
                                 }
                                 for (target, _) in neigh {
                                     let setting_name = match graph.get_node(&pid, &target) {
-                                        Ok(Some(t)) => setting_label(&t),
+                                        Ok(Some(t)) => {
+                                            if category(&t).is_some() {
+                                                indexed_setting_ids.insert(t.node_id.clone());
+                                            }
+                                            setting_label(&t)
+                                        }
                                         Ok(None) => {
                                             let observation = nullable_observations.entry(target.clone()).or_insert_with(||
                                                 super::test_derivation::nullable_member_observation(source_code.as_deref(), &file, &target));
@@ -867,6 +897,7 @@ impl Engram {
                 (
                     settings_axis,
                     setting_labels,
+                    indexed_setting_ids,
                     roles_axis,
                     state_axis,
                     runtime_axes,
@@ -1079,6 +1110,18 @@ impl Engram {
             Some(&setting_labels),
             &mut out,
         );
+        if crate::tool_surface::includes(self.state.cfg.effective_tool_preset(), "get_setting") {
+            let mut actions = settings_axis.keys().take(40)
+                .filter(|id| indexed_setting_ids.contains(*id)).peekable();
+            if actions.peek().is_some() {
+                out.push_str("\nExact setting reads for the displayed indexed rows:\n");
+                for id in actions {
+                    let action = serde_json::json!({"tool":"get_setting",
+                        "arguments":{"project_id":req.project_id,"node_id":id}});
+                    out.push_str(&format!("- {action}\n"));
+                }
+            }
+        }
         render_axis(
             "Role / permission axis",
             "Exercise allowed and denied identities for each listed role or guard. Entries prefixed [gate] are guard functions, not role names; inspect those functions to determine roles, ownership, and tenant conditions before choosing identities:",
@@ -1153,7 +1196,7 @@ impl Engram {
                 roles_axis.len()
             ));
             out.push_str(
-                "\nnext: get_setting(name=<qualified setting label>) for other indexed usage. Node IDs distinguish separate graph targets; get_setting accepts names, not node IDs. If identical qualified labels remain ambiguous, inspect their cited source sites with grep_project/get_chunk instead of selecting an arbitrary setting. map_guards_and_settings(scope=<area>) \
+                "\nUse the exact setting read where offered. For unindexed or unresolved references, inspect the cited source with grep_project/get_chunk. Use map_guards_and_settings(scope=<area>) \
                  for gates in files you did NOT change but that share these keys.\n",
             );
         }
