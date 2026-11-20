@@ -2766,7 +2766,8 @@ impl Engram {
         }
         // External audit 2026-08-29 row 9: refresh the co-change snapshot
         // (incremental by walked commit) so the next get_change_set only reads.
-        if only_paths.is_none() {
+        // A source-only request leaves any Git-backed cache refresh to its reader.
+        if max_commits > 0 && only_paths.is_none() {
             let st = self.state.clone();
             let pid_w = project_id.to_string();
             observe_source_update(project_id, new_gen, "co_change_warm", "begin");
