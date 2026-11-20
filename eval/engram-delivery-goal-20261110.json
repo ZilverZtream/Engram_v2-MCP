@@ -3006,15 +3006,18 @@
       "evidence": "Installed MCP rejected the queued request before any source publication. Running the same request synchronously published only the independently hashed selected edit, inherited the separately changed outside revision and returned the scoped guidance observation. The candidate check follows the returned job ID and saved observation. An installed whole-project control held a native vector-provider request, observed source_flush, cancelled with generation 1 still selected, and retried successfully to generation 2. Candidate cancellation uses only_paths, with a separately edited outside file required to remain inherited. Scoped runtime proof remains pending. Both owned fixtures were removed."
     },
     "vector_dossier_net_review_release": {
-      "status": "ONE_COMBINED_RELEASE_BUILD_RUNNING",
+      "status": "CANDIDATE_PUBLIC_MCP_VERIFIED_LIVE_CUTOVER_DEFERRED",
       "source_commit": "a9965f53760d47a6a692b5a4123c73a76d5c8442",
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/vector-dossier-net-review-20261120",
       "release_plan_sha256": "9c6ac64d9b694dbef0297cfc55e3b499dc6360a75fd3860962e0854f7038200e",
       "pipeline_owner": {"path": "pipeline-owner.json", "sha256": "5a30f9a36e9273a005fa35391d6d04303f7a4c33c554f5a44eb32c32e7c4e4fd"},
+      "candidate_binary_sha256": "ccc819cdca4401b326cd50e549d133567231026a798b0d708973debb9f6ec13b",
+      "build_seconds": 1291.230,
+      "verification": "The first staged verifier asked project_info for a recovery warning reported by get_index_freshness. The corrected case verified a real native merge error, the original published revision, durable recovery across reopen and a callable repair that clears the reason. Separate dossier and mixed-review checks passed once on the same staged binary. Fixtures closed and were removed. No new build or live cutover was performed.",
       "scope": "One incremental optimized build in the shared target for the three source-ready outcomes. Stage previously verified sidecar assets and run each public fixture once against the candidate. Automatic cutover waiter stopped before it launched any installer; retain the candidate for a separately selected live delivery."
     },
     "review_combined_diff_guidance": {
-      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "status": "CANDIDATE_MCP_VERIFIED_LIVE_PENDING",
       "requirement": "TODO-34 and EG-02 complete scoped pre-commit review",
       "observed_gap": "A staged review with additional in-scope working edits and new SQL offers an unstaged review against the index but leaves the caller to construct the existing combined HEAD-to-worktree action.",
       "implementation": ["crates/engram_server/src/handlers/review_tools.rs", "docs/TOOL_CONTRACT.md"],
@@ -3022,10 +3025,11 @@
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/review-combined-diff-guidance-20261120",
       "baseline": {"path": "baseline/receipt.json", "sha256": "4443ab844cbb0acd86451efd9c8775eacc92c0eed9ec2e1d8deb1a9bfb6f2410"},
       "candidate_verifier": {"path": "verify.py", "sha256": "cb965358e275a426e6e9f25dd5d9be693aabc6fbddc3b6a5a4fa365beaf58ab5"},
+      "candidate_receipt": {"path": "candidate/receipt.json", "sha256": "c7ee7f0452d24e4cb43c27123138766a9eb29923143e02a25afcb5e2476404f1"},
       "verification": "The installed public staged review kept its original file and unstaged action but omitted the net working-tree action. A manually supplied combined call returned exactly the two authored VB/SQL files and preserved both Git versions. The candidate check executes the returned action and verifies scope and controls. The owned fixture was removed."
     },
     "feature_dossier_source_read": {
-      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "status": "CANDIDATE_MCP_VERIFIED_LIVE_PENDING",
       "requirement": "EG-02 bounded complete source evidence and TODO-32 WebForms pre-edit dossier",
       "observed_gap": "An exact LegacyValidation webhook persistence dossier provides a bounded 100-line excerpt and the original raw source hash but no callable read of the admitted file. Its generic change-set recovery cannot reconstruct the rest of that file.",
       "implementation": ["crates/engram_server/src/handlers/feature_plan_tools.rs", "docs/TOOL_CONTRACT.md"],
@@ -3033,23 +3037,25 @@
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/feature-dossier-source-read-20261120",
       "baseline": {"path": "baseline-observed/receipt.json", "sha256": "e53245359693622424e6c0e8a8855b445e4234647e8e8f8a07a1fb793eca39dc"},
       "candidate_verifier": {"path": "verify.py", "sha256": "94d04f2fdd818380d7c07370937ee824113fdc7a9ea69dd1031829784c7fa865"},
+      "candidate_receipt": {"path": "candidate/receipt.json", "sha256": "29d91d9e862a62d3082003d5ee53e9d08957741b515ae6970e013fb2f6a02a64"},
       "verification": "Live MCP reported the current raw hash and a 100-line excerpt with no source-read action. Owned baseline reproduced that result, verified the numbered excerpt and all 469 independently sourced lines across four current-reader pages when manually supplying the guard, and refused changed bytes. Candidate mode requires executing the emitted action. The owned fixture was removed; originals remain read-only."
     },
     "s02_native_write_recovery_signal": {
-      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "status": "CANDIDATE_MCP_VERIFIED_LIVE_PENDING",
       "requirement": "S02 complete selected source revisions across native vector write failures",
       "observed_gap": "The source vector upsert flattens the VEC1 cause produced by a failed LanceDB merge into an unclassified message. The server inspects the error chain to record the durable vector recovery requirement and misses that cause.",
       "implementation": ["crates/engram_index/src/hybrid.rs", "crates/engram_server/src/tool_guidance.rs", "docs/TOOL_CONTRACT.md"],
       "acceptance": "On an owned project with a successful source publication, a failed native merge surfaces the storage cause, leaves the previous file revision selected and records the existing vector recovery reason across reopen. Read-only project integrity must provide the exact advisory vector-only repair call, retain the pending reason and report unhealthy despite matching published row identities. Execute that call after removing the obstruction, verify the action disappears and retry the original edit. Provider fallback remains covered by retained S02 evidence.",
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/s02-native-write-recovery-20261120",
       "baseline": {"path": "baseline-observed/receipt.json", "sha256": "ef522207fa10965d73ca2fba9373f3c251efada260711c679b3259d0630f6dd8"},
-      "candidate_verifier": {"path": "verify.py", "sha256": "801a789a17289b52c72d24edac639349e4bc32e33b9352b6808ee65e9c4f8d1c"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "d42901c00269bf9d4f6d946c33f18f8ad0d0a7e9ef4d4b341d53ea4f63106afa"},
+      "candidate_receipt": {"path": "candidate-corrected/receipt.json", "sha256": "aa194fd64264576678f1610e136fe8a382b182e902e2db4a5223079f6eddce63"},
       "repair_baseline": {"path": "baseline-repair/receipt.json", "sha256": "402d47c5a539df0cc593e86475d0bb10dbfbeaf12675323c1b78da550979b880"},
       "integrity_baseline": {"path": "baseline-integrity-corrected/receipt.json", "sha256": "7b2867c2d2daad5aeae830db8a0a9103e7d646ad7b8050d2178ea008c3131c95"},
       "evidence": "The installed binary on an owned project hit a native merge failure after valid embeddings. Generation 1 remained selected, the vector recovery reason was absent before and after reopening, and retry after removing the obstruction published generation 2. The fixture directory was removed. The first run retained the same expected JSON-RPC error but the observer stopped before examining recovery; the corrected run completed.",
       "repair_evidence": "The installed vector-only repair rebuilt matching vector identities for the original selected revision while edited bytes remained on disk. Repair preserved the original indexed hash and generation. The subsequent source update published the independently hashed edit. The native write failure still lacks the durable recovery reason on the installed baseline.",
       "integrity_evidence": "The new installed edit dossier release reports healthy on the unchanged revision after the reproduced failed write and supplies generic project_info guidance. The updated code preserves the native error and routes the resulting durable vector reason to exact vector-only repair using the existing registered-tool navigation and response budget. Candidate acceptance executes the emitted arguments and checks the targeted action stops appearing after repair.",
-      "delivery": "Submit with a subsequent combined build. The installed edit dossier release was frozen before this change."
+      "delivery": "Verified on the staged candidate. Retain the artifact for a consolidated live deployment. The installed edit dossier release was frozen before this change."
     },
     "s02_installed_webforms_shrink_delete": {
       "status": "INSTALLED_PUBLIC_MCP_BEHAVIOR_VERIFIED_WITH_FIXTURE_DIAGNOSTIC",
