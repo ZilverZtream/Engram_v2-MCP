@@ -2974,15 +2974,17 @@
     "status": "VERIFIED_METHOD_EDIT_CONTEXT_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "limited_recovery_guidance_release": {
-      "status": "OWNED_BASELINE_MCP_VERIFIED_RELEASE_INPUTS_QUEUED",
-      "source_tip": "dfbc8015ffbedc17a702b60d7e309b75c0da8f94",
+      "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
+      "frozen_source_commit": "dfbc8015ffbedc17a702b60d7e309b75c0da8f94",
       "requirements": ["EG-18/TODO-33", "EG-01 QA matrix", "EG-01 story planning"],
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/limited-recovery-guidance-20261120",
       "baseline": {"path": "baseline/receipt.json", "sha256": "f5f7c4f0016205a797d719b8d6e9cdd1e5adf17aa929d5e59eac51d930f11e2d", "binary_sha256": "0237ac67283d3431df48a9f64b4249b98b1bcba4858eb07c180d62668887a67b"},
       "candidate_verifier": {"path": "verify-public.py", "sha256": "dab8336581c107747103814f70fb444d596e8b5366e3f836da2af088e4483c2f"},
       "queued_release_inputs": {"path": "queued-release-inputs.json", "sha256": "de73b7c6c724e9079b9338e3625a94420878bd953b2d528853467a0187683ea6"},
+      "release_plan": {"path": "release-plan.json", "sha256": "b456daba1698e063e6b5f210461253f7104f9d59cd0cb68b4c8af5e846726fee"},
+      "active_processes": "Exact build, staging and idle-install driver identities are retained in pipeline-owner.json. Follow live process and terminal receipt state before any recovery.",
       "evidence": "One shared LegacyValidation source-and-guide fixture verified hidden refresh and saved-schema actions, omitted guides in QA and Core planning, historical guidance withholding and Full's direct reply contract. All four standalone children and their shared fixture closed and were removed. The next candidate follows each emitted action and compares schema hashes and exact authored source through EOF.",
-      "source_delta": "Four server source files beyond the preceding frozen release and no sidecar or storage format change. Wait for the preceding build and install to become terminal before taking the existing registered frozen checkout or shared target."
+      "source_delta": "Four server source files beyond the verified installed method edit-context release and no sidecar or storage format change. The existing registered detached checkout and release target are reused."
     },
     "story_planning_policy_recovery": {
       "status": "SOURCE_COMPLETE_DIRECT_READER_VERIFIED_AWAITING_PACKAGED_MCP",
