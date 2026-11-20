@@ -2973,6 +2973,18 @@
   "current_execution_focus": {
     "status": "GIT_FRESHNESS_EDIT_SAFETY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "batch_read_preset_recovery": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "source_commit": "8550141e306c072a5b03bea0b0cf3ff778d31537",
+      "requirement": "EG-18 callable workflow dependencies and TODO-33 batch read recovery",
+      "observed_gap": "Installed QA batch_read returns get_method_info as per-row recovery even though that tool is outside QA discovery. Installed Development has the same defect for query_schema. Both nested reads succeed. The live LegacyValidation installation advertises Full, so the observed defect applies to opt-in limited workflows on LegacyValidation source.",
+      "implementation": ["crates/engram_server/src/handlers/batch_read_tools.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "On actual LegacyValidation VB source in QA and SQL in Development, follow the returned single-row recovery via the advertised tool using the same arguments. Full and already-discoverable operations retain direct calls. Preserve immutable original batch recovery and independent row errors.",
+      "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/verified-method-edit-context-20261120/batch-preset-recovery-evidence.json", "sha256": "dde8344a0194c941aa93e7c49b4f6281cbd0f9d590879e1dfe6e5b562c40305c"},
+      "focused_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/batch-preset-recovery-focused-20261120.json",
+      "verification": "Owned installed QA and Development returned successful rows with hidden direct refresh actions. The focused compiled path preserved the exact request and its ID in advertised batch_read actions. It kept direct actions on Full and matching limited profiles. Owned fixtures and focused build artifacts were removed. The next packaged MCP check must execute these returned actions.",
+      "scope": "This fixes per-row fresh recovery. Previously captured tool payloads and their inner continuations remain exact."
+    },
     "verified_method_edit_context_release": {
       "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
       "frozen_source_commit": "5753d8fd2e74a7834b9d8304ec89ea403cbf2bd3",
@@ -4716,6 +4728,14 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "5753d8fd2e74a7834b9d8304ec89ea403cbf2bd3",
       "acceptance_contract": "Use the same owned caller fixture. Prove that a caller-only instruction is included with its actual caller source or excerpt and excluded when the caller source is withheld, despite its visible identity. Target guidance and exact recovery remain."
+    }
+  ],
+  "following_source_batch_pending": [
+    {
+      "original_requirement_id": "EG-18/TODO-33",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "8550141e306c072a5b03bea0b0cf3ff778d31537",
+      "acceptance_contract": "In QA and Development, compare tools/list with the returned batch refresh action, execute it, and confirm unchanged VB and SQL evidence and row identity. Verify Full and matching limited presets still supply direct actions. Check exact saved results still recover separately."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
