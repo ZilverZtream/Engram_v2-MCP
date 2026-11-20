@@ -185,6 +185,13 @@ meaning. Caller identities alone do not widen policy scope. JSON and Markdown
 retain exceptions, source hashes and guidance recovery; existing public report
 budgets and immutable recovery preserve policy with the original safety evidence.
 
+The JSON edit-safety report includes the same bounded direct caller sample and
+file-time freshness qualification as Markdown. `caller_locations` identifies
+declarations with their edge kinds. `additional_resolved_callers` counts only
+resolved entries beyond the display limit. See `completeness` for upstream
+coverage and truncation. The freshness fields describe the timestamp check and
+the assessed source generation.
+
 The same scoped-editing delivery adds authored guidance to standalone
 `detect_incomplete_changes` for its declared edited paths, using the existing
 edit-session policy helper. Learned conventions and completeness findings keep

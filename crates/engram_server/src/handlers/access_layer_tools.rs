@@ -541,6 +541,15 @@ pub struct EditSafetyResult {
     pub evidence_interpretation: &'static str,
 }
 
+#[derive(Serialize)]
+struct StandaloneEditSafetyResponse<'a> {
+    #[serde(flatten)]
+    safety: &'a EditSafetyResult,
+    caller_locations: &'a [CallerLocation],
+    additional_resolved_callers: usize,
+    freshness: AccessFreshness,
+}
+
 /// What one evidence provider actually delivered (row-2 audit). Missing or
 /// truncated evidence must be visible to the verdict and to the reader —
 /// `None`/empty was previously indistinguishable from "nothing there".
@@ -6882,9 +6891,25 @@ impl Engram {
         project_downstream_safety_display(&mut safety,&req.project_id,
             &downstream_node_id,req.downstream_detail)?;
 
+        const CALLERS_SHOWN: usize = 10;
+        let shown_callers = &callers[..callers.len().min(CALLERS_SHOWN)];
+        let additional_resolved_callers = callers.len() - shown_callers.len();
+        let freshness = self
+            .method_edit_freshness(
+                &req.project_id,
+                &rec.directory,
+                &policy_path,
+                downstream_generation,
+            )
+            .await;
         if output_json {
-            let json = serde_json::to_string(&safety)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            let json = serde_json::to_string(&StandaloneEditSafetyResponse {
+                safety: &safety,
+                caller_locations: shown_callers,
+                additional_resolved_callers,
+                freshness,
+            })
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
             return method_body_policy::reply(req.project_id, PathBuf::from(rec.directory),
                 vec![policy_path], json, true).await;
         }
@@ -6920,14 +6945,13 @@ impl Engram {
             }
         }
 
-        if !callers.is_empty() {
-            const CALLERS_SHOWN: usize = 10;
+        if !shown_callers.is_empty() {
             md.push_str("\n### Callers\n\n");
-            for c in callers.iter().take(CALLERS_SHOWN) {
+            for c in shown_callers {
                 md.push_str(&format!("- `{}` ({}:{})\n", c.fqn, c.file_path, c.line));
             }
-            if callers.len() > CALLERS_SHOWN {
-                md.push_str(&format!("- … and {} more\n", callers.len() - CALLERS_SHOWN));
+            if additional_resolved_callers > 0 {
+                md.push_str(&format!("- … and {additional_resolved_callers} more\n"));
             }
         }
 
@@ -6939,14 +6963,7 @@ impl Engram {
             "next: get_method_edit_context before making the edit; \
              find_symbol_references(<method>) for callers beyond those shown.\n",
         );
-        let (banner, footer) = self
-            .method_edit_freshness(
-                &req.project_id,
-                &rec.directory,
-                &req.file_path,
-                downstream_generation,
-            )
-            .await.markdown_parts();
+        let (banner, footer) = freshness.markdown_parts();
         let mut out = banner.unwrap_or_default();
         out.push_str(&md);
         out.push_str(&footer);
