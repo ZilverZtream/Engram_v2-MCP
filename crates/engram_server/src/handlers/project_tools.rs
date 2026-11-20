@@ -1897,10 +1897,9 @@ impl Engram {
                     .unwrap_or_else(|| exts_for_project_type(&ps.info.project_type));
 
                 phase.phase("scanning", None, None);
-                let project_service::SourceChangeScan { mut changed, deleted, extraction, vb_source_files, .. } = project_service::get_incremental_changes_for_update(
-                    &state, &ps.search, &source_head, &dir, &exts)
+                let project_service::SourceChangeScan { changed, deleted, extraction, vb_source_files, .. } = project_service::get_incremental_changes_for_update(
+                    &state, &ps.search, &source_head, &dir, &exts, &reindex_paths)
                     .await?;
-                project_service::include_reindex_paths(&state, &dir, &exts, &reindex_paths, &mut changed).await?;
                 if changed.is_empty() && deleted.is_empty() && reindex_paths.is_empty() {
                     new_gen = old_gen;
                     let (_, warning) = engram.refresh_unchanged_source(
@@ -2559,18 +2558,8 @@ impl Engram {
             if let Some(paths) = only_paths {
                 project_service::exclusive_source_changes(&self.state, &ps.search, &source_head, &dir, &exts, paths).await?
             } else {
-                project_service::get_incremental_changes_for_update(&self.state, &ps.search, &source_head, &dir, &exts).await?
+                project_service::get_incremental_changes_for_update(&self.state, &ps.search, &source_head, &dir, &exts, reindex_paths).await?
             };
-
-        let mut changed = changed;
-        project_service::include_reindex_paths(
-            &self.state,
-            &dir,
-            &exts,
-            reindex_paths,
-            &mut changed,
-        )
-        .await?;
 
         if changed.is_empty() && deleted.is_empty() && reindex_paths.is_empty() {
             return self

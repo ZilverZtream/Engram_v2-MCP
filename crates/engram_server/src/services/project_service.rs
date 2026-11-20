@@ -473,7 +473,7 @@ pub async fn get_incremental_changes(
     root: &Path,
     exts: &[&str],
 ) -> anyhow::Result<(Vec<PathBuf>, Vec<engram_core::RelPath>)> {
-    let scan = scan_incremental_changes(state, project_id, root, exts, None, false).await?;
+    let scan = scan_incremental_changes(state, project_id, root, exts, None, false, &[]).await?;
     Ok((scan.changed, scan.deleted))
 }
 
@@ -483,7 +483,7 @@ pub(crate) async fn observe_freshness_disk(
     root: &Path,
     exts: &[&str],
 ) -> anyhow::Result<SourceChangeScan> {
-    scan_incremental_changes(state, project_id, root, exts, None, true).await
+    scan_incremental_changes(state, project_id, root, exts, None, true, &[]).await
 }
 
 pub(crate) struct SourceChangeScan {
@@ -526,7 +526,9 @@ pub(crate) async fn get_incremental_changes_for_update(
     base: &engram_core::registry::SourceHeadToken,
     root: &Path,
     exts: &[&str],
+    reindex_paths: &[String],
 ) -> anyhow::Result<SourceChangeScan> {
+    anyhow::ensure!(reindex_paths.len() <= 100, "reindex_paths accepts at most 100 files");
     let admission = search.begin_project_mutation(base.project_id())?;
     let scoped = search.with_mutation(&admission)?;
     // Refuse unavailable/unproven source BEFORE no-op/stat-cache observations
@@ -538,7 +540,7 @@ pub(crate) async fn get_incremental_changes_for_update(
         base: base.clone(), registry: state.registry.clone(), graph: state.graph.clone(),
         _operation: scoped.begin_operation()?,
     };
-    scan_incremental_changes(state, base.project_id(), root, exts, Some(writer), false).await
+    scan_incremental_changes(state, base.project_id(), root, exts, Some(writer), false, reindex_paths).await
 }
 
 struct StatRefreshWriter {
@@ -635,6 +637,7 @@ async fn scan_incremental_changes(
     exts: &[&str],
     writer: Option<StatRefreshWriter>,
     retain_disk_inventory: bool,
+    reindex_paths: &[String],
 ) -> anyhow::Result<SourceChangeScan> {
     let active_generation = get_active_generation(state, project_id).await?;
     let opt_in_hash_verification = state.cfg.verify_unchanged_hashes;
@@ -650,10 +653,13 @@ async fn scan_incremental_changes(
     }).await??;
     let verify_hashes = opt_in_hash_verification || verify_source_identity;
     let root_owned = root.to_path_buf();
+    let reindex_paths = reindex_paths.to_vec();
     tokio::task::spawn_blocking(move || {
         // Move the owned operation into this worker explicitly; readonly calls
         // have no writer and perform no persistent mutation.
         let writer = writer;
+        let mut forced = Vec::new();
+        select_reindex_paths(&root_owned, &disk_files, &reindex_paths, &mut forced)?;
         let relative_paths = disk_files.iter().filter_map(|path| path.strip_prefix(&root_owned).ok())
             .filter_map(|path| path.to_str());
         let expected = if writer.is_some() {
@@ -687,11 +693,15 @@ async fn scan_incremental_changes(
             let metadata = match std::fs::metadata(&path) {
                 Ok(metadata) => metadata,
                 Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+                    anyhow::ensure!(!forced.contains(&path),
+                        "reindex path disappeared before source staging: {}", relative.as_str());
                     nonempty_disk_paths = None;
                     db_map.remove(&relative); deleted.push(relative); continue;
                 }
                 Err(e) => anyhow::bail!("Cannot inspect source file {}: {e}", path.display()),
             };
+            anyhow::ensure!(metadata.is_file() || !forced.contains(&path),
+                "reindex path is no longer a file: {}", relative.as_str());
             let size = metadata.len();
             if size > 0 && let Some(paths) = &mut nonempty_disk_paths {
                 paths.push(relative.clone());
@@ -746,6 +756,9 @@ async fn scan_incremental_changes(
         }
         engram_index::ingest::validate_source_root(&root_owned)?;
         for (relative, _) in db_map { deleted.push(relative); }
+        for path in forced {
+            if !changed.contains(&path) { changed.push(path); }
+        }
         if let Some(writer) = &writer { writer.flush(&mut patches)?; }
         if !changed.is_empty() || !deleted.is_empty() {
             tracing::info!(changed = changed.len(), deleted = deleted.len(), "incremental change scan");
@@ -978,31 +991,16 @@ mod p0_stat_trust_tests {
 
 /// Select explicit re-extraction only from the same ignore/extension-filtered
 /// source set as normal indexing. Validate the whole request before mutation.
-pub async fn include_reindex_paths(
-    state: &AppState,
-    root: &Path,
-    exts: &[&str],
-    requested: &[String],
-    changed: &mut Vec<PathBuf>,
-) -> anyhow::Result<()> {
-    if requested.is_empty() {
-        return Ok(());
-    }
-    anyhow::ensure!(
-        requested.len() <= 100,
-        "reindex_paths accepts at most 100 files"
-    );
-    let allowed = scan_source_files(state, root, exts).await?;
-    select_reindex_paths(root, &allowed, requested, changed)
-}
-
 fn select_reindex_paths(
     root: &Path,
     allowed: &[PathBuf],
     requested: &[String],
     changed: &mut Vec<PathBuf>,
 ) -> anyhow::Result<()> {
-    let mut selected = Vec::new();
+    if requested.is_empty() {
+        return Ok(());
+    }
+    let mut normalized_paths = Vec::with_capacity(requested.len());
     for raw in requested {
         let normalized = raw.replace('\\', "/");
         anyhow::ensure!(
@@ -1014,20 +1012,31 @@ fn select_reindex_paths(
                     .all(|p| !p.is_empty() && p != "." && p != ".."),
             "reindex_paths requires exact project-relative paths: {raw}"
         );
-        let path = allowed
-            .iter()
-            .find(|p| {
-                engram_core::RelPath::from_relative(root, p)
-                    .is_some_and(|r| r.as_str() == normalized)
-            })
-            .ok_or_else(|| {
-                anyhow::anyhow!("reindex path is missing, ignored, or unsupported: {raw}")
-            })?;
+        normalized_paths.push(normalized);
+    }
+    let mut remaining: std::collections::HashSet<_> =
+        normalized_paths.iter().map(String::as_str).collect();
+    let mut matched = std::collections::HashMap::with_capacity(remaining.len());
+    for file in allowed {
+        if let Some(relative) = engram_core::RelPath::from_relative(root, file)
+            && remaining.remove(relative.as_str())
+        {
+            matched.insert(relative.as_str().to_owned(), file);
+            if remaining.is_empty() {
+                break;
+            }
+        }
+    }
+    let canonical_root = root.canonicalize()?;
+    let mut selected = Vec::with_capacity(matched.len());
+    for (raw, normalized) in requested.iter().zip(&normalized_paths) {
+        let path = matched.get(normalized)
+            .ok_or_else(|| anyhow::anyhow!("reindex path is missing, ignored, or unsupported: {raw}"))?;
         anyhow::ensure!(
-            path.canonicalize()?.starts_with(root.canonicalize()?),
+            path.canonicalize()?.starts_with(&canonical_root),
             "reindex path resolves outside project: {raw}"
         );
-        selected.push(path.clone());
+        selected.push((*path).clone());
     }
     for path in selected {
         if !changed.contains(&path) {

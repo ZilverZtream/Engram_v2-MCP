@@ -2979,8 +2979,19 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SOURCE_VECTOR_INSERTION_QA_AND_SCOPED_REFRESH_SOURCE_READY",
+    "status": "INCREMENTAL_REFRESH_AND_RELATED_SOURCE_WORK_READY",
     "implementation_items_active": 0,
+    "incremental_refresh_single_inventory": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_VERIFIED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "TODO-55 interactive refresh and S14 bounded source enumeration",
+      "observed_gap": "An ordinary update_project with reindex_paths performs a complete eligible-file scan for incremental change detection and repeats the complete walk and parser preflight just to select forced paths. Both synchronous and queued updates pay this cost.",
+      "implementation": ["crates/engram_server/src/services/project_service.rs", "crates/engram_server/src/handlers/project_tools.rs"],
+      "acceptance": "Reuse the admitted source inventory in synchronous and queued updates. Force an unchanged JS file while publishing a separately changed SQL file; refuse ignored or missing forced targets before publication. Preserve extraction guards and outside source behavior.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/incremental-refresh-single-inventory-20261120",
+      "baseline": {"path": "baseline-observed/receipt.json", "sha256": "7e4bb887c8f637311e5e03eee5506693c5f5ffced062216fbacb088c9f019bf0"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "d2346b41a7ee073f1e04a3d7b3359e5a17ecdb4f4c1cec57b927df188e220847"},
+      "evidence": "Installed MCP published both independently hashed files in each mode, deduplicated the forced path and refused ignored and absent paths. The source now reuses one eligible inventory before hint writes; runtime behavior and timing of the revised path remain unverified."
+    },
     "source_vector_first_batch_insertion": {
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "requirement": "TODO-55 interactive source refresh and S02 exact vector identities during source publication",
