@@ -610,6 +610,7 @@ proposals that duplicate the existing surface:
   [Delivery](eval/contract-config-review-batch-delivery-20261117.json).
 
 - [x] **29. Edit Session Protocol (spec 45: begin/complete_edit_session, detect_incomplete_changes)** (M) - *done 2026-06-13: bookends persist intent (registry meta), begin returns the expectation brief on the PLANNED set, complete reports scope drift (planned-but-unedited) + full completeness on actuals, session consumed on close. Was: engine done 2026-06-13: detect_incomplete_changes — untouched co-change partners (with historical evidence, tail-matched against path-spelling variants) + state keys shared with untouched files; 3-case behavioral test through real graph. Both session bookends are delivered; their expectations remain advisory evidence for the agent.*
+  Installed November20: `complete_edit_session` can reconcile a retained `get_change_set` report by `dossier_response_id`. Public MCP checks matched the inline advisory for the complete 18,340-byte dossier, preserved the session after an invalid ID, and recovered the closing report separately. [Delivery](eval/engram-delivery-goal-20261110.json).
   Bookends an agent's edit: snapshot expectations at start, verify coupled files/tests/
   state keys at end. Turns Engram from advisor into a loop-closing safety harness — and
   it composes the already-built check_edit_safety/pre_commit_review machinery.
@@ -640,6 +641,7 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  Installed November20: Explicit control events can follow a direct VB `AddHandler` subscription. Live MCP verified the LegacyValidation `TasksUpdated` registration and receiver, with source hashes and exact recovery. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Source-cited direct calls from the LegacyValidation task-management page to its registered bulk-edit control identify the declaration with guarded source. Live MCP verified `PageLoadComplete`. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Explicit `LoadComplete` bindings appear in ordinary page traces. The live LegacyValidation task-management trace identifies the handler whose source calls the bulk-edit control. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Authored VB WebForms route defaults and route data appear in the trace. Three live LegacyValidation checks verified the project editor's `pr_id` default and the two `MasterPage` values for the shared myaccount page. [Delivery](eval/engram-delivery-goal-20261110.json).

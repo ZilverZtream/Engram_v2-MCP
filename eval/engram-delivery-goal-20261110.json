@@ -2974,7 +2974,7 @@
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "webforms_vb_event_subscription": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "requirement": "TODO-31 trace from a WebForms action to its source-declared handler and downstream evidence",
       "observed_gap": "Installed LegacyValidation generation 3222 responds to event ctrlBulkEditTasks.TasksUpdated with page-load context but no event receiver. The source explicitly subscribes ctrlBulkEditTasks_TasksUpdated at line 29 of taskmanagement.aspx.vb.",
       "implementation": ["crates/engram_server/src/services/request_trace/control_events.rs", "crates/engram_server/src/services/request_trace/execution.rs", "crates/engram_server/src/handlers/request_trace_delivery.rs"],
@@ -2984,7 +2984,7 @@
       "retention": "Retain the small reproduction script and numeric receipt under current-task-check/webforms-vb-event-subscription-20261120 until combined MCP acceptance is recorded. Owned graph and compiler fixtures were closed and removed. No live project files were changed."
     },
     "vb_admission_dossier_event_release": {
-      "status": "ONE_COMBINED_RELEASE_BUILD_RUNNING",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-admission-dossier-event-20261120",
       "source_commit": "a9855edc069d97bbf91d9f8409f0cc50e03f80ca",
       "original_requirement_ids": [
@@ -3004,11 +3004,69 @@
       "prepare_cutover_sha256": "373cd7d0b37f288fdb65283418514eda729ca4d4ff2e8d228c310e5ea907dbaa",
       "full_suites_started": 0,
       "baseline": "Installed MCP verified the older trace omits the direct subscription. The owned public dossier produced an 18,330-byte exact four-page capture and inline advisory. The retained first baseline attempt discovered the minimum navigation budget; the corrected fixture preserved compact output and exact recovery.",
-      "verification": "Poll these exact running handles. On passing build, the existing stage session verifies the three public candidate workflows before packaging. Validate and install that pair once, then verify a fresh live MCP connection and the three isolated acceptance paths on the installed binary.",
-      "retention": "Reuse the existing recorded detached build worktree and shared target. The build and verifier own their temporary resources. Keep the release plan, logs and exact proof/receipts until delivery is recorded; preserve prior package and unrelated work."
+      "verification": "Installed and staged binary identities match. The same public checks passed on isolated data before and after cutover. A fresh normal client verified the LegacyValidation event and recovered the complete trace at unchanged source generation 3222.",
+      "retention": "Reuse the existing recorded detached build worktree and shared target. The build and verifier own their temporary resources. Keep the release plan, logs and exact proof/receipts until delivery is recorded; preserve prior package and unrelated work.",
+      "build_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-admission-dossier-event-20261120\\release1.json",
+        "sha256": "a22b9ffe62b80bb9e48a41694dd8d30fc401aeaf0eb35b6d560662e70b6fdbc7",
+        "elapsed_seconds": 826.8319015000015,
+        "optimized_builds": 1,
+        "full_test_suites": 0
+      },
+      "package_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-admission-dossier-event-20261120\\package-receipt.json",
+        "sha256": "64484a9fd4b52a369d15c735ad795833ca0bf6d730524f2d75a35aab3a8df8f8",
+        "binary_sha256": "9d12fac4ee4d5e20064a15ec53c1789b006c2873668a59ae3c6b4a48fbbc6959",
+        "manifest_sha256": "90fa7da0143a8c851c2f8684a0c5364e68da5be24eea1c819279594c1e7308e7",
+        "archive_sha256": "1b9313015b73736dbdfe69a6c6fd0d56ba8c62df0192ff0f9a3b7c6f08158356"
+      },
+      "candidate_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-admission-dossier-event-20261120\\candidate\\receipt.json",
+        "sha256": "4063b836542ed4522bb66fff04d999347c5d72039d1fb6a32696fb9377b1a359"
+      },
+      "installed_fixture_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-admission-dossier-event-20261120\\installed\\receipt.json",
+        "sha256": "5b82fca0cc8dc4175deb4a24dd6b6cd394a1e8c5476b60487f428457e839bf6b"
+      },
+      "live_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-admission-dossier-event-20261120\\live-cutover\\status.json",
+        "sha256": "03f48410bb67a6cd58a1c34ab0d77256d833c9276324663794f0ff18e845f980",
+        "generation": 3222,
+        "daemon_pid": 23492,
+        "retained_previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-bc83211192fb4391838cb765548375e3",
+        "event": {
+          "compact_pages": 5,
+          "source_hash": "41f13f1f387e7a243f7f4d6156f86436cced44702f54d92876f97bbf629c1cf8",
+          "handler_line": 33,
+          "registration_line": 29
+        }
+      },
+      "installed_behavior": {
+        "S03": {
+          "writer_generations": [
+            1,
+            2,
+            3
+          ],
+          "scoped_and_ordinary_writes": true,
+          "untouched_typescript_and_sql_retained": true
+        },
+        "TODO-29": {
+          "dossier_bytes": 18340,
+          "dossier_pages": 4,
+          "closing_pages": 3,
+          "advisory_match": true
+        },
+        "TODO-31": {
+          "registration_line": 29,
+          "handler_line": 33,
+          "compact_recovery_pages": 5
+        }
+      },
+      "limits": "MCP exercised ordinary scoped and project-wide parser admission under cold/warm operation. The separate focused lock check supplies controlled contention evidence. The WebForms trace is a source candidate and does not establish execution. No LegacyValidation source edit, production vector round trip, or full backlog completion."
     },
     "edit_session_saved_change_set": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "requirement": "TODO-29 edit-session advisory reconciliation using the complete change-set report preserved by EG-02",
       "observed_gap": "Edit-session completion accepts only inline dossier text. Recent retained LegacyValidation change sets exceed 200 KB, so reusing one for this check requires sending the recovered report back as tool input.",
       "implementation": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "crates/engram_server/src/handlers/planning_tools.rs", "crates/engram_server/src/handlers/change_set_delivery.rs"],
@@ -3506,14 +3564,14 @@
       "limits": "This is rollback compatibility evidence for the two exact adjacent binary/sidecar packages on a disposable managed project. It does not close S18 for older release pairs, production rollback or the installer swap protocol."
     },
     "vb_parser_write_admission_wait": {
-      "status": "IMPLEMENTED_FOCUSED_CONTENTION_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "requirement": "S03 verify the current compiler/extraction identity before admitting source publication",
       "observed_gap": "The owned adjacent-release rollback test reproduced a VB parser busy refusal on the first ordinary scoped edit after cold reopen. A controlled retry succeeded with no generation change at refusal. Exclusive source admission uses a nonblocking parser lock before staging.",
       "implementation": ["crates/engram_index/src/vb_extractor.rs", "crates/engram_index/src/vb_extractor/provenance_tests.rs", "crates/engram_index/src/source_contract.rs", "crates/engram_server/src/services/project_service.rs"],
       "acceptance": "Write admission tolerates brief parser ownership without using another parser identity, and reports a bounded busy refusal if ownership persists. Read-only admission and the publication fence retain their existing behavior.",
       "verification": "The retained actual rollback MCP runs showed a busy refusal before generation advance, with a successful subsequent edit after retry. A focused executable compiled the exact changed lock code and committed regression test. With the original mutex held, reader admission refused, a sustained short writer wait returned busy, and a writer waited and acquired the same coordinator after release. The incremental scan now captures parser authority once in its existing blocking worker before stat-cache or publication work. The candidate already awaiting quiescence predates this change. No Cargo build or live write ran."
     },
-    "next_action": "Validate the three queued original outcomes together through the normal public MCP entry points using one combined release. The preceding method, integrity and folder history package is installed and verified."
+    "next_action": "Advance the next ready unfinished original requirement. The VB admission, saved dossier and WebForms event release is installed with public acceptance."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -3929,26 +3987,27 @@
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-integrity-folder-history-20261120\\verify-public.py"
     }
   ],
-  "next_source_batch_pending": [
+  "vb_admission_dossier_event_source_batch_20261120": [
     {
       "original_requirement_id": "S03",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "source_commit": "e986057d5b72dcc843c1df255b05c2b540a64454",
       "acceptance_contract": "Write admission tolerates brief parser ownership without using another parser identity, and reports a bounded busy refusal if ownership persists. Read-only admission and the publication fence retain their existing behavior."
     },
     {
       "original_requirement_id": "TODO-29",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "source_commit": "284dc9cc1e20f7eabe8ef69a0604d3879bc5ec83",
       "acceptance_contract": "Use a real bounded get_change_set response from a disposable VB.NET/WebForms and SQL project. Close an edit session by dossier_response_id and verify the advisory references match inline completion with the recovered original. A wrong dossier ID must leave the first lifecycle retryable. Verify closing response recovery independently when the completion report is deferred."
     },
     {
       "original_requirement_id": "TODO-31",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "source_commit": "c40ee73678f1c44e4ae5dda7cb4f21875bf4391a",
       "acceptance_contract": "Trace the actual LegacyValidation TasksUpdated event from the pinned selected WebForms source. Verify the admitted receiver at line 33, the direct VB subscription at line 29, matching source fingerprints, ordinary load context, and compact citation plus exact immutable recovery."
     }
   ],
+  "next_source_batch_pending": [],
   "dossier_webforms_history_source_batch_20261120": [
     {
       "original_requirement_id": "TODO-32",
