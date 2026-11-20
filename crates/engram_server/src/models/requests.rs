@@ -4204,6 +4204,8 @@ pub enum BatchReadOperation {
     Chunk(GetChunkRequest),
     #[serde(rename = "get_full_method_body")]
     MethodBody(GetFullMethodBodyRequest),
+    #[serde(rename = "check_edit_safety")]
+    EditSafety(CheckEditSafetyRequest),
     #[serde(rename = "query_schema")]
     Schema(QuerySchemaRequest),
     #[serde(rename = "read_memory_bank")]
@@ -4505,7 +4507,7 @@ pub struct FindDeadMethodsRequest {
 
 /// Standalone edit safety check: returns green/yellow/red verdict for a method
 /// without the full edit context overhead. Faster alternative to get_method_edit_context.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct CheckEditSafetyRequest {
     pub project_id: String,

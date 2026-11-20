@@ -1675,6 +1675,12 @@ Use `source_files` to compare exact disk fingerprints with selected indexed
 revisions alongside source evidence. Saved batch recovery returns the original
 freshness observation. A new freshness call checks disk again.
 
+`batch_read` can pair `check_edit_safety` with method source and exact-file
+freshness. Each safety request uses the ordinary method selectors, output
+format and downstream detail. The batch applies its shared reply budget to the
+complete advisory and guidance. A row's single-tool call refreshes the safety
+assessment. Saved batch recovery returns the previously captured assessment.
+
 ### HTTP requests in natural-language answers (installed November17)
 
 `ask_codebase` recognizes explicit HTTP-method/URL mentions, for example
