@@ -630,10 +630,40 @@ pub fn current_parser_context() -> anyhow::Result<VbParserContext> {
 }
 
 pub fn current_parser_context_for_project(root: &Path) -> anyhow::Result<VbParserContext> {
+    project_parser_context(root, Duration::ZERO)
+}
+
+pub(crate) fn current_parser_context_for_write(root: &Path) -> anyhow::Result<VbParserContext> {
+    project_parser_context(root, Duration::from_secs(2))
+}
+
+fn project_parser_context(root: &Path, wait: Duration) -> anyhow::Result<VbParserContext> {
     let root = std::fs::canonicalize(root)?;
-    let mut guard = get_or_spawn_sidecar().try_lock().map_err(|error| anyhow::anyhow!(
-        "VB parser authority is busy or unavailable; retry after current extraction finishes: {error}"))?;
+    let mut guard = acquire_parser_authority(get_or_spawn_sidecar(), wait)?;
     project_parser_context_locked(&mut guard, &root)
+}
+
+fn acquire_parser_authority<T>(
+    coordinator: &Mutex<T>,
+    wait: Duration,
+) -> anyhow::Result<std::sync::MutexGuard<'_, T>> {
+    let started = std::time::Instant::now();
+    loop {
+        match coordinator.try_lock() {
+            Ok(guard) => return Ok(guard),
+            Err(std::sync::TryLockError::WouldBlock) => {
+                let remaining = wait.saturating_sub(started.elapsed());
+                anyhow::ensure!(
+                    !remaining.is_zero(),
+                    "VB parser authority is busy; retry after current extraction finishes"
+                );
+                std::thread::sleep(remaining.min(Duration::from_millis(50)));
+            }
+            Err(std::sync::TryLockError::Poisoned(_)) => {
+                anyhow::bail!("VB parser authority is unavailable: coordinator lock poisoned");
+            }
+        }
+    }
 }
 
 fn project_parser_context_locked(guard: &mut Option<Sidecar>, root: &Path) -> anyhow::Result<VbParserContext> {

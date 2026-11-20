@@ -514,7 +514,7 @@ pub(crate) async fn capture_source_extraction_for_files(
         let paths = files.iter().map(|path| engram_core::RelPath::from_relative(&root, path)
             .ok_or_else(|| anyhow::anyhow!("Source file outside admitted root: {}", path.display())))
             .collect::<anyhow::Result<Vec<_>>>()?;
-        engram_index::SourceExtractionExpectation::for_project(&root, target, paths.iter().map(|path| path.as_str()))
+        engram_index::SourceExtractionExpectation::for_project_write(&root, target, paths.iter().map(|path| path.as_str()))
     }).await?
 }
 
@@ -639,7 +639,7 @@ async fn scan_incremental_changes(
     let active_generation = get_active_generation(state, project_id).await?;
     let opt_in_hash_verification = state.cfg.verify_unchanged_hashes;
     let target_chars_per_chunk = state.cfg.max_chunks_per_file;
-    let disk_files = scan_source_files(state, root, exts).await?;
+    let disk_files = scan_source_files_with_parser_preflight(state, root, exts, false).await?;
     let vb_source_files = admitted_vb_source_files(root, &disk_files);
     let graph = state.graph.clone();
     let registry = state.registry.clone();
@@ -654,8 +654,13 @@ async fn scan_incremental_changes(
         // Move the owned operation into this worker explicitly; readonly calls
         // have no writer and perform no persistent mutation.
         let writer = writer;
-        let expected = engram_index::SourceExtractionExpectation::for_project(&root_owned, target_chars_per_chunk,
-            disk_files.iter().filter_map(|path| path.strip_prefix(&root_owned).ok()).filter_map(|path| path.to_str()))?;
+        let relative_paths = disk_files.iter().filter_map(|path| path.strip_prefix(&root_owned).ok())
+            .filter_map(|path| path.to_str());
+        let expected = if writer.is_some() {
+            engram_index::SourceExtractionExpectation::for_project_write(&root_owned, target_chars_per_chunk, relative_paths)?
+        } else {
+            engram_index::SourceExtractionExpectation::for_project(&root_owned, target_chars_per_chunk, relative_paths)?
+        };
         let mut patches = Vec::with_capacity(256);
         let mut patch_bytes = 0;
         if let Some(writer) = &writer { writer.flush(&mut patches)?; }

@@ -91,8 +91,22 @@ impl SourceExtractionExpectation {
 
     pub fn for_project<'a>(root: &std::path::Path, target_chars_per_chunk: usize,
         paths: impl IntoIterator<Item = &'a str>) -> anyhow::Result<Self> {
+        Self::capture_project(root, target_chars_per_chunk, paths, crate::vb_extractor::current_parser_context_for_project)
+    }
+
+    /// Write admission may wait briefly for an active compiler observation.
+    /// Call from a blocking worker before staging any new source.
+    pub fn for_project_write<'a>(root: &std::path::Path, target_chars_per_chunk: usize,
+        paths: impl IntoIterator<Item = &'a str>) -> anyhow::Result<Self> {
+        Self::capture_project(root, target_chars_per_chunk, paths, crate::vb_extractor::current_parser_context_for_write)
+    }
+
+    fn capture_project<'a>(root: &std::path::Path, target_chars_per_chunk: usize,
+        paths: impl IntoIterator<Item = &'a str>,
+        parser: fn(&std::path::Path) -> anyhow::Result<crate::vb_extractor::VbParserContext>,
+    ) -> anyhow::Result<Self> {
         let vb_parser = if paths.into_iter().any(crate::vb_extractor::requires_parser_provenance) {
-            Some(crate::vb_extractor::current_parser_context_for_project(root)?)
+            Some(parser(root)?)
         } else { None };
         Ok(Self {
             configured: SourceExtractionIdentity::for_chunk_target(target_chars_per_chunk),

@@ -2,6 +2,31 @@ use super::*;
 use anyhow::{Result, ensure};
 
 #[test]
+fn writer_waits_for_existing_parser_without_relaxing_read_only_refusal() -> Result<()> {
+    use std::sync::mpsc;
+
+    let coordinator = Mutex::new("same parser identity");
+    let held = coordinator.lock().unwrap();
+    ensure!(acquire_parser_authority(&coordinator, Duration::ZERO).is_err());
+    ensure!(acquire_parser_authority(&coordinator, Duration::from_millis(25)).is_err());
+
+    std::thread::scope(|scope| -> Result<()> {
+        let (result, observed) = mpsc::channel();
+        let parser = &coordinator;
+        scope.spawn(move || {
+            let identity = acquire_parser_authority(parser, Duration::from_secs(2))
+                .map(|guard| *guard);
+            let _ = result.send(identity);
+        });
+        let while_held = observed.recv_timeout(Duration::from_millis(75));
+        drop(held);
+        ensure!(matches!(while_held, Err(mpsc::RecvTimeoutError::Timeout)));
+        ensure!(observed.recv_timeout(Duration::from_secs(2))?? == "same parser identity");
+        Ok(())
+    })
+}
+
+#[test]
 fn project_compiler_context_must_be_present_and_match_before_metadata_is_reused() -> Result<()> {
     let owned = tempfile::tempdir()?;
     let mut context = VbParserContext::from_authority(None);

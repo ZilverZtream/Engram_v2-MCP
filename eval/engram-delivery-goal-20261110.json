@@ -3445,7 +3445,15 @@
       "retry": "The initial run hit a transient VB parser busy refusal on the older runtime. The retained second run saw one such refusal, verified that generation had not advanced, and completed the same update after the parser was available. No build or production restart was performed.",
       "limits": "This is rollback compatibility evidence for the two exact adjacent binary/sidecar packages on a disposable managed project. It does not close S18 for older release pairs, production rollback or the installer swap protocol."
     },
-    "next_action": "Observe the existing cutover for this already verified binary. Continue other ready original work if client connections remain open."
+    "vb_parser_write_admission_wait": {
+      "status": "IMPLEMENTED_FOCUSED_CONTENTION_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "S03 verify the current compiler/extraction identity before admitting source publication",
+      "observed_gap": "The owned adjacent-release rollback test reproduced a VB parser busy refusal on the first ordinary scoped edit after cold reopen. A controlled retry succeeded with no generation change at refusal. Exclusive source admission uses a nonblocking parser lock before staging.",
+      "implementation": ["crates/engram_index/src/vb_extractor.rs", "crates/engram_index/src/vb_extractor/provenance_tests.rs", "crates/engram_index/src/source_contract.rs", "crates/engram_server/src/services/project_service.rs"],
+      "acceptance": "Write admission tolerates brief parser ownership without using another parser identity, and reports a bounded busy refusal if ownership persists. Read-only admission and the publication fence retain their existing behavior.",
+      "verification": "The retained actual rollback MCP runs showed a busy refusal before generation advance, with a successful subsequent edit after retry. A focused executable compiled the exact changed lock code and committed regression test. With the original mutex held, reader admission refused, a sustained short writer wait returned busy, and a writer waited and acquired the same coordinator after release. The incremental scan now captures parser authority once in its existing blocking worker before stat-cache or publication work. The candidate already awaiting quiescence predates this change. No Cargo build or live write ran."
+    },
+    "next_action": "Observe the existing cutover for the already verified package and continue separate ready source work for the following release."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
