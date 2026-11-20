@@ -3433,6 +3433,18 @@
         "condition": "Wait for installed Engram client proxies to close. Apply the verified binary only after the existing preflight succeeds. Observe the same process or check terminal receipts before retrying."
       }
     },
+    "s18_adjacent_binary_round_trip": {
+      "status": "OWNED_ADJACENT_BINARY_ROUND_TRIP_VERIFIED",
+      "requirement": "S18 compatible binary rollback and successful subsequent edit",
+      "receipt": "target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/method-integrity-folder-history-20261120/adjacent-rollback-owned-r2/receipt.json",
+      "receipt_sha256": "779c521f24ca130301e1673775f33c245d0ff153289e0a26913a277ec2010f1e",
+      "verifier_sha256": "fb25a0a1e723d12a685a71b53a53a1f9caec7c9d1442f2ba99156ff0f7885dde",
+      "candidate_binary_sha256": "9b8a4f4470b247199a544a41c0f210a45cd131c68305f223ace77f6fd0347d50",
+      "previous_binary_sha256": "526a384daad4522c0faa4aa0e7cee9f718e2b0d210d78f208460e5ad78360d07",
+      "acceptance": "An owned managed project indexed VB.NET, TypeScript and SQL with local vectors. Candidate published generation 2. The previous package cold-opened the same managed data, verified identical method hash and physical keys, and successfully published the next VB edit at generation 3. The candidate cold-opened accepting that edit and exactly matched the selected lexical/vector identities. Untouched TypeScript and SQL stayed on physical revision 1. Three owned MCP processes exited naturally and the temporary project was removed.",
+      "retry": "The initial run hit a transient VB parser busy refusal on the older runtime. The retained second run saw one such refusal, verified that generation had not advanced, and completed the same update after the parser was available. No build or production restart was performed.",
+      "limits": "This is rollback compatibility evidence for the two exact adjacent binary/sidecar packages on a disposable managed project. It does not close S18 for older release pairs, production rollback or the installer swap protocol."
+    },
     "next_action": "Observe the existing cutover for this already verified binary. Continue other ready original work if client connections remain open."
   },
   "windows_reconnect_release_interruption": {
