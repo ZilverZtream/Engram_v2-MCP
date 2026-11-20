@@ -2080,6 +2080,10 @@ impl Engram {
                 res.as_ref().err().filter(|_| !source_published).map(|e| e.to_string()).as_deref(),
                 &enrich_warnings_collected,
             );
+            if max_commits == 0 && matches!(final_status, "done" | "degraded") {
+                final_msg.push('\n');
+                final_msg.push_str(super::git_tools::SOURCE_REFRESH_HISTORY_SKIPPED);
+            }
             if let Some(delivery) = instruction_delivery {
                 final_msg.push_str("\ninstruction_observation_delivery: ");
                 final_msg.push_str(&delivery);

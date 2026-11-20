@@ -112,6 +112,9 @@ history retained for the project. The watcher does not request anti-pattern
 indexing. Manual `update_project` has its own `max_commits` argument, default
 10,000, and `index_antipatterns`, default false. `index_project` does not accept a
 `max_commits` field. There is no `git_history_depth` configuration key.
+Set `max_commits` to zero for a source refresh that skips Git history and
+anti-pattern enrichment. Use a positive limit or a separate `index_git_history`
+call when you need to refresh retained history.
 
 For an interactive source refresh, an explicit 200-commit work limit is a
 conservative starting point independent of source-file count:

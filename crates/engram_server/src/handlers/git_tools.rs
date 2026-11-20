@@ -24,6 +24,9 @@ use uuid::Uuid;
 #[path = "git_refresh_scope.rs"]
 pub(super) mod git_refresh_scope;
 
+pub(super) const SOURCE_REFRESH_HISTORY_SKIPPED: &str =
+    "history_enrichment: skipped (max_commits=0); retained Git history and anti-patterns were not refreshed.";
+
 fn is_safe_zip_member_path(name: &str) -> bool {
     let p = std::path::Path::new(name);
     if name.is_empty() || name.contains('\0') || p.is_absolute() {
@@ -695,6 +698,9 @@ impl Engram {
         progress_cb: Box<dyn FnMut(usize, usize) + Send>,
         job_progress: Option<Reporter>,
     ) -> Result<String, McpError> {
+        if max_commits == 0 {
+            return Ok(format!("commits=0\n{SOURCE_REFRESH_HISTORY_SKIPPED}"));
+        }
         let root = PathBuf::from(directory);
         let skip = tokio::task::spawn_blocking(move || git_refresh_scope::skip_reason(&root))
             .await.map_err(|error| McpError::internal_error(error.to_string(), None))?

@@ -566,6 +566,8 @@ pub struct UpdateProjectRequest {
     pub project_id: String,
     #[serde(default = "default_true")]
     pub wait: bool,
+    /// Maximum Git commits for refresh enrichment. Zero skips Git history and
+    /// anti-pattern indexing while retaining the ordinary source refresh.
     #[serde(default = "default_max_commits")]
     pub max_commits: usize,
     #[serde(default)]
@@ -3012,7 +3014,7 @@ impl SuggestMigrationBoundariesRequest {
 
 impl UpdateProjectRequest {
     pub fn sanitized_max_commits(&self) -> usize {
-        self.max_commits.clamp(1, MAX_GIT_COMMITS)
+        self.max_commits.min(MAX_GIT_COMMITS)
     }
 }
 
