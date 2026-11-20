@@ -363,7 +363,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Assemble WebForms/VB.NET feature context and optional implementation proposals. Set dossier_only=true for bounded source, guidance and patterns with zero server text-generation calls. Supply source_files to prioritize known exact files and schema_tables for explicit SQL lookups. Otherwise uses the configured LLM for requirements, cited proposals, ordered steps, per-method safety and acceptance checks; ReadyToCode adds proposed templates. Read-only: never edits application files or executes SQL. Generated proposals require source and requirement review."
+        description = "Assemble WebForms/VB.NET feature context and optional implementation proposals. Set dossier_only=true for bounded source, guidance and patterns with zero server text-generation calls. Supply source_files to prioritize known exact files and schema_tables for explicit SQL lookups. Add source_files_only=true in dossier mode to skip discovery and read only those paths and their guidance. Generation mode uses the configured LLM for requirements, cited proposals, ordered steps, per-method safety and acceptance checks; ReadyToCode adds proposed templates. Read-only: never edits application files or executes SQL. Generated proposals require source and requirement review."
     )]
     pub async fn one_shot_feature_plan(
         &self,

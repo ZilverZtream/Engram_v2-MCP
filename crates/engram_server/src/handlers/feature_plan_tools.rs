@@ -312,6 +312,7 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         super::validate_project_id(&req.project_id)?;
         plan::validate_request(&req).map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+        let only_requested_files = req.source_files_only;
         let record = self.ensure_project_record(&req.project_id).await?;
         let identity = self.state.dreaming.text_generation_identity()
             .map(|(provider, model)| json!({"provider": provider, "requested_model": model, "resolved_model": null}));
@@ -372,6 +373,7 @@ impl Engram {
             )
         })?;
         let model_file = req.model_after.as_deref()
+            .filter(|_| !only_requested_files)
             .map(|hint| hint.trim().replace('\\', "/"))
             .filter(|path| plan::relative_file(path) && selected.contains_key(path));
         let view = std::sync::Arc::new(view);
@@ -389,63 +391,75 @@ impl Engram {
             &super::planning_tools::story_for_concepts(&req.feature_description),
         );
         output["retrieval_concepts"] = json!(retrieval_concepts);
-        let mut change_req = change_request(&req.project_id, &story, Some(retrieval_concepts.clone()));
-        change_req.history_semantic_timeout_ms = req.history_semantic_timeout_ms;
-        let mut change_set = body(self.handle_get_change_set(change_req).await?)?;
-        // Read the retained response once, without rerunning ranking or using
-        // public page envelopes inside this handler.
-        if let Some(id) = change_set["response_delivery"]["response_id"]
-            .as_str()
-            .map(str::to_owned)
-        {
-            let total = change_set["response_delivery"]["original_bytes"]
-                .as_u64()
-                .unwrap_or(u64::MAX);
-            if total > 512 * 1024 {
-                output["reason"] = json!("change_set_exceeds_planning_context");
+        let (change_set, patterns) = if only_requested_files {
+            (
+                json!({"status":"NOT_REQUESTED_EXACT_SOURCE_SCOPE"}),
+                json!({"status":"NOT_REQUESTED_EXACT_SOURCE_SCOPE"}),
+            )
+        } else {
+            let mut change_req = change_request(&req.project_id, &story, Some(retrieval_concepts.clone()));
+            change_req.history_semantic_timeout_ms = req.history_semantic_timeout_ms;
+            let mut change_set = body(self.handle_get_change_set(change_req).await?)?;
+            // Read the retained response once, without rerunning ranking or using
+            // public page envelopes inside this handler.
+            if let Some(id) = change_set["response_delivery"]["response_id"]
+                .as_str()
+                .map(str::to_owned)
+            {
+                let total = change_set["response_delivery"]["original_bytes"]
+                    .as_u64()
+                    .unwrap_or(u64::MAX);
+                if total > 512 * 1024 {
+                    output["reason"] = json!("change_set_exceeds_planning_context");
+                    output["change_set"] = change_set;
+                    return response(output);
+                }
+                let data_dir = self.state.cfg.data_dir.clone();
+                let project = req.project_id.clone();
+                let text = tokio::task::spawn_blocking(move || {
+                    super::planning_tools::change_set_delivery::read_complete_change_set(&data_dir, &project, &id, total as usize)
+                }).await.map_err(|_| failure("Change-set recovery worker failed"))??;
+                change_set = serde_json::from_str(&text)
+                    .map_err(|_| failure("Recovered change set is not JSON"))?;
+            }
+            if !change_set["files"].is_array() {
+                output["reason"] = json!("incomplete_change_set_intake");
                 output["change_set"] = change_set;
                 return response(output);
             }
-            let data_dir = self.state.cfg.data_dir.clone();
-            let project = req.project_id.clone();
-            let text = tokio::task::spawn_blocking(move || {
-                super::planning_tools::change_set_delivery::read_complete_change_set(&data_dir, &project, &id, total as usize)
-            }).await.map_err(|_| failure("Change-set recovery worker failed"))??;
-            change_set = serde_json::from_str(&text)
-                .map_err(|_| failure("Recovered change set is not JSON"))?;
-        }
-        if !change_set["files"].is_array() {
-            output["reason"] = json!("incomplete_change_set_intake");
-            output["change_set"] = change_set;
-            return response(output);
-        }
-        let pattern_query = req
-            .model_after
-            .clone()
-            .filter(|s| !s.trim().is_empty())
-            .unwrap_or_else(|| retrieval_concepts.join(" "));
-        let patterns = match self
-            .implementation_pattern_evidence(FindImplementationPatternRequest {
-                project_id: req.project_id.clone(),
-                pattern_query,
-                max_examples: 3,
-                output_json: true,
-                max_tokens:None, response_id:None, response_offset:0,
-            })
-            .await
-            .and_then(body)
-        {
-            Ok(value) => value,
-            Err(_) => {
-                json!({"status":"UNAVAILABLE", "recovery":{"tool":"find_implementation_pattern","arguments":{"project_id":req.project_id,"pattern_query":req.feature_description,"output_json":true}}})
-            }
+            let pattern_query = req
+                .model_after
+                .clone()
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or_else(|| retrieval_concepts.join(" "));
+            let patterns = match self
+                .implementation_pattern_evidence(FindImplementationPatternRequest {
+                    project_id: req.project_id.clone(),
+                    pattern_query,
+                    max_examples: 3,
+                    output_json: true,
+                    max_tokens:None, response_id:None, response_offset:0,
+                })
+                .await
+                .and_then(body)
+            {
+                Ok(value) => value,
+                Err(_) => {
+                    json!({"status":"UNAVAILABLE", "recovery":{"tool":"find_implementation_pattern","arguments":{"project_id":req.project_id,"pattern_query":req.feature_description,"output_json":true}}})
+                }
+            };
+            (change_set, patterns)
         };
         let mut seen = BTreeSet::new();
         let explicit: Vec<_> = req.source_files.iter()
             .map(|path| path.replace('\\', "/"))
             .filter(|path| seen.insert(path.clone()))
             .collect();
-        let paths = path_candidates(&change_set, &patterns, &explicit, model_file.as_deref());
+        let paths = if only_requested_files {
+            explicit.clone()
+        } else {
+            path_candidates(&change_set, &patterns, &explicit, model_file.as_deref())
+        };
         let source_paths = initial_source_paths(&paths);
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
@@ -509,7 +523,7 @@ impl Engram {
                 })();
                 match admitted {
                     Ok((row, normalized_hash)) => {
-                        if is_webforms_markup(&path) {
+                        if !only_requested_files && is_webforms_markup(&path) {
                             if composition.len() < MAX_COMPOSITION_HOSTS {
                                 let mut found = registered_components(Path::new(&directory), &row, &normalized_hash);
                                 let mut omitted = Vec::new();
@@ -553,6 +567,10 @@ impl Engram {
             "explicit_model_after_file":model_file,
             "excerpt_limit":"One lexical window of at most 100 lines / 12 KiB per file; at most 192 KiB total; unshown lines are unexamined",
             "recovery":{"tool":"get_change_set","arguments":{"project_id":req.project_id,"story":story,"output_json":true,"detail":"full","concepts":retrieval_concepts,"history_semantic_timeout_ms":req.history_semantic_timeout_ms}}});
+        if only_requested_files {
+            output["source_coverage"]["scope"] = json!("explicit_source_files_only");
+            output["source_coverage"]["composition_status"] = json!("NOT_REQUESTED_EXACT_SOURCE_SCOPE");
+        }
         if !explicit.is_empty() {
             output["source_coverage"]["explicit_source_files"] = json!(explicit.iter().map(|path| {
                 let row = evidence.iter().find(|row| &row.file_path == path);

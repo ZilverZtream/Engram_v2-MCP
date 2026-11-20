@@ -151,6 +151,11 @@ for its evidence ID, selected physical revision, or omission status.
 for those paths. Each source excerpt remains bounded and subject to the
 dossier's selected-revision and current-content checks.
 
+In dossier mode, set `source_files_only: true` to read just the listed source
+paths, their applicable guidance and any explicit `schema_tables`. The report
+shows skipped change-set ranking, pattern discovery and WebForms component
+expansion. It keeps per-file freshness checks and recovery for missing evidence.
+
 An exact selected project-relative `model_after` file gets a source-dossier slot
 before ranked discovery candidates. It passes the same current-source and
 revision checks as any other candidate. Prose hints continue to guide discovery.

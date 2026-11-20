@@ -853,6 +853,11 @@ pub struct OneShotFeaturePlanRequest {
     /// candidates. Missing or stale files are reported in source_coverage.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub source_files: Vec<String>,
+    /// With dossier_only=true, read only the explicitly listed source_files
+    /// and their scoped guidance, plus any explicit schema_tables. Skip
+    /// ranked discovery and WebForms component expansion. Default false.
+    #[serde(default)]
+    pub source_files_only: bool,
     /// Up to eight explicit schema table names to include in the planning context.
     /// Dossier mode reads only the named tables. Generated plans use model-selected
     /// names only when the caller leaves this list empty.

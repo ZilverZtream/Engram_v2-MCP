@@ -10,7 +10,14 @@ fn feature_plan_dossier_mode_is_optional_and_explicit() {
         "target_stack":"webforms_vbnet", "detail_level":"Detailed"});
     let original: OneShotFeaturePlanRequest = serde_json::from_value(request.clone()).unwrap();
     assert!(!original.dossier_only);
+    assert!(!original.source_files_only);
+    request["source_files_only"] = json!(true);
+    let exact: OneShotFeaturePlanRequest = serde_json::from_value(request.clone()).unwrap();
+    assert!(validate_request(&exact).is_err());
     request["dossier_only"] = json!(true);
+    let empty: OneShotFeaturePlanRequest = serde_json::from_value(request.clone()).unwrap();
+    assert!(validate_request(&empty).is_err());
+    request["source_files"] = json!(["Site/Photos.aspx"]);
     let dossier: OneShotFeaturePlanRequest = serde_json::from_value(request).unwrap();
     assert!(dossier.dossier_only);
     assert!(validate_request(&dossier).is_ok());
@@ -67,6 +74,7 @@ fn feature_plan_public_handler_reports_disabled_provider_without_generating_a_pl
                 detail_level: PlanDetailLevel::ReadyToCode,
                 dossier_only: false,
                 source_files: Vec::new(),
+                source_files_only: false,
                 schema_tables: Vec::new(),
                 history_semantic_timeout_ms: None,
             })
@@ -80,6 +88,47 @@ fn feature_plan_public_handler_reports_disabled_provider_without_generating_a_pl
         assert!(value["plan"].is_null());
         assert!(std::fs::read_dir(directory).unwrap().next().is_none());
     });
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn exact_source_dossier_skips_discovery_and_preserves_scoped_guidance() {
+    let owned = tempfile::tempdir().unwrap();
+    let root = owned.path().join("project");
+    std::fs::create_dir_all(root.join("Site")).unwrap();
+    std::fs::write(root.join("Site/AGENTS.md"), "Preserve the report minimum.\n").unwrap();
+    std::fs::write(root.join("Site/Photos.aspx"),
+        "<%@ Page Language=\"VB\" %>\n<%@ Register Src=\"Child.ascx\" TagPrefix=\"owned\" TagName=\"Child\" %>\n<owned:Child runat=\"server\" ID=\"Report\" />\n").unwrap();
+    std::fs::write(root.join("Site/Child.ascx"), "<%@ Control Language=\"VB\" %>\n").unwrap();
+    let (state, _) = engram_server::AppState::new(engram_core::Config {
+        data_dir: owned.path().join("data"),
+        allowed_roots: vec![root.clone()],
+        embedding_backend: "fts_only".into(),
+        llm_backend: "none".into(),
+        ..Default::default()
+    }).unwrap();
+    let server = engram_server::Engram::new(state.clone());
+    server.handle_index_project(serde_json::from_value(json!({
+        "directory":root,"project_name":"Exact source dossier","project_type":"dotnet_webforms_vb","wait":true
+    })).unwrap()).await.unwrap();
+    let project = &state.registry.list_projects().unwrap()[0].project_id;
+    let result = server.handle_one_shot_feature_plan(serde_json::from_value(json!({
+        "project_id":project,"feature_description":"Check the report minimum",
+        "target_stack":"webforms_vbnet","detail_level":"Detailed","dossier_only":true,
+        "source_files_only":true,"source_files":["Site/Photos.aspx","Site/Missing.aspx"],
+        "model_after":"Site/Child.ascx"
+    })).unwrap()).await.unwrap();
+    let dossier: Value = serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
+    assert_eq!(dossier["status"], "SOURCE_DOSSIER_READY");
+    assert_eq!(dossier["provenance"]["provider_calls"], 0);
+    let evidence = dossier["source_evidence"].as_array().unwrap();
+    assert_eq!(evidence.len(), 1);
+    assert_eq!(evidence[0]["file_path"], "Site/Photos.aspx");
+    assert_eq!(dossier["source_coverage"]["omitted_paths"], json!(["Site/Missing.aspx"]));
+    assert_eq!(dossier["source_coverage"]["composition_status"], "NOT_REQUESTED_EXACT_SOURCE_SCOPE");
+    for key in ["change_set", "patterns"] {
+        assert_eq!(dossier["planning_context"][key]["status"], "NOT_REQUESTED_EXACT_SOURCE_SCOPE");
+    }
+    assert!(dossier["planning_context"]["explicit_source_policy"].to_string().contains("Preserve the report minimum."));
 }
 
 fn intent() -> FeatureIntent {
@@ -332,6 +381,7 @@ fn feature_plan_rejects_unbounded_or_unrelated_intake() {
         detail_level: PlanDetailLevel::Detailed,
         dossier_only: false,
         source_files: Vec::new(),
+        source_files_only: false,
         schema_tables: Vec::new(),
         history_semantic_timeout_ms: None,
     };

@@ -152,6 +152,10 @@ pub fn validate_request(req: &OneShotFeaturePlanRequest) -> Result<()> {
         ensure!(hint.len() <= 2048, "Planning hint exceeds 2 KiB");
     }
     ensure!(req.source_files.len() <= 8, "source_files accepts at most eight paths");
+    ensure!(
+        !req.source_files_only || (req.dossier_only && !req.source_files.is_empty()),
+        "source_files_only requires dossier_only=true and at least one source_files path"
+    );
     for file in &req.source_files {
         ensure!(
             relative_file(&file.replace('\\', "/")),
