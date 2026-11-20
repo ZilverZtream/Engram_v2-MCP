@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "SOURCE_REFRESH_BROWSER_DOWNLOAD_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "git_tip_in_index_freshness": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "source_commit": "7d3282f6dd2a191f7741db57191f16ffbfc7fcb1",
+      "requirement": "TODO-5 freshness metadata and independent indexed Git history after source-only refresh",
+      "observed_gap": "Live LegacyValidation get_index_freshness(check_disk=false) returns source generation 3223 and no indexed or target Git tip. Source-only updates can leave the Git history watermark behind while independently publishing source.",
+      "implementation": ["crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/handlers/git_tools.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "An opt-in read reports the recorded Git tip and the same local default branch tip the forward indexer uses, distinguishes no indexed history, matching tips and differing tips without a worktree scan or commit walk, and preserves ordinary source freshness and exact-source API output.",
+      "verification": "Two focused checks compiled the exact functions with cached dependencies. Compared output with LegacyValidation's independently read local origin default ref and an owned no-origin Git repository. Covered absent, matching, differing, invalid, and unavailable target states. Owned temporary inputs and binaries were removed. Full MCP integration is pending.",
+      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/git-tip-freshness-focused-20261120.json"
+    },
     "history_trace_browser_answer_release": {
       "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
       "frozen_source_commit": "7b71b74ed987cbf9f227d776826bd892113b4c02",
@@ -4576,6 +4586,14 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "1de13bb75078087da76e9dacac8ceb59c637edf7",
       "acceptance_contract": "Use ordinary ask_codebase on actual LegacyValidation defaultProjectId. Verify both operations and exact indexed source bytes in one writer item, two reader locations, and hash-guarded source recovery. Check stale and older observations and per-role coverage with an owned fixture."
+    }
+  ],
+  "following_source_batch_pending": [
+    {
+      "original_requirement_id": "TODO-5",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "7d3282f6dd2a191f7741db57191f16ffbfc7fcb1",
+      "acceptance_contract": "From fresh MCP, call default, exact-source and project-wide opt-in freshness. In an owned WebForms Git fixture establish no indexed tip, index history, then publish a new source revision with max_commits zero. Compare the previous recorded tip, new local target and new source generation against independent Git and source evidence. Run positive history indexing and observe matching tips. Compare live LegacyValidation target tip with the local origin default ref."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
