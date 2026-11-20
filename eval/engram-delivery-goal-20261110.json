@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "VERIFIED_METHOD_EDIT_CONTEXT_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "source_refresh_edit_dossier_release": {
+      "status": "OWNED_BASELINE_MCP_VERIFIED_RELEASE_INPUTS_QUEUED",
+      "source_tip": "c39927e7fd80b72547085d3075fedb509599694a",
+      "requirements": ["TODO-55 exact refresh discovery", "EG-02/TODO-29 complete dossier reconciliation", "EG-02/TODO-29 spaced SQL reconciliation"],
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/source-refresh-edit-dossier-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "b88d2dc7e85fab8a1fa25291860bd5982b91324782957520f3614998f40a4230"},
+      "candidate_verifier": {"path": "verify-public.py", "sha256": "737591e0bb1ade876ebd84ed4964328dcaeb7ae94e28cfd59c5d0645a9cb1203"},
+      "queued_release_inputs": {"path": "queued-release-inputs.json", "sha256": "eea1cdddfc03a411444a6e282950150309e913c72eb3468c3d0948a3e20c6194"},
+      "evidence": "One owned fixture proved missing discovery guidance in Core and Full, verified that explicit forced refresh publishes the same raw JS hash at a new physical revision, and reproduced the 30-of-42 display cut and spaced-SQL identity loss. Candidate acceptance follows a bounded completion manifest and verifies all original paths and lifecycle uniqueness. Both baseline processes and their fixture were closed and removed.",
+      "source_delta": "Three server source files beyond the preceding frozen release. Reuse its registered checkout and shared target after terminal installed evidence."
+    },
     "edit_session_spaced_dossier_paths": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "source_commit": "c39927e7fd80b72547085d3075fedb509599694a",
