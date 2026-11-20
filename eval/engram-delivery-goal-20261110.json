@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "scoped_settings_acquisition": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-4 bounded and truthful indexed settings catalog",
+      "observed_gap": "Installed scoped settings retained the project-wide 200,000-row cap warning for LegacyValidation multitenant and taskmanagement paths even when direct scoped index queries observed only 3 and 11 settings. Out-of-scope nodes consume the catalog's current capacity before filtering.",
+      "implementation": ["crates/engram_server/src/handlers/settings_tools.rs", "crates/engram_graph/src/store.rs"],
+      "acceptance": "The declared path substring filters indexed candidates before the retained-row cap. Preserve cross-scope reader examples, Unicode and common path separator behavior, and catalog continuation. Earlier unrelated nodes in a capped acquisition must not crowd out a scoped setting.",
+      "source_commit": "ace77a78bdcfea7b926728ff1b860140b163f692",
+      "verification": "Live capped LegacyValidation catalog reported three multitenant and eleven taskmanagement observations matching independent scoped graph queries, but both carried the project-wide cap warning. The focused executable used the changed acquisition on an owned GraphStore. It reached a scoped setting behind sixteen unrelated nodes at a four-row cap, retained its out-of-scope reader, and verified Unicode and separator matching. Public installed verification remains pending. No release build or full suite ran.",
+      "retention": "Retain the reproduction script and numeric receipt under current-task-check/settings-scope-acquisition-20261120 through packaged acceptance. The focused compiler and GraphStore fixtures were removed."
+    },
     "quoted_source_paths": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "requirement": "EG-01 historical source answers use the requested Git revision and return the corresponding source and authored guidance",
@@ -4160,6 +4170,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "956832d583f9be8167896b9e200fd3237ecc4438",
       "acceptance_contract": "Send quoted and unquoted exact historical source asks through MCP at the same pinned LegacyValidation revision. Check both complete blobs against Git and verify the same scoped historical guidance. Verify an owned spaced filename remains one literal path."
+    },
+    {
+      "original_requirement_id": "TODO-4",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "ace77a78bdcfea7b926728ff1b860140b163f692",
+      "acceptance_contract": "Call installed list_settings in the two actual LegacyValidation scopes and compare the observed settings against independent direct graph reads, preserving the counts without the unrelated global cap warning. Verify a scoped paged fixture retains a caller from outside the declaration scope."
     }
   ],
   "dossier_webforms_history_source_batch_20261120": [
