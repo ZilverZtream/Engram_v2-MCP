@@ -3219,9 +3219,13 @@
       "build_session": 34646,
       "build_driver_pid": 83196,
       "stage_session": 40341,
+      "stage_process_pid": 53912,
+      "cutover_and_installed_checks_session": 96133,
+      "prepare_cutover_sha256": "5cdf4d039129f181fbd771a384d3f3247cf36b1e6b6b3f5ddc0f58a0e12de9a3",
+      "live_cutover_sha256": "c084310612ecc54bb021d2d11bba1a764880565acf9afb6b905f7c64576d2921",
       "baseline": "The exact installed-equivalent binary returned the current dossier without explicit path intake, a raw inherited TypeScript reference after an unrelated VB.NET update, and an existing whole-project identity mismatch after an owned substitution. All three owned fixture runtimes closed."
     },
-    "next_action": "Follow build session 34646 and dependent stage session 40341. Stage runs the three public checks only for the passing exact release artifact."
+    "next_action": "Follow existing build 34646, stage 40341 and gated cutover 96133. Deploy only after the exact candidate passes all three public checks. Verify the live LegacyValidation controller's selected call evidence and read-only file integrity, plus all three checks in installed owned fixtures."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
