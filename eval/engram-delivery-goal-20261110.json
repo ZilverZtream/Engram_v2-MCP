@@ -6233,6 +6233,25 @@
     "full_original_goal_complete": false
   },
   "completed_original_requirements": {
+    "EG-05": {
+      "status": "ORIGINAL_OWNED_GRAPH_FIXTURE_LIFETIME_VERIFIED_COMPLETE",
+      "record": "eval/audit-inventory-20261101.json#execution_evidence_20261101.eg05_owned_graph_fixture_lifetime_20261102",
+      "receipt": {
+        "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/graph-eg05-owned-lifetime-and-full-suite-final.json",
+        "sha256": "c1a7262283f6f4963d4f88393f52403eaba036a025463e0f0e39b6ebe49b987a"
+      },
+      "basis": "Retained execution passed both live database fixture teardown paths, normal completion and caught panic, with no unexpected fixture directories. Current helper still closes the database before removing its owned directory. This is test-fixture lifetime evidence."
+    },
+    "EG-22": {
+      "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+      "record": "eval/eg22-original-requirement-closure-20261118.json",
+      "basis": "Retained before and after metadata measurements, warmed and reopened cache hits, and installed same-configuration history behavior. Original receipt hashes match. Existing card metadata and durable embedding reuse are measured separately."
+    },
+    "EG-23": {
+      "status": "ORIGINAL_REQUIRED_BEHAVIOR_VERIFIED_COMPLETE",
+      "record": "eval/eg23-installed-identity-acceptance-20261118.json",
+      "basis": "Retained same-process actual-engine profile isolation and public installed A/B/A process evidence. Original receipt hashes match. Embedding identity construction and cached profile isolation remain in current source."
+    },
     "EG-18": {
       "status": "VERIFIED_COMPLETE",
       "record": "eval/eg18-original-requirement-closure-20261118.json",
