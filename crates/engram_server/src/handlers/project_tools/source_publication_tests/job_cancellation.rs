@@ -51,7 +51,7 @@ fn public_cancel_after_source_commit_preserves_the_committed_job_outcome() -> Re
             let ps = engram.ensure_project_runtime(PROJECT).await?;
             complete_foreground_source(&ps.search,head,"public_cancel_committed",source).await?;
             drop(ps);
-            let status = engram.handle_get_job_status(CancelJobRequest {job_id:job.job_id.clone()}).await?;
+            let status = engram.handle_get_job_status(GetJobStatusRequest {job_id:job.job_id.clone(),output_json:None}).await?;
             let report = &status.content[0].as_text().unwrap().text;
             let stored = engram.state.registry.get_job(&job.job_id)?.unwrap();
             ensure!(stored.kind==job.kind && stored.project_id==job.project_id,"Cancellation lost job provenance");
@@ -64,7 +64,7 @@ fn public_cancel_after_source_commit_preserves_the_committed_job_outcome() -> Re
             drop(engram);
             let (state, _) = AppState::new(config)?;
             let reopened = Engram::new(state);
-            let cold = reopened.handle_get_job_status(CancelJobRequest {job_id:job.job_id}).await?;
+            let cold = reopened.handle_get_job_status(GetJobStatusRequest {job_id:job.job_id,output_json:None}).await?;
             ensure!(cold.content[0].as_text().unwrap().text == *report);
             let ps = reopened.ensure_project_runtime(PROJECT).await?;
             complete_foreground_source(&ps.search,head,"public_cancel_committed",source).await?;

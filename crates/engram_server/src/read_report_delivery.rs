@@ -335,6 +335,8 @@ pub fn prepare(
     // Handler-owned JSON retains its schema, arguments and original result.
     let owns_json = definition.input_schema.get("properties")
         .and_then(|properties| properties.get("output_json")).is_some();
+    // Job status adds typed fields to the original result inside the existing envelope.
+    let wrap_json = !owns_json || tool == "get_job_status";
     let empty = serde_json::Map::new();
     let args = request.arguments.as_ref().or(global.then_some(&empty)).ok_or_else(|| {
         McpError::invalid_params(
@@ -344,7 +346,7 @@ pub fn prepare(
     })?;
     let controls: Controls = serde_json::from_value(json!({
         "max_tokens":args.get("max_tokens"),"response_id":args.get("response_id"),"response_offset":args.get("response_offset"),
-        "output_json":if owns_json {None} else {args.get("output_json")}
+        "output_json":if wrap_json {args.get("output_json")} else {None}
     })).map_err(|error| McpError::invalid_params(format!("Invalid read-report delivery controls: {error}"), None))?;
     let project = if global {
         if tool == "index_project" { "server-index-operation" } else { "server-discovery" }.to_owned()
@@ -625,6 +627,15 @@ impl Report {
             None
         };
         let original = if self.json_envelope {
+            let mut original = original;
+            let job_status = if self.tool == "get_job_status" && original.content.len() > 1 {
+                let part = original.content.remove(1);
+                let text = part.as_text().ok_or_else(|| McpError::internal_error("Expected typed job status", None))?;
+                Some(serde_json::from_str::<Value>(&text.text)
+                    .map_err(|error| McpError::internal_error(error.to_string(), None))?)
+            } else {
+                None
+            };
             let result = serde_json::to_value(&original)
                 .map_err(|error| McpError::internal_error(error.to_string(), None))?;
             let mut envelope = json!({
@@ -639,6 +650,7 @@ impl Report {
                 envelope["report_scope"] = json!(self.report_scope());
             }
             if let Some(operation) = &operation { envelope["operation"] = operation.clone(); }
+            if let Some(job_status) = job_status { envelope["job_status"] = job_status; }
             let mut delivered = CallToolResult::success(vec![Content::text(envelope.to_string())]);
             if stage_error { delivered.is_error = Some(true); }
             delivered

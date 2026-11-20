@@ -1602,6 +1602,10 @@ or process restart, and does not poll, cancel or restart work. A captured runnin
 status is not evidence that a job is still running. `cancel_job` stays a separate
 mutation without these delivery controls. The shared `server_discovery` report
 scope identifies project-free retention, not a project record.
+With `get_job_status(output_json=true)`, the envelope's `job_status` includes
+the job ID, kind, project ID, status, message, timestamps and persisted phase
+progress. The existing `result.content` remains available. A null phase ETA
+means there is no current estimate. Saved recovery retains both representations.
 
 Installed November16: ordinary `ask_codebase`
 history/rationale questions preserve each selected indexed commit message in full,

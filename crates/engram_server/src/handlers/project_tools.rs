@@ -1,7 +1,7 @@
 use crate::services::job_progress::Reporter;
 use crate::models::{
     AddRepoRuleRequest, CancelJobRequest, CheckIntegrityRequest, DeleteRepoRuleRequest,
-    GetCheckpointStatusRequest, GetMemoryBudgetRequest, GetMetricsRequest,
+    GetCheckpointStatusRequest, GetJobStatusRequest, GetMemoryBudgetRequest, GetMetricsRequest,
     IncrementalIndexingGcRequest, IndexProjectRequest, ListJobsRequest, MemorySectionRequest,
     ProjectIdRequest, ProjectType, RepairProjectRequest, UpdateMemoryBankRequest,
     UpdateProjectRequest, WatchProjectRequest,
@@ -4329,7 +4329,7 @@ impl Engram {
 
     pub async fn handle_get_job_status(
         &self,
-        req: CancelJobRequest,
+        req: GetJobStatusRequest,
     ) -> Result<CallToolResult, McpError> {
         let job = self
             .state
@@ -4339,11 +4339,24 @@ impl Engram {
         let Some((j, phase)) = job else {
             return Err(McpError::invalid_params("Unknown job", None));
         };
-        Ok(CallToolResult::success(vec![Content::text(format!(
+        let progress = crate::services::job_progress::describe(&j, phase.as_ref());
+        let mut content = vec![Content::text(format!(
             "job_id: {}\nstatus: {}\nmessage: {}\nprogress: {}",
-            j.job_id, j.status, j.message,
-            crate::services::job_progress::describe(&j, phase.as_ref())
-        ))]))
+            j.job_id, j.status, j.message, progress
+        ))];
+        if req.output_json == Some(true) {
+            content.push(Content::text(serde_json::json!({
+                "job_id": j.job_id,
+                "kind": j.kind,
+                "project_id": j.project_id,
+                "status": j.status,
+                "message": j.message,
+                "created_at_ms": j.created_at_ms,
+                "updated_at_ms": j.updated_at_ms,
+                "progress": progress,
+            }).to_string()));
+        }
+        Ok(CallToolResult::success(content))
     }
 
     pub async fn handle_incremental_indexing_gc(

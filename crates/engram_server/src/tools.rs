@@ -952,7 +952,7 @@ impl Engram {
     )]
     pub async fn get_job_status(
         &self,
-        params: Parameters<CancelJobRequest>,
+        params: Parameters<GetJobStatusRequest>,
     ) -> Result<CallToolResult, McpError> {
         self.handle_get_job_status(params.0).await
     }

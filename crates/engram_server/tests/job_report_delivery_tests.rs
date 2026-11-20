@@ -58,10 +58,32 @@ async fn captured_job_catalog_and_status_recover_after_rows_and_owners_are_gone(
             )?)
             .await?;
         ensure!(text(&status).contains("status: running") && text(&status).contains("progress:"));
+        ensure!(status.content.len() == 1);
+        let typed_request = json!({"job_id":"owned-background-job-00","output_json":true});
+        let typed = server
+            .handle_get_job_status(serde_json::from_value(typed_request.clone())?)
+            .await?;
+        ensure!(text(&typed) == text(&status));
+        let fields: Value = serde_json::from_str(&typed.content[1].as_text().unwrap().text)?;
+        ensure!(fields["job_id"] == "owned-background-job-00");
+        ensure!(fields["kind"] == "index_project" && fields["status"] == "running");
+        ensure!(fields["created_at_ms"] == 1 && fields["updated_at_ms"] == 2);
+        ensure!(fields["progress"]["estimated_time_remaining_ms"].is_null());
+        let typed_envelope = prepare("get_job_status", typed_request.clone())?
+            .finish(&data, typed.clone())?;
+        let envelope: Value = serde_json::from_str(text(&typed_envelope))?;
+        ensure!(envelope["job_status"] == fields);
+        ensure!(envelope["result"]["content"][0]["text"] == text(&status));
+        ensure!(envelope["result"]["content"].as_array().unwrap().len() == 1);
         let mut captured = Vec::new();
-        for (tool, original) in [("list_jobs", all), ("get_job_status", status)] {
-            let exact = serde_json::to_string(&original)?;
-            let bounded = prepare(tool, json!({"max_tokens":512}))?.finish(&data, original)?;
+        let typed_budget = json!({"job_id":"owned-background-job-00","output_json":true,"max_tokens":512});
+        for (tool, original, expected, args) in [
+            ("list_jobs", all.clone(), all, json!({"max_tokens":512})),
+            ("get_job_status", status.clone(), status, json!({"max_tokens":512})),
+            ("get_job_status", typed, typed_envelope, typed_budget),
+        ] {
+            let exact = serde_json::to_string(&expected)?;
+            let bounded = prepare(tool, args)?.finish(&data, original)?;
             ensure!(text(&bounded).len() <= 2048);
             let manifest: Value = serde_json::from_str(text(&bounded))?;
             let action = manifest["response_delivery"]["next_call"].clone();

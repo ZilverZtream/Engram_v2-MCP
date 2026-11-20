@@ -2772,6 +2772,14 @@ pub struct CancelJobRequest {
     pub job_id: String,
 }
 
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct GetJobStatusRequest {
+    pub job_id: String,
+    /// Include typed job fields in job_status of the JSON delivery envelope.
+    pub output_json: Option<bool>,
+}
+
 // -------------------- Instrumentation --------------------
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
