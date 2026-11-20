@@ -1488,11 +1488,14 @@ pub struct ListSettingsRequest {
     /// Only settings declared in files whose path contains this substring.
     #[serde(default)]
     pub scope: Option<String>,
-    /// Max settings rendered per category. Default 25 (raise up to 500 for
-    /// the exhaustive dump) — the pilot corpus's full catalog at 100/category was
-    /// ~58K chars, too heavy for a planning-phase call.
+    /// Settings per indexed category on this page. Defaults to 25, capped at 500.
     #[serde(default = "default_settings_per_category")]
     pub max_per_category: usize,
+    /// Skip this many settings in each indexed category. Follow the returned
+    /// continuation with the same scope and page size. Exact source_files mode
+    /// does not support indexed pagination. Defaults to zero.
+    #[serde(default)]
+    pub offset_per_category: usize,
 }
 
 fn default_settings_per_category() -> usize {

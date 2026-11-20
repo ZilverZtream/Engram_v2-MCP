@@ -373,7 +373,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Settings catalog: EVERY setting the app has (web.config appSettings, connection strings, Session/Application/Cache keys, settings-store code accessors like ConfigSettings.*) with reader counts and top usage sites, most-read first. The 'only the PO knows the settings' problem, as a queryable database. Filter with scope=<path substring>. Drill in with get_setting."
+        description = "Browse indexed settings and observed getters, with top usage sites and counts. Filter by scope (path substring) and follow the returned offset_per_category action for more settings in the same scope. Each page reads the current index. Use get_setting for a specific key or source_files for exact current VB file observations."
     )]
     pub async fn list_settings(
         &self,

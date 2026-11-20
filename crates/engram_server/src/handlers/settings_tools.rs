@@ -140,6 +140,12 @@ impl Engram {
         if let Some(files) = &req.source_files {
             super::current_settings::validate(files).map_err(|e| McpError::invalid_params(e.to_string(),None))?;
             if req.scope.is_some() { return Err(McpError::invalid_params("source_files and indexed scope must not be mixed",None)); }
+            if req.offset_per_category != 0 {
+                return Err(McpError::invalid_params(
+                    "offset_per_category applies to the indexed catalog, without source_files",
+                    None,
+                ));
+            }
         }
         let _rec = self.ensure_project_record(&req.project_id).await?;
         if let Some(files) = req.source_files {
@@ -226,7 +232,11 @@ impl Engram {
             // Most-read settings first inside each category — those are the
             // minefield the PO worries about.
             for list in groups.values_mut() {
-                list.sort_by(|a, b| b.2.cmp(&a.2).then_with(|| a.0.cmp(&b.0)));
+                list.sort_by(|a, b| {
+                    b.2.cmp(&a.2)
+                        .then_with(|| a.0.cmp(&b.0))
+                        .then_with(|| a.1.cmp(&b.1))
+                });
             }
             (groups, truncated)
         })
@@ -255,18 +265,39 @@ impl Engram {
             );
         }
         let per_cat = req.max_per_category.clamp(5, 500);
+        let offset = req.offset_per_category;
+        let next_offset = offset.saturating_add(per_cat);
+        if offset != 0 {
+            out.push_str(&format!(
+                "\nSkipped the first {offset} indexed settings in each category.\n"
+            ));
+        }
+        let mut has_next_page = false;
         for (cat, list) in &groups {
             out.push_str(&format!("\n## {cat} — {}\n", list.len()));
-            for (name, _id, count, top) in list.iter().take(per_cat) {
+            if offset != 0 && offset >= list.len() {
+                out.push_str("- No settings in this page for this category.\n");
+            }
+            for (name, _id, count, top) in list.iter().skip(offset).take(per_cat) {
                 out.push_str(&format!("- **{name}** — {count} reader(s)"));
                 if !top.is_empty() {
                     out.push_str(&format!(": {}", top.join("; ")));
                 }
                 out.push('\n');
             }
-            if list.len() > per_cat {
-                out.push_str(&format!("  ... and {} more\n", list.len() - per_cat));
+            if list.len() > next_offset {
+                has_next_page = true;
+                out.push_str(&format!("  ... and {} more\n", list.len() - next_offset));
             }
+        }
+        if has_next_page {
+            let arguments = serde_json::json!({
+                "project_id": req.project_id,
+                "scope": req.scope,
+                "max_per_category": per_cat,
+                "offset_per_category": next_offset,
+            });
+            out.push_str(&format!("\nNext catalog page: list_settings({arguments})\n"));
         }
         out.push_str(
             "\nnext: get_setting(name=<setting>) for every usage site with lines + test \

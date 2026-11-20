@@ -528,6 +528,11 @@ existing property and framework-setting references.
 
 `list_settings` groups these observations by catalog label in a separate code
 category. Its count is observed call sites, not physical stores or live values.
+For the indexed catalog, follow the emitted `offset_per_category` call to read
+the next page in the same scope. Each page preserves category totals and
+remaining counts and reads the current index. A node-scan warning means the
+observed catalog is incomplete. Oversized pages use the ordinary saved-response
+recovery before the catalog continuation.
 Pass the returned label, or an unambiguous literal key, to `get_setting`; lookup
 returns up to 50 indexed sites with getter spellings, source generations and raw
 file hashes. Current call excerpts require a matching file hash and a source file

@@ -123,6 +123,70 @@ async fn current_files_supply_all_three_workflows_without_index_publication() {
 }
 
 #[tokio::test]
+async fn indexed_catalog_continuation_reaches_each_scoped_row_once() {
+    let (_temp, state, e) = fixture();
+    let make = |kind: &str, path: &str, name: String| engram_graph::Node {
+        node_id: format!("{kind}:{path}:{name}"),
+        node_type: kind.into(),
+        name,
+        namespace: "memory".into(),
+        file_path: engram_core::RelPath::new(path),
+        start_line: 1,
+        end_line: 1,
+        language: "vbnet".into(),
+        generation: 1,
+        metadata: None,
+    };
+    let expected = [
+        ("app_setting", "Site/Reports/web.config", "setting", 13),
+        ("global_state", "Site/Reports/Reader.vb", "state", 6),
+    ];
+    let mut rows = Vec::new();
+    let mut names = std::collections::BTreeSet::new();
+    for (kind, path, prefix, count) in expected {
+        for index in 0..count {
+            let name = format!("{prefix}_{index:02}");
+            names.insert(name.clone());
+            rows.push(make(kind, path, name));
+        }
+    }
+    rows.push(make("app_setting", "Site/Admin/web.config", "other_scope".into()));
+    state.graph.upsert_nodes(PID, &rows).unwrap();
+
+    let prefix = "Next catalog page: list_settings(";
+    let mut args = json!({"project_id":PID,"scope":"Site/Reports","max_per_category":5});
+    let mut seen = std::collections::BTreeSet::new();
+    for (page, expected_rows) in [10, 6, 3].into_iter().enumerate() {
+        let report = text(
+            e.handle_list_settings(serde_json::from_value(args.clone()).unwrap())
+                .await
+                .unwrap(),
+        );
+        assert!(report.starts_with("# Settings catalog — 19 setting(s) (scope: Site/Reports)"));
+        assert!(!report.contains("other_scope"));
+        let entries: Vec<_> = report
+            .lines()
+            .filter_map(|line| line.strip_prefix("- **").and_then(|row| row.split_once("**")))
+            .collect();
+        assert_eq!(entries.len(), expected_rows);
+        for (name, _) in entries {
+            assert!(seen.insert(name.to_owned()), "{name}");
+        }
+        let next = report.lines().find_map(|line| line.strip_prefix(prefix));
+        if page == 2 {
+            assert!(next.is_none());
+        } else {
+            args = serde_json::from_str(next.unwrap().strip_suffix(')').unwrap()).unwrap();
+            assert_eq!(args["project_id"], PID);
+            assert_eq!(args["scope"], "Site/Reports");
+            assert_eq!(args["max_per_category"], 5);
+            assert_eq!(args["offset_per_category"], (page + 1) * 5);
+        }
+    }
+    assert_eq!(seen, names);
+}
+
+#[tokio::test]
 async fn invalid_current_scopes_refuse_before_project_or_source_access() {
     let (_temp, _state, e) = fixture();
     for files in [
