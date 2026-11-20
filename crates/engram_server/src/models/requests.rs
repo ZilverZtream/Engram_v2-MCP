@@ -659,7 +659,7 @@ pub struct ProjectHealthRequest {
 }
 
 /// P0-5: staleness visibility for agents.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetIndexFreshnessRequest {
     pub project_id: String,
@@ -4204,6 +4204,8 @@ pub enum BatchReadOperation {
     MemorySection(ReadMemoryBankRequest),
     #[serde(rename = "get_page_context")]
     PageContext(GetPageContextRequest),
+    #[serde(rename = "get_index_freshness")]
+    Freshness(GetIndexFreshnessRequest),
     #[serde(rename = "trace_user_request")]
     RequestTrace(TraceUserRequestRequest),
     /// Recorded review evidence with ordinary scope/date/discussion selectors.

@@ -248,6 +248,9 @@ impl Engram {
                     // context continuation before applying the shared budget.
                     self.handle_get_page_context(arguments).await
                 }
+                BatchReadOperation::Freshness(arguments) => {
+                    self.handle_get_index_freshness(arguments).await
+                }
                 BatchReadOperation::RequestTrace(arguments) => {
                     self.handle_trace_user_request(arguments).await
                 }

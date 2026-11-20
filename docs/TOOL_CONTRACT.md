@@ -1645,6 +1645,11 @@ options, offsets and expected context hashes. Recovery performs a new read;
 changed evidence can refuse an old continuation. Reads are sequential and do
 not form an atomic snapshot. No latency or task-usefulness benefit is claimed.
 
+`batch_read` also accepts `get_index_freshness` with its ordinary arguments.
+Use `source_files` to compare exact disk fingerprints with selected indexed
+revisions alongside source evidence. Saved batch recovery returns the original
+freshness observation. A new freshness call checks disk again.
+
 ### HTTP requests in natural-language answers (installed November17)
 
 `ask_codebase` recognizes explicit HTTP-method/URL mentions, for example

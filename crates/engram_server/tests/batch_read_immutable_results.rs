@@ -81,14 +81,17 @@ async fn mixed_oversized_batch_retains_exact_original_memory_source_qualificatio
     let result=async {
         let original="Invoice evidence: keep the approved manual replay exception. ?.\n".repeat(800);
         fixture.memory(&original).await?;
+        let freshness_args = json!({"project_id":fixture.pid,"source_files":["entry.ts"]});
         let request=json!({"max_tokens":4096,"requests":[
             {"request_id":"memory","request":{"tool":"read_memory_bank","arguments":{"project_id":fixture.pid,"section":"batch-original"}}},
             {"request_id":"source","request":{"tool":"get_full_method_body","arguments":{"project_id":fixture.pid,"file_path":"entry.ts","line_start":1,"line_end":1,"context_lines":0}}},
-            {"request_id":"invalid","request":{"tool":"get_chunk","arguments":{"project_id":fixture.pid,"doc_id":"missing","max_tokens":0}}}
+            {"request_id":"invalid","request":{"tool":"get_chunk","arguments":{"project_id":fixture.pid,"doc_id":"missing","max_tokens":0}}},
+            {"request_id":"freshness","request":{"tool":"get_index_freshness","arguments":freshness_args}},
+            {"request_id":"bad-freshness","request":{"tool":"get_index_freshness","arguments":{"project_id":fixture.pid,"source_files":["entry.ts"],"check_disk":false}}}
         ]});
         let raw=fixture.batch(request).await?; ensure!(raw.len()<=16384);
         let bounded:Value=serde_json::from_str(&raw)?;
-        ensure!(bounded["complete"]==false && bounded["results"].as_array().unwrap().len()==3);
+        ensure!(bounded["complete"]==false && bounded["results"].as_array().unwrap().len()==5);
         ensure!(bounded["results"][0]["status"]=="omitted_shared_response_budget");
         ensure!(bounded["results"][2]["status"]=="request_error");
         ensure!(bounded["results"][0]["recovery"]["tool"]=="read_memory_bank");
@@ -112,7 +115,7 @@ async fn mixed_oversized_batch_retains_exact_original_memory_source_qualificatio
         let full:Value=serde_json::from_str(&restored)?;
         ensure!(full["complete"]==true && full["omitted_count"]==0);
         ensure!(full.get("response_delivery").is_none());
-        ensure!(full["results"].as_array().unwrap().iter().map(|r|r["request_id"].as_str().unwrap()).collect::<Vec<_>>()==["memory","source","invalid"]);
+        ensure!(full["results"].as_array().unwrap().iter().map(|r|r["request_id"].as_str().unwrap()).collect::<Vec<_>>()==["memory","source","invalid","freshness","bad-freshness"]);
         let memory=full["results"][0]["response"]["content"][0]["text"].as_str().unwrap();
         ensure!(memory.ends_with(&original));
         let source=full["results"][1]["response"]["content"][0]["text"].as_str().unwrap();
@@ -120,6 +123,22 @@ async fn mixed_oversized_batch_retains_exact_original_memory_source_qualificatio
         ensure!(source.contains(SOURCE.trim()) && source.contains(GUIDANCE.trim()));
         ensure!(!source.contains("Changed current guidance") && !memory.contains("Replacement evidence"));
         ensure!(full["results"][2]["response"]==bounded["results"][2]["response"]);
+        let freshness = &full["results"][3];
+        ensure!(freshness["status"] == "ok");
+        ensure!(freshness["recovery"]["tool"] == "get_index_freshness");
+        let captured: Value = serde_json::from_str(
+            freshness["response"]["content"][0]["text"].as_str().unwrap()
+        )?;
+        let stored_row = &captured["files"][0];
+        ensure!(stored_row["path"] == "entry.ts" && stored_row["status"] == "matching_fingerprint");
+        ensure!(stored_row["disk_blake3"] == blake3::hash(SOURCE.as_bytes()).to_hex().as_str());
+        ensure!(full["results"][4]["status"] == "request_error");
+        let live = fixture.app.handle_get_index_freshness(serde_json::from_value(
+            freshness["recovery"]["arguments"].clone(),
+        )?).await?;
+        let live: Value = serde_json::from_str(&live.content[0].as_text().unwrap().text)?;
+        ensure!(live["files"][0]["status"] == "disk_differs");
+        ensure!(live["files"][0]["physical_revision"] == stored_row["physical_revision"]);
         ensure!(full["consistency"].as_str().unwrap().contains("no atomic batch snapshot"));
         Ok(())
     }.await;
