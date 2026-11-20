@@ -192,6 +192,12 @@ resolved entries beyond the display limit. See `completeness` for upstream
 coverage and truncation. The freshness fields describe the timestamp check and
 the assessed source generation.
 
+Both edit-safety entry points report the target's exact raw BLAKE3 and
+fingerprint verification in `target_source`. The target body, complexity
+estimate and supported local hazard scans use those same file bytes. A known
+fingerprint mismatch refuses the indexed method ranges. A legacy graph with
+no fingerprint explicitly reports an unverified comparison.
+
 The same scoped-editing delivery adds authored guidance to standalone
 `detect_incomplete_changes` for its declared edited paths, using the existing
 edit-session policy helper. Learned conventions and completeness findings keep

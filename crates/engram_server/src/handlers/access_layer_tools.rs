@@ -538,7 +538,16 @@ pub struct EditSafetyResult {
     pub completeness: EditContextCompleteness,
     /// Same structured, source-revision-admitted observation in both edit tools.
     pub downstream_impact: Option<crate::services::impact_walk_service::ImpactAssessment>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub target_source: Option<EditSafetySource>,
     pub evidence_interpretation: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct EditSafetySource {
+    pub file_path: String,
+    pub raw_blake3: String,
+    pub verification: &'static str,
 }
 
 #[derive(Serialize)]
@@ -1913,9 +1922,14 @@ fn assemble_edit_evidence(
     let full_path = safe_join(Path::new(project_dir), &file_path)
         .map_err(|e| format!("Path validation: {e}"))?;
 
-    // Body — always read: complexity and the hazard scans depend on it.
-    verify_indexed_source_span(graph, project_id, project_dir, &file_path)?;
-    let full_body = match read_lines_from_file(&full_path, node.start_line, node.end_line, 0) {
+    // All target-file evidence uses the same bytes checked against the index.
+    let bytes = std::fs::read(full_path).map_err(|e| format!("Cannot verify {file_path}: {e}"))?;
+    let verification = verify_indexed_source_bytes(graph, project_id, &file_path, &bytes)?;
+    let content = std::str::from_utf8(&bytes);
+    let full_body = match content
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
+        .and_then(|text| source_lines(text, node.start_line, node.end_line, 0))
+    {
         Ok((body, _)) => {
             completeness.body = ProviderStatus::Complete;
             Some(body)
@@ -1942,12 +1956,11 @@ fn assemble_edit_evidence(
     }
 
     // File-level scans filtered to the method span.
-    let content = std::fs::read_to_string(&full_path);
     let is_vb = file_path.to_lowercase().ends_with(".vb");
     let vb_traps: Vec<VbTrapSummary> = match (&content, is_vb) {
         (Ok(c), true) => {
             completeness.vb_traps = ProviderStatus::Complete;
-            let files = vec![(file_path.as_str(), c.as_str())];
+            let files = vec![(file_path.as_str(), *c)];
             engram_index::vb_translation_traps::detect_vb_translation_traps(&files)
                 .traps
                 .into_iter()
@@ -2041,7 +2054,12 @@ fn assemble_edit_evidence(
         }
     };
 
-    let edit_safety = compute_edit_safety(&method_info, blast.as_ref(), &completeness);
+    let mut edit_safety = compute_edit_safety(&method_info, blast.as_ref(), &completeness);
+    edit_safety.target_source = Some(EditSafetySource {
+        file_path,
+        raw_blake3: blake3::hash(&bytes).to_hex().to_string(),
+        verification,
+    });
     Ok(EditEvidence {
         node,
         method_info,
@@ -2354,6 +2372,7 @@ fn compute_edit_safety(
         post_edit_checklist: post_checklist,
         completeness,
         downstream_impact: None,
+        target_source: None,
         evidence_interpretation: "The blast_radius_score/risk_band and confidence are uncalibrated advisory heuristics, not measured probabilities of safe edits or a comprehensive safety assessment. Direct caller lists are live graph observations; caller bodies use current-disk/index checks and are not all validated against the downstream source selection. Downstream paths separately check indexed node/file/edge revisions under their named held generation. Static exposure is not proof of breakage or runtime safety.",
     }
 }
@@ -2516,10 +2535,17 @@ fn read_held_context_source(
 }
 
 fn render_downstream_safety(safety: &EditSafetyResult) -> String {
-    let mut text = format!(
+    let mut text = String::new();
+    if let Some(source) = &safety.target_source {
+        text.push_str(&format!(
+            "\nTarget source evidence for `{}` reports `{}` with raw BLAKE3 `{}`.\n",
+            source.file_path, source.verification, source.raw_blake3
+        ));
+    }
+    text.push_str(&format!(
         "\n## Downstream Evidence\n\n{}\n",
         safety.evidence_interpretation
-    );
+    ));
     if let Some(assessment) = &safety.downstream_impact {
         text.push_str("\n```json\n");
         let encoded=if assessment.evidence["detail"]=="summary" {
