@@ -2971,7 +2971,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SOURCE_IDENTITY_DOSSIER_CONTROL_RELEASE_INSTALLED_AND_MCP_VERIFIED",
+    "status": "SELECTED_SOURCE_PLANNING_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "verified_base_record": "eval/history-schema-review-candidate-20261119.json",
     "record": "eval/cumulative-agent-workflows-candidate-20261119.json",
@@ -3184,7 +3184,7 @@
       "acceptance": "Candidate and installed public MCP each found both exact registered control-call targets on selected LegacyValidation source copies, returned captured dossier status and generation without text generation, and recovered the original MCP dossier with byte identity after editing owned guidance. Both public integrity checks measured the substituted key under equal counts, invoked the existing authorized fixture repair and verified it restored every selected identity without changing generation or project totals. Fresh production MCP connected after cutover and found the bulk-edit target at line 15 on actual LegacyValidation, preserving source generation 3222. No live corruption or repair was injected. Both owned fixtures and cutover workspace closed; the original aggregate gate, wide-corpus vector identity, semantic planning, actual task usefulness and runtime-dispatch limits remain open."
     },
     "selected_graph_reference_reads": {
-      "status": "IMPLEMENTED_FOCUSED_PUBLISHED_SOURCE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_LEGACY_VALIDATION_MCP_VERIFIED",
       "requirement": "S16 graph edges, inherited source and selected-file revision consistency",
       "observed_gap": "Exact-node find_references reads live graph adjacency without checking the published file revisions. Existing graph_search has a source selection boundary that the direct reference entry point cannot opt into.",
       "implementation": "find_references and the existing selected-source revision lookup.",
@@ -3192,7 +3192,7 @@
       "verification": "A focused executable with the exact new reader, real lexical managed source selection and real GraphStore retained the inherited revision-1 caller for revision-2 target, and withheld a deleted source, a future endpoint, a missing endpoint and a future edge at the inherited caller. The installed baseline returned the ordinary LegacyValidation VetroController to IWebhookVetroService call as raw text, with no selected revision check. Independent LegacyValidation Git verified the source call at controller line 17 and interface declaration at line 3. The existing public handler graph fixture now covers outgoing selected references under a published edit. Full packaged MCP acceptance remains pending. No historical graph, source freshness or runtime call behavior inferred. No Cargo build."
     },
     "selected_file_integrity": {
-      "status": "IMPLEMENTED_FOCUSED_NATIVE_STORE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_LEGACY_VALIDATION_MCP_VERIFIED",
       "requirement": "TODO-39 selected-source identity diagnosis for a suspect file in a larger project",
       "observed_gap": "Installed whole-project check_integrity falls back to counts alone above the identity comparison bound. An agent cannot ask it to compare the vector keys of one suspect published file.",
       "implementation": "check_integrity exact-file observation and existing index identity reader with a literal path and selected physical revision.",
@@ -3200,7 +3200,7 @@
       "verification": "The focused native test ran the exact new predicates and existing key reader against actual Tantivy and LanceDB stores. A 4,103-row lexical fixture exceeded the project key limit, then the exact selected revision observed two rows and one matching key in both stores. The query excluded an unpublished physical revision, a similarly named sibling and a native row from another namespace. The public integration fixture now checks inherited corruption, unaffected and absent files, and refusal of scoped auto-repair. Retained LegacyValidation project_info confirms the deployed VB.NET/WebForms and JavaScript/TypeScript configuration. Full packaged MCP acceptance remains pending. No Cargo build or live mutation."
     },
     "feature_plan_explicit_source_files": {
-      "status": "IMPLEMENTED_FOCUSED_ACTUAL_SOURCE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED_ON_LEGACY_VALIDATION_SOURCE_COPIES",
       "requirement": "TODO-32 source-backed pre-edit dossier for the caller's known target files",
       "observed_gap": "The model-free planner accepts one exact selected model_after file. An agent preparing a page/control change cannot supply the several confirmed paths as scoped dossier evidence, so it must depend on discovery ranking or make separate source and policy requests.",
       "implementation": "Feature-plan request validation, source ordering and scoped authored policy evidence.",
@@ -3208,7 +3208,7 @@
       "verification": "The installed tools/list advertised only the explicit example, with no source_files selector. A focused executable used the exact ordering and bounded source-selection functions with three verified actual LegacyValidation Git blobs and 24 ranked candidates. All three exact paths retained their input order without duplicating the model/example or matched dependencies. The existing public dossier fixture now checks admission order, normalized deduplication, an explicitly missing selected child, and separately scoped authored guidance. Candidate MCP and installation remain pending. No Cargo build."
     },
     "selected_source_planning_batch": {
-      "status": "ONE_SHARED_TARGET_RELEASE_RUNNING",
+      "status": "INSTALLED_WITH_THREE_PUBLIC_MCP_CHECKS",
       "case": "selected-source-planning-20261120",
       "source_commit": "8c7301e5429d7bbe13558b6c5b2c7f92fd3b652e",
       "requirements": ["S16","TODO-39","TODO-32"],
@@ -3223,9 +3223,14 @@
       "cutover_and_installed_checks_session": 96133,
       "prepare_cutover_sha256": "5cdf4d039129f181fbd771a384d3f3247cf36b1e6b6b3f5ddc0f58a0e12de9a3",
       "live_cutover_sha256": "c084310612ecc54bb021d2d11bba1a764880565acf9afb6b905f7c64576d2921",
-      "baseline": "The exact installed-equivalent binary returned the current dossier without explicit path intake, a raw inherited TypeScript reference after an unrelated VB.NET update, and an existing whole-project identity mismatch after an owned substitution. All three owned fixture runtimes closed."
+      "baseline": "The exact installed-equivalent binary returned the current dossier without explicit path intake, a raw inherited TypeScript reference after an unrelated VB.NET update, and an existing whole-project identity mismatch after an owned substitution. All three owned fixture runtimes closed.",
+      "build": {"seconds":900.7836857,"optimized_builds":1,"full_test_suites":0,"receipt_sha256":"272bbbbe24545bb32ff4ec440f73392248f0e6c47b86ab46dfe6fc205c5bca80"},
+      "package": {"binary_sha256":"1f2b231e7fd7243bef3eadc08735e357142dff3944b4776a7d78e8bbb456b7a1","manifest_sha256":"45c78d638c0583c2904d6139e0a7b70378f4aec77f182972ce39b5f4f3b96fb7","archive_sha256":"79f107fffe4771026337d9ccc74533827a2460e5eedfe82506eff66d836ee57e","receipt_sha256":"f8315870b716a0b44b4a36a59a50b68db0f7a0c4fa0028142d07d254e2f7d858"},
+      "candidate_public": {"receipt_sha256":"5e3db5c6ac9fabff1e9686aa183d1d639b09146c18fb82714e00fb4f524b97fe","integrity_fixture_retry_sha256":"9c363dff5788a988009da2a38bde39f3ec70f762763ee08d89b5f60f08bb2230","verifier_sha256":"02e72c93fd64f905a34d77c967bf6ebb42157db09d45012b23c8c23830447e36","stage_retry_sha256":"d41c3c0515e47766baf0f61c21354301627a9ca3e5eb6f273f75025d2aa640ea"},
+      "installed": {"generation":3222,"owned_public_receipt_sha256":"60524ae413d99c40b8a0ced196bda08ca17eafce92e63e027fc7a75dc243bce9","status_sha256":"763536293a7ac4ea90aa83ffed7a5aa7e48f0d4511e690522c1376a2d2dd1b03","forward_transition_sha256":"0d473c2fc023ceecefa3e4e767ad21cc5921bccfb99d0f60a4f2ad737f4796d6","retained_pair":"engram-pair-backup-96a3e6b7a6434b2dae0b98caac8f9a3c"},
+      "acceptance": "Fresh live LegacyValidation MCP verified the VetroController call to IWebhookVetroService at line 3. Exact-file integrity observed one matching published lexical/vector key for the controller at physical revision 3154. The candidate and installed owned checks retained an inherited TypeScript call after an unrelated VB.NET update; admitted the exact task-management sources in caller order, reported the missing requested path and retained authored guidance; and correctly reported a substituted vector for one inherited file, a healthy selected sibling and an absent file. Refusal of scoped auto-repair preserved the fixture mismatch. A fixture-only correction read the saved JSON-RPC error and reused the same compiled binary. The deferred dossier retained zero generation calls and exact response recovery. No production repair or generalized S16, task usefulness, disk freshness or runtime dispatch claim."
     },
-    "next_action": "Follow existing build 34646, stage 40341 and gated cutover 96133. Deploy only after the exact candidate passes all three public checks. Verify the live LegacyValidation controller's selected call evidence and read-only file integrity, plus all three checks in installed owned fixtures."
+    "next_action": "Advance the next ready original LegacyValidation requirement. Selected-source reference, exact-file integrity and explicit planning-source changes are installed and publicly verified."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",

@@ -761,6 +761,7 @@ proposals that duplicate the existing surface:
   selection. [Delivery](eval/instruction-update-source-batch-delivery-20261117.json).
 
 - [~] **32. `one_shot_feature_plan` (spec 42-1)** (L)
+  Installed: `source_files` prioritizes exact caller-selected paths and reports their source evidence, missing paths and scoped guidance. Candidate and installed MCP verified three actual LegacyValidation task-management files in request order. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Deferred previews retain captured plan status, source generation and provider-call count. The existing exact MCP recovery preserved the original dossier after an owned source-guidance edit. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: WebForms feature planning passes the caller's semantic history budget through to change-set retrieval. [Delivery](eval/agent-history-trace-planning-batch-delivery-20261119.json).
   Compiles a full pre-edit dossier for a feature request (relevant files, patterns,
@@ -915,6 +916,7 @@ specs already written.
   the config-driven path. CI test: named_pipe_transport_round_trips.*
 
 - [~] **39. Vector/Tantivy consistency repair after partial ingest failures** (M) -
+  Installed: `source_file` compares one published file's counts and bounded key identities in read-only mode. Live LegacyValidation verified the Vetro controller's exact selected revision. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Managed source snapshots with up to 4,096 rows and 4 MiB of key text detect substituted vector keys despite equal counts. Candidate and installed MCP each verified the existing scoped repair in a disposable project. [Delivery](eval/engram-delivery-goal-20261110.json).
   Installed: Integrity checks expose still-pending durable recovery reasons and earliest timestamp even when lexical and vector counts match. [Delivery](eval/freshness-recovery-procedure-batch-delivery-20261119.json).
   Installed: `check_integrity` supports bounded exact recovery of original findings and repair outcomes. [Delivery](eval/webforms-integrity-batch-delivery-20261119.json).
