@@ -6389,7 +6389,11 @@ fn coordinated_story_subjects(raw: &str) -> Vec<String> {
     let Some((subjects, _)) = [" must ", " should ", " shall "].iter().find_map(|modal| title.split_once(modal)) else { return vec![] };
     let mut result = Vec::new();
     for subject in subjects.split(" and ").take(2) {
-        let subject = subject.strip_suffix(" changes").unwrap_or(subject);
+        // Keep a named operation such as "type changes" intact. Strip the
+        // trailing verb only when a descriptive subject still remains.
+        let subject = subject.strip_suffix(" changes")
+            .filter(|prefix| prefix.split_whitespace().count() >= 2)
+            .unwrap_or(subject);
         let words = name_tokens(subject);
         if !(2..=3).contains(&words.len()) || words.iter().any(|word| matches!(word.as_str(),"we"|"the"|"that"|"and"|"with"|"for")) {
             return vec![];
@@ -6397,6 +6401,15 @@ fn coordinated_story_subjects(raw: &str) -> Vec<String> {
         result.push(words.iter().map(|w| canonical_story_name_term(w)).collect::<Vec<_>>().join(" "));
     }
     result
+}
+
+#[cfg(test)]
+#[test]
+fn planner_retains_operation_alongside_a_coordinate_subject() {
+    assert_eq!(coordinated_story_subjects("Shared catalog imports and type changes must honor restrictions"),
+        ["shared catalog import", "type change"]);
+    assert_eq!(coordinated_story_subjects("Regional delivery settings changes must honor restrictions"),
+        ["regional delivery setting"]);
 }
 
 fn grounded_planning_concepts(
