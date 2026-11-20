@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "SOURCE_REFRESH_BROWSER_DOWNLOAD_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "request_trace_navigation_recovery": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-4 bounded complete delivery and TODO-31 usable static request traces",
+      "observed_gap": "Installed live LegacyValidation DownloadFile.aspx trace at a 40 KiB caller budget completed analysis and then returned a 62,354-byte minimum-navigation error. The caller had to rerun the same trace at a larger budget and received no original snapshot action.",
+      "implementation": ["crates/engram_server/src/handlers/request_trace_delivery.rs", "crates/engram_server/src/services/ask_engine/request_trace.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "A normal LegacyValidation download trace at the same 40 KiB budget returns a manifest declaring no inline navigation and counts of deferred paths. Following its call reconstructs the exact original with source hashes, authored response metadata, and runtime qualifications. Existing full/compact and tiny-budget failure contracts remain. Composed asks disclose deferred navigation without claiming no candidate existed.",
+      "source_commit": "c3b01724774ead98d279670a3b43c446ae12f022",
+      "verification": "Five focused checks executed the amended trace delivery and actual snapshot recovery. The retained 208714-byte LegacyValidation full trace recovered byte-for-byte at its previous failing 40960-byte budget, with authored header evidence intact. Fitting full/compact reports, guidance-only deferral and smaller-than-metadata errors pass. Packaged direct and composed MCP verification remain pending.",
+      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/trace-navigation-recovery-20261120/focused-receipt.json",
+      "temporary_resources": "Owned compile/snapshot fixtures were removed. Retain the numeric receipt and original live wire evidence. No Cargo build or full suite ran."
+    },
     "zero_history_change_cache_warmup": {
       "status": "SOURCE_COMPLETE_AWAITING_PACKAGED_MCP",
       "requirement": "TODO-36/TODO-55 explicit zero-history source refresh avoids automatic history work",
@@ -4531,6 +4542,12 @@
       "source_commit": "588a9bedc55668d4561f4b86f4ed4d8c0e2fef6c",
       "acceptance_contract": "Run an owned changed-source max_commits zero update and a positive control. Confirm both publish verifiable source. Verify zero skips co_change_warm in the stage trace and the positive control still enters it.",
       "baseline": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/source-refresh-browser-download-20261120/installed/current/stderr.log"
+    },
+    {
+      "original_requirement_id": "TODO-4/TODO-31",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "c3b01724774ead98d279670a3b43c446ae12f022",
+      "acceptance_contract": "Trace an LegacyValidation WebForms download at the prior failing caller budget and follow the exact original recovery action without replay. Verify path omission count, source hashes, response clues and runtime coverage in the original. Check normal compact replies and tiny-budget refusal."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
