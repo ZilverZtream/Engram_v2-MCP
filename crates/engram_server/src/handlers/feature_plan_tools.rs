@@ -561,7 +561,21 @@ impl Engram {
             .filter(|path| !evidence.iter().any(|row| &row.file_path == *path))
             .cloned()
             .collect();
-        output["source_evidence"] = json!(evidence);
+        output["source_evidence"] = json!(evidence.iter().map(|row| {
+            let mut evidence = json!(row);
+            evidence["source_read"] = json!({
+                "tool": "get_full_method_body",
+                "arguments": {
+                    "project_id": req.project_id,
+                    "file_path": row.file_path,
+                    "expected_file_blake3": row.source_hash,
+                    "line_start": 1,
+                    "context_lines": 0,
+                    "output_json": true,
+                },
+            });
+            evidence
+        }).collect::<Vec<_>>());
         output["source_coverage"] = json!({"file_cap":MAX_SOURCE_FILES, "primary_file_cap":plan::MAX_FILES, "composition_host_cap":MAX_COMPOSITION_HOSTS,
             "composition":composition, "candidate_files":paths.len(), "admitted_files":evidence.len(), "omitted_paths":omitted_paths, "gaps":gaps,
             "explicit_model_after_file":model_file,

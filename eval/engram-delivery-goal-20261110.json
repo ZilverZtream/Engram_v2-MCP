@@ -2971,8 +2971,19 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "SOURCE_REFRESH_EDIT_DOSSIER_INSTALLED_S02_SOURCE_READY",
-    "implementation_items_active": 1,
+    "status": "S02_VECTOR_RECOVERY_AND_FEATURE_DOSSIER_SOURCE_READ_READY_FOR_COMBINED_VALIDATION",
+    "implementation_items_active": 0,
+    "feature_dossier_source_read": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "EG-02 bounded complete source evidence and TODO-32 WebForms pre-edit dossier",
+      "observed_gap": "An exact LegacyValidation webhook persistence dossier provides a bounded 100-line excerpt and the original raw source hash but no callable read of the admitted file. Its generic change-set recovery cannot reconstruct the rest of that file.",
+      "implementation": ["crates/engram_server/src/handlers/feature_plan_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "An admitted dossier row supplies one get_full_method_body call pinned to its exact path and raw BLAKE3. Following its ordinary pages returns independently sourced lines beyond the excerpt. The captured call refuses altered bytes. Keep the dossier bounded and preserve omitted-file behavior.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/feature-dossier-source-read-20261120",
+      "baseline": {"path": "baseline-observed/receipt.json", "sha256": "e53245359693622424e6c0e8a8855b445e4234647e8e8f8a07a1fb793eca39dc"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "94d04f2fdd818380d7c07370937ee824113fdc7a9ea69dd1031829784c7fa865"},
+      "verification": "Live MCP reported the current raw hash and a 100-line excerpt with no source-read action. Owned baseline reproduced that result, verified the numbered excerpt and all 469 independently sourced lines across four current-reader pages when manually supplying the guard, and refused changed bytes. Candidate mode requires executing the emitted action. The owned fixture was removed; originals remain read-only."
+    },
     "s02_native_write_recovery_signal": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "S02 complete selected source revisions across native vector write failures",

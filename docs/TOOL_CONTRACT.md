@@ -169,6 +169,11 @@ for its evidence ID, selected physical revision, or omission status.
 for those paths. Each source excerpt remains bounded and subject to the
 dossier's selected-revision and current-content checks.
 
+Each admitted source row includes a `source_read` call to open the same file
+from line 1. Execute the call and follow its `next_page` to read beyond the
+dossier excerpt. The stored raw BLAKE3 guard requires the same file bytes.
+If the file changed, refresh the dossier before combining evidence.
+
 In dossier mode, set `source_files_only: true` to read just the listed source
 paths, their applicable guidance and any explicit `schema_tables`. The report
 shows skipped change-set ranking, pattern discovery and WebForms component
