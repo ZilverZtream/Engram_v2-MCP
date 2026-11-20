@@ -1686,6 +1686,9 @@ freshness. Each safety request uses the ordinary method selectors, output
 format and downstream detail. The batch applies its shared reply budget to the
 complete advisory and guidance. A row's single-tool call refreshes the safety
 assessment. Saved batch recovery returns the previously captured assessment.
+When the active limited preset omits a row's underlying tool from discovery,
+the row's `recovery` contains a single-read `batch_read` call with the same
+request ID and arguments. Discoverable tools keep the direct refresh action.
 
 ### HTTP requests in natural-language answers (installed November17)
 

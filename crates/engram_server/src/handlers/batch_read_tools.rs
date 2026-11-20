@@ -1,9 +1,10 @@
 //! Compose existing read contracts without truncating evidence inside a result.
 use crate::{
-    models::{BatchReadOperation, BatchReadRequest},
+    models::{BatchReadItem, BatchReadOperation, BatchReadRequest},
     handlers::planning_tools::change_set_delivery as snapshots,
     tools::Engram,
 };
+use engram_core::config::ToolPreset;
 use rmcp::{
     ErrorData as McpError,
     model::{CallToolResult, Content},
@@ -75,8 +76,22 @@ fn delivery(id: &str, original_bytes: u64, tokens: usize) -> Value {
     })
 }
 
+fn recovery_call(item: &BatchReadItem, preset: ToolPreset) -> Result<Value, McpError> {
+    let request = serde_json::to_value(&item.request).map_err(serialization)?;
+    if request["tool"]
+        .as_str()
+        .is_some_and(|name| !crate::tool_surface::includes(preset, name))
+    {
+        return Ok(json!({
+            "tool": "batch_read",
+            "arguments": {"requests": [{"request_id": item.request_id, "request": request}]}
+        }));
+    }
+    Ok(request)
+}
+
 impl BudgetedBatch {
-    fn new(request: &BatchReadRequest) -> Result<Self, McpError> {
+    fn new(request: &BatchReadRequest, preset: ToolPreset) -> Result<Self, McpError> {
         if request.requests.is_empty() || request.requests.len() > 16 {
             return Err(McpError::invalid_params(
                 "requests must contain 1..=16 reads",
@@ -97,7 +112,7 @@ impl BudgetedBatch {
                     None,
                 ));
             }
-            let recovery = serde_json::to_value(&item.request).map_err(serialization)?;
+            let recovery = recovery_call(item, preset)?;
             // Reserve the longest status and numeric width before any read.
             // Every returned row always retains its complete recovery request.
             rows.push(Row {
@@ -214,7 +229,7 @@ impl Engram {
         if request.response_offset != 0 {
             return Err(McpError::invalid_params("response_offset requires response_id", None));
         }
-        let mut batch = BudgetedBatch::new(&request)?;
+        let mut batch = BudgetedBatch::new(&request, self.state.cfg.effective_tool_preset())?;
         for (index, item) in request.requests.into_iter().enumerate() {
             let result = match item.request {
                 BatchReadOperation::MethodInfo(arguments) => {
@@ -293,8 +308,39 @@ mod tests {
     }
 
     #[test]
+    fn hidden_batch_reads_recover_through_a_discoverable_action() {
+        let request: BatchReadRequest = serde_json::from_value(json!({"requests": [
+            {"request_id":"method", "request":{"tool":"get_method_info","arguments":{
+                "project_id":"p","fqn_or_name":"Save","output_json":true
+            }}},
+            {"request_id":"schema", "request":{"tool":"query_schema","arguments":{
+                "project_id":"p","query_type":{"kind":"table","name":"dbo.Tasks"}
+            }}}
+        ]})).unwrap();
+        for (preset, hidden, direct) in [
+            (ToolPreset::Qa, 0, 1),
+            (ToolPreset::Development, 1, 0),
+        ] {
+            let batch = BudgetedBatch::new(&request, preset).unwrap();
+            let action = &batch.rows[hidden].recovery;
+            assert_eq!(action["tool"], "batch_read");
+            let read: BatchReadRequest = serde_json::from_value(action["arguments"].clone()).unwrap();
+            assert_eq!(read.requests.len(), 1);
+            assert_eq!(read.requests[0].request_id, request.requests[hidden].request_id);
+            assert_eq!(
+                serde_json::to_value(&read.requests[0].request).unwrap(),
+                serde_json::to_value(&request.requests[hidden].request).unwrap()
+            );
+            assert_eq!(
+                batch.rows[direct].recovery,
+                serde_json::to_value(&request.requests[direct].request).unwrap()
+            );
+        }
+    }
+
+    #[test]
     fn complete_results_keep_error_data_citations_and_guidance_intact() {
-        let mut batch = BudgetedBatch::new(&request(8192)).unwrap();
+        let mut batch = BudgetedBatch::new(&request(8192), ToolPreset::Full).unwrap();
         let evidence = json!({"content":[{"type":"text","text":"日本語 source\nExcept for approved scope: never remove this qualification."}],"isError":false});
         let failure =
             json!({"code":-32602,"message":"stale citation","data":{"expected":"original-hash"}});
@@ -311,7 +357,7 @@ mod tests {
     #[test]
     fn shared_budget_omits_whole_evidence_and_preserves_exact_recovery_and_later_results() {
         let req = request(1024);
-        let mut batch = BudgetedBatch::new(&req).unwrap();
+        let mut batch = BudgetedBatch::new(&req, ToolPreset::Full).unwrap();
         batch
             .insert(
                 0,
@@ -342,10 +388,10 @@ mod tests {
 
     #[test]
     fn invalid_batches_and_mutating_tool_names_are_rejected() {
-        assert!(BudgetedBatch::new(&request(1)).is_err());
+        assert!(BudgetedBatch::new(&request(1), ToolPreset::Full).is_err());
         let mut duplicate = request(8192);
         duplicate.requests[1].request_id = duplicate.requests[0].request_id.clone();
-        assert!(BudgetedBatch::new(&duplicate).is_err());
+        assert!(BudgetedBatch::new(&duplicate, ToolPreset::Full).is_err());
         let mut too_many = request(8192);
         too_many.requests = (0..17)
             .map(|i| {
@@ -354,7 +400,7 @@ mod tests {
                 item
             })
             .collect();
-        assert!(BudgetedBatch::new(&too_many).is_err());
+        assert!(BudgetedBatch::new(&too_many, ToolPreset::Full).is_err());
         assert!(serde_json::from_value::<BatchReadRequest>(json!({"requests":[{"request_id":"write","request":{"tool":"delete_project","arguments":{"project_id":"p"}}}]})).is_err());
     }
 }
