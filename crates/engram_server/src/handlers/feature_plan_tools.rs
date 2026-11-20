@@ -607,10 +607,6 @@ impl Engram {
             output["reason"] = json!("no_current_source_evidence");
             return response(output);
         }
-        if output["planning_context"].to_string().len() > 192 * 1024 {
-            output["reason"] = json!("planning_context_limit");
-            return response(output);
-        }
         if req.dossier_only {
             let stale = changed_source_evidence(&record.directory, &evidence);
             if !stale.is_empty() || self.get_active_generation(&req.project_id).await? != generation {
@@ -626,6 +622,12 @@ impl Engram {
                 "EXPLICIT_SCHEMA_REQUESTS_REPORTED"
             });
             output["edit_safety_status"] = json!("NOT_ASSESSED_NO_PROPOSED_EDITS");
+            return response(output);
+        }
+        // The dossier uses normal MCP response delivery. This cap protects the
+        // input sent to the plan provider.
+        if output["planning_context"].to_string().len() > 192 * 1024 {
+            output["reason"] = json!("planning_context_limit");
             return response(output);
         }
         let intent = intent.expect("generation mode parsed its intent before source intake");
