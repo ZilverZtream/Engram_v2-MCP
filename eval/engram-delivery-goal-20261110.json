@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "VERIFIED_METHOD_EDIT_CONTEXT_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "edit_session_complete_dossier_reconciliation": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "source_commit": "b1c6a637ad5416b70be3aeb21c55d470a318cfba",
+      "requirement": "EG-02 complete bounded change-set recovery and TODO-29 edit-session reconciliation",
+      "observed_gap": "Installed complete_edit_session acknowledged 42 untouched dossier references from tracked LegacyValidation paths but rendered only 30, without disclosing dropped identities. The complete lifecycle response could not recover the missing paths.",
+      "implementation": ["crates/engram_server/src/handlers/planning_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "An owned edit session with more than 30 distinct dossier references retains every untouched path and section. A deliberately small reply defers with exact immutable recovery. Completing and recovering consume the lifecycle only once.",
+      "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/limited-recovery-guidance-20261120/edit-session-dossier-overflow-baseline/receipt.json", "sha256": "d0bfa74c9659875ca501de0b87e2dbf95c2a49002181dfa17728cf667a81051a"},
+      "focused_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/edit-dossier-complete-focused-20261120.json",
+      "verification": "Installed owned MCP reported 42 untouched references in its heading but retained 30 identities. The exact amended production parser and renderer retained all 41 untouched tracked LegacyValidation paths when one of 42 paths was edited. Owned temporary files were removed. Packaged lifecycle and immutable paging integration are pending."
+    },
     "exact_refresh_freshness_navigation": {
       "status": "SOURCE_COMPLETE_EXACT_MCP_READ_VERIFIED_AWAITING_PACKAGED_DISCOVERY",
       "source_commit": "90e2cecada48fde312b583317494ff332403fd8d",
@@ -4820,6 +4831,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "90e2cecada48fde312b583317494ff332403fd8d",
       "acceptance_contract": "Inspect advertised update_project and only_paths schemas in Core and Full, then follow the existing source_files check and compare actual LegacyValidation file bytes. Fixture repair still forces re-extraction. Ship this documentation and discovery improvement within a later combined binary, without a standalone build."
+    },
+    {
+      "original_requirement_id": "EG-02/TODO-29 complete dossier reconciliation",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "b1c6a637ad5416b70be3aeb21c55d470a318cfba",
+      "acceptance_contract": "Complete a disposable edit lifecycle with the 42 independently sourced LegacyValidation path references under a reply budget that defers the report. Verify all untouched paths and section labels in the recovered original, exact BLAKE3, and refusal to close the same lifecycle twice. No actual application source edits."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
