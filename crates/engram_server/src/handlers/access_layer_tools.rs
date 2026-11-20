@@ -4613,7 +4613,12 @@ impl Engram {
             )
             .await;
         let mut policy_paths = vec![ctx.method_info.file_path.clone()];
-        policy_paths.extend(ctx.caller_bodies.iter().map(|caller| caller.file_path.clone()));
+        policy_paths.extend(
+            ctx.caller_bodies
+                .iter()
+                .filter(|caller| !caller.source_code.is_empty())
+                .map(|caller| caller.file_path.clone()),
+        );
         policy_paths.extend(ctx.caller_excerpts.iter().filter(|caller| !caller.numbered_source.is_empty())
             .map(|caller| caller.file_path.clone()));
         let body = if output_json {

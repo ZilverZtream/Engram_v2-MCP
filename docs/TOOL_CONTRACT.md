@@ -2109,6 +2109,9 @@ same safety evidence. Optional body/history/business content retain separate bou
 those reads before another summary expansion. Available QA/VB repetition follow-ups
 are suggestions; retrieving context does not execute them. Applicable authored
 guidance for all actually returned source retains exceptions, hashes and exact recovery.
+The selected method file always contributes its scoped guidance. Caller-only
+guidance requires returned caller source or an excerpt. An indexed caller
+identity or a withheld body alone does not widen guidance scope.
 
 Shared complete-report delivery still defaults to40KiB complete reply text, estimated
 at4UTF-8bytes/token. Fresh analysis/operation fields remain required for fresh calls.
