@@ -8,6 +8,7 @@ use crate::models::AskCodebaseRequest;
 use crate::services::{
     ask_engine::{
         evidence::{Authority, EvidenceItem, EvidenceKind},
+        historical::resolve_revision,
         plan::{AnswerType, EntityKind, EntityMention, Intent, Qualifiers, QueryPlan},
         report::AskReport,
         retrieval::parse_depth,
@@ -91,6 +92,7 @@ pub(super) async fn gather(
     let root = std::path::PathBuf::from(directory);
     let limit = parse_depth(&req.depth).arm_top_k();
     let project_path = path.clone();
+    let revision = req.as_of.clone();
     let lookup = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
         let repo = GitWalker::open_repo(&root)?;
         let workdir = repo
@@ -104,9 +106,13 @@ pub(super) async fn gather(
             .to_str()
             .ok_or_else(|| anyhow::anyhow!("Git path must be UTF-8"))?
             .replace('\\', "/");
-        let (tip, basis) = match GitWalker::approved_history_root(&repo) {
-            Some(tip) => (tip, "origin default branch"),
-            None => (repo.head()?.peel_to_commit()?.id(), "checked-out branch"),
+        let (tip, basis) = if let Some(pin) = &revision {
+            (resolve_revision(&repo, pin)?, "requested Git revision")
+        } else {
+            match GitWalker::approved_history_root(&repo) {
+                Some(tip) => (tip, "origin default branch"),
+                None => (repo.head()?.peel_to_commit()?.id(), "checked-out branch"),
+            }
         };
         let filter = CardFilter {
             file_prefix: Some(git_path.clone()),
@@ -126,7 +132,12 @@ pub(super) async fn gather(
         })?
         .map_err(|error| McpError::internal_error(error.to_string(), None))?
         .map_err(|error| {
-            McpError::internal_error(format!("Recent Git history: {error:#}"), None)
+            let message = format!("Recent Git history: {error:#}");
+            if req.as_of.is_some() {
+                McpError::invalid_params(message, None)
+            } else {
+                McpError::internal_error(message, None)
+            }
         })?;
 
     let mut next_best = Vec::new();

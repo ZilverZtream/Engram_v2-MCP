@@ -1939,6 +1939,10 @@ semantic interpretation remains unverified, status is not upgraded and failure
 preserves retrieval. `synthesis_timeout_ms` defaults to30000 and covers generation
 only. Historical `as_of` source and authored guidance use one resolved Git revision;
 live graph and checked-out guidance are excluded and historical coverage is partial.
+For a deterministic question such as “What changed recently in Site/Reports/?”,
+`as_of` sets the starting revision for the bounded first-parent history. Commit
+and file-patch follow-ups use the resolved commit, and an older-window action
+continues from an earlier first parent. An unavailable revision returns an error.
 `depth`, `output_format`, `deadline_ms` and complete-result recovery retain their
 existing schemas and semantics.
 

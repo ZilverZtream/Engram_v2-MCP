@@ -22,7 +22,7 @@ const TOTAL_LIMIT: usize = 2 * 1024 * 1024;
 const ENTRY_LIMIT: usize = 2048;
 const BLOB_SCAN_LIMIT: usize = 128;
 
-fn revision(repo: &Repository, pin: &AsOf) -> Result<git2::Oid> {
+pub(crate) fn resolve_revision(repo: &Repository, pin: &AsOf) -> Result<git2::Oid> {
     let commit = pin
         .commit
         .as_deref()
@@ -83,7 +83,7 @@ pub fn gather(root: &Path, req: &AskCodebaseRequest, plan: QueryPlan) -> Result<
     let deadline = Duration::from_millis(req.deadline_ms.unwrap_or(15_000).clamp(1_000, 60_000));
     let repo = Repository::discover(root)
         .context("Historical answers require the project's Git repository")?;
-    let oid = revision(&repo, req.as_of.as_ref().context("Missing as_of revision")?)?;
+    let oid = resolve_revision(&repo, req.as_of.as_ref().context("Missing as_of revision")?)?;
     let commit = repo.find_commit(oid)?;
     let workdir = std::fs::canonicalize(
         repo.workdir()

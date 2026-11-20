@@ -1213,7 +1213,8 @@ pub struct AskCodebaseRequest {
     /// Optional current task / user story for context.
     #[serde(default)]
     pub task_context: Option<String>,
-    /// Retrieve complete bounded source blobs at one resolved Git commit/branch.
+    /// Use one resolved Git commit/branch for bounded historical source or
+    /// the first-parent history of an explicit recent file/folder question.
     /// Excludes current index, live graph and current policy evidence; historical
     /// coverage stays partial. Applicable authored guidance is read from that
     /// same revision for returned source paths. Unavailable revisions never

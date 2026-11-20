@@ -240,6 +240,18 @@ fn public_ask_entrypoint_keeps_requested_source_separate_from_an_active_newer_in
         ensure!(body["evidence"][0]["content"]==OLD_VB);
         ensure!(body["evidence"][0]["authority"]=="historical_code");
         ensure!(body["snapshot"]["project_generation"].is_null());
+        let history = engram.handle_ask_codebase(serde_json::from_value(json!({
+            "project_id":pid,"question":"What changed recently in Site/Zoom.vb?",
+            "as_of":{"commit":old},"output_format":"json"
+        }))?).await?;
+        let history: Value = serde_json::from_str(&history.content[0].as_text().unwrap().text)?;
+        let evidence = history["evidence"].as_array().unwrap();
+        ensure!(evidence.len() == 1 && evidence[0]["kind"] == "history_commit");
+        ensure!(evidence[0]["commit"] == old);
+        ensure!(history["snapshot"]["git_commit"] == old);
+        let action = history["next_best"][0].as_str().unwrap();
+        let args: Value = serde_json::from_str(action.split_once("search_history(").unwrap().1.strip_suffix(')').unwrap())?;
+        ensure!(args["as_of_rev"] == old && args["file_filter"] == "Site/Zoom.vb");
         ensure!(registry.get_meta(pid,"last_git_oid")?==before);
         Ok(())
     })

@@ -106,6 +106,12 @@ impl Engram {
             ));
         }
         let rec = self.ensure_project_record(&req.project_id).await?;
+        if !req.route_with_model
+            && let Some(path) = recent_history::requested_path(&req.question)
+        {
+            let out = recent_history::gather(&req, &rec.directory, path).await?;
+            return self.deliver_ask_report(&req, out).await;
+        }
         if req.as_of.is_some() {
             let root = std::path::PathBuf::from(&rec.directory);
             let history_req = req.clone();
@@ -114,12 +120,6 @@ impl Engram {
                 crate::services::ask_engine::historical::gather(&root, &history_req, plan)
             }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
                 .map_err(|error| McpError::invalid_params(format!("Historical source retrieval unavailable: {error:#}"), None))?;
-            return self.deliver_ask_report(&req, out).await;
-        }
-        if !req.route_with_model
-            && let Some(path) = recent_history::requested_path(&req.question)
-        {
-            let out = recent_history::gather(&req, &rec.directory, path).await?;
             return self.deliver_ask_report(&req, out).await;
         }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
