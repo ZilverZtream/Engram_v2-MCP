@@ -333,11 +333,18 @@ impl Engram {
                 .map_err(|e| McpError::invalid_params(e.to_string(),None))?;
             return Ok(CallToolResult::success(vec![Content::text(report)]));
         }
-        let gen_ = self.get_active_generation(&req.project_id).await?;
+        let (gen_, source_view) = if req.node_id.is_some() {
+            let runtime = self.ensure_project_runtime(&req.project_id).await?;
+            let (generation, view) = self.pin_active_source_generation(&req.project_id, &runtime.search).await?;
+            (generation, Some(std::sync::Arc::new(view)))
+        } else {
+            (self.get_active_generation(&req.project_id).await?, None)
+        };
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
         let node_id = req.node_id;
 
+        let literal_view = source_view.clone();
         let literal_graph = graph.clone();
         let literal_pid = pid.clone();
         let literal_query = name.clone();
@@ -348,9 +355,16 @@ impl Engram {
                     .map_err(|error| format!("Setting node lookup failed: {error}"))?
                     .filter(|node| category(node).is_some())
                     .ok_or_else(|| "The supplied node_id is not an indexed setting for this project".to_string())?;
+                let revisions = literal_view.as_deref().and_then(|view| view.selected_file_revisions());
+                if revisions.is_some_and(|files| files.get(node.file_path.as_str()) != Some(&node.generation))
+                    || node.generation > gen_
+                {
+                    return Err("The setting node does not belong to its selected published source revision. Refresh the setting or QA matrix before using the node.".into());
+                }
                 let report = if node.node_type == "setting_key" {
                     Some(super::literal_settings::render_observations(
                         &literal_graph, &literal_pid, &root, std::slice::from_ref(&node),
+                        revisions.is_some(),
                     )?)
                 } else {
                     None
@@ -370,6 +384,8 @@ impl Engram {
         let result = tokio::task::spawn_blocking(move || {
             let node = if let Some(node) = selected_node { node } else { resolve_setting(&graph, &pid, &name)? };
             let mut warnings = vec!["Locations are indexed containing-symbol declarations; current source positions and runtime enforcement are unverified.".to_string()];
+            let revisions = source_view.as_deref().and_then(|view| view.selected_file_revisions());
+            let mut withheld = 0;
             let incoming = graph
                 .find_incoming_edges_with_kind(&pid, None, &node.node_id, 501)
                 .map_err(|e| format!("Setting usage lookup failed: {e}"))?;
@@ -382,6 +398,13 @@ impl Engram {
             let mut co_roles: std::collections::BTreeMap<String, usize> = Default::default();
             for (src, kind, _w) in incoming.iter().take(500) {
                 let reader_node = graph.get_node(&pid, src).map_err(|e| format!("Usage node lookup failed: {e}"))?;
+                if let Some(revisions) = revisions
+                    && reader_node.as_ref().is_some_and(|reader|
+                        revisions.get(reader.file_path.as_str()) != Some(&reader.generation))
+                {
+                    withheld += 1;
+                    continue;
+                }
                 let label = match &reader_node {
                     Some(n) => format!("{} ? {}:{}", n.name, n.file_path, n.start_line),
                     None => { warnings.push(format!("Usage node unavailable: {src}")); src.clone() },
@@ -396,6 +419,9 @@ impl Engram {
                     }
                 }
                 readers.push((kind.as_str().to_string(), label));
+            }
+            if withheld > 0 {
+                warnings.push(format!("{withheld} indexed usage entries withheld outside the selected source revision."));
             }
             readers.sort();
             readers.dedup();

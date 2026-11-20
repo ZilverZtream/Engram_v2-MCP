@@ -631,6 +631,12 @@ literal getter observation without combining same-name entries. The QA preset
 includes the reader. Ordinary name searches and exact-file literal searches
 remain available.
 
+An exact setting reader checks the node's selected physical revision. A
+literal getter with matching current bytes supplies a one-line
+`get_full_method_body` action guarded by the complete raw file hash. An
+edited file can make that action stale. Refresh the originating evidence
+before using a new excerpt.
+
 Set `output_format: "json"` to receive a versioned JSON matrix with named
 axis groups, authored guidance, case evidence, source actions and coverage.
 Axis groups report total and omitted counts. Each group shows up to 40 rows

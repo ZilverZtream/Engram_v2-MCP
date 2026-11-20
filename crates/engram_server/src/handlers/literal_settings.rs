@@ -51,7 +51,7 @@ pub(super) fn lookup(
                 .join(", ")
         ));
     }
-    Ok(Some(render_observations(graph, pid, root, &candidates)?))
+    Ok(Some(render_observations(graph, pid, root, &candidates, false)?))
 }
 
 pub(super) fn render_observations(
@@ -59,6 +59,7 @@ pub(super) fn render_observations(
     pid: &str,
     root: &Path,
     candidates: &[Node],
+    published_source_read: bool,
 ) -> Result<String, String> {
     let mut out = format!(
         "# Literal setting: `{}`\n\n{} indexed call-site observation(s). These are name-shaped typed getter calls, not web.config declarations, compiler/store binding, current values or proof of execution. Observations with the same label do not prove one physical backing store.\n",
@@ -115,6 +116,21 @@ pub(super) fn render_observations(
                 out.push_str(&format!(
                     "  Source status: current at observation; call-site excerpt: {excerpt}\n"
                 ));
+                if published_source_read && node.start_line > 0 && let Some(hash) = &hash {
+                    let action = serde_json::json!({
+                        "tool": "get_full_method_body",
+                        "arguments": {
+                            "project_id": pid,
+                            "file_path": node.file_path.as_str(),
+                            "line_start": node.start_line,
+                            "line_end": node.start_line,
+                            "expected_file_blake3": hash,
+                            "context_lines": 0,
+                            "output_json": true,
+                        },
+                    });
+                    out.push_str(&format!("  Source read: {action}\n"));
+                }
             }
         } else {
             out.push_str("  Source status: STALE_OR_UNAVAILABLE; current call-site excerpt withheld. Refresh the index and inspect the full source before relying on this indexed observation.\n");

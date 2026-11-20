@@ -413,7 +413,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Inspect a setting declaration and its bounded indexed usage, or a source-cited literal getter observation. Use an exact node_id from derive_test_matrix or list_settings to keep distinct indexed identities separate. Supply either node_id or name; exact source_files requires name. Indexed usage and getter names do not establish runtime binding or current values."
+        description = "Inspect a setting declaration and its bounded indexed usage, or a source-cited literal getter observation. Use an exact node_id from derive_test_matrix or list_settings to keep distinct indexed identities separate. Exact node reads check selected source membership and offer a hash-guarded line read for current literal getters. Supply either node_id or name; exact source_files requires name. Indexed usage and getter names do not establish runtime binding or current values."
     )]
     pub async fn get_setting(
         &self,
