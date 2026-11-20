@@ -78,6 +78,17 @@ pub(super) fn observe(
                     let matches = current_hash == hash;
                     report["disk_blake3"] = json!(current_hash);
                     report["disk_bytes"] = json!(bytes);
+                    report["source_read"] = json!({
+                        "tool": "get_full_method_body",
+                        "arguments": {
+                            "project_id": project,
+                            "file_path": path,
+                            "line_start": 1,
+                            "context_lines": 0,
+                            "expected_file_blake3": current_hash,
+                            "output_json": true,
+                        },
+                    });
                     json!(if matches {
                         "matching_fingerprint"
                     } else {
@@ -95,7 +106,7 @@ pub(super) fn observe(
         "active_generation":generation,
         "files":files,
         "disk_bytes_per_file_limit":MAX_SOURCE_BYTES,
-        "coverage":"Read-only byte observations for requested files against one held source selection. Comparisons use the selected physical revisions and admit inherited files. Each disk read is independent. Project-wide freshness, parser and extracted graph completeness, and vector consistency are separate observations."
+        "coverage":"Read-only byte observations for requested files against one held source selection. Comparisons use selected physical revisions and admit inherited files. The source_read action checks the observed disk hash again; the row status records whether that hash matched the index. Each disk read is independent. Project-wide freshness, parser and graph completeness, and vector consistency are separate observations."
     })
 }
 

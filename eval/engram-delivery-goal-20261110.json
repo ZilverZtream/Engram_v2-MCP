@@ -2988,6 +2988,17 @@
   "current_execution_focus": {
     "status": "SOURCE_QA_JOB_WORKFLOWS_COMBINED_CANDIDATE_RUNNING",
     "implementation_items_active": 0,
+    "exact_freshness_source_read_action": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "EG-18 callable agent dependencies and S06 exact LegacyValidation source evidence",
+      "observed_gap": "Exact freshness reports require callers to copy the disk BLAKE3 and reconstruct the guarded read even though the tool knows the exact path and hash.",
+      "implementation": ["crates/engram_server/src/handlers/project_tools/file_freshness.rs", "docs/QUICKSTART.md", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Follow emitted actions for an actual LegacyValidation JavaScript file before and after an owned edit. Refuse the old action after the change and label the new disk hash as different from the inherited index. Unselected files supply no action.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/exact-freshness-source-read-action-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "02b44845dca9d7c5c5532e1eda542a95c85c62bc95bb77c26e34a7fd9bee5bc0"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "3eec26adde686967d4883d6c737b1bfa6b56afb853c3947675ff29757b5f01c2"},
+      "evidence": "Staged MCP matched the original LegacyValidation defaultProject.js raw bytes and found no source action. The absent path was distinct. Source emits a guarded explicit reader only for verified disk-hash observations and preserves the matching/drift status. Syntax and whitespace checks passed. Candidate behavior is pending and the running batch predates this change. The owned process and fixture were closed and removed."
+    },
     "exact_reviewed_patch_recovery": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "EG-19 decision-aware source reviews and TODO-34 bounded staged evidence",

@@ -2665,6 +2665,11 @@ check on known files, call `get_index_freshness(source_files=[...])` first.
 A matching fingerprint establishes byte equality for that selected revision.
 Parser migration or an explicit repair can still require a refresh.
 
+Exact-file freshness rows with an observed disk hash include a
+`source_read` call starting at line 1 and guarded by that hash.
+`disk_differs` identifies an action for current worktree bytes that differ
+from the indexed revision. Unselected or unreadable files supply no action.
+
 For `only_paths`, set `skip_if_unchanged: true` to avoid a source write when
 every requested non-VB file has current extraction metadata and matches the
 published raw fingerprint. The check admits up to 64 MiB of source files.

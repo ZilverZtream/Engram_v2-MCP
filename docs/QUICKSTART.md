@@ -18,13 +18,13 @@ function name in `query`, `semantic: false`, `include_content: true` and
 An empty search leaves the function's presence unknown.
 
 For a known file, call `get_index_freshness` with the project ID and its exact
-project-relative path in `source_files`. When the file reports
-`matching_fingerprint`, pass that path as `file_path` and the returned
-`disk_blake3` as `expected_file_blake3` to `get_full_method_body`. Use the
-hit's `line_start` or start at line 1, and set `context_lines: 0`. The hash guard
-refuses the read if the bytes changed. A matching fingerprint verifies the
-file bytes for that selected revision. A parser change may still require a
-refresh.
+project-relative path in `source_files`. The `matching_fingerprint` status
+verifies the file bytes for the selected revision. Follow the returned
+`source_read` action to open line 1, or set its `line_start` to your search
+hit's line. For versions that omit the action, call `get_full_method_body`
+with the same path, `disk_blake3` as `expected_file_blake3` and
+`context_lines: 0`. The hash guard refuses changed bytes. A parser change
+may still require a refresh.
 
 ## From a method to a QA plan
 
