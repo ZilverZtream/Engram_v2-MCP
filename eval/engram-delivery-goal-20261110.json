@@ -2663,7 +2663,8 @@
       "existing_shared_target_reused": true,
       "this_release_was_incremental": false
     },
-    "minimum_is_not_release_schedule": "The three-outcome threshold is a minimum admission gate, not an instruction to compile/deploy every three outcomes. November16 retained43 build/test invocations show that minimum batching alone did not address user complaints. Continue substantive source delivery and consolidate validation; never add filler to trigger Cargo."
+    "minimum_is_not_release_schedule": "The three-outcome threshold is a minimum admission gate, not an instruction to compile or deploy every three outcomes. Continue substantive source delivery and consolidate validation. Candidate acceptance is separate from deployment. Do not attach automatic live cutover to each candidate build; select a consolidated live delivery when warranted by the current work, or address a concrete live failure.",
+    "live_cutover_cadence_20261120": "Nine successful local cutover receipts between 03:33 and 07:49 Stockholm time, including four between 06:50 and 07:49. The user flagged frequent live replacements. The pending installer waiter for vector-dossier-net-review was stopped before cutover; build and candidate verification continue. The prior installed binary was still 8379834404e2efab024141d63eb604a5417a37019aa9c42d45891825ee86b15b."
   },
   "member_workflows_delivery": {
     "record": "eval/legacy_validation-member-workflows-delivery-20261115.json",
@@ -2999,7 +3000,7 @@
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/vector-dossier-net-review-20261120",
       "release_plan_sha256": "9c6ac64d9b694dbef0297cfc55e3b499dc6360a75fd3860962e0854f7038200e",
       "pipeline_owner": {"path": "pipeline-owner.json", "sha256": "5a30f9a36e9273a005fa35391d6d04303f7a4c33c554f5a44eb32c32e7c4e4fd"},
-      "scope": "One incremental optimized build in the shared target for the three source-ready outcomes. Stage previously verified sidecar assets, run each public fixture once against the candidate, install while idle, and verify the installed runtime."
+      "scope": "One incremental optimized build in the shared target for the three source-ready outcomes. Stage previously verified sidecar assets and run each public fixture once against the candidate. Automatic cutover waiter stopped before it launched any installer; retain the candidate for a separately selected live delivery."
     },
     "review_combined_diff_guidance": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
