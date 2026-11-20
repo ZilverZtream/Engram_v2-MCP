@@ -997,7 +997,7 @@ impl Engram {
                        checked. Accepts a raw diff, `staged`, `unstaged`, `working_tree` (HEAD to final disk), `head`, or a `.patch` path. \
                        When the agent edits a linked worktree instead of the indexed checkout, pass \
                        `working_directory`; Engram verifies repository identity and binds both the diff \
-                       and current-file snapshots to that worktree. Markdown defaults to a bounded compact \
+                       and current-file snapshots to that worktree. Use quick=true for JSON progress with preliminary findings and pending gates. Follow review_run_id to finish the same captured patch; the complete report and maintenance evidence are recoverable. Markdown defaults to a bounded compact \
                        ledger; pass `detail_level=full` for all explanations and snippets. Set retain_reviewed_patch=true to save the exact submitted patch and return a digest-bound recovery action. `review_decisions_before` selects prior decision events strictly before an imported source date (YYYY-MM-DD); undated current summaries are withheld with explicit coverage. Gates and source comparisons still inspect the current worktree; dates and authority are unverified. Native Git diff modes also collect bounded instruction-maintenance before/current evidence and dependency manifests for this checkout and reviewed file scope; semantic drafting and policy decisions remain open. Raw/patch comparison bases are not guessed. Deferred reports retain the complete maintenance packet. No LLM calls."
     )]
     pub async fn pre_commit_review(

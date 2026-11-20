@@ -24,6 +24,8 @@ mod pre_push_context;
 mod response_delivery;
 mod finding_context;
 mod maintenance_context;
+mod quick_review;
+pub(crate) use quick_review::QuickReviews;
 
 fn alternate_review_calls(
     request: &PreCommitReviewRequest,
@@ -54,7 +56,25 @@ fn alternate_review_calls(
 impl Engram {
     pub async fn handle_pre_commit_review(
         &self,
+        req: PreCommitReviewRequest,
+    ) -> Result<CallToolResult, McpError> {
+        validate_project_id(&req.project_id)?;
+        if let Some(id) = &req.review_run_id {
+            if req.quick || req.response_id.is_some() || req.response_offset != 0 {
+                return Err(McpError::invalid_params("Poll a review_run_id separately from a new review or saved response", None));
+            }
+            return self.state.quick_reviews.poll(&req.project_id, id);
+        }
+        if req.quick && req.response_id.is_none() && req.response_offset == 0 {
+            return quick_review::start(self, req).await;
+        }
+        self.run_review(req, None).await
+    }
+
+    async fn run_review(
+        &self,
         mut req: PreCommitReviewRequest,
+        progress: Option<quick_review::Reporter>,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         if req.review_decisions_before.as_deref()
@@ -209,6 +229,9 @@ impl Engram {
                 None,
             ));
         }
+        if let Some(progress) = &progress {
+            progress.captured(&diff_blake3, &reviewed_patch, gates.iter().map(|gate| gate.name()));
+        }
         let source_runtime = self.ensure_project_runtime(&req.project_id).await?;
         let (generation, source_view) = self.pin_active_source_generation(
             &req.project_id, &source_runtime.search).await?;
@@ -228,6 +251,7 @@ impl Engram {
             parsed.clone(),
             &config,
             source_view.clone(),
+            progress.as_ref().map(|progress| progress.observer(min_severity, config.max_findings)),
         )
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;

@@ -4858,6 +4858,13 @@ pub struct PreCommitReviewRequest {
     /// Off by default. This captures the original bytes, including context lines.
     #[serde(default)]
     pub retain_reviewed_patch: bool,
+    /// Return a JSON progress report from a single review run while gates finish.
+    /// Follow next_call for the final verdict and immutable evidence recovery.
+    #[serde(default)]
+    pub quick: bool,
+    /// Poll a quick review in this running server. Use the returned next_call.
+    #[serde(default)]
+    pub review_run_id: Option<String>,
     /// Literal Git paths or directory prefixes relative to the worktree root.
     /// Applies to staged, unstaged, working_tree and head reviews. Empty reviews all paths.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

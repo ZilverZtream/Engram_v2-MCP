@@ -2620,7 +2620,7 @@ pub async fn run_pre_commit_review_with(
     gate_list: Vec<Box<dyn Gate>>,
 ) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize, Vec<GateOutcome>)> {
     run_pre_commit_review_selected(state, project_id, project_dir, generation,
-        Arc::new(parse_unified_diff(diff_text)), config, gate_list, None).await
+        Arc::new(parse_unified_diff(diff_text)), config, gate_list, None, None).await
 }
 
 /// Review using the caller's already-selected source view. Retired views remain
@@ -2635,8 +2635,11 @@ pub async fn run_pre_commit_review_with_source_view(
     source_view: Arc<engram_index::SourceSnapshotGuard>,
 ) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize, Vec<GateOutcome>)> {
     run_parsed_review_with_source_view(state, project_id, project_dir, generation,
-        Arc::new(parse_unified_diff(diff_text)), config, source_view).await
+        Arc::new(parse_unified_diff(diff_text)), config, source_view, None).await
 }
+
+pub(crate) type GateObserver =
+    Arc<dyn Fn(&'static str, &[ReviewFinding]) + Send + Sync>;
 
 pub(crate) async fn run_parsed_review_with_source_view(
     state: &AppState,
@@ -2646,9 +2649,10 @@ pub(crate) async fn run_parsed_review_with_source_view(
     diff_files: Arc<Vec<DiffFile>>,
     config: &ReviewConfig,
     source_view: Arc<engram_index::SourceSnapshotGuard>,
+    observe_gate: Option<GateObserver>,
 ) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize, Vec<GateOutcome>)> {
     run_pre_commit_review_selected(state, project_id, project_dir, generation,
-        diff_files, config, gates::all_gates(), Some(source_view)).await
+        diff_files, config, gates::all_gates(), Some(source_view), observe_gate).await
 }
 
 #[derive(Clone)]
@@ -2676,6 +2680,7 @@ async fn run_pre_commit_review_selected(
     config: &ReviewConfig,
     gate_list: Vec<Box<dyn Gate>>,
     source_view: Option<Arc<engram_index::SourceSnapshotGuard>>,
+    observe_gate: Option<GateObserver>,
 ) -> anyhow::Result<(Vec<ReviewFinding>, usize, usize, Vec<GateOutcome>)> {
     if diff_files.is_empty() {
         return Ok((Vec::new(), 0, 0, Vec::new()));
@@ -2837,6 +2842,7 @@ async fn run_pre_commit_review_selected(
                 caps: Vec::new(),
                 elapsed_ms: 0,
             });
+            if let Some(observe) = &observe_gate { observe(name, &[]); }
             continue;
         }
         if source_scopes.get(name).is_some_and(|scope| scope.applicable_files.is_empty()) {
@@ -2844,6 +2850,7 @@ async fn run_pre_commit_review_selected(
                 name, status: GateStatus::NotApplicable("No submitted files are in this gate's supported source languages/formats; see source_scope. No analysis performed.".into()),
                 elapsed_ms: 0, caps: Vec::new(), source_scope: None,
             });
+            if let Some(observe) = &observe_gate { observe(name, &[]); }
             continue;
         }
         gates_run += 1;
@@ -2853,6 +2860,7 @@ async fn run_pre_commit_review_selected(
             continue;
         }
         let shared = shared.clone();
+        let observe_gate = observe_gate.clone();
         let state_clone = state.clone(); // AppState is Clone (all Arc fields)
         let handle = tokio::task::spawn_blocking(move || {
             let started = std::time::Instant::now();
@@ -2864,6 +2872,9 @@ async fn run_pre_commit_review_selected(
                 ctx.take_degraded(),
                 ctx.take_caps(),
             );
+            if let Some(observe) = observe_gate {
+                observe(name, result.0.as_deref().unwrap_or(&[]));
+            }
             #[cfg(test)]
             {
                 let pid = shared.project_id.clone();
@@ -2930,6 +2941,10 @@ async fn run_pre_commit_review_selected(
             let ms = started.elapsed().as_millis();
             let notes = ctx.take_degraded();
             let caps = ctx.take_caps();
+            if let Some(observe) = &observe_gate {
+                let findings = result.as_ref().ok().and_then(|run| run.as_ref().ok());
+                observe(name, findings.map_or(&[], Vec::as_slice));
+            }
             match result {
                 Ok(Ok(fs)) => {
                     async_outcomes.push(GateOutcome {

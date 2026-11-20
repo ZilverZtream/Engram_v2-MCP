@@ -12,7 +12,8 @@ pub(super) fn budget(tokens: Option<usize>) -> Result<usize, McpError> {
 
 pub(super) fn finish(req: &PreCommitReviewRequest, data: &Path, body: String, report: &Value) -> Result<CallToolResult, McpError> {
     let limit = budget(req.max_tokens)?;
-    if body.len() <= limit {
+    let deferred_maintenance = req.quick && report.get("instruction_maintenance_context").is_some();
+    if body.len() <= limit && !deferred_maintenance {
         return Ok(CallToolResult::success(vec![Content::text(body)]));
     }
     let id = blake3::hash(body.as_bytes()).to_hex().to_string();
@@ -26,7 +27,7 @@ pub(super) fn finish(req: &PreCommitReviewRequest, data: &Path, body: String, re
     }).collect();
     let coverage = &report["coverage"];
     let count = |key: &str| coverage[key].as_array().map(Vec::len);
-    let manifest = json!({
+    let mut manifest = json!({
         "verdict":report["verdict"],"summary":report["summary"],"finding_ledger":ledger,
         "gate_status":report["gate_status"],
         "instruction_maintenance_context":super::maintenance_context::summary(&report["instruction_maintenance_context"]),
@@ -51,6 +52,9 @@ pub(super) fn finish(req: &PreCommitReviewRequest, data: &Path, body: String, re
             "next_call":snapshots::review_continuation(&req.project_id,&id,0,limit)
         }
     });
+    if let Some(patch) = report.get("reviewed_patch") {
+        manifest["reviewed_patch"] = patch.clone();
+    }
     let json = serde_json::to_string(&manifest).map_err(|e| McpError::internal_error(e.to_string(),None))?;
     let text = if req.output_json { json } else { format!("# Pre-commit review: deferred report\n\nRecover the original report before resolving findings.\n\n```json\n{json}\n```\n") };
     if text.len() > limit {

@@ -97,6 +97,8 @@ pub struct AppState {
     /// Cooperative cancellation tokens for active jobs.
     pub cancellation_tokens: Arc<RwLock<HashMap<String, CancellationToken>>>,
 
+    pub(crate) quick_reviews: Arc<crate::handlers::review_tools::QuickReviews>,
+
     /// Counter for active indexing jobs (to throttle dreamer).
     pub active_indexing_count: Arc<std::sync::atomic::AtomicUsize>,
 
@@ -270,6 +272,7 @@ impl AppState {
                 checkpoints: Arc::new(checkpoints),
                 migration_progress: Arc::new(migration_progress),
                 pagerank_workers: Arc::new(Semaphore::new(PAGERANK_WORKER_LIMIT as usize)),
+                quick_reviews: Arc::default(),
                 co_change_cache: Arc::new(DashMap::new()),
                 lexicon_cache: Arc::new(DashMap::new()),
                 node_snapshot_cache: Arc::new(DashMap::new()),
