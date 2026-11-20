@@ -1,4 +1,5 @@
 use engram_graph::GraphStore;
+use git2::{ErrorCode, ObjectType, Oid, Repository, Tree};
 use rmcp::ErrorData as McpError;
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, io::Read, path::Path};
@@ -95,6 +96,66 @@ pub(super) fn observe(
         "files":files,
         "disk_bytes_per_file_limit":MAX_SOURCE_BYTES,
         "coverage":"Read-only byte observations for requested files against one held source selection. Comparisons use the selected physical revisions and admit inherited files. Each disk read is independent. Project-wide freshness, parser and extracted graph completeness, and vector consistency are separate observations."
+    })
+}
+
+/// Attach commit-blob evidence to the same managed source and disk observations.
+pub(super) fn attach_git_binding(root: &Path, revision: &str, report: &mut Value) {
+    let mut observed = || -> anyhow::Result<()> {
+        let repo = engram_git::history::GitWalker::open_repo(root)?;
+        let workdir = repo.workdir()
+            .ok_or_else(|| anyhow::anyhow!("project has no Git worktree"))?
+            .canonicalize()?;
+        let root = root.canonicalize()?;
+        let prefix = root.strip_prefix(workdir)?;
+        let tree = repo.find_commit(Oid::from_str(revision)?)?.tree()?;
+        if let Some(files) = report["files"].as_array_mut() {
+            for file in files {
+                if let Some(path) = file["path"].as_str() {
+                    file["git"] = git_file(&repo, &tree, &prefix.join(path), file);
+                }
+            }
+        }
+        Ok(())
+    };
+    let status = if observed().is_ok() { "observed" } else { "revision_unavailable" };
+    report["git_binding"] = json!({
+        "expected_commit": revision,
+        "status": status,
+        "blob_bytes_per_file_limit": MAX_SOURCE_BYTES,
+        "coverage": "Raw Git blob, held indexed fingerprint and observed disk bytes for the requested paths. Checkout line-ending and filter transformations can change disk bytes. HEAD, other paths and runtime behavior are outside this comparison.",
+    });
+}
+
+fn git_file(repo: &Repository, tree: &Tree<'_>, path: &Path, file: &Value) -> Value {
+    let entry = match tree.get_path(path) {
+        Ok(entry) => entry,
+        Err(error) if error.code() == ErrorCode::NotFound => {
+            return json!({"status": "not_in_commit"});
+        }
+        Err(_) => return json!({"status": "blob_unavailable"}),
+    };
+    if !matches!(entry.filemode(), 0o100644 | 0o100755) {
+        return json!({"status": "not_regular_file"});
+    }
+    let id = entry.id();
+    let Ok((size, ObjectType::Blob)) = repo.odb().and_then(|odb| odb.read_header(id)) else {
+        return json!({"status": "blob_unavailable", "blob_oid": id.to_string()});
+    };
+    if size as u64 > MAX_SOURCE_BYTES {
+        return json!({"status": "blob_over_limit", "blob_oid": id.to_string(), "bytes": size});
+    }
+    let Ok(blob) = repo.find_blob(id) else {
+        return json!({"status": "blob_unavailable", "blob_oid": id.to_string()});
+    };
+    let hash = blake3::hash(blob.content()).to_hex().to_string();
+    json!({
+        "status": "observed",
+        "blob_oid": id.to_string(),
+        "blake3": hash,
+        "bytes": size,
+        "matches_indexed": file["indexed_blake3"].as_str().map(|value| value == hash),
+        "matches_disk": file["disk_blake3"].as_str().map(|value| value == hash),
     })
 }
 

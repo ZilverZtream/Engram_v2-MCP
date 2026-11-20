@@ -671,7 +671,7 @@ pub struct GetIndexFreshnessRequest {
     /// Compare raw disk bytes for 1..16 exact selected project-relative paths
     /// with their published fingerprints. Returns scoped JSON. Omit to run
     /// the ordinary project check. Incompatible with check_disk=false and
-    /// expected_git_commit, which control the project-wide diagnostics.
+    /// check_git_history. Add expected_git_commit to compare exact Git blobs.
     #[serde(default)]
     pub source_files: Option<Vec<String>>,
     /// Compare disk files against indexed metadata using the incremental
@@ -685,9 +685,9 @@ pub struct GetIndexFreshnessRequest {
     /// target. Project-wide mode only. No fetch or worktree scan.
     #[serde(default)]
     pub check_git_history: bool,
-    /// Optional immutable Git revision expected by a historical replay or
-    /// pinned checkout. When supplied, freshness also checks HEAD, tracked
-    /// changes and non-ignored untracked entries, even when check_disk is false.
+    /// Optional full Git commit identity. With source_files, compare each
+    /// selected indexed and disk hash with its raw blob in this commit.
+    /// Project-wide mode also checks HEAD and tracked/untracked status.
     #[serde(default)]
     pub expected_git_commit: Option<String>,
 }

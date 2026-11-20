@@ -2698,6 +2698,18 @@
       "TODO-28"
     ],
     "implementation_items_active": 0,
+    "exact_file_git_source_binding": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "S16 source freshness metadata and TODO-5 byte-level freshness for LegacyValidation edits",
+      "observed_gap": "Exact source_files freshness refuses expected_git_commit. The project-wide Git report cannot supply per-file proof that selected indexed bytes match a committed blob, especially when unrelated paths have work in progress.",
+      "implementation": ["crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/handlers/project_tools/file_freshness.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Verify the held indexed, disk and independently hashed Git-blob fingerprints for exact paths copied from LegacyValidation. An unrelated dirty file must leave exact-path proof usable. A changed target and a path absent from the commit must stay distinct. Existing project-wide HEAD/status diagnostics remain independent.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/exact-file-git-binding-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "95a6bc975b062b26acf2a03a5fbe9feabf771bfd6d61ef40eebea68bd848ffd6"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "995db577e4b3a76eafcbe0f00767a3c24683b723d6b2d78f8fbfb89b7493667e"},
+      "evidence": "Installed MCP matched indexed and disk hashes for an unchanged actual LegacyValidation defaultProject.js copy, with the same independently hashed Git blob and unrelated worktree changes. The combined exact-Git request was rejected. The source now adds immutable blob identity/bytes and separate indexed/disk equality observations. Syntax and whitespace checks passed. Runtime validation is pending and the running release candidate predates this change.",
+      "retention": "Keep the candidate verifier, source commit pin and baseline wire until combined delivery. Owned fixture process closed and fixture data was removed."
+    },
     "legacy_validation_quickstart_exact_source": {
       "status": "DOCUMENTED_AND_LIVE_MCP_VERIFIED",
       "requirement": "TODO-54 first verified query and EG-26 current tool contract",

@@ -2622,6 +2622,13 @@ check on known files, call `get_index_freshness(source_files=[...])` first.
 A matching fingerprint establishes byte equality for that selected revision.
 Parser migration or an explicit repair can still require a refresh.
 
+Add `expected_git_commit` to compare those exact paths with their immutable
+Git blobs. Each row can report the blob identity and raw hash, plus separate
+comparisons against the indexed fingerprint and observed disk bytes. Git
+checkout filters and line-ending conversion can legitimately change the disk
+hash. This exact-path mode leaves HEAD and other paths unassessed. Omitting
+`source_files` retains the project-wide HEAD and worktree-status check.
+
 `query_schema` accepts `query_type={"kind":"function","name":"billing.CalculateFee"}`. `ask_codebase` composes that reader for explicit named SQL-function questions. Complete admitted token-normalized signatures/bodies, lexical references and exact raw-source hash/span citations are retained. Scalar and table-valued declarations remain source function objects. Qualified names preserve ambiguity; Full clarification uses `query_schema`, and Core uses a qualified `ask_codebase` question. Existing selected-source refusal, scoped guidance and saved report delivery remain. This does not establish deployed definitions, runtime return types, dependency binding or execution.
 
 ## Attribute-route and SQL-function instruction evidence

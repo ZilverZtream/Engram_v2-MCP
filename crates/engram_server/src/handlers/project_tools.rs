@@ -3547,14 +3547,24 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         let files = req.source_files.as_deref().map(file_freshness::validate).transpose()?;
-        if files.is_some()
-            && (!req.check_disk || req.expected_git_commit.is_some() || req.check_git_history)
-        {
+        if files.is_some() && (!req.check_disk || req.check_git_history) {
             return Err(McpError::invalid_params(
-                "source_files checks selected disk fingerprints. Use a separate project-wide call for check_disk=false, check_git_history or expected_git_commit.",
+                "source_files checks selected disk fingerprints. Use a separate project-wide call for check_disk=false or check_git_history.",
                 None,
             ));
         }
+        let expected_git_commit = req.expected_git_commit.as_deref()
+            .map(|id| {
+                if matches!(id.len(), 40 | 64) && id.bytes().all(|b| b.is_ascii_hexdigit()) {
+                    Ok(id.to_ascii_lowercase())
+                } else {
+                    Err(McpError::invalid_params(
+                        "expected_git_commit must be a full 40- or 64-character hexadecimal object id",
+                        None,
+                    ))
+                }
+            })
+            .transpose()?;
         let pid = req.project_id.clone();
         let rec = self.ensure_project_record(&pid).await?;
         let ps = self.ensure_project_runtime(&pid).await?;
@@ -3564,8 +3574,13 @@ impl Engram {
         if let Some(files) = files {
             let graph = self.state.graph.clone();
             let report = tokio::task::spawn_blocking(move || {
-                file_freshness::observe(&graph, &pid, Path::new(&rec.directory), generation,
-                    source_view.selected_file_revisions(), &files)
+                let root = Path::new(&rec.directory);
+                let mut report = file_freshness::observe(&graph, &pid, root, generation,
+                    source_view.selected_file_revisions(), &files);
+                if let Some(revision) = expected_git_commit {
+                    file_freshness::attach_git_binding(root, &revision, &mut report);
+                }
+                report
             }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?;
             return Ok(CallToolResult::success(vec![Content::text(report.to_string())]));
         }
@@ -3669,16 +3684,7 @@ impl Engram {
         // uncommitted source at the expected commit.
         let mut source_binding_invalid = false;
         let mut source_binding_unknown = false;
-        if let Some(expected) = req.expected_git_commit.as_deref() {
-            let valid = matches!(expected.len(), 40 | 64)
-                && expected.bytes().all(|b| b.is_ascii_hexdigit());
-            if !valid {
-                return Err(McpError::invalid_params(
-                    "expected_git_commit must be a full 40- or 64-character hexadecimal object id",
-                    None,
-                ));
-            }
-            let expected = expected.to_ascii_lowercase();
+        if let Some(expected) = expected_git_commit {
             let directory = PathBuf::from(&rec.directory);
             let check = tokio::task::spawn_blocking(move || {
                 let head = std::process::Command::new("git")
