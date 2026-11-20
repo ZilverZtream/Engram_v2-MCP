@@ -12,6 +12,7 @@
 //!   already implements a pattern, with their data/state edges — agents
 //!   imitate better than they invent.
 
+mod page_guards;
 use crate::handlers::validate_project_id;
 use crate::handlers::planning_contract_rules::{
     load_matching_planning_rules, PlanningContractRuleMatch,
@@ -4326,6 +4327,7 @@ pub(crate) struct GuardsCoverage {
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub(crate) struct GuardsReport {
     pub analysis_scope: String,
+    pub page_policy_evidence: Vec<String>,
     pub scope: Option<String>,
     pub functions: Vec<GuardVerdict>,
     pub guarded: Vec<String>,
@@ -4482,7 +4484,7 @@ fn helper_candidates(
                     // library or uses LINQ. Diagnostics go to `notes`; only a
                     // plausible project helper goes to `failures`.
                     Ok(None) => {
-                        if target_cannot_hold_a_guard(&target) {
+                        if target_cannot_hold_a_guard(&target) || body.is_some_and(|text| local_indexer_read(text, &target)) {
                             notes.push(format!(
                                 "{owner}: unresolved call {target} cannot hold a guard; not counted as missing guard evidence"
                             ));
@@ -4581,6 +4583,22 @@ pub(crate) fn target_cannot_hold_a_guard(target: &str) -> bool {
     // emitted here as a bare name, not as member access on a value.
     let head = t.split(['(', '.']).next().unwrap_or("");
     t.contains('.') && !head.is_empty()
+}
+
+/// A null-conditional indexed value bound locally in VB is not a call to a
+/// same-named method. Require a string-key access at the use site as well.
+fn local_indexer_read(body: &str, target: &str) -> bool {
+    let name = target.trim_start_matches("::").to_ascii_lowercase();
+    if name == ".values" {
+        return body.to_ascii_lowercase().contains("routedata?.values(");
+    }
+    if name.is_empty() || !name.chars().all(|c| c.is_alphanumeric() || c == '_') {return false;}
+    let lower = body.to_ascii_lowercase();
+    let declaration = format!("dim {name} ");
+    let key_access = format!("{name}(\"");
+    lower.lines().any(|line| line.trim_start().strip_prefix(&declaration)
+        .and_then(|rest| rest.trim_start().strip_prefix('=')).is_some_and(|value| value.contains("?(\"")))
+        && lower.contains(&key_access)
 }
 
 /// Client-supplied scope keys read in a function body.
@@ -4900,6 +4918,10 @@ pub(crate) fn build_guards_report(
         app_settings_defined: 0,
         ..Default::default()
     };
+
+    if scope.is_some() {
+        report.page_policy_evidence = page_guards::evidence(graph, pid, root, &scoped);
+    }
 
     // House patterns from the project-wide scan.
     let mut house: HashMap<String, usize> = HashMap::new();
@@ -5229,7 +5251,12 @@ pub(crate) fn build_guards_report(
                 }
                 for (target, _) in neigh {
                     let key = if let Some(rest) = target.strip_prefix("::") {
-                        format!("{rest} (not in web.config — DB/env setting?)")
+                        let member = rest.rsplit('.').next().unwrap_or(rest).to_ascii_lowercase();
+                        if ["click", "visible", "text", "enabled", "selectedvalue", "selectedindex",
+                            "selectedindexchanged", "checked", "databind"].contains(&member.as_str()) {
+                            continue;
+                        }
+                        format!("{rest} (unresolved setting candidate)")
                     } else {
                         match graph.get_node(pid, &target) {
                             Ok(Some(t)) => t.name,
@@ -5319,9 +5346,15 @@ pub(crate) fn render_guards_markdown(r: &GuardsReport) -> String {
             .map(|s| format!(" — scope: {s}"))
             .unwrap_or_else(|| " — project-wide".into())
     );
+    if !r.page_policy_evidence.is_empty() {
+        out.push_str("\n## Page and folder guard evidence\n");
+        for witness in &r.page_policy_evidence {
+            out.push_str(&format!("- {witness}\n"));
+        }
+    }
     let total = r.functions.len();
     out.push_str(&format!(
-        "\n## Guard parity\n{} guarded · {} UNGUARDED · {} UNKNOWN of {} function(s) in scope.\n",
+        "\n## Guard parity\n{} with guard evidence · {} without an observed local or one-hop guard · {} unknown of {} function(s) in scope.\n",
         r.guarded.len(),
         r.unguarded.len(),
         r.unknown.len(),
@@ -5361,12 +5394,12 @@ pub(crate) fn render_guards_markdown(r: &GuardsReport) -> String {
         push_list(&mut out, &items, |s| s.clone());
     }
     if !r.unguarded.is_empty() {
-        out.push_str("\n## Unguarded functions in scope (verify each is intentionally public)\n");
+        out.push_str("\n## Functions without an observed local or one-hop guard\n");
         let items: Vec<String> = r
             .functions
             .iter()
             .filter(|f| f.verdict == "unguarded")
-            .map(|f| format!("- UNGUARDED: {} ({}:{})\n", f.name, f.file, f.line))
+            .map(|f| format!("- No local guard observed: {} ({}:{})\n", f.name, f.file, f.line))
             .collect();
         push_list(&mut out, &items, |s| s.clone());
     }
@@ -6307,12 +6340,19 @@ fn planning_scope(story: &str) -> String {
         }
         for clause in trimmed.split(';').flat_map(|part| part.split(". ")) {
             let lower = clause.to_ascii_lowercase();
-            if [
+            let handed_off = (lower.starts_with("keep ") || lower.starts_with("coordinate "))
+                && ["in existing ", "in bug ", "in story ", "with bug ", "with story "]
+                    .iter().any(|marker| lower.split_once(marker).is_some_and(|(_, tail)| {
+                        tail.trim_start_matches('#').starts_with(|c: char| c.is_ascii_digit())
+                    }));
+            let other_owner = lower.contains(" owns ") && !lower.starts_with("this item owns ") && !lower.starts_with("this story owns ");
+            if handed_off || other_owner || [
+                "separately covers",
                 "out of scope",
                 "separate story",
                 "separate bug",
                 "separately owns",
-                " owns ",
+                "separate import-access",
                 "belong to the separate",
                 "remains the separate",
                 "are preserved",
@@ -6347,9 +6387,9 @@ fn coordinated_story_subjects(raw: &str) -> Vec<String> {
     let title = title.trim_start_matches('#').trim();
     let title = title.split_once(": ").map_or(title, |(_, text)| text).to_lowercase();
     let Some((subjects, _)) = [" must ", " should ", " shall "].iter().find_map(|modal| title.split_once(modal)) else { return vec![] };
-    let Some((left, right)) = subjects.split_once(" and ") else { return vec![] };
     let mut result = Vec::new();
-    for subject in [left, right] {
+    for subject in subjects.split(" and ").take(2) {
+        let subject = subject.strip_suffix(" changes").unwrap_or(subject);
         let words = name_tokens(subject);
         if !(2..=3).contains(&words.len()) || words.iter().any(|word| matches!(word.as_str(),"we"|"the"|"that"|"and"|"with"|"for")) {
             return vec![];
@@ -6394,6 +6434,19 @@ fn grounded_planning_concepts(
             }
         }
     }
+    // A descriptive title can name an indexed entity using expanded words
+    // while source uses common abbreviations. Rank a declaration only when
+    // all three title terms occur at identifier boundaries.
+    fn subject_alias(word: &str) -> &str {
+        match word {
+            "synchronization" | "synchronisation" | "synchronize" => "sync",
+            "settings" | "setup" | "configuration" | "config" => "setting",
+            word => word,
+        }
+    }
+    let subject_terms: Vec<_> = subjects.iter().map(|s| s.split_whitespace().map(subject_alias).collect::<Vec<_>>())
+        .filter(|terms| terms.len() == 3).collect();
+    let mut named_subject: Option<(usize, String)> = None;
     let mut exact = graph.matched_schema_names(project, &seen)?;
     let mut frequency = std::collections::HashMap::<String, usize>::new();
     graph.visit_symbol_names(project, |_, _, name, _, _| {
@@ -6403,6 +6456,15 @@ fn grounded_planning_concepts(
             exact.insert(key);
         }
         let words = name_tokens(leaf);
+        if !subject_terms.is_empty() && words.len() >= 3 && subject_terms.iter().any(|terms| {
+            terms.iter().all(|term| words.iter().any(|word| subject_alias(word) == *term ||
+                (term.len() >= 3 && word.starts_with(*term) && leaf.contains(&term.to_ascii_uppercase()))))
+        }) {
+            let candidate = (words.len(), leaf.to_owned());
+            if named_subject.as_ref().is_none_or(|best| &candidate < best) {
+                named_subject = Some(candidate);
+            }
+        }
         for pair in words.windows(2) {
             let left = canonical_story_name_term(&pair[0]);
             let right = canonical_story_name_term(&pair[1]);
@@ -6462,6 +6524,9 @@ fn grounded_planning_concepts(
             .then(a.1.cmp(&b.1))
     });
     let mut concepts = subjects;
+    if let Some((_, declaration)) = named_subject {
+        concepts.push(declaration);
+    }
     for (_, _, name) in ranked {
         if concepts.len() >= 3 { break; }
         // A phrase already covered by a more specific title subject adds no new topic.

@@ -21,7 +21,7 @@ pub(super) fn recover(data: &Path,req: &GetFullMethodBodyRequest) -> Result<Opti
     Ok(None)
 }
 
-pub(super) fn finish(data: &Path,req: &GetFullMethodBodyRequest,body: String,paths: &[String],policy: &PolicyContext) -> Result<String,McpError> {
+pub(super) fn finish(data: &Path,req: &GetFullMethodBodyRequest,body: String,paths: &[String],policy: &PolicyContext, source: &str) -> Result<String,McpError> {
     let limit=budget(req)?;
     if body.len()<=limit {return Ok(body);}
     let id=blake3::hash(body.as_bytes()).to_hex().to_string();let recovery_limit=limit.min(32768);
@@ -41,6 +41,28 @@ pub(super) fn finish(data: &Path,req: &GetFullMethodBodyRequest,body: String,pat
         "retention":"At most 24 hours or 32 newer method-source snapshots for this project; unavailable snapshots require a fresh source request.",
         "next_call":snapshots::method_source_continuation(&req.project_id,&id,0,recovery_limit)
     }});
+    if !source.is_empty() && source.len() < limit {
+        let mut page = json!({
+            "source_evidence": "SUPPLIED",
+            "project_policy_sources": {
+                "status": policy.status, "sources_applicable": policy.sources_applicable,
+                "content_deferred": true
+            },
+            "response_delivery": manifest["response_delivery"]
+        });
+        page["response_delivery"]["status"] = json!("SOURCE_SUPPLIED_POLICY_DEFERRED");
+        page["response_delivery"]["instruction"] = json!("Recover the saved report for full applicable policy before editing.");
+        let output = if req.output_json {
+            page["source_report"] = serde_json::from_str(source).unwrap_or_else(|_| json!(source));
+            page.to_string()
+        } else {
+            format!("{source}\n\n## Full report and policy recovery\n{page}\n")
+        };
+        if output.len() <= limit {
+            snapshots::save_method_source(data, &req.project_id, &body)?;
+            return Ok(output);
+        }
+    }
     let encoded=serde_json::to_string(&manifest).map_err(|error|McpError::internal_error(error.to_string(),None))?;
     let output=if req.output_json {encoded} else {format!("# Method/source: deferred evidence\n\nRecover the complete original report before using its source.\n\n```json\n{encoded}\n```\n")};
     if output.len()>limit {
@@ -65,7 +87,7 @@ mod tests {
             let req:GetFullMethodBodyRequest=serde_json::from_value(json!({"project_id":"project","fqn":"SaveOrder","max_tokens":2048,"output_json":output_json})).unwrap();
             let original=if output_json {json!({"source_code":code,"source_file_hash":"original-file-hash","source_verification":"UNVERIFIED_BOUNDARIES","caller_expansion":{"complete":false},"freshness":{"warning":"INDEX_BEHIND"},"project_policy_sources":policy}).to_string()}
                 else {format!("# Method\n{code}\nSource verification: UNVERIFIED_BOUNDARIES\nFreshness: INDEX_BEHIND\n{}",policy.render_markdown())};
-            let raw=finish(owned.path(),&req,original.clone(),&paths,&policy).unwrap();assert!(raw.len()<=8192);
+            let raw=finish(owned.path(),&req,original.clone(),&paths,&policy,"").unwrap();assert!(raw.len()<=8192);
             let encoded=if output_json {raw.as_str()} else {raw.split("```json\n").nth(1).unwrap().split("\n```").next().unwrap()};
             let manifest:Value=serde_json::from_str(encoded).unwrap();assert_eq!(manifest["summary"]["source_evidence"],"DEFERRED_NOT_SUPPLIED");
             std::fs::write(owned.path().join("AGENTS.md"),"Changed live policy\n").unwrap();
@@ -80,9 +102,9 @@ mod tests {
             assert_eq!(restored,original);assert_eq!(blake3::hash(restored.as_bytes()).to_hex().as_str(),manifest["response_delivery"]["response_id"].as_str().unwrap());
             assert!(restored.contains("UNVERIFIED_BOUNDARIES") && restored.contains("INDEX_BEHIND") && restored.contains("manual approval exception"));
             assert!(snapshots::recover_pattern_report(owned.path(),"project",manifest["response_delivery"]["response_id"].as_str().unwrap(),0,8192).is_err());
-            let mut large=req.clone();large.max_tokens=Some(1_000_000);assert_eq!(finish(owned.path(),&large,original.clone(),&paths,&policy).unwrap(),original);
-            large.max_tokens=None;assert!(finish(owned.path(),&large,original,&paths,&policy).unwrap().len()<=40960);
-            assert_eq!(finish(owned.path(),&req,"small unchanged report".into(),&paths,&policy).unwrap(),"small unchanged report");
+            let mut large=req.clone();large.max_tokens=Some(1_000_000);assert_eq!(finish(owned.path(),&large,original.clone(),&paths,&policy,"").unwrap(),original);
+            large.max_tokens=None;assert!(finish(owned.path(),&large,original,&paths,&policy,"").unwrap().len()<=40960);
+            assert_eq!(finish(owned.path(),&req,"small unchanged report".into(),&paths,&policy,"").unwrap(),"small unchanged report");
         }
     }
 
@@ -96,7 +118,7 @@ mod tests {
         req.response_id=None;req.max_tokens=Some(0);assert!(recover(owned.path(),&req).is_err());
         req.max_tokens=Some(usize::MAX);assert!(recover(owned.path(),&req).is_err());
         req.max_tokens=Some(2048);req.response_offset=1;assert!(recover(owned.path(),&req).is_err());
-        req.response_offset=0;req.max_tokens=Some(1);assert!(finish(owned.path(),&req,"large source".repeat(500),&[],&policy).is_err());
+        req.response_offset=0;req.max_tokens=Some(1);assert!(finish(owned.path(),&req,"large source".repeat(500),&[],&policy,"").is_err());
         assert_eq!(std::fs::read_dir(owned.path()).unwrap().count(),0);
     }
 }

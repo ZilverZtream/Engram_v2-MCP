@@ -208,6 +208,88 @@ fn parse_csv(val: &str) -> Vec<String> {
 
 // ── Main analysis function ────────────────────────────────────────────────
 
+pub(crate) fn parse_location_rules(config: &str) -> Vec<LocationAuthRule> {
+    let mut location_rules = Vec::new();
+    // Location-based authorization rules
+    for loc_cap in RE_LOCATION.captures_iter(config) {
+        let path = loc_cap[1].to_string();
+        let body = &loc_cap[2];
+
+        let mut allow_roles = Vec::new();
+        let mut allow_users = Vec::new();
+        let mut deny_roles = Vec::new();
+        let mut deny_users = Vec::new();
+
+        for allow_cap in RE_ALLOW.captures_iter(body) {
+            let tag = &allow_cap[1];
+            allow_roles.extend(parse_csv(&extract_xml_attr(tag, "roles")));
+            allow_users.extend(parse_csv(&extract_xml_attr(tag, "users")));
+        }
+
+        for deny_cap in RE_DENY.captures_iter(body) {
+            let tag = &deny_cap[1];
+            deny_roles.extend(parse_csv(&extract_xml_attr(tag, "roles")));
+            deny_users.extend(parse_csv(&extract_xml_attr(tag, "users")));
+        }
+
+        let modern_attr = build_modern_authorize_attr(&allow_roles, &allow_users, &deny_users);
+        let modern_policy = build_modern_policy(&path, &allow_roles, &deny_users);
+
+        location_rules.push(LocationAuthRule {
+            path,
+            allow_roles,
+            allow_users,
+            deny_roles,
+            deny_users,
+            modern_attribute: modern_attr,
+            modern_policy,
+        });
+    }
+
+    // Also check for global <authorization> outside <location>
+    // Use a simple approach: find <authorization> blocks not inside <location>
+    let config_no_locations = RE_LOCATION.replace_all(config, "");
+    for auth_cap in RE_GLOBAL_AUTH.captures_iter(&config_no_locations) {
+        let body = &auth_cap[1];
+        let mut allow_roles = Vec::new();
+        let mut allow_users = Vec::new();
+        let mut deny_roles = Vec::new();
+        let mut deny_users = Vec::new();
+
+        for allow_cap in RE_ALLOW.captures_iter(body) {
+            let tag = &allow_cap[1];
+            allow_roles.extend(parse_csv(&extract_xml_attr(tag, "roles")));
+            allow_users.extend(parse_csv(&extract_xml_attr(tag, "users")));
+        }
+        for deny_cap in RE_DENY.captures_iter(body) {
+            let tag = &deny_cap[1];
+            deny_roles.extend(parse_csv(&extract_xml_attr(tag, "roles")));
+            deny_users.extend(parse_csv(&extract_xml_attr(tag, "users")));
+        }
+
+        if !allow_roles.is_empty()
+            || !allow_users.is_empty()
+            || !deny_roles.is_empty()
+            || !deny_users.is_empty()
+        {
+            let modern_attr =
+                build_modern_authorize_attr(&allow_roles, &allow_users, &deny_users);
+            let modern_policy = build_modern_policy("(global)", &allow_roles, &deny_users);
+            location_rules.push(LocationAuthRule {
+                path: "(global)".to_string(),
+                allow_roles,
+                allow_users,
+                deny_roles,
+                deny_users,
+                modern_attribute: modern_attr,
+                modern_policy,
+            });
+        }
+    }
+
+    location_rules
+}
+
 pub fn analyze_auth_config(
     graph: &Arc<GraphStore>,
     project_id: &str,
@@ -282,82 +364,7 @@ pub fn analyze_auth_config(
             });
         }
 
-        // Location-based authorization rules
-        for loc_cap in RE_LOCATION.captures_iter(config) {
-            let path = loc_cap[1].to_string();
-            let body = &loc_cap[2];
-
-            let mut allow_roles = Vec::new();
-            let mut allow_users = Vec::new();
-            let mut deny_roles = Vec::new();
-            let mut deny_users = Vec::new();
-
-            for allow_cap in RE_ALLOW.captures_iter(body) {
-                let tag = &allow_cap[1];
-                allow_roles.extend(parse_csv(&extract_xml_attr(tag, "roles")));
-                allow_users.extend(parse_csv(&extract_xml_attr(tag, "users")));
-            }
-
-            for deny_cap in RE_DENY.captures_iter(body) {
-                let tag = &deny_cap[1];
-                deny_roles.extend(parse_csv(&extract_xml_attr(tag, "roles")));
-                deny_users.extend(parse_csv(&extract_xml_attr(tag, "users")));
-            }
-
-            let modern_attr = build_modern_authorize_attr(&allow_roles, &allow_users, &deny_users);
-            let modern_policy = build_modern_policy(&path, &allow_roles, &deny_users);
-
-            location_rules.push(LocationAuthRule {
-                path,
-                allow_roles,
-                allow_users,
-                deny_roles,
-                deny_users,
-                modern_attribute: modern_attr,
-                modern_policy,
-            });
-        }
-
-        // Also check for global <authorization> outside <location>
-        // Use a simple approach: find <authorization> blocks not inside <location>
-        let config_no_locations = RE_LOCATION.replace_all(config, "");
-        for auth_cap in RE_GLOBAL_AUTH.captures_iter(&config_no_locations) {
-            let body = &auth_cap[1];
-            let mut allow_roles = Vec::new();
-            let mut allow_users = Vec::new();
-            let mut deny_roles = Vec::new();
-            let mut deny_users = Vec::new();
-
-            for allow_cap in RE_ALLOW.captures_iter(body) {
-                let tag = &allow_cap[1];
-                allow_roles.extend(parse_csv(&extract_xml_attr(tag, "roles")));
-                allow_users.extend(parse_csv(&extract_xml_attr(tag, "users")));
-            }
-            for deny_cap in RE_DENY.captures_iter(body) {
-                let tag = &deny_cap[1];
-                deny_roles.extend(parse_csv(&extract_xml_attr(tag, "roles")));
-                deny_users.extend(parse_csv(&extract_xml_attr(tag, "users")));
-            }
-
-            if !allow_roles.is_empty()
-                || !allow_users.is_empty()
-                || !deny_roles.is_empty()
-                || !deny_users.is_empty()
-            {
-                let modern_attr =
-                    build_modern_authorize_attr(&allow_roles, &allow_users, &deny_users);
-                let modern_policy = build_modern_policy("(global)", &allow_roles, &deny_users);
-                location_rules.push(LocationAuthRule {
-                    path: "(global)".to_string(),
-                    allow_roles,
-                    allow_users,
-                    deny_roles,
-                    deny_users,
-                    modern_attribute: modern_attr,
-                    modern_policy,
-                });
-            }
-        }
+        location_rules = parse_location_rules(config);
 
         // Membership provider
         if let Some(cap) = RE_MEMBERSHIP.captures(config) {

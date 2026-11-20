@@ -326,7 +326,7 @@ namespace App {
 
     assert!(text.contains("Guard parity"), "parity section required");
     assert!(
-        text.contains("UNGUARDED: ListUsers"),
+        text.contains("No local guard observed: ListUsers"),
         "the unguarded sibling must be called out"
     );
     assert!(

@@ -30,7 +30,10 @@ pub(super) fn finish(data: &Path,req: &GetConceptFootprintRequest,text: String,p
     } else {
         format!("{text}{}",policy.render_markdown())
     };
-    if body.len()<=limit {return Ok(body);}
+    let guidance_bytes = body.len().saturating_sub(text.len());
+    let compact_policy = req.max_tokens.is_some() && guidance_bytes > 4096
+        && guidance_bytes > text.len() && guidance_bytes > limit / 4;
+    if body.len() <= limit && !compact_policy {return Ok(body);}
     let id=blake3::hash(body.as_bytes()).to_hex().to_string();
     let manifest=json!({"summary":{
         "concept":req.concept,"source_paths_returned":paths.len(),"source_paths_complete":complete,

@@ -1132,6 +1132,7 @@ impl Engram {
 
         // Minimal per-node result type that uses only owned, Send-safe values.
         struct NodeGraphResult {
+            constructor_reference: bool,
             name: String,
             node_type: String,
             file_path: String, // RelPath rendered to string
@@ -1201,7 +1202,30 @@ impl Engram {
             nodes.truncate(SYMBOL_FETCH_CAP);
             let mut results: Vec<NodeGraphResult> = Vec::new();
 
-            for node in nodes {
+            // VB construction sites point to the declared .New member in the graph.
+            // Include that member on type lookups without changing direct type-edge counts.
+            let mut constructors = Vec::new();
+            for owner in nodes.iter().filter(|node| {
+                matches!(node.node_type.as_str(), "class" | "struct" | "structure")
+                    && node.file_path.as_str().to_ascii_lowercase().ends_with(".vb")
+            }) {
+                let name = format!("{}.New", owner.name);
+                match graph_b.query_nodes_by_symbol_name(
+                    &project_id_b, &name, Some(owner.file_path.as_str()), SYMBOL_FETCH_CAP + 1,
+                ) {
+                    Ok(members) => {
+                        if members.len() > SYMBOL_FETCH_CAP {
+                            graph_failures.push(format!("Constructor overload list truncated for {}", owner.name));
+                        }
+                        constructors.extend(members.into_iter().take(SYMBOL_FETCH_CAP).filter(|member|
+                            member.file_path == owner.file_path && member.name.eq_ignore_ascii_case(&name)
+                                && member.node_type == "function"));
+                    }
+                    Err(error) => graph_failures.push(format!("Constructor lookup failed for {}: {error}", owner.name)),
+                }
+            }
+            let declarations = nodes.into_iter().map(|node| (false, node));
+            for (constructor_reference, node) in declarations.chain(constructors.into_iter().map(|node| (true, node))) {
                 // Definition scope was applied by the store. References may
                 // live outside it; hiding those defeats change-impact analysis.
                 let fp_str = node.file_path.as_str().to_string();
@@ -1342,6 +1366,7 @@ impl Engram {
                         )),
                     }
                     results.push(NodeGraphResult {
+                        constructor_reference,
                         name: node.name,
                         node_type: node.node_type,
                         file_path: fp_str,
@@ -1404,7 +1429,8 @@ impl Engram {
         // list the matches compactly so the caller disambiguates and re-queries
         // the ONE they mean (via file_scope or node_id).
         const FANOUT_SUMMARY_THRESHOLD: usize = 6;
-        if graph_results.len() > FANOUT_SUMMARY_THRESHOLD {
+        let match_count = graph_results.iter().filter(|item| !item.constructor_reference).count();
+        if match_count > FANOUT_SUMMARY_THRESHOLD {
             out.push_str(&format!(
                 "⚠ \"{}\" matches {}{} distinct symbols — too many to expand each. Pick the one you \
                  mean and re-query with file_scope=<its file> or its node_id. Compact list \
@@ -1438,16 +1464,22 @@ impl Engram {
                 out.push_str(&format!("- … and {} more\n", graph_results.len() - SHOWN));
             }
         } else {
-            if graph_results.len() > 1 {
+            if graph_results.iter().any(|item| item.constructor_reference) {
+                out.push_str("Type declarations and constructor references are listed separately. Direct type caller counts exclude construction sites.\n");
+            }
+            if match_count > 1 {
                 out.push_str(&format!(
                     "⚠ {} distinct symbols match \"{}\" — results for each below. \
                  Narrow with file_scope, or use the node_id of the one you mean.\n\n",
-                    graph_results.len(),
+                    match_count,
                     req.symbol_name
                 ));
             }
 
             for nr in &graph_results {
+                if nr.constructor_reference {
+                    out.push_str("Construction sites for the requested type (incoming calls to its constructor):\n");
+                }
                 out.push_str(&format!(
                     "Symbol: {} ({}) in {}\n  node_id: {}\n",
                     nr.name, nr.node_type, nr.file_path, nr.node_id

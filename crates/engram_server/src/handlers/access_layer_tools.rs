@@ -4248,13 +4248,14 @@ impl Engram {
         }
         let (original, paths, source_view) = self.full_method_body_evidence(req.clone()).await?;
         let root=std::path::PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
-        let body=original.content.first().and_then(|content| content.as_text())
-            .ok_or_else(||McpError::internal_error("Method/source evidence returned no text",None))?.text.clone();
+        let source_report=original.content.first().and_then(|content| content.as_text())
+            .ok_or_else(||McpError::internal_error("Method/source evidence returned no text",None))?.text.as_str();
+        let body=source_report.to_owned();
         let policy_paths=paths.clone();let output_json=req.output_json;let policy_project=req.project_id.clone();
         let (body,policy)=tokio::task::spawn_blocking(move || method_body_policy::attach(&policy_project,&root,&policy_paths,body,output_json,None))
             .await.map_err(|error|McpError::internal_error(error.to_string(),None))?
             .map_err(|error|McpError::invalid_params(error.to_string(),None))?;
-        let body=method_source_delivery::finish(&self.state.cfg.data_dir,&req,body,&paths,&policy)?;
+        let body=method_source_delivery::finish(&self.state.cfg.data_dir,&req,body,&paths,&policy,source_report)?;
         let result = CallToolResult::success(vec![Content::text(body)]);
         drop(source_view);
         Ok(result)
@@ -4566,7 +4567,7 @@ impl Engram {
                     let text = line.trim();
                     let lower = text.to_ascii_lowercase();
                     let important = lower.starts_with("if ") || lower.starts_with("if(") ||
-                        ["submit", "commit", "delete", "insert", "update", "save", "transaction", "rollback", "executecommand"]
+                        ["submit", "commit", "delete", "insert", "update", "save", "transaction", "rollback", "executecommand", ".writetoserver", ".executenonquery"]
                             .iter().any(|term| lower.contains(term));
                     (important && !text.starts_with(['\'', '/'])).then(|| format!("L{} {}", ev.node.start_line as usize+i, text.chars().take(340).collect::<String>()))
                 }).take(30).collect();
@@ -4581,7 +4582,7 @@ impl Engram {
                     let statement = line.trim();
                     let lower = statement.to_ascii_lowercase();
                     if lower.starts_with(['\'', '/']) { continue; }
-                    if [".submitchanges(", ".savechanges(", ".commit("].iter().any(|term| lower.contains(term)) {
+                    if [".submitchanges(", ".savechanges(", ".commit(", ".writetoserver", ".executenonquery"].iter().any(|term| lower.contains(term)) {
                         observations.push(format!("Callee {} at {}:{}: {}",target.fqn,target.file_path,start+offset+1,statement));
                         break;
                     }
