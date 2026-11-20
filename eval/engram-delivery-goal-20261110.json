@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "dossier_core_job_polling_release": {
+      "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
+      "frozen_source_commit": "a1a43c1b24b059b3be066617a9db2e1d97b4ad3d",
+      "requirements": ["TODO-32", "EG-18", "TODO-37/TODO-4"],
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/dossier-core-job-polling-20261120",
+      "evidence": "baseline/receipt.json records the installed binary omitting the exact-source selector and the Core history schema, and wrapping the old untyped job response. Both owned MCP fixtures exited and their temporary project was removed.",
+      "active_processes": "release1-owner.json identifies the one shared-target release invocation. stage-owner.json binds the after-build stage and candidate MCP process to that exact release process identity. Consult their terminal receipts before any retry.",
+      "next_acceptance": "Use the scheduled candidate MCP results to validate the three fixed public workflows. Install the same verified artifact, confirm a fresh live MCP connection and exact LegacyValidation evidence, and record installed identity. No separate full-suite invocation.",
+      "temporary_resources": "The release runner owns its recorded compile temporary directory and removes it after the exact job and relay close. Public checks own their fixture directories and close MCP before teardown. Retain the frozen plan, wrappers, logs and receipts in the case directory until installed delivery is recorded."
+    },
     "typed_job_status": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "requirement": "TODO-37 agent-pollable indexing progress and TODO-4 structured report delivery",
