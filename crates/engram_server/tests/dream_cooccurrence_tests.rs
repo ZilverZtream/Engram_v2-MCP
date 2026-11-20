@@ -323,6 +323,7 @@ async fn knowledge_learning_keeps_real_source_health_and_freshness_complete() {
     let before = text(
         api.get_index_freshness(Parameters(engram_server::GetIndexFreshnessRequest {
             project_id: pid.clone(),
+            source_files: None,
             check_disk: true,
             expected_git_commit: None,
         }))
@@ -349,6 +350,7 @@ async fn knowledge_learning_keeps_real_source_health_and_freshness_complete() {
     let after = text(
         api.get_index_freshness(Parameters(engram_server::GetIndexFreshnessRequest {
             project_id: pid.clone(),
+            source_files: None,
             check_disk: true,
             expected_git_commit: None,
         }))

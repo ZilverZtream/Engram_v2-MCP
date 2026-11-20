@@ -10,6 +10,7 @@ use crate::services::{graph_service, ingest_service, job_service, project_servic
 use crate::state::{AppEvent, ProjectInfo, ProjectState};
 use crate::tools::Engram;
 mod instruction_observation;
+mod file_freshness;
 mod graph_rebuild;
 mod memory_publication;
 #[cfg(test)]
@@ -3440,12 +3441,27 @@ impl Engram {
         req: crate::models::GetIndexFreshnessRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        let files = req.source_files.as_deref().map(file_freshness::validate).transpose()?;
+        if files.is_some() && (!req.check_disk || req.expected_git_commit.is_some()) {
+            return Err(McpError::invalid_params(
+                "source_files checks selected disk fingerprints. Use a separate project-wide call for check_disk=false or expected_git_commit.",
+                None,
+            ));
+        }
         let pid = req.project_id.clone();
         let rec = self.ensure_project_record(&pid).await?;
         let ps = self.ensure_project_runtime(&pid).await?;
         let (generation, source_view) = self.pin_active_source_generation(&pid, &ps.search).await?;
         #[cfg(test)]
         crate::handlers::search_tools::selected_source_tests::after_selection(&pid).await;
+        if let Some(files) = files {
+            let graph = self.state.graph.clone();
+            let report = tokio::task::spawn_blocking(move || {
+                file_freshness::observe(&graph, &pid, Path::new(&rec.directory), generation,
+                    source_view.selected_file_revisions(), &files)
+            }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?;
+            return Ok(CallToolResult::success(vec![Content::text(report.to_string())]));
+        }
 
         // Registry reads (blocking Redb) in one spawn_blocking hop.
         let reg = self.state.registry.clone();

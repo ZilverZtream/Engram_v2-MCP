@@ -663,6 +663,12 @@ pub struct ProjectHealthRequest {
 #[serde(deny_unknown_fields)]
 pub struct GetIndexFreshnessRequest {
     pub project_id: String,
+    /// Compare raw disk bytes for 1..16 exact selected project-relative paths
+    /// with their published fingerprints. Returns scoped JSON. Omit to run
+    /// the ordinary project check. Incompatible with check_disk=false and
+    /// expected_git_commit, which control the project-wide diagnostics.
+    #[serde(default)]
+    pub source_files: Option<Vec<String>>,
     /// Compare disk files against indexed metadata using the incremental
     /// change detector, including additions and deletions. Default true.
     /// Unchanged metadata is not exhaustive content verification. When false,

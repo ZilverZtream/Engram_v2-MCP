@@ -101,7 +101,7 @@ fn cognitive_request_source_lifetime(kind: &'static str) -> Result<()> {
                 "benchmark" => server.handle_benchmark_retrieval(serde_json::from_value(benchmark_request).unwrap()).await,
                 "health" => server.handle_project_health(crate::models::ProjectIdRequest { project_id: request_pid }).await,
                 "freshness" => server.handle_get_index_freshness(crate::models::GetIndexFreshnessRequest {
-                    project_id: request_pid, check_disk: false, expected_git_commit: None,
+                    project_id: request_pid, source_files: None, check_disk: false, expected_git_commit: None,
                 }).await,
                 _ => unreachable!(),
             }
