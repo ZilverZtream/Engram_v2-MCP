@@ -1447,8 +1447,8 @@ impl HybridSearchEngine {
                     )
                     .await
                 };
-                written.map_err(|e| {
-                    anyhow::anyhow!("LanceDB vector upsert failed — retry to repair: {e:#}")
+                written.map_err(|error| {
+                    error.context("LanceDB vector upsert failed — retry to repair")
                 })?;
             }
         }

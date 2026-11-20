@@ -2972,7 +2972,19 @@
   },
   "current_execution_focus": {
     "status": "LIMITED_RECOVERY_GUIDANCE_RELEASE_INSTALLED_AND_MCP_VERIFIED",
-    "implementation_items_active": 0,
+    "implementation_items_active": 1,
+    "s02_native_write_recovery_signal": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "S02 complete selected source revisions across native vector write failures",
+      "observed_gap": "The source vector upsert flattens the VEC1 cause produced by a failed LanceDB merge into an unclassified message. The server inspects the error chain to record the durable vector recovery requirement and misses that cause.",
+      "implementation": ["crates/engram_index/src/hybrid.rs"],
+      "acceptance": "On an owned project with a successful source publication, a failed native merge surfaces the storage cause, leaves the previous file revision selected and records the existing vector recovery reason across reopen. Verify vector-only repair and retry in the same fixture. Provider fallback remains covered by retained S02 evidence.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/s02-native-write-recovery-20261120",
+      "baseline": {"path": "baseline-observed/receipt.json", "sha256": "ef522207fa10965d73ca2fba9373f3c251efada260711c679b3259d0630f6dd8"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "3bd77b3b3c0e4c445c2995def9ef269a683b1d5b1ce4844978c21d29a99c0848"},
+      "evidence": "The installed binary on an owned project hit a native merge failure after valid embeddings. Generation 1 remained selected, the vector recovery reason was absent before and after reopening, and retry after removing the obstruction published generation 2. The fixture directory was removed. The first run retained the same expected JSON-RPC error but the observer stopped before examining recovery; the corrected run completed.",
+      "delivery": "Submit with a subsequent combined build. The currently running edit dossier release is frozen before this change."
+    },
     "s02_installed_webforms_shrink_delete": {
       "status": "INSTALLED_PUBLIC_MCP_BEHAVIOR_VERIFIED_WITH_FIXTURE_DIAGNOSTIC",
       "requirement": "S02 regular installed source shrink/delete with physical source revision and vector consistency",
