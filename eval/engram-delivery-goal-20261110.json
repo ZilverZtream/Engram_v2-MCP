@@ -2653,7 +2653,7 @@
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
-    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vector-dossier-net-review-20261120",
+    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-debug-candidate-20261120",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "incremental_codegen": {
@@ -2981,6 +2981,14 @@
   "current_execution_focus": {
     "status": "STAGED_REVIEW_AND_RELATED_SOURCE_WORK_READY",
     "implementation_items_active": 0,
+    "combined_debug_candidate": {
+      "status": "ONE_DEBUG_CANDIDATE_BUILD_RUNNING",
+      "source_commit": "839892761dc3a0b842fc719cbd1155e2927585d4",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/workflow-debug-candidate-20261120",
+      "plan_sha256": "7fbbe81b97c87baebb96ec4756214a3406cc9ca10f5cefefb2dffc76c33734dc",
+      "pipeline_owner": {"path": "pipeline-owner.json", "sha256": "40821f146e0ac141417bc678ec88bd8e5bd00ed1e062ec908d678774f4ee5c66"},
+      "acceptance": "One shared debug candidate for queued exact refresh/cancellation, method-scoped constructor setup, three source-refresh changes and staged review. Run the pinned affected public checks once. An optimized build, package and live replacement are separate delivery actions."
+    },
     "staged_review_index_evidence": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "EG-19 decision-aware review and TODO-34 trustworthy staged review",
@@ -4998,6 +5006,32 @@
     }
   ],
   "next_source_batch_pending": [
+    {
+      "original_requirement_id": "TODO-37",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "103f477c6b459f21da34e0ecdff2cf6a676201e3",
+      "acceptance_contract": "Queue an exact refresh, recover its scoped instruction observation, and verify independent cancellation and retry without advancing the outside file."
+    },
+    {
+      "original_requirement_id": "EG-25",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "b1716d6c81d269f9d7f13dd3f1f2d980a9eb40ab",
+      "acceptance_contract": "A model-free matrix for the exact invoice Add method includes the constructor setup and source read. The AddRange-only and historical controls withhold it."
+    },
+    {
+      "original_requirement_id": "TODO-55",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "839892761dc3a0b842fc719cbd1155e2927585d4",
+      "acceptance_contract": "Run forced incremental JS/SQL in both modes, narrow exact JS admission with inherited VB, and safe native vector failure/recovery. Verify the guarded empty-generation write separately from its fallback."
+    },
+    {
+      "original_requirement_id": "TODO-34",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "e19f3b67366620e051a8e5f2dee07299f9ae0bbb",
+      "acceptance_contract": "Verify staged object identity, steady worktree divergence and truthful JSON/Markdown verdict qualification."
+    }
+  ],
+  "vector_dossier_net_review_closed_candidate_batch": [
     {
       "original_requirement_id": "S02",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
