@@ -27,6 +27,18 @@ pub(super) mod git_refresh_scope;
 pub(super) const SOURCE_REFRESH_HISTORY_SKIPPED: &str =
     "history_enrichment: skipped (max_commits=0); retained Git history and anti-patterns were not refreshed.";
 
+pub(super) fn source_refresh_history_tip(root: &Path) -> anyhow::Result<Option<(Oid, &'static str)>> {
+    let repo = GitWalker::open_repo(root)?;
+    Ok(GitWalker::approved_history_root(&repo)
+        .map(|oid| (oid, "origin_default"))
+        .or_else(|| {
+            repo.head()
+                .ok()
+                .and_then(|head| head.target())
+                .map(|oid| (oid, "checked_out_head"))
+        }))
+}
+
 fn is_safe_zip_member_path(name: &str) -> bool {
     let p = std::path::Path::new(name);
     if name.is_empty() || name.contains('\0') || p.is_absolute() {
@@ -786,10 +798,7 @@ impl Engram {
         if mode == GitHistoryMode::Forward && !force_flag && !index_antipatterns {
             let root = project_root.clone();
             let head = tokio::task::spawn_blocking(move || -> anyhow::Result<Option<String>> {
-                let repo = GitWalker::open_repo(&root)?;
-                Ok(GitWalker::approved_history_root(&repo)
-                    .or_else(|| repo.head().ok().and_then(|head| head.target()))
-                    .map(|oid| oid.to_string()))
+                Ok(source_refresh_history_tip(&root)?.map(|(oid, _)| oid.to_string()))
             })
             .await
             .map_err(|error| McpError::internal_error(error.to_string(), None))?

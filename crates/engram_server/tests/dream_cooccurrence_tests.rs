@@ -325,6 +325,7 @@ async fn knowledge_learning_keeps_real_source_health_and_freshness_complete() {
             project_id: pid.clone(),
             source_files: None,
             check_disk: true,
+            check_git_history: false,
             expected_git_commit: None,
         }))
         .await
@@ -352,6 +353,7 @@ async fn knowledge_learning_keeps_real_source_health_and_freshness_complete() {
             project_id: pid.clone(),
             source_files: None,
             check_disk: true,
+            check_git_history: false,
             expected_git_commit: None,
         }))
         .await

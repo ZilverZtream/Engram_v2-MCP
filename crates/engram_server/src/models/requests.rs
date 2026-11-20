@@ -678,6 +678,10 @@ pub struct GetIndexFreshnessRequest {
     /// against published source membership when it is available.
     #[serde(default = "default_true")]
     pub check_disk: bool,
+    /// Compare the last indexed Git commit with the local forward-history
+    /// target. Project-wide mode only. No fetch or worktree scan.
+    #[serde(default)]
+    pub check_git_history: bool,
     /// Optional immutable Git revision expected by a historical replay or
     /// pinned checkout. When supplied, freshness also checks HEAD, tracked
     /// changes and non-ignored untracked entries, even when check_disk is false.

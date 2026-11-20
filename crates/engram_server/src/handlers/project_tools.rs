@@ -39,6 +39,34 @@ fn observe_source_update(project_id: &str, generation: u64, stage: &'static str,
     tracing::info!(project_id, generation, stage, boundary, "source update boundary");
 }
 
+fn describe_git_history_freshness(
+    indexed: Option<&str>,
+    target: Option<(git2::Oid, &str)>,
+) -> String {
+    let indexed = indexed.map(str::trim).filter(|value| !value.is_empty());
+    let indexed_oid = indexed
+        .filter(|value| value.len() == 40)
+        .and_then(|value| git2::Oid::from_str(value).ok());
+    let status = match (indexed, indexed_oid, target) {
+        (Some(_), None, _) => "invalid_indexed_tip",
+        (_, _, None) => "target_unavailable",
+        (None, _, _) => "not_indexed",
+        (_, Some(indexed), Some((target, _))) if indexed == target => "at_target_tip",
+        _ => "different_tip",
+    };
+    let indexed_tip = match (indexed, indexed_oid) {
+        (_, Some(oid)) => oid.to_string(),
+        (Some(_), None) => "invalid".to_owned(),
+        (None, None) => "none".to_owned(),
+    };
+    let (target_tip, basis) = target
+        .map(|(tip, basis)| (tip.to_string(), basis))
+        .unwrap_or_else(|| ("unavailable".to_owned(), "unavailable"));
+    format!(
+        "indexed_git_history: {status}\nindexed_git_tip: {indexed_tip}\nhistory_target_git_tip: {target_tip}\nhistory_target_basis: {basis}\n"
+    )
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, Default)]
 struct PhaseResumeState {
     pending_files: Vec<String>,
@@ -3447,9 +3475,11 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         let files = req.source_files.as_deref().map(file_freshness::validate).transpose()?;
-        if files.is_some() && (!req.check_disk || req.expected_git_commit.is_some()) {
+        if files.is_some()
+            && (!req.check_disk || req.expected_git_commit.is_some() || req.check_git_history)
+        {
             return Err(McpError::invalid_params(
-                "source_files checks selected disk fingerprints. Use a separate project-wide call for check_disk=false or expected_git_commit.",
+                "source_files checks selected disk fingerprints. Use a separate project-wide call for check_disk=false, check_git_history or expected_git_commit.",
                 None,
             ));
         }
@@ -3496,6 +3526,23 @@ impl Engram {
         out.push_str(&format!("project_id: {pid}\n"));
         out.push_str(&format!("directory: {}\n", rec.directory));
         out.push_str(&format!("active_generation: {generation}\n"));
+        if req.check_git_history {
+            let registry = self.state.registry.clone();
+            let project = pid.clone();
+            let directory = PathBuf::from(&rec.directory);
+            let history = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
+                let recorded = registry.get_meta(&project, "last_git_oid")?;
+                let tip = super::git_tools::source_refresh_history_tip(&directory)
+                    .ok()
+                    .flatten();
+                Ok(describe_git_history_freshness(recorded.as_deref(), tip))
+            })
+            .await;
+            match history {
+                Ok(Ok(summary)) => out.push_str(&summary),
+                Ok(Err(_)) | Err(_) => out.push_str("indexed_git_history: unavailable\n"),
+            }
+        }
         match last_index_ms {
             Some(ms) => {
                 let age_s = now_ms().saturating_sub(ms) / 1000;

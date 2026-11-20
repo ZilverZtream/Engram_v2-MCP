@@ -1952,12 +1952,18 @@ The tool returns an error before review gates run.
 - With `expected_git_commit`, `get_index_freshness` reports tracked changes and
   non-ignored untracked entries. With `check_disk: false`, generation coverage can
   use published source membership while current disk coverage stays unknown.
+- With `check_git_history: true`, project-wide `get_index_freshness` compares the
+  recorded indexed Git tip with the local forward-indexing target. The target is
+  the local origin default ref when available, otherwise the checked-out HEAD.
+  Combine with `check_disk: false` for a ref comparison without a source disk scan.
+  The check performs no fetch or commit walk. A matching tip establishes tip
+  equality only. History backfill coverage can still be partial.
 - With `source_files`, `get_index_freshness` returns JSON for up to 16 exact
   project-relative paths. It compares each current file with its published
   BLAKE3 fingerprint at the selected physical revision, including inherited
   revisions. The 4 MiB per-file limit and unavailable fingerprints or disk
   reads are reported per path. Use the project-wide mode for a full disk scan
-  or an expected Git commit check.
+  or a Git check.
 - Supply the recorded `work_item_text` for an ID-targeted `get_change_set` with
   either `as_of_rev` or `merged_before`.
 
