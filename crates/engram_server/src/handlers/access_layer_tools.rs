@@ -479,6 +479,7 @@ pub struct CallerBody {
 /// Full pre-edit context for a method.
 #[derive(Debug, Clone, Serialize)]
 pub struct MethodEditContextResult {
+    pub consumer_call_paths: serde_json::Value,
     pub method_info: MethodInfoResult,
     /// Optional explicit calls, never executed here; only on the full tool surface.
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -2960,6 +2961,48 @@ fn extract_aspx_controls(aspx_content: &str) -> Vec<ControlInfo> {
     controls
 }
 
+fn consumer_call_paths(
+    graph: &engram_graph::GraphStore,
+    project: &str,
+    target: &str,
+    limit: usize,
+) -> serde_json::Value {
+    let requested = limit;
+    let limit = requested.min(20);
+    let mut paths = Vec::new();
+    let mut truncated = false;
+    let result = (|| -> anyhow::Result<()> {
+        let direct = graph.find_incoming_edges_with_kind(
+            project,
+            Some(EdgeKind::Calls),
+            target,
+            limit + 1,
+        )?;
+        truncated |= direct.len() > limit;
+        'direct: for (via, _, _) in direct.into_iter().take(limit) {
+            let consumers = graph.find_incoming_edges_with_kind(
+                project,
+                Some(EdgeKind::Calls),
+                &via,
+                limit + 1,
+            )?;
+            truncated |= consumers.len() > limit;
+            for (consumer, _, _) in consumers.into_iter().take(limit) {
+                if consumer != target && consumer != via && via != target {
+                    if paths.len() == 32 {
+                        truncated = true;
+                        break 'direct;
+                    }
+                    paths.push(serde_json::json!({"caller":consumer,"via":via}));
+                }
+            }
+        }
+        Ok(())
+    })();
+    serde_json::json!({"target":target,"paths":paths,"truncated":truncated,"lookup_error":result.err().map(|e|e.to_string()),
+        "scope":"Indexed caller -> via -> target. Bounded call paths, not verified return-value flow."})
+}
+
 fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String {
     let mut md = String::with_capacity(8_000);
 
@@ -2975,6 +3018,7 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
         ctx.method_info.fqn, badge
     ));
 
+    md.push_str(&format!("## Consumer call paths\n{}\n\n", ctx.consumer_call_paths));
     // Method identity
     md.push_str(&render_method_info_markdown(&ctx.method_info));
 
@@ -4501,7 +4545,9 @@ impl Engram {
                 &mut excerpt_budget,
             );
             validate_held_method_revision(&graph, &project_id, &ev.node, membership.as_ref())?;
+            let consumer_call_paths = consumer_call_paths(&graph, &project_id, &ev.node.node_id, max_callers);
             Ok::<MethodEditContextResult, String>(MethodEditContextResult {
+                consumer_call_paths,
                 risk_band_scope: "Observed one-hop live-graph advisory only; not comprehensive edit safety or a calibrated probability",
                 blast_radius_score: ev.blast.as_ref().map(|b| b.migration_risk as f32 * 10.0),
                 risk_band: ev

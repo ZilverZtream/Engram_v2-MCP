@@ -118,6 +118,25 @@ pub struct PolicyContext {
 }
 
 impl PolicyContext {
+    /// Compact live-source inventory for planning. A single action template applies to
+    /// every fingerprinted row; linked references are kept separate from applicable policy.
+    pub fn planning_index(&self, project: &str) -> serde_json::Value {
+        let row = |s: &PolicySource| serde_json::json!({"file_path":s.path,"expected_file_blake3":s.blake3});
+        serde_json::json!({
+            "status":self.status,"coverage":self.coverage,"source_revision":self.source_revision,
+            "applicable":self.sources.iter().map(row).collect::<Vec<_>>(),
+            "linked":self.linked_sources.iter().map(row).collect::<Vec<_>>(),
+            "omissions":self.omissions.iter().map(|o| serde_json::json!({
+                "file_path":o.path,"expected_file_blake3":o.blake3,"reason":o.reason
+            })).collect::<Vec<_>>(),
+            "reference_coverage":self.reference_coverage,"references_omitted":self.references_omitted,
+            "read": {"tool":"get_full_method_body","arguments":{"project_id":project,
+                "file_path":"<file_path>","expected_file_blake3":"<expected_file_blake3>",
+                "line_start":1,"context_lines":0,"output_json":true}},
+            "instruction":"Read applicable sources before editing. For current fingerprinted rows substitute the row values in read, then follow file_excerpt.next_page. Use the named revision for historical sources."
+        })
+    }
+
     fn empty(budget: PolicyBudget) -> Self {
         Self {
             source_revision: None,

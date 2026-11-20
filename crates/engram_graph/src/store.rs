@@ -3,7 +3,7 @@ use engram_core::RelPath;
 use redb::{Database, ReadableTable, TableDefinition, TableHandle};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -1704,6 +1704,62 @@ impl GraphStore {
         project_id: &str,
     ) -> anyhow::Result<Vec<(RelPath, Option<serde_json::Value>, u64)>> {
         file_metadata_scan::scan(self, project_id, |path, metadata, generation| (path, metadata, generation))
+    }
+
+    /// Stream declaration identities from the primary key index without decoding node payloads.
+    pub fn visit_symbol_names(
+        &self,
+        project: &str,
+        mut visit: impl FnMut(&str, &str, &str, &str, u32),
+    ) -> anyhow::Result<()> {
+        let prefix = format!("{project}\0sym:");
+        let tx = self.db.begin_read()?;
+        let table = tx.open_table(NODES)?;
+        for entry in table.range(prefix.as_str()..)? {
+            let (key, _) = entry?;
+            let key = key.value();
+            let Some(rest) = key.strip_prefix(&prefix) else {
+                break;
+            };
+            let Some((kind, rest)) = rest.split_once(':') else {
+                continue;
+            };
+            let Some((path, rest)) = rest.split_once(':') else {
+                continue;
+            };
+            let Some((name, line)) = rest.rsplit_once(':') else {
+                continue;
+            };
+            if let Ok(line) = line.parse() {
+                visit(kind, path, name, &key[project.len() + 1..], line);
+            }
+        }
+        Ok(())
+    }
+
+    /// Check indexed schema identities without fetching column bodies or enumerating rows.
+    pub fn matched_schema_names(
+        &self,
+        project: &str,
+        requested: &HashSet<String>,
+    ) -> anyhow::Result<HashSet<String>> {
+        let tx = self.db.begin_read()?;
+        let table = tx.open_table(NODES)?;
+        let mut found = HashSet::new();
+        for kind in ["table", "column"] {
+            let prefix = format!("{project}\0{kind}:");
+            for entry in table.range(prefix.as_str()..)? {
+                let (key, _) = entry?;
+                let Some(id) = key.value().strip_prefix(&prefix) else {
+                    break;
+                };
+                let name = id.rsplit(':').next().unwrap_or(id);
+                if requested.contains(name) {
+                    found.insert(name.to_owned());
+                }
+            }
+        }
+        Ok(found)
     }
 
     pub fn count_nodes(&self, project_id: &str) -> anyhow::Result<usize> {

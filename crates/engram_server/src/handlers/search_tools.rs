@@ -636,10 +636,22 @@ impl Engram {
             }
         }
 
+        // Preserve short instructions inline. Route verbose policy to fingerprinted
+        // source reads before it can displace the actual search hits.
+        let compact_policy = source_policy.as_ref().filter(|policy| {
+            let body_bytes: usize = policy.sources.iter().chain(&policy.linked_sources)
+                .map(|s| s.content.len()).sum();
+            body_bytes > req.max_tokens.unwrap_or(10240).min(2048)
+                || policy.omissions.len() > 3
+        }).map(|policy| policy.planning_index(&req.project_id));
         let mut suffix = String::new();
         let mut guidance = false;
         if let Some(policy) = source_policy.as_ref().filter(|policy| !req.output_json && (policy.status != "absent" || policy.coverage != "complete")) {
-            suffix.push_str(&policy.render_markdown());
+            if let Some(index) = &compact_policy {
+                suffix.push_str(&format!("\nApplicable repository guidance: {index}\n"));
+            } else {
+                suffix.push_str(&policy.render_markdown());
+            }
             guidance = true;
         }
         suffix.push_str("next: full_chunk supplies source content with applicable live repository guidance; resolve any policy omissions before editing. citation_chunk supplies exact stored-content identity, raw hash and bounded citation pages without injected guidance; pass each returned continuation as citation with the same project_id/namespace/doc_id until absent. resolve_id(<symbol>) to enter the graph; get_concept_footprint(<domain term>) for indexed touchpoints.\n");
@@ -650,7 +662,7 @@ impl Engram {
             value["freshness"]=serde_json::json!(freshness);
             value["semantic_quality"]=serde_json::json!(semantic_delivery.quality(req.semantic, ps.search.semantic_quality()));
             value["retrieval"]=semantic_delivery.metadata(req.semantic, ps.search.semantic_quality());
-            value["guidance"]=serde_json::json!(source_policy);
+            value["guidance"]=compact_policy.unwrap_or_else(|| serde_json::json!(source_policy));
             if !hit_refs.is_empty() {
                 value["guidance_scope"]=serde_json::json!({"basis":"requested_page_including_budget_omitted_hits",
                     "paths":hit_refs.iter().map(|hit|hit.path.as_str()).collect::<std::collections::BTreeSet<_>>()});

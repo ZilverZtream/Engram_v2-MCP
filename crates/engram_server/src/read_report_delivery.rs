@@ -657,6 +657,9 @@ impl Report {
         } else {
             None
         };
+        let preview_body = if matches!(self.tool, "find_symbol_references" | "plan_user_story" | "get_method_edit_context") {
+            original.content.first().and_then(|p| p.as_text()).map(|v| v.text.clone())
+        } else { None };
         let original = if self.json_envelope {
             let mut original = original;
             let job_status = if self.tool == "get_job_status" && original.content.len() > 1 {
@@ -708,6 +711,10 @@ impl Report {
             .map_err(|error| McpError::internal_error(error.to_string(), None))?;
         let id = blake3::hash(body.as_bytes()).to_hex().to_string();
         let manifest = self.manifest_for(&id, body.len(), operation.as_ref().or(plan_summary.as_ref()));
+        let manifest = if let Some(source) = preview_body {
+            let packet = serde_json::from_str(&manifest).map_err(|e| McpError::internal_error(format!("{e}"), None))?;
+            crate::planner_page::with_preview(packet, &crate::planner_page::evidence(self.tool, &source), self.budget)
+        } else { manifest };
         if manifest.len() > self.budget {
             return Err(McpError::invalid_params(
                 "Increase max_tokens for complete read-report recovery metadata",

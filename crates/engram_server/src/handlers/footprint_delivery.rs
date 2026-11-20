@@ -35,10 +35,7 @@ pub(super) fn finish(data: &Path,req: &GetConceptFootprintRequest,text: String,p
     let manifest=json!({"summary":{
         "concept":req.concept,"source_paths_returned":paths.len(),"source_paths_complete":complete,
         "scope":"Counts describe the original capped footprint, not exhaustive repository coverage. Recover its graph, lexical, literal and group-cap qualifications before acting.",
-        "project_policy_sources":{"status":policy.status,"coverage":policy.coverage,"source_revision":policy.source_revision,
-            "sources_applicable":policy.sources_applicable,"original_sources_shown":policy.sources_shown,"sources_shown":0,
-            "omissions":policy.omissions,"reference_coverage":policy.reference_coverage,"references_omitted":policy.references_omitted,
-            "notes":policy.notes,"instruction":policy.instruction,"content_deferred":true}
+        "project_policy_sources":policy.planning_index(&req.project_id)
         },"response_delivery":{
         "status":"DEFERRED_CONCEPT_FOOTPRINT","complete":false,"response_id":id,"original_bytes":body.len(),
         "original_format":if req.output_json {"json"} else {"markdown"},"response_budget_bytes":limit,
@@ -47,8 +44,13 @@ pub(super) fn finish(data: &Path,req: &GetConceptFootprintRequest,text: String,p
         "retention":"At most 24 hours or 32 newer concept-footprint snapshots for this project; unavailable snapshots require a fresh query.",
         "next_call":snapshots::concept_footprint_continuation(&req.project_id,&id,0,limit)
     }});
-    let encoded=serde_json::to_string(&manifest).map_err(|error| McpError::internal_error(error.to_string(),None))?;
-    let output=if req.output_json {encoded} else {format!("# Concept footprint: deferred evidence\n\nRecover the original footprint before acting on its details.\n\n```json\n{encoded}\n```\n")};
+    let mut manifest=manifest;
+    manifest["summary"]["project_policy_sources"]["content_deferred"] = json!(true);
+    let (prefix, suffix) = if req.output_json { ("","") } else {
+        ("# Concept footprint: selected evidence\n\n```json\n", "\n```\n")
+    };
+    let encoded = crate::planner_page::with_preview(manifest, &text, limit.saturating_sub(prefix.len()+suffix.len()));
+    let output = format!("{prefix}{encoded}{suffix}");
     if output.len()>limit {
         return Err(McpError::invalid_params(format!("max_tokens is too small for footprint coverage, policy and recovery metadata; at least {} estimated tokens ({} UTF-8 bytes) required. Increase max_tokens or narrow the concept. No evidence or qualifications were silently removed.",output.len().div_ceil(4),output.len()),None));
     }
@@ -75,6 +77,7 @@ mod tests {
             let encoded=if output_json {initial.as_str()} else {initial.split("```json\n").nth(1).unwrap().split("\n```").next().unwrap()};
             let manifest:Value=serde_json::from_str(encoded).unwrap();
             assert_eq!(manifest["summary"]["source_paths_returned"],2);
+            assert!(manifest["first_page"].as_str().unwrap().contains("Orders footprint"));
             assert_eq!(manifest["summary"]["source_paths_complete"],false);
             assert_eq!(manifest["summary"]["project_policy_sources"]["content_deferred"],true);
             std::fs::write(owned.path().join("AGENTS.md"),"Changed current policy\n").unwrap();

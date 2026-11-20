@@ -23,17 +23,15 @@ pub(super) fn recover(data: &Path,req: &FindImplementationPatternRequest) -> Res
 pub(super) fn finish(data: &Path,req: &FindImplementationPatternRequest,body: String,report: &PatternJson,public_delivery: bool) -> Result<String,McpError> {
     if !public_delivery {return Ok(body);}
     let limit=budget(req.max_tokens)?;
-    if body.len()<=limit {return Ok(body);}
+    let verbose = report.project_policy_sources.sources.iter().map(|s|s.content.len()).sum::<usize>() > 2048;
+    if body.len()<=limit && !verbose {return Ok(body);}
     let id=blake3::hash(body.as_bytes()).to_hex().to_string();let policy=&report.project_policy_sources;
     let manifest=json!({"summary":{
         "query":report.query,"inferred_kind":report.inferred_kind,
         "exemplars_returned":report.exemplars.len(),"common_shapes_returned":report.common_shapes.len(),
         "coverage":report.coverage,
         "scope":"The selected capped report, not exhaustive repository patterns or proof that the examples implement the requested behavior.",
-        "project_policy_sources":{"status":policy.status,"coverage":policy.coverage,"source_revision":policy.source_revision,
-            "sources_applicable":policy.sources_applicable,"original_sources_shown":policy.sources_shown,"sources_shown":0,
-            "omissions":policy.omissions,"reference_coverage":policy.reference_coverage,"references_omitted":policy.references_omitted,
-            "notes":policy.notes,"instruction":policy.instruction,"content_deferred":true}
+        "project_policy_sources":policy.planning_index(&req.project_id)
         },"response_delivery":{
         "status":"DEFERRED_PATTERN_REPORT","complete":false,"response_id":id,"original_bytes":body.len(),
         "original_format":if req.output_json {"json"} else {"markdown"},"response_budget_bytes":limit,
@@ -42,8 +40,19 @@ pub(super) fn finish(data: &Path,req: &FindImplementationPatternRequest,body: St
         "retention":"At most 24 hours or 32 newer pattern-report snapshots for this project; unavailable snapshots require a fresh query.",
         "next_call":snapshots::pattern_report_continuation(&req.project_id,&id,0,limit)
     }});
-    let encoded=serde_json::to_string(&manifest).map_err(|error| McpError::internal_error(error.to_string(),None))?;
-    let output=if req.output_json {encoded} else {format!("# Implementation patterns: deferred evidence\n\nRecover the original report before acting on its details.\n\n```json\n{encoded}\n```\n")};
+    let mut manifest = manifest;
+    manifest["summary"]["project_policy_sources"]["content_deferred"] = json!(true);
+    let mut evidence = String::new();
+    for ex in &report.exemplars {
+        use std::fmt::Write;
+        let _ = writeln!(evidence, "#{} {}:{}\n{}", ex.rank, ex.path, ex.line,
+            ex.snippet.chars().take(1200).collect::<String>());
+    }
+    let (prefix,suffix) = if req.output_json { ("","") } else {
+        ("# Implementation patterns: selected evidence\n\n```json\n","\n```\n")
+    };
+    let encoded = crate::planner_page::with_preview(manifest,&evidence,limit.saturating_sub(prefix.len()+suffix.len()));
+    let output = format!("{prefix}{encoded}{suffix}");
     if output.len()>limit {
         return Err(McpError::invalid_params(format!("max_tokens is too small for pattern coverage, policy and recovery metadata; at least {} estimated tokens ({} UTF-8 bytes) required. Increase max_tokens or narrow the query. No evidence or qualifications were silently removed.",output.len().div_ceil(4),output.len()),None));
     }
@@ -78,6 +87,7 @@ mod tests {
             let manifest:Value=serde_json::from_str(encoded).unwrap();
             assert_eq!(manifest["summary"]["coverage"],serde_json::to_value(&report.coverage).unwrap());
             assert_eq!(manifest["summary"]["exemplars_returned"],1);
+            assert!(manifest["first_page"].as_str().unwrap().contains("Site/Order.vb:1"));
             assert_eq!(manifest["summary"]["project_policy_sources"]["content_deferred"],true);
             std::fs::write(owned.path().join("AGENTS.md"),"Changed current guidance\n").unwrap();
             let mut next=manifest["response_delivery"]["next_call"].clone();let mut recovered=String::new();

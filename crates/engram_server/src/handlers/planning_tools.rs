@@ -1872,7 +1872,13 @@ impl Engram {
         if hits.len() > PATTERN_LEXICAL_CAP {
             coverage.lexical_status = "truncated".into();
         }
-        if hits.is_empty() {
+        let graph = self.state.graph.clone();
+        let pid = req.project_id.clone();
+        let query = req.pattern_query.clone();
+        let member_matches = tokio::task::spawn_blocking(move || pattern_member_matches(&graph, &pid, &query, kind))
+            .await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .unwrap_or_else(|e| { coverage.failures.push(format!("method evidence unavailable: {e}")); BTreeMap::new() });
+        if hits.is_empty() && member_matches.is_empty() {
             let hint = format!(
                 "No code matching pattern '{}' found.\n\
                  hints: use the codebase's own vocabulary (try search_memory first to \
@@ -1932,6 +1938,11 @@ impl Engram {
             }
         }
         coverage.lexical_files = per_file.len();
+        for (path, (_, witness, line)) in &member_matches {
+            let entry = per_file.entry(path.clone()).or_insert((0, 0.0, String::new(), *line));
+            entry.2 = witness.clone();
+            entry.3 = *line;
+        }
 
         // Kind filter (A1): a page query cannot have a script as exemplar.
         let mut candidates: Vec<(String, (usize, f32, String, u32))> =
@@ -1956,7 +1967,8 @@ impl Engram {
         }
         // Keep the strongest query match before the bounded structural pass.
         // Repeated chunks from a large file are not stronger query relevance.
-        candidates.sort_by(compare_pattern_candidates);
+        let fit = |path: &str| member_matches.get(path).map_or(0, |row| row.0);
+        candidates.sort_by(|a,b| fit(&b.0).cmp(&fit(&a.0)).then_with(|| compare_pattern_candidates(a,b)));
         candidates.truncate(PATTERN_CANDIDATES);
         coverage.candidates_considered = candidates.len();
 
@@ -2005,7 +2017,7 @@ impl Engram {
             });
         }
         // Structure describes an exemplar; density is not query-specific fit.
-        ranked.sort_by(compare_pattern_exemplars);
+        ranked.sort_by(|a,b| fit(&b.path).cmp(&fit(&a.path)).then_with(|| compare_pattern_exemplars(a,b)));
         let mut exemplars: Vec<PatternExemplar> = Vec::new();
         let mut seen_dirs: HashSet<String> = HashSet::new();
         let total = ranked.len();
@@ -2079,8 +2091,109 @@ impl Engram {
 
 // ── find_implementation_pattern: kinds, shapes, coverage (row-5 audit) ────
 
+/// Match query terms against declaration components across the indexed project.
+fn pattern_member_matches(
+    graph: &engram_graph::GraphStore,
+    project: &str,
+    query: &str,
+    kind: PatternKind,
+) -> anyhow::Result<BTreeMap<String, (usize, String, u32)>> {
+    fn term(word: &str) -> &str {
+        match word {
+            "datetime" | "dates" | "timestamp" => "date",
+            "parameters" | "parameter" | "params" => "param",
+            "validated" | "validating" | "validation" | "validator" => "validate",
+            "failed" | "invalid" | "failure" | "error" | "reject" => "fail",
+            "parsing" | "parsed" => "parse",
+            token => token,
+        }
+    }
+    let words = name_tokens(query);
+    let terms: HashSet<_> = words
+        .iter()
+        .map(|w| term(w))
+        .filter(|w| {
+            w.len() >= 3
+                && !matches!(
+                    *w,
+                    "the"
+                        | "and"
+                        | "with"
+                        | "for"
+                        | "from"
+                        | "that"
+                        | "this"
+                        | "api"
+                        | "code"
+                        | "method"
+                )
+        })
+        .collect();
+    let mut result = BTreeMap::new();
+    if terms.len() < 2 {
+        return Ok(result);
+    }
+    let mut names = BTreeSet::new();
+    graph.visit_symbol_names(project, |node_kind, path, name, id, line| {
+        if node_kind != "function"
+            || (kind != PatternKind::Any && !kind_matches(kind, path))
+            || engram_core::is_vendor_path(path)
+        {
+            return;
+        }
+        let leaf = name.rsplit(['.', ':']).next().unwrap_or(name);
+        let parts = name_tokens(leaf);
+        let matched: HashSet<_> = parts
+            .iter()
+            .map(|t| term(t))
+            .filter(|t| terms.contains(t))
+            .collect();
+        if matched.len() >= 2 {
+            names.insert((
+                std::cmp::Reverse(matched.len()),
+                id.to_owned(),
+                name.to_owned(),
+                path.to_owned(),
+                line,
+            ));
+            if names.len() > 48 {
+                names.pop_last();
+            }
+        }
+    })?;
+    for (std::cmp::Reverse(score), id, name, path, line) in names {
+        let calls = graph.neighbors(project, engram_graph::EdgeKind::Calls, &id, 32)?;
+        let mut targets = Vec::new();
+        let mut matched = HashSet::new();
+        for (target, _) in calls {
+            let label = graph
+                .get_node(project, &target)?
+                .map(|n| n.name)
+                .unwrap_or(target);
+            for word in name_tokens(&label) {
+                if terms.contains(term(&word)) {
+                    matched.insert(term(&word).to_owned());
+                }
+            }
+            targets.push(label);
+        }
+        let fit = score * 2 + matched.len();
+        let witness = format!(
+            "{}:{} {} | indexed calls: {}",
+            path,
+            line,
+            name,
+            targets.join(", ")
+        );
+        let best = result.entry(path).or_insert((0, String::new(), line));
+        if fit > best.0 {
+            *best = (fit, witness, line);
+        }
+    }
+    Ok(result)
+}
+
 // lexical_search forwards Tantivy TopDocs scores: larger is more relevant.
-// Treat any unexpected nonfinite score as unavailable rather than a top match.
 fn pattern_relevance(score: f32) -> f32 {
     if score.is_finite() { score } else { f32::NEG_INFINITY }
 }
@@ -2610,7 +2723,7 @@ pub(crate) fn render_pattern_markdown(r: &PatternJson) -> String {
             String::new()
         }
     ));
-    out.push_str("ranking: file kind, then best lexical relevance; structural density is descriptive and breaks relevance ties, not proof of matching behavior. Repeated chunk hits do not outrank a stronger lexical match.\n");
+    out.push_str("ranking: matching method concepts and their indexed calls, then lexical relevance; structural density is descriptive and breaks relevance ties, not proof of matching behavior. Repeated chunk hits do not outrank a stronger lexical match.\n");
     for ex in &r.exemplars {
         out.push_str(&format!(
             "\n## Exemplar #{}: {} ({} match(es), score {:.2}, structural {})\n",
@@ -2656,7 +2769,7 @@ pub(crate) fn render_pattern_markdown(r: &PatternJson) -> String {
         if !ex.snippet.is_empty() {
             let trimmed: String = ex.snippet.chars().take(600).collect();
             out.push_str(&format!(
-                "matched text (FTS snippet, line {} — evidence of the match, not the pattern):\n```\n{trimmed}\n```\n",
+                "matched evidence (indexed source or declaration/call evidence, line {} — evidence of the match, not the pattern):\n```\n{trimmed}\n```\n",
                 ex.line
             ));
         }
@@ -5888,6 +6001,89 @@ fn code_entity_path_eligible(path: &str) -> bool {
         .any(|suffix| lower.ends_with(suffix))
 }
 
+fn grounded_planning_concepts(
+    graph: &engram_graph::GraphStore,
+    project: &str,
+    story: &str,
+) -> anyhow::Result<Vec<String>> {
+    let mut candidates = Vec::new();
+    let mut seen = HashSet::new();
+    for word in story.split(|c: char| !(c.is_alphanumeric() || c == '_')) {
+        let Some(key) = story_token(word) else {
+            continue;
+        };
+        if key.len() > 160 || !seen.insert(key.clone()) {
+            continue;
+        }
+        let identifier = word.contains('_')
+            || word
+                .as_bytes()
+                .windows(2)
+                .any(|p| p[0].is_ascii_lowercase() && p[1].is_ascii_uppercase());
+        candidates.push((word.to_owned(), key, identifier));
+    }
+    let mut exact = graph.matched_schema_names(project, &seen)?;
+    let mut frequency = std::collections::HashMap::<String, usize>::new();
+    graph.visit_symbol_names(project, |_, _, name, _, _| {
+        let leaf = name.rsplit(['.', ':']).next().unwrap_or(name);
+        let key = leaf.to_lowercase();
+        if seen.contains(&key) {
+            exact.insert(key);
+        }
+        for token in name_tokens(leaf) {
+            if seen.contains(&token) {
+                *frequency.entry(token).or_default() += 1;
+            }
+        }
+    })?;
+    let generic = |s: &str| {
+        matches!(
+            s,
+            "copy"
+                | "update"
+                | "filter"
+                | "integration"
+                | "client"
+                | "request"
+                | "response"
+                | "value"
+        )
+    };
+    let mut ranked: Vec<_> = candidates
+        .into_iter()
+        .filter_map(|(word, key, identifier)| {
+            let count = frequency.get(&key).copied().unwrap_or(0);
+            let route = story.contains(&format!("/{word}"));
+            let score = if exact.contains(&key) && identifier {
+                4
+            } else if route && !generic(&key) && (exact.contains(&key) || count > 0) {
+                3
+            } else if !generic(&key) && exact.contains(&key) {
+                2
+            } else if !generic(&key) && count > 0 {
+                1
+            } else {
+                return None;
+            };
+            Some((score, count, word))
+        })
+        .collect();
+    ranked.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+    let mut concepts: Vec<_> = ranked
+        .into_iter()
+        .take(3)
+        .map(|(_, _, name)| name)
+        .collect();
+    for word in extract_story_concepts(story) {
+        if (concepts.len() < 3 || word == "role")
+            && !concepts.iter().any(|c| c.eq_ignore_ascii_case(&word))
+        {
+            concepts.push(word);
+        }
+    }
+    Ok(concepts)
+}
+
 pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
     let candidate = story_token;
     let mut seen = HashSet::new();
@@ -5989,7 +6185,14 @@ impl Engram {
         }
         let concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
-            _ => extract_story_concepts(&story_for_concepts(&req.story)),
+            _ => {
+                let story = story_for_concepts(&req.story);
+                let graph = self.state.graph.clone();
+                let project = req.project_id.clone();
+                tokio::task::spawn_blocking(move || grounded_planning_concepts(&graph, &project, &story))
+                    .await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            },
         };
 
         let mut out = format!("# Implementation brief\n\nstory: {}\n", req.story.trim());
@@ -6047,7 +6250,9 @@ impl Engram {
         }
         // Keep complete authored documents and recovery instructions outside
         // the line-limited analysis excerpts.
-        out.push_str(&policy.render_markdown());
+        if policy.sources.iter().map(|s| s.content.len()).sum::<usize>() > 2048 {
+            out.push_str(&format!("\nApplicable repository guidance: {}\n", policy.planning_index(&req.project_id)));
+        } else { out.push_str(&policy.render_markdown()); }
 
         // Pattern exemplars for the story's action.
         let sub = self
