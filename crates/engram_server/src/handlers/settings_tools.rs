@@ -515,7 +515,7 @@ impl Engram {
         let current_settings_budget = self.state.memory_budget.clone();
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
-        let (settings_axis, setting_labels, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, unresolved, coverage_notes, companion_context, member_observations) =
+        let (settings_axis, setting_labels, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, unresolved, coverage_notes, companion_context, member_observations, constructor_context) =
             tokio::task::spawn_blocking(move || {
                 let mut settings_axis: Axis = BTreeMap::new();
                 let mut setting_labels: BTreeMap<String, String> = BTreeMap::new();
@@ -529,6 +529,7 @@ impl Engram {
                 let mut source_bytes = 0;
                 let mut companion_context = Vec::new();
                 let mut member_observations = std::collections::BTreeSet::new();
+                let mut constructor_context = Vec::new();
                 let mut seen = std::collections::HashSet::new();
                 let mut pending = std::collections::VecDeque::new();
                 // A discovered code-behind may introduce VB after a markup-only
@@ -608,6 +609,17 @@ impl Engram {
                             Err(error)=>{coverage_notes.push(format!("{file}: method scope unresolved: {error}; no inferred axes admitted for this file."));continue;}
                         }
                     }else{None};
+                    if needs_vb && allow_current_settings
+                        && let (Some(ranges), Some(source)) = (
+                            &scoped_ranges,
+                            snapshot.as_deref().and_then(|bytes| std::str::from_utf8(bytes).ok()),
+                        )
+                    {
+                        let starts: Vec<_> = ranges.iter().map(|(start, _)| *start).collect();
+                        constructor_context.extend(crate::services::business_member_origins::collect_scoped(
+                            &file, source, &starts,
+                        ));
+                    }
                     if let Some(relation) = companion_relation {
                         companion_context.push(relation);
                     }
@@ -864,6 +876,7 @@ impl Engram {
                     coverage_notes,
                     companion_context,
                     member_observations,
+                    constructor_context,
                 )
             })
             .await
@@ -965,6 +978,35 @@ impl Engram {
             out.push_str("\n## Local nullable state observations\nSource presence checks, not configuration settings or proven shared-state effects.\n");
             for observation in &member_observations {
                 out.push_str(&format!("- {observation}\n"));
+            }
+        }
+        if !constructor_context.is_empty() {
+            out.push_str("\n## Constructor setup for selected methods\n");
+            out.push_str("These name-matched source assignments are setup leads. Confirm field binding, constructor selection, relevant configuration values and applicable test expectations.\n");
+            for (method_line, context) in constructor_context {
+                let file = &context.source_file;
+                for assignment in context.observations {
+                    out.push_str(&format!(
+                        "- Selected method {file}:{method_line}; constructor assignment {file}:{} for {}.\n  `{}`\n",
+                        assignment.line, assignment.member_spelling, assignment.source.trim(),
+                    ));
+                    let action = serde_json::json!({
+                        "tool": "get_full_method_body",
+                        "arguments": {
+                            "project_id": req.project_id,
+                            "file_path": file,
+                            "expected_file_blake3": context.source_blake3,
+                            "line_start": assignment.line,
+                            "line_end": assignment.line,
+                            "context_lines": 0,
+                            "output_json": true,
+                        },
+                    });
+                    out.push_str(&format!("  Source read: {action}\n"));
+                }
+                for gap in context.omissions {
+                    out.push_str(&format!("- {file}:{method_line}: {gap}\n"));
+                }
             }
         }
         let matrix_notes = coverage_notes

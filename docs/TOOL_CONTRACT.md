@@ -605,6 +605,13 @@ language extraction contracts are unchanged.
 
 `query_business_logic`, quality-rule retrieval in `pre_push_audit`, and the business-rule source-anchor arm of `get_change_set` retry failed hybrid retrieval through local lexical search. Replies disclose the fallback and potentially missing semantic matches; source freshness, applicability, namespace and result limits still apply. Planning marks that arm partial. This does not bound provider latency or make retrieved rules verified mandates; successful subsequent requests use normal hybrid retrieval.
 
+For current method-scoped VB test matrices, the selected source can supply
+same-class constructor setup assignments even when the project has no stored
+business-rule analysis. Each assignment has a separate hash-bound source read.
+Use these name matches to inspect setup dependencies and choose test inputs.
+Field binding, effective configuration values and execution remain unverified.
+Historical requests skip the current-source setup observations.
+
 Current `derive_test_matrix` reports include hash-bound source actions for
 omitted authored guidance and linked documents with a recorded fingerprint.
 Follow the file excerpts through EOF for the full text. Historical matrices

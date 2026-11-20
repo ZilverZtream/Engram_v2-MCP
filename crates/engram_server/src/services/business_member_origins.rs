@@ -1,6 +1,7 @@
 //! Same-owner VB constructor observations, not field binding or effective state.
 use super::{
-    business_logic_service::extract_logic_methods, business_outcome_dependencies::executable_lines,
+    business_logic_service::{LogicMethod, extract_logic_methods},
+    business_outcome_dependencies::executable_lines,
 };
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -99,6 +100,43 @@ pub fn collect(
     }
     result.source_blake3 = Some(blake3::hash(source.as_bytes()).to_hex().to_string());
     result.status = "source_observations_only".into();
+    collect_assignments(&mut result, &methods, body, owner, start);
+    result
+}
+
+/// Derive setup leads from the current source already admitted by a QA request.
+/// Only exact selected declaration lines can contribute.
+pub(crate) fn collect_scoped(
+    file: &str,
+    source: &str,
+    declaration_lines: &[u32],
+) -> Vec<(u32, ConstructorContext)> {
+    let methods = extract_logic_methods(source, "vb");
+    let hash = blake3::hash(source.as_bytes()).to_hex().to_string();
+    methods
+        .iter()
+        .filter(|method| declaration_lines.contains(&method.start_line))
+        .filter_map(|method| {
+            let mut context = ConstructorContext::unavailable(file, "");
+            context.omissions.clear();
+            context.source_blake3 = Some(hash.clone());
+            context.status = "source_observations_only".into();
+            collect_assignments(
+                &mut context, &methods, &method.body, &method.owner, method.start_line,
+            );
+            (!context.observations.is_empty() || !context.omissions.is_empty())
+                .then_some((method.start_line, context))
+        })
+        .collect()
+}
+
+fn collect_assignments(
+    result: &mut ConstructorContext,
+    methods: &[LogicMethod],
+    body: &str,
+    owner: &str,
+    start: u32,
+) {
     let executable = executable_lines(body, true);
     let names: BTreeSet<_> = executable
         .split(|c: char| !c.is_alphanumeric() && c != '_')
@@ -135,7 +173,7 @@ pub fn collect(
             }
             if result.observations.len() == MAX_OBSERVATIONS || bytes + original.len() > MAX_BYTES {
                 result.omissions.push("Constructor observations capped at 16 assignments / 8 KiB original source; remaining assignments unexamined.".into());
-                return result;
+                return;
             }
             bytes += original.len();
             result.observations.push(Assignment {
@@ -148,7 +186,6 @@ pub fn collect(
             });
         }
     }
-    result
 }
 
 /// A constructor can change while the analyzed method's own hash stays valid.
