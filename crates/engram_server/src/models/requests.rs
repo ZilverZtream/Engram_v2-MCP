@@ -4783,7 +4783,7 @@ pub struct PreCommitReviewRequest {
     /// comparisons still examine the current worktree, not historical execution.
     #[serde(default)]
     pub review_decisions_before: Option<String>,
-    /// Optional Git worktree whose staged/unstaged/HEAD diff and current file
+    /// Optional Git worktree whose native diff and current file
     /// bytes should be reviewed. The directory must belong to the same Git
     /// repository as the indexed project.
     #[serde(default)]
@@ -4792,6 +4792,8 @@ pub struct PreCommitReviewRequest {
     /// - A raw unified-diff string (`git diff` output)
     /// - `"staged"` — runs the `git diff --staged` equivalent via git2
     /// - `"unstaged"` — runs the working-tree diff via git2
+    /// - `"working_tree"` — reviews the net HEAD-to-disk diff, including
+    ///   staged and unstaged edits and non-ignored untracked files
     /// - `"head"` — runs the equivalent of `git diff HEAD~1`
     /// - A path ending in `.patch` or `.diff` — reads from disk
     ///
@@ -4799,7 +4801,7 @@ pub struct PreCommitReviewRequest {
     #[serde(default = "default_diff_source")]
     pub diff: String,
     /// Literal Git paths or directory prefixes relative to the worktree root.
-    /// Applies to staged, unstaged and head reviews. Empty reviews all paths.
+    /// Applies to staged, unstaged, working_tree and head reviews. Empty reviews all paths.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub path_prefixes: Vec<String>,
     /// Maximum findings to return. Default 30.

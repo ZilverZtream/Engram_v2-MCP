@@ -28,9 +28,15 @@ fn alternate_review_calls(
     request: &PreCommitReviewRequest,
     changes: &crate::services::pre_commit_review_service::WorkingTreeChanges,
 ) -> Vec<serde_json::Value> {
-    [("staged", changes.staged), ("unstaged", changes.unstaged)]
+    let mode = request.diff.trim();
+    let (staged, unstaged) = if mode == "working_tree" {
+        (!changes.staged_with_unstaged.is_empty(), false)
+    } else {
+        (changes.staged, changes.unstaged)
+    };
+    [("staged", staged), ("unstaged", unstaged)]
         .into_iter()
-        .filter(|(mode, available)| *available && *mode != request.diff.trim())
+        .filter(|(candidate, available)| *available && *candidate != mode)
         .map(|(mode, _)| {
             let mut args = request.clone();
             args.diff = mode.to_owned();
@@ -117,13 +123,17 @@ impl Engram {
             .await
             .map_err(|error| McpError::internal_error(error.to_string(), None))??;
         let mode = req.diff.trim();
-        let native_diff = matches!(mode, "staged" | "unstaged" | "head");
-        let scope_note = if req.path_prefixes.is_empty() {
+        let native_diff = matches!(mode, "staged" | "unstaged" | "working_tree" | "head");
+        let git_diff_source = native_diff.then_some(mode);
+        let mut scope_note = if req.path_prefixes.is_empty() {
             String::new()
         } else {
             format!("\n\nRequested Git path scope: {}. Other paths are outside this review.",
                 serde_json::json!(req.path_prefixes))
         };
+        if mode == "working_tree" {
+            scope_note.push_str("\n\nDiff source: HEAD to the final working tree, including non-ignored untracked files.");
+        }
 
         if diff_blake3.is_none() {
             let status = if native_diff {
@@ -161,6 +171,7 @@ impl Engram {
                 "summary":{"files_analysed":0,"gates_run":0,"total_findings":0},
                 "coverage":{"submitted_files":[],"textual_diff_files":[],"unexamined_files":unexamined,
                     "path_prefixes":req.path_prefixes,
+                    "git_diff_source":git_diff_source,
                     "static_analysis":"not_run","compilation":"not_run","test_execution":"not_run"},
                 "note":note,"review_next_calls":review_next_calls
             });
@@ -288,6 +299,7 @@ impl Engram {
         let coverage = serde_json::json!({
             "submitted_files":parsed.iter().map(|f| &f.path).collect::<Vec<_>>(),
             "path_prefixes":req.path_prefixes,
+            "git_diff_source":git_diff_source,
             "repository_policy":"retrieved for agent review; prose compliance is not mechanically verified",
             "unindexed_files":unindexed,
             "textual_diff_files":parsed.iter().filter(|f| !f.is_binary && !f.hunks.is_empty()).map(|f| &f.path).collect::<Vec<_>>(),
@@ -367,7 +379,12 @@ impl Engram {
                 );
             }
             if !review_next_calls.is_empty() {
-                report.push_str(&format!("\nGit status observed additional diff scopes after this review. Inspect them separately before relying on coverage for the whole worktree.\n\nreview_next_calls: {}\n", payload["review_next_calls"]));
+                let reason = if mode == "working_tree" {
+                    "The staging area has a different version of at least one changed file. Inspect the staged diff for the snapshot that would be committed."
+                } else {
+                    "Git status observed additional diff scopes after this review. Inspect them separately before relying on coverage for the whole worktree."
+                };
+                report.push_str(&format!("\n{reason}\n\nreview_next_calls: {}\n", payload["review_next_calls"]));
             }
             if let Some(paths) = &staged_worktree_drift && !paths.is_empty() {
                 report.push_str(&format!("\nStaged review includes files with additional unstaged edits: {}. Current-file context for these paths can differ from the submitted staged diff.\n", coverage["staged_files_with_unstaged_edits"]));

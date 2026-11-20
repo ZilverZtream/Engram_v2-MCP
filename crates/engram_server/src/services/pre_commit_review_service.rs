@@ -1,7 +1,7 @@
 //! Pre-commit review service.
 //!
 //! Engram's flagship agentic-workflow tool: takes a unified diff (raw text,
-//! or one of the "staged"/"unstaged"/"head" shortcuts that read from the
+//! or one of the native Git diff shortcuts that read from the
 //! project's git repo via `git2`) and runs it through ten deterministic
 //! analysis gates powered by the knowledge graph, git history, immune
 //! system, temporal couplings, state workflows, and coding-style detectors.
@@ -798,6 +798,7 @@ fn parse_hunk_header(line: &str) -> Option<DiffHunk> {
 /// Supported forms:
 /// - `"staged"` — `git diff --staged` equivalent (HEAD tree vs. index)
 /// - `"unstaged"` — `git diff` equivalent (index vs. working tree)
+/// - `"working_tree"` — HEAD vs. current worktree, including untracked files
 /// - `"head"` — `git diff HEAD~1` equivalent (last commit)
 /// - a project-relative path ending in `.patch` or `.diff` — read from disk
 /// - anything else — treated as raw unified-diff text
@@ -823,8 +824,9 @@ fn resolve_diff(project_dir: &Path, diff_input: &str, scopes: &[String], limit: 
     match diff_input.trim() {
         "staged" => git_diff_staged(project_dir, scopes, limit),
         "unstaged" => git_diff_unstaged(project_dir, scopes, limit),
+        "working_tree" => git_diff_working_tree(project_dir, scopes, limit.min(MAX_REVIEW_DIFF_BYTES)),
         "head" => git_diff_head(project_dir, scopes, limit),
-        _ if !scopes.is_empty() => anyhow::bail!("path_prefixes requires staged, unstaged or head diff"),
+        _ if !scopes.is_empty() => anyhow::bail!("path_prefixes requires staged, unstaged, working_tree or head diff"),
         path if !path.contains(['\r', '\n'])
             && (path.ends_with(".patch") || path.ends_with(".diff")) => {
             use std::io::Read as _;
@@ -966,6 +968,21 @@ fn git_diff_unstaged(project_dir: &Path, scopes: &[String], limit: usize) -> any
         .recurse_untracked_dirs(true)
         .show_untracked_content(true);
     let diff = repo.diff_index_to_workdir(None, Some(&mut opts))?;
+    diff_to_patch_text(&diff, limit)
+}
+
+fn git_diff_working_tree(project_dir: &Path, scopes: &[String], limit: usize) -> anyhow::Result<String> {
+    let repo = git2::Repository::discover(project_dir)?;
+    let head_tree = match repo.head() {
+        Ok(head) => Some(head.peel_to_tree()?),
+        Err(error) if error.code() == git2::ErrorCode::UnbornBranch => None,
+        Err(error) => return Err(error.into()),
+    };
+    let mut opts = review_diff_options(scopes);
+    opts.include_untracked(true)
+        .recurse_untracked_dirs(true)
+        .show_untracked_content(true);
+    let diff = repo.diff_tree_to_workdir_with_index(head_tree.as_ref(), Some(&mut opts))?;
     diff_to_patch_text(&diff, limit)
 }
 
@@ -3723,6 +3740,48 @@ interface IProduct { id: number; }
     }
 
     // ── P0: lossy decode on non-UTF-8 file content ──────────────────────
+
+    #[test]
+    fn working_tree_review_uses_one_final_diff_for_split_edits_and_untracked_files() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        let repo = git2::Repository::init(root).unwrap();
+        let source = "Site/Page.aspx.vb";
+        let query = "Site/Query.sql";
+        std::fs::create_dir(root.join("Site")).unwrap();
+        std::fs::write(root.join(".gitignore"), "Site/Generated.sql\n").unwrap();
+        std::fs::write(root.join(source), "Dim Count = 1\n").unwrap();
+        std::fs::write(root.join("Sibling.ts"), "export const count = 1;\n").unwrap();
+        let mut index = repo.index().unwrap();
+        for file in [".gitignore", source, "Sibling.ts"] {
+            index.add_path(Path::new(file)).unwrap();
+        }
+        index.write().unwrap();
+        {
+            let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+            let sig = git2::Signature::now("Engram test", "engram@example.invalid").unwrap();
+            repo.commit(Some("HEAD"), &sig, &sig, "base", &tree, &[]).unwrap();
+        }
+        std::fs::write(root.join(source), "Dim Count = 2\n").unwrap();
+        index.add_path(Path::new(source)).unwrap();
+        index.write().unwrap();
+        std::fs::write(root.join(source), "Dim Count = 3\n").unwrap();
+        std::fs::write(root.join(query), "SELECT 3;\n").unwrap();
+        std::fs::write(root.join("Site/Generated.sql"), "SELECT 97;\n").unwrap();
+        std::fs::write(root.join("Sibling.ts"), "export const count = 11;\n").unwrap();
+
+        let scope = ["Site".into()];
+        let diff = resolve_review_diff(root, "working_tree", &scope).unwrap();
+        let files = parse_unified_diff(&diff);
+        let included: BTreeSet<_> = files.iter().map(|file| file.path.as_str()).collect();
+        assert_eq!(included, BTreeSet::from([source, query]));
+        assert!(diff.contains("-Dim Count = 1") && diff.contains("+Dim Count = 3"));
+        assert!(diff.contains("+SELECT 3;") && !diff.contains("Count = 2"));
+        let staged = resolve_review_diff(root, "staged", &scope).unwrap();
+        assert!(staged.contains("+Dim Count = 2") && !staged.contains("Query.sql"));
+        let error = resolve_diff(root, "working_tree", &scope, diff.len() - 1).unwrap_err();
+        assert!(error.to_string().contains("No review ran"));
+    }
 
     #[test]
     fn review_rejects_oversized_patch_inputs_without_returning_a_prefix() {

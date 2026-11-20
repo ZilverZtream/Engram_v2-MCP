@@ -21,7 +21,7 @@ pub(super) fn collect(
         "review_working_directory":root,"comparison_commit":Value::Null,
         "evidence_collection_performed":false,"maintenance_semantic_review_performed":false,
         "authored_files_written":0,"interpretation":INTERPRETATION});
-    if !matches!(mode.trim(), "staged" | "unstaged" | "head") {
+    if !matches!(mode.trim(), "staged" | "unstaged" | "working_tree" | "head") {
         context["reason"]="Raw/patch diffs do not identify an exact comparison commit. Use the existing maintenance workflow with an explicit base_commit; no current HEAD is guessed as the patch base.".into();
         return context;
     }

@@ -1892,12 +1892,18 @@ MCP tool schemas before using them with an existing installation.
 - Follow `pre_commit_review.review_next_calls` when the report identifies an
   additional staged or unstaged diff you need to review. Each call covers its own diff.
 
-`pre_commit_review` accepts `path_prefixes` on native `staged`, `unstaged`, and
-`head` reviews. For example, `["Site/App_Code", "Site/ts"]` selects literal
+`pre_commit_review` accepts `path_prefixes` on native `staged`, `unstaged`,
+`working_tree` and `head` reviews. For example, `["Site/App_Code", "Site/ts"]` selects literal
 Git worktree-relative directories before review gates run. Scope is visible in
 the result and carried into alternate-diff calls. Omit the field to review the
 whole selected diff. Raw unified-diff and patch-file inputs already specify
 their own file set.
+
+Use `diff: "working_tree"` to review the net change from HEAD to the final
+worktree, including non-ignored untracked files. A file edited in both the
+index and the worktree appears once against its final content. When an index
+version differs from the working copy, the tool offers a staged review action.
+JSON and deferred coverage expose this basis as `git_diff_source`.
 
 Reviews accept up to 4 MiB of complete patch text. If the diff exceeds that
 limit, narrow the native review with `path_prefixes` or split the patch by file.
@@ -2300,10 +2306,10 @@ read limits and independent per-read errors remain.
 ## Instruction-maintenance evidence in ordinary reviews
 
 Installed 2026-11-18 ([delivery](../eval/review-memory-history-delivery-20261118.json)):
-`pre_commit_review` native Git modes (`staged`, `unstaged`, `head`) compose the
+`pre_commit_review` native Git modes compose the
 existing instruction-maintenance collector for the distinct parsed review paths
 in the selected review checkout. The comparison is the captured starting HEAD
-for staged/unstaged and its first parent for head. JSON
+for staged, unstaged and working_tree, and its first parent for head. JSON
 `instruction_maintenance_context` and the matching Markdown section retain the
 existing complete before/current instruction/code snapshots, packet BLAKE3,
 changed-evidence/dependency manifest, source scopes, exceptions and coverage.

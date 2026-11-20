@@ -985,7 +985,7 @@ impl Engram {
                        complexity, added-conventions, ui-house-style) over a unified diff and returns \
                        severity-ranked, evidence-backed findings. The response lists every gate that \
                        actually ran and its outcome, so you can see exactly what was and was not \
-                       checked. Accepts a raw diff, `staged`, `unstaged`, `head`, or a `.patch` path. \
+                       checked. Accepts a raw diff, `staged`, `unstaged`, `working_tree` (HEAD to final disk), `head`, or a `.patch` path. \
                        When the agent edits a linked worktree instead of the indexed checkout, pass \
                        `working_directory`; Engram verifies repository identity and binds both the diff \
                        and current-file snapshots to that worktree. Markdown defaults to a bounded compact \
@@ -1020,7 +1020,7 @@ impl Engram {
 
     #[tool(
         description = "Explain a diff — natural dual of pre_commit_review. Takes the same \
-                       inputs (staged / unstaged / head / raw / .patch) and produces a \
+                       inputs (staged / unstaged / working_tree / head / raw / .patch) and produces a \
                        Conventional-Commits commit message, a structured PR description, and \
                        a Keep-a-Changelog entry, all derived deterministically from the \
                        graph, CodeRabbit rules, blast-radius data, and temporal couplings. \
