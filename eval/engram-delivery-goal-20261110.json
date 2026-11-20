@@ -2981,6 +2981,17 @@
   "current_execution_focus": {
     "status": "QA_TRACE_INTEGRITY_PACKAGE_VERIFIED_ACTIVE_CLIENT_PRESERVED",
     "implementation_items_active": 0,
+    "qa_bulk_copy_write_evidence": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "LegacyValidation QA source evidence and TODO-31 database work navigation",
+      "observed_gap": "A method-scoped QA matrix can entirely omit the actual LegacyValidation import method's qualified bulk-copy target even though it plans tests for database operations from other source forms.",
+      "implementation": ["crates/engram_server/src/services/request_trace/bulk_copy.rs", "crates/engram_server/src/services/request_trace.rs", "crates/engram_server/src/handlers/settings_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "QA on the unchanged LegacyValidation import method reports a structured qualified destination and a hash-guarded read of its declaration, assignment and write. Markdown uses the same source. A different exact method and historical replay do not receive the observation.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/qa-bulk-copy-write-evidence-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "3102af71ad2e908c715b36aab4dc4c4b153d2286e6c6db4543af4606c50a238c"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "445f6a01118d6e5e76f16d35fca54f467db6ca3466a343321472b5c4b67bfc8d"},
+      "evidence": "The staged MCP indexed the exact LegacyValidation Git source, held the published selection and resolved the independently located method at line 130. The structured matrix contained no bulk-copy axis. Source now shares lexical detection with request tracing and exposes a bounded typed site containing a callable three-line evidence read. Syntax and whitespace checks passed; runtime verification remains pending. The baseline fixture was closed and removed."
+    },
     "single_tool_delivery_schema_lookup": {
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "a6bab8bf1cb6ac10ad45e7e61f882441be26d129",

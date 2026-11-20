@@ -579,7 +579,7 @@ impl Engram {
         let axis_selection_note = source_selection_note.clone();
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
-        let (settings_axis, setting_labels, indexed_setting_ids, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, unresolved, coverage_notes, companion_context, member_observations, constructor_context) =
+        let (settings_axis, setting_labels, indexed_setting_ids, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, bulk_copy_axes, unresolved, coverage_notes, companion_context, member_observations, constructor_context) =
             tokio::task::spawn_blocking(move || {
                 let mut settings_axis: Axis = BTreeMap::new();
                 let mut setting_labels: BTreeMap<String, String> = BTreeMap::new();
@@ -589,6 +589,7 @@ impl Engram {
                 let mut runtime_axes: Axis = BTreeMap::new();
                 let mut sql_parameter_axes: Axis = BTreeMap::new();
                 let mut identity_batch_axes: Axis = BTreeMap::new();
+                let mut bulk_copy_axes: BTreeMap<String, Vec<serde_json::Value>> = BTreeMap::new();
                 let mut unresolved: Vec<String> = Vec::new();
                 let mut coverage_notes = configured_risk_notes;
                 if let Some(note) = axis_selection_note {
@@ -817,6 +818,10 @@ impl Engram {
                                         let target=observation["batch"]["identity_target_spelling"].as_str().unwrap_or("unknown");
                                         identity_batch_axes.entry(format!("IDENTITY_INSERT {target}")).or_default().push(format!("{label}; initializer {}:{}; constructor {}:{}; execute sites {}; INSERT write/read candidates {}/{}; file BLAKE3 {}. SQL source order ON/INSERT/OFF does not prove physical binding, transaction/session identity, successful insertion or cleanup after an error.",file,observation["initializer"]["line"],file,observation["constructor_line"],observation["executions"],observation["batch"]["insert_write_candidates"],observation["batch"]["insert_read_candidates"],blake3::hash(source.as_bytes()).to_hex()));
                                     }
+                                    collect_bulk_copy_axis(
+                                        &pid, &file, source, &body, n.start_line,
+                                        &mut bulk_copy_axes, &mut coverage_notes,
+                                    );
                                 }
                                 if let Some(parameters) = crate::services::vb_sql_parameters::method_observations(source,n.start_line,n.end_line) {
                                     if parameters.truncated {
@@ -960,6 +965,7 @@ impl Engram {
                     runtime_axes,
                     sql_parameter_axes,
                     identity_batch_axes,
+                    bulk_copy_axes,
                     unresolved,
                     coverage_notes,
                     companion_context,
@@ -1117,6 +1123,7 @@ impl Engram {
                     "configured_risk": structured_matrix_axis(&runtime_axes, None, |_| None),
                     "sql_parameters": structured_matrix_axis(&sql_parameter_axes, None, |_| None),
                     "identity_insert_batches": structured_matrix_axis(&identity_batch_axes, None, |_| None),
+                    "bulk_copy_writes": structured_matrix_axis(&bulk_copy_axes, None, |_| None),
                 },
                 "constructor_setup": constructors,
                 "local_nullable_state": member_observations,
@@ -1297,6 +1304,21 @@ impl Engram {
             None,
             &mut out,
         );
+        let bulk_copy_display = bulk_copy_axes.iter().map(|(table, sites)| {
+            let descriptions = sites.iter().map(|site| {
+                format!("{}:{} writes after the literal destination assignment at line {}. Source read: {}",
+                    site["file"].as_str().unwrap_or_default(), site["write_line"],
+                    site["destination_assignment_line"], site["source_read"])
+            }).collect();
+            (table.clone(), descriptions)
+        }).collect();
+        render_axis(
+            "Bulk-copy write axis",
+            "Check the qualified destination, input rows and error handling against the source. The call sites do not establish database state or test results.",
+            &bulk_copy_display,
+            None,
+            &mut out,
+        );
         if canonical_sweep.attempted && !canonical_sweep.summary.is_empty() {
             out.push_str(&format!(
                 "\n## Canonical-call residual sweep — {}\n{}\n",
@@ -1318,7 +1340,8 @@ impl Engram {
             out.push_str("No source-verified rule cases available; run analyze_business_logic for the requested files to populate or refresh them.\n");
         }
 
-        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() && runtime_axes.is_empty() && sql_parameter_axes.is_empty() && identity_batch_axes.is_empty() {
+        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() && runtime_axes.is_empty() && sql_parameter_axes.is_empty() && identity_batch_axes.is_empty()
+            && bulk_copy_axes.is_empty() {
             out.push_str(
                 "\nNo usable setting/role/state/configured-risk axes were emitted. This does not establish \
                  that the change is gate-free; check incomplete evidence above and \
@@ -1345,8 +1368,60 @@ impl Engram {
     }
 }
 
-fn structured_matrix_axis(
-    axis: &BTreeMap<String, Vec<String>>,
+fn collect_bulk_copy_axis(
+    project: &str,
+    file: &str,
+    source: &str,
+    body: &str,
+    first_line: u32,
+    axes: &mut BTreeMap<String, Vec<serde_json::Value>>,
+    notes: &mut Vec<String>,
+) {
+    if body.len() > 128 * 1024 {
+        notes.push(format!("{file}:{first_line}: method exceeds the bulk-copy source bound."));
+        return;
+    }
+    use crate::services::request_trace::{bulk_copy, routing};
+    let tokens = routing::tokens(body, true);
+    let mut writes = bulk_copy::writes(&tokens, first_line).peekable();
+    if writes.peek().is_none() {
+        return;
+    }
+    let file_hash = blake3::hash(source.as_bytes()).to_hex().to_string();
+    for (index, write) in writes.enumerate() {
+        if index == MATRIX_AXIS_LIMIT {
+            notes.push(format!("{file}:{first_line}: bulk-copy observation limit reached."));
+            break;
+        }
+        axes.entry(write.table).or_default().push(serde_json::json!({
+            "file": file,
+            "method_line": first_line,
+            "declaration_line": write.declaration_line,
+            "destination_assignment_line": write.assignment_line,
+            "write_line": write.call_line,
+            "operation": write.operation,
+            "source_blake3": file_hash,
+            "source_read": {
+                "tool": "get_full_method_body",
+                "arguments": {
+                    "project_id": project,
+                    "file_path": file,
+                    "source_ranges": [
+                        {"line_start": write.declaration_line, "line_end": write.declaration_line},
+                        {"line_start": write.assignment_line, "line_end": write.assignment_line},
+                        {"line_start": write.call_line, "line_end": write.call_line},
+                    ],
+                    "expected_file_blake3": file_hash,
+                    "context_lines": 0,
+                    "output_json": true,
+                },
+            },
+        }));
+    }
+}
+
+fn structured_matrix_axis<T: serde::Serialize>(
+    axis: &BTreeMap<String, Vec<T>>,
     labels: Option<&BTreeMap<String, String>>,
     read: impl Fn(&str) -> Option<serde_json::Value>,
 ) -> serde_json::Value {

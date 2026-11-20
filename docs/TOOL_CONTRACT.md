@@ -652,6 +652,12 @@ with up to four cited sites per row. Markdown is the default.
 envelope. Follow `next_call` on a bounded response to recover the exact
 original result without deriving the matrix again.
 
+For verified current VB methods, `axes.bulk_copy_writes` groups directly
+observed bulk-copy writes by qualified destination. Each JSON site gives
+the declaration, assignment and call lines, plus a guarded source action
+for those three lines. Markdown cites the same bounded observations.
+Historical matrices withhold current bulk-copy evidence.
+
 The matrix pins the published source selection while collecting indexed
 axes. For managed projects, file metadata and method declarations must match
 the selected physical revision, including inherited revisions. If that
