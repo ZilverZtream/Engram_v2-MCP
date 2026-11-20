@@ -262,9 +262,11 @@ pub(crate) async fn write_source_generation_batch(
     }
     prepare_managed_write(table).await?;
     let schema = batch.schema();
+    let rows = batch.num_rows();
     let reader = RecordBatchIterator::new(std::iter::once(Ok(batch)), schema);
     table.add(Box::new(reader)).execute().await
         .map_err(|error| anyhow::anyhow!("VEC1: LanceDB source append failed: {error:#}"))?;
+    tracing::debug!(generation, rows, "Appended the first vector batch of the pending source revision");
     Ok(())
 }
 
