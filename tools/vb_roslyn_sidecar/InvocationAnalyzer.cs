@@ -36,6 +36,8 @@ internal static class InvocationAnalyzer
 
         foreach (var invocation in tree.GetRoot().DescendantNodes().OfType<InvocationExpressionSyntax>())
         {
+            // Receiverless conditional indexing has no named callee span.
+            if (invocation.Expression is null) continue;
             if (report.Invocations.Count >= MaxInvocations)
             {
                 report.Truncated = true;

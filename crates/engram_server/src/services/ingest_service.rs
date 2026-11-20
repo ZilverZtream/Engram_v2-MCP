@@ -980,6 +980,8 @@ pub(crate) async fn prepare_ingest_graph(
             }
         } else if edge.target_kind.as_deref() == Some("page") {
             engram_core::ids::NodeId::page(rel_path.as_str()).0
+        } else if edge.target_kind.as_deref() == Some("ui_container") {
+            engram_core::ids::NodeId::ui_container(rel_path.as_str(), &edge.target_name).0
         } else if edge.target_kind.as_deref() == Some("control") {
             let control_id = edge
                 .metadata

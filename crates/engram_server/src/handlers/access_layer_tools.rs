@@ -480,6 +480,7 @@ pub struct CallerBody {
 #[derive(Debug, Clone, Serialize)]
 pub struct MethodEditContextResult {
     pub consumer_call_paths: serde_json::Value,
+    pub ordered_source_observations: Vec<String>,
     pub method_info: MethodInfoResult,
     /// Optional explicit calls, never executed here; only on the full tool surface.
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -3018,7 +3019,14 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
         ctx.method_info.fqn, badge
     ));
 
-    md.push_str(&format!("## Consumer call paths\n{}\n\n", ctx.consumer_call_paths));
+    md.push_str("## Ordered source observations\nGuard and write-related source lines in declaration order (static excerpt).\n");
+    for row in &ctx.ordered_source_observations {
+        md.push_str(&format!("- {row}\n"));
+    }
+    md.push_str(&format!(
+        "## Consumer call paths\n{}\n\n",
+        ctx.consumer_call_paths
+    ));
     // Method identity
     md.push_str(&render_method_info_markdown(&ctx.method_info));
 
@@ -4546,7 +4554,33 @@ impl Engram {
             );
             validate_held_method_revision(&graph, &project_id, &ev.node, membership.as_ref())?;
             let consumer_call_paths = consumer_call_paths(&graph, &project_id, &ev.node.node_id, max_callers);
+            let mut observations: Vec<String> = ev.full_body.as_deref().unwrap_or("").lines().enumerate().filter_map(|(i,line)| {
+                    let text = line.trim();
+                    let lower = text.to_ascii_lowercase();
+                    let important = lower.starts_with("if ") || lower.starts_with("if(") ||
+                        ["submit", "commit", "delete", "insert", "update", "save", "transaction", "rollback", "executecommand"]
+                            .iter().any(|term| lower.contains(term));
+                    (important && !text.starts_with(['\'', '/'])).then(|| format!("L{} {}", ev.node.start_line as usize+i, text.chars().take(340).collect::<String>()))
+                }).take(30).collect();
+            let mut sources = std::collections::HashMap::new();
+            for target in &ev.method_info.callee_evidence.targets {
+                let source = sources.entry(&target.file_path).or_insert_with(|| {
+                    crate::planner_source::read(&graph, &project_id, Path::new(&project_dir), &target.file_path).ok()
+                });
+                let Some(source) = source else { continue };
+                let start = target.line_start.saturating_sub(1) as usize;
+                for (offset, line) in source.lines().skip(start).take((target.line_end as usize).saturating_sub(start)).enumerate() {
+                    let statement = line.trim();
+                    let lower = statement.to_ascii_lowercase();
+                    if lower.starts_with(['\'', '/']) { continue; }
+                    if [".submitchanges(", ".savechanges(", ".commit("].iter().any(|term| lower.contains(term)) {
+                        observations.push(format!("Callee {} at {}:{}: {}",target.fqn,target.file_path,start+offset+1,statement));
+                        break;
+                    }
+                }
+            }
             Ok::<MethodEditContextResult, String>(MethodEditContextResult {
+                ordered_source_observations: observations,
                 consumer_call_paths,
                 risk_band_scope: "Observed one-hop live-graph advisory only; not comprehensive edit safety or a calibrated probability",
                 blast_radius_score: ev.blast.as_ref().map(|b| b.migration_risk as f32 * 10.0),

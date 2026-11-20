@@ -3629,7 +3629,7 @@ impl Engram {
         let mut out = String::with_capacity(512);
         out.push_str(&format!("project_id: {pid}\n"));
         out.push_str(&format!("directory: {}\n", rec.directory));
-        out.push_str(&format!("active_generation: {generation}\n"));
+        out.push_str(&format!("active_generation: {generation}\nsource_basis: indexed files from the registered working checkout, including eligible uncommitted files. Git history has an independent target. Bind line citations with source_files and expected_git_commit.\n"));
         if req.check_git_history {
             let registry = self.state.registry.clone();
             let project = pid.clone();
@@ -3639,7 +3639,26 @@ impl Engram {
                 let tip = super::git_tools::source_refresh_history_tip(&directory)
                     .ok()
                     .flatten();
-                Ok(describe_git_history_freshness(recorded.as_deref(), tip))
+                let mut summary = describe_git_history_freshness(recorded.as_deref(), tip);
+                if let Ok(repo) = git2::Repository::discover(&directory)
+                    && let Ok(head) = repo.head()
+                {
+                    let branch = head.shorthand().unwrap_or("detached");
+                    if let Some(commit) = head.target() {
+                        summary.push_str(&format!(
+                            "observed_checkout_branch: {branch}\nobserved_checkout_head: {commit}\n"
+                        ));
+                    }
+                    let mut options = git2::StatusOptions::new();
+                    options.include_untracked(true).recurse_untracked_dirs(true);
+                    if let Ok(status) = repo.statuses(Some(&mut options)) {
+                        summary.push_str(&format!(
+                            "observed_checkout_changed_paths: {} (current checkout observation)\n",
+                            status.len()
+                        ));
+                    }
+                }
+                Ok(summary)
             })
             .await;
             match history {

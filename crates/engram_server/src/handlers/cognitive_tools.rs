@@ -1356,8 +1356,9 @@ impl Engram {
         req: crate::models::GetTableSchemaRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
-        let _ = self.ensure_project_runtime(&req.project_id).await?;
+        let runtime = self.ensure_project_runtime(&req.project_id).await?;
 
+        let root = PathBuf::from(&runtime.info.directory);
         let graph = self.state.graph.clone();
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
             let table_id = engram_core::ids::NodeId::table(&req.table_name).0;
@@ -1414,37 +1415,51 @@ impl Engram {
                 columns.truncate(200);
             }
 
-            if !columns.is_empty() {
-                out.push_str("### Columns\n");
-                for (col_id, _weight) in &columns {
-                    if let Some(col_node) = graph
-                        .get_node(&req.project_id, col_id)
-                        .map_err(|e| e.to_string())?
-                    {
-                        let data_type = col_node
-                            .metadata
-                            .as_ref()
-                            .and_then(|m| m.get("data_type"))
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("?");
-                        let nullable = col_node
-                            .metadata
-                            .as_ref()
-                            .and_then(|m| m.get("nullable"))
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("?");
-                        out.push_str(&format!(
-                            "- **{}** {} (nullable: {})\n",
-                            col_node.name, data_type, nullable
-                        ));
-                    } else {
-                        out.push_str(&format!(
-                            "- INCOMPLETE: column node unavailable: {col_id}\n"
-                        ));
+            // Parse the entire fingerprinted declaration file, including indexes after GO.
+            // Older graphs may contain column metadata inferred from a partial declaration.
+            let path = table_node.file_path.as_str();
+            let full = crate::planner_source::read(&graph, &req.project_id, &root, path);
+            let stored = table_node.metadata.as_ref().and_then(|m| m["ddl"].as_str());
+            let source = full.as_deref().ok().or(stored);
+            let mut columns_resolved = false;
+            if let Some(sql) = source {
+                let mut catalog = crate::services::schema_query::Catalog::default();
+                let parsed = catalog.add_source(path, sql).and_then(|_| {
+                    let request = serde_json::from_value(serde_json::json!({
+                        "project_id":req.project_id,"query_type":{"kind":"table","name":table_node.name}
+                    }))?;
+                    catalog.query(&request)
+                });
+                if let Ok(report) = parsed && let Some(row) = report["results"].get(0)
+                    && let Some(cols) = row["table"]["columns"].as_array() {
+                    columns_resolved = true;
+                    out.push_str("### Columns\n");
+                    for col in cols {
+                        let nullable = col["nullable"].as_bool().map(|b| b.to_string()).unwrap_or_else(|| "unknown".into());
+                        let _ = writeln!(out,"- **{}** {} (nullable: {})",col["name"].as_str().unwrap_or("?"),
+                            col["data_type"].as_str().unwrap_or("?"), nullable);
+                    }
+                    out.push_str("\n### Index declarations in the selected DDL\n");
+                    for index in row["indexes"].as_array().into_iter().flatten() {
+                        if let Some(ddl) = index["object"]["declaration"].as_str().or_else(|| index["declaration"].as_str()) {
+                            let _ = writeln!(out,"- {ddl}");
+                        }
+                    }
+                } else { out.push_str("Column and index declarations could not be resolved unambiguously.\n"); }
+            }
+            if !columns_resolved && !columns.is_empty() {
+                out.push_str("### Columns (indexed graph, nullability unverified)\n");
+                for (id, _) in &columns {
+                    match graph.get_node(&req.project_id, id).map_err(|e| e.to_string())? {
+                        Some(col) => {
+                            let data_type = col.metadata.as_ref().and_then(|m| m["data_type"].as_str()).unwrap_or("?");
+                            let _ = writeln!(out, "- **{}** {} (nullable: unknown)", col.name, data_type);
+                        }
+                        None => { let _ = writeln!(out, "- INCOMPLETE: column node unavailable: {id}"); }
                     }
                 }
-                out.push('\n');
             }
+            if full.is_err() { out.push_str("Full DDL file unavailable; index coverage is incomplete.\n"); }
 
             let mut fk_lines = Vec::new();
             for (col_id, _) in &columns {
@@ -2242,8 +2257,9 @@ impl Engram {
         req: GetUiBlueprintRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
-        let _ = self.ensure_project_runtime(&req.project_id).await?;
+        let runtime = self.ensure_project_runtime(&req.project_id).await?;
 
+        let root = PathBuf::from(&runtime.info.directory);
         let graph = self.state.graph.clone();
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
             let all_containers = graph
@@ -2313,6 +2329,40 @@ impl Engram {
                 containers_json.push(serde_json::Value::Object(cobj));
             }
 
+            if let Ok(markup) = crate::planner_source::read(&graph, &req.project_id, &root, &req.file_path) {
+                let (_, layout) = engram_index::layout_extractor::extract_webforms_layout(&req.file_path, &markup);
+                let parents: std::collections::HashMap<_,_> = layout.iter().filter(|e| e.kind == "contains_ui")
+                    .map(|e| (e.target_name.as_str(), (e.source_name.as_str(),e.target_start_line))).collect();
+                let mut ancestry = std::collections::BTreeMap::new();
+                for (&child, &(_, line)) in &parents {
+                    if child.starts_with("__anon_") { continue; }
+                    let mut chain = Vec::new();
+                    let mut current = child;
+                    let mut visited = std::collections::HashSet::new();
+                    while let Some(&(parent, _)) = parents.get(current) {
+                        if !visited.insert(parent) { break; }
+                        if !parent.starts_with("__anon_") { chain.push(parent); }
+                        current = parent;
+                    }
+                    if !chain.is_empty() { ancestry.insert(child, serde_json::json!({"line":line,"nearest_parent_first":chain})); }
+                }
+                tree.insert("control_ancestry".into(),serde_json::json!(ancestry));
+                let setter = regex::Regex::new(r"(?i)\b([a-z_]\w*)\s*\.\s*visible\s*=\s*([^;]+)").unwrap();
+                let mut sites = Vec::new();
+                for extension in ["vb","cs"] {
+                    let path = format!("{}.{extension}",req.file_path);
+                    if let Ok(source) = crate::planner_source::read(&graph,&req.project_id,&root,&path) {
+                        for (index,line) in source.lines().enumerate() {
+                            if line.trim_start().starts_with(['\'', '/']) {continue;}
+                            if let Some(cap) = setter.captures(line)
+                                && all_containers.iter().any(|n| n.name.eq_ignore_ascii_case(&cap[1])) {
+                                sites.push(serde_json::json!({"file":path,"line":index+1,"control":&cap[1],"statement":line.trim()}));
+                            }
+                        }
+                    }
+                }
+                tree.insert("indexed_codebehind_visibility_assignments".into(),serde_json::json!(sites));
+            }
             tree.insert("containers".into(), serde_json::Value::Array(containers_json));
             tree.insert("container_count".into(), serde_json::Value::Number(all_containers.len().into()));
             serde_json::to_string_pretty(&tree).map_err(|e| e.to_string())

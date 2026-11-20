@@ -31,7 +31,9 @@ pub fn footer(generation: u64, last_index_ms: Option<u64>) -> String {
         }
         None => "last project update time unavailable".to_string(),
     };
-    format!("\n---\n[engram] gen={generation} | {indexed} | stale? call get_index_freshness\n")
+    format!(
+        "\n---\n[engram] gen={generation} | indexed working checkout | {indexed} | stale? call get_index_freshness\n"
+    )
 }
 
 /// Timestamp heuristic for source inspected using indexed locations. This

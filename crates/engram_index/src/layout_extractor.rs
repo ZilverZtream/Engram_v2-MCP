@@ -466,6 +466,19 @@ pub fn extract_webforms_layout(
                     start_offset: *offset,
                     css_class,
                 };
+                if let Some(parent) = container_stack.last() {
+                    edges.push(ExtractedEdge {
+                        source_name: parent.id.clone(),
+                        source_kind: "ui_container".into(),
+                        source_start_line: parent.start_line,
+                        source_language: "aspx".into(),
+                        target_name: info.id.clone(),
+                        target_kind: Some("ui_container".into()),
+                        target_start_line: Some(info.start_line),
+                        kind: "contains_ui".into(),
+                        metadata: None,
+                    });
+                }
                 all_containers.push(info.clone());
                 container_stack.push(info);
             }
@@ -1535,6 +1548,10 @@ mod tests {
             .find(|e| e.kind == "contains_ui" && e.target_name == "txtField_OD");
         assert!(inner_edge.is_some());
         assert_eq!(inner_edge.unwrap().source_name, "pnlInner_OD");
+        assert!(edges.iter().any(|e| e.kind == "contains_ui"
+            && e.source_name == "pnlOuter"
+            && e.target_name == "pnlInner_OD"
+            && e.target_kind.as_deref() == Some("ui_container")));
     }
 
     #[test]

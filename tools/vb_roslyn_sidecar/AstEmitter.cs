@@ -983,7 +983,7 @@ internal sealed class AstEmitter
 
             foreach (var inv in collector.Invocations)
             {
-                if (model.GetOperation(inv) is IArrayElementReferenceOperation) continue;
+                if (inv.Expression is null || model.GetOperation(inv) is IArrayElementReferenceOperation) continue;
                 var targetName = EmitCall(inv, fqn, "function", methodStartLine);
                 var callSiteLine = Line(tree, inv);
 

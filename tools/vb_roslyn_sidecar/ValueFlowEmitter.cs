@@ -221,7 +221,7 @@ internal sealed class ValueFlowEmitter
             case MeExpressionSyntax or MyBaseExpressionSyntax or MyClassExpressionSyntax:
                 result.Kind = "receiver"; result.Name = expression.ToString(); break;
             case InvocationExpressionSyntax invocation:
-                result.Kind = "call"; result.Name = invocation.Expression.ToString();
+                result.Kind = "call"; result.Name = invocation.Expression?.ToString();
                 var selected = model.GetSymbolInfo(invocation).Symbol as IMethodSymbol;
                 if (selected is not null && selected.ReducedFrom is null)
                     result.TargetSemanticId = semanticId(selected.OriginalDefinition);

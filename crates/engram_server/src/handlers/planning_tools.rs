@@ -1083,7 +1083,19 @@ impl Engram {
         let (gen_, source_snapshot) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
         let source_snapshot = std::sync::Arc::new(source_snapshot);
         let cap = req.max_per_group.clamp(1, FOOTPRINT_GROUP_CEILING);
-        let stems = concept_stems(&req.concept);
+        let identifier = req.concept.trim().to_lowercase();
+        let exact_schema = req.concept.contains('_')
+            && self
+                .state
+                .graph
+                .matched_schema_names(&req.project_id, &HashSet::from([identifier.clone()]))
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .contains(&identifier);
+        let stems = if exact_schema {
+            vec![identifier.clone()]
+        } else {
+            concept_stems(&req.concept)
+        };
 
         // One graph scan + bounded consumer expansion, all in one blocking hop.
         let graph = self.state.graph.clone();
@@ -1123,7 +1135,11 @@ impl Engram {
             let mut groups: BTreeMap<&'static str, Vec<Entry>> = BTreeMap::new();
             let mut anchors: Vec<(String, String)> = Vec::new(); // (node_id, name)
             for n in nodes.iter() {
-                if !matches_concept(&n.name, &stems_b) {
+                if if exact_schema {
+                    !n.name.eq_ignore_ascii_case(&identifier)
+                } else {
+                    !matches_concept(&n.name, &stems_b)
+                } {
                     continue;
                 }
                 // A declaration states a contract without implementing it, so it
@@ -1143,7 +1159,9 @@ impl Engram {
                     "file" => "files",
                     _ => continue,
                 };
-                if matches!(n.node_type.as_str(), "db_table" | "global_state") {
+                if matches!(n.node_type.as_str(), "db_table" | "global_state")
+                    || (exact_schema && n.node_type == "db_column")
+                {
                     anchors.push((n.node_id.clone(), n.name.clone()));
                 }
                 groups.entry(group).or_default().push((
@@ -1410,6 +1428,121 @@ impl Engram {
             None => footprint_literal_status(literal_matches, LITERAL_CAP).into(),
         };
 
+        // A property or user control can expose the type without spelling its name
+        // in the consuming file. Keep these literal leads distinct from bound edges.
+        let is_named_type = groups
+            .get("logic")
+            .into_iter()
+            .flatten()
+            .any(|(name, id, _, _)| {
+                id.starts_with("sym:class:")
+                    && name
+                        .rsplit('.')
+                        .next()
+                        .is_some_and(|n| n.eq_ignore_ascii_case(&req.concept))
+            });
+        let indirect = if is_named_type {
+            let root = PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
+            let graph = self.state.graph.clone();
+            let engine = ps.search.clone();
+            let project = req.project_id.clone();
+            let concept = req.concept.clone();
+            let files = literal_files.clone();
+            let hold = source_snapshot.clone();
+            tokio::task::spawn_blocking(move || -> anyhow::Result<BTreeMap<String, String>> {
+                let _hold = hold;
+                let mut owners = BTreeMap::new();
+                let property = regex::Regex::new(&format!(
+                    r"(?i)\bProperty\s+(\w+)\s+As\s+(?:[\w.]+\.)?{}\b",
+                    regex::escape(&concept)
+                ))?;
+                for path in files
+                    .iter()
+                    .filter(|p| p.to_lowercase().ends_with(".vb"))
+                    .take(32)
+                {
+                    let Ok(source) = crate::planner_source::read(&graph, &project, &root, path)
+                    else {
+                        continue;
+                    };
+                    let classes =
+                        graph.query_nodes(&project, Some("class"), None, Some(path), 128)?;
+                    for (i, line) in source.lines().enumerate() {
+                        let Some(cap) = property.captures(line) else {
+                            continue;
+                        };
+                        let line = i as u32 + 1;
+                        if let Some(owner) = classes
+                            .iter()
+                            .filter(|n| n.start_line <= line && n.end_line >= line)
+                            .min_by_key(|n| n.end_line - n.start_line)
+                        {
+                            let name = owner.name.rsplit('.').next().unwrap_or(&owner.name);
+                            owners.insert(
+                                name.to_owned(),
+                                format!("{path}:{line} {name}.{}", &cap[1]),
+                            );
+                        }
+                    }
+                    if let Some(markup) = path.strip_suffix(".ascx.vb") {
+                        let name = markup.rsplit('/').next().unwrap_or(markup);
+                        owners.insert(
+                            format!("{name}.ascx"),
+                            format!("{path} references {concept}"),
+                        );
+                    }
+                }
+                let mut result = BTreeMap::new();
+                for (owner, via) in owners.into_iter().take(12) {
+                    let query = engram_index::grep::GrepQuery {
+                        project_id: project.clone(),
+                        namespace: "memory".into(),
+                        generation: gen_,
+                        pattern: owner.clone(),
+                        regex: false,
+                        case_sensitive: Some(false),
+                        multiline: false,
+                        path_prefix: None,
+                        exclude_path_prefixes: vec![],
+                        language: None,
+                        context_before: 0,
+                        context_after: 0,
+                        max_results: 100,
+                        freshness: engram_index::grep::FreshnessMode::Off,
+                    };
+                    for hit in
+                        engram_index::grep::grep(&engine, &root, &query, || Ok(Vec::new()))?.matches
+                    {
+                        if engram_core::is_vendor_path(&hit.file_path) {
+                            continue;
+                        }
+                        let witness =
+                            format!("{}:{} mentions {owner}; via {via}", hit.file_path, hit.line);
+                        if owner.ends_with(".ascx")
+                            && hit.line_text.to_lowercase().contains("register")
+                        {
+                            let code = format!("{}.vb", hit.file_path);
+                            if graph.get_node(&project, &format!("file:{code}"))?.is_some() {
+                                result
+                                    .entry(code)
+                                    .or_insert_with(|| format!("Registered control in {witness}"));
+                            }
+                        }
+                        result.entry(hit.file_path).or_insert(witness);
+                    }
+                }
+                Ok(result)
+            })
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .unwrap_or_else(|e| {
+                cov.failures
+                    .push(format!("Indirect type-use lookup failed: {e}"));
+                BTreeMap::new()
+            })
+        } else {
+            BTreeMap::new()
+        };
         let grouped_files: HashSet<&str> = groups
             .values()
             .flatten()
@@ -1420,8 +1553,11 @@ impl Engram {
         // concept-footprint lexical layer was the dominant noise source handed to
         // the model (precision ~5%); these generated files are never the change
         // target and crowd out the real files.
-        let text_only: Vec<String> =
-            footprint_text_only_files(&grouped_files, &lexical_files, &literal_files);
+        let text_only: Vec<String> = footprint_text_only_files(
+            &grouped_files,
+            if exact_schema { &[] } else { &lexical_files },
+            &literal_files,
+        );
         let lexical_only: Vec<&String> = text_only.iter().collect();
 
         let mut source_paths = consumer_paths;
@@ -1456,6 +1592,16 @@ impl Engram {
             stems.join(", "),
             total
         );
+        if !indirect.is_empty() {
+            out.push_str(
+                "\n## Indirect type-use leads (bounded literal matches; verify binding)\n",
+            );
+            for (path, witness) in indirect.iter().take(cap * 2) {
+                source_paths.insert(path.clone());
+                out.push_str(&format!("- {path}: {witness}\n"));
+            }
+            source_paths_complete = false;
+        }
         if scan_truncated {
             out.push_str(
                 "⚠ node scan hit the node-scan cap — touchpoints may be incomplete on this \
@@ -1875,7 +2021,63 @@ impl Engram {
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
         let query = req.pattern_query.clone();
-        let member_matches = tokio::task::spawn_blocking(move || pattern_member_matches(&graph, &pid, &query, kind))
+        let pattern_root = project_root.clone();
+        let search = ps.search.clone();
+        let member_matches = tokio::task::spawn_blocking(move || {
+            let mut matched = pattern_member_matches(&graph, &pid, &query, kind, &pattern_root)?;
+            if kind == PatternKind::Page {
+                let attributes = regex::Regex::new(
+                    r#"\b([A-Za-z][A-Za-z0-9_-]+)(?:\s*=\s*["']?|\s+)(true|false)\b"#,
+                )?;
+                if let Some(cap) = attributes.captures(&query.to_ascii_lowercase()) {
+                    let pattern = format!(
+                        r#"(?i)\b{}\s*=\s*["']{}["']"#,
+                        regex::escape(&cap[1]),
+                        &cap[2]
+                    );
+                    let request = engram_index::grep::GrepQuery {
+                        project_id: pid.clone(),
+                        namespace: "memory".into(),
+                        generation: gen_,
+                        pattern,
+                        regex: true,
+                        case_sensitive: Some(false),
+                        multiline: false,
+                        path_prefix: None,
+                        exclude_path_prefixes: vec![],
+                        language: None,
+                        context_before: 0,
+                        context_after: 0,
+                        max_results: 120,
+                        freshness: engram_index::grep::FreshnessMode::Off,
+                    };
+                    for hit in engram_index::grep::grep(&search, &pattern_root, &request, || {
+                        Ok(Vec::new())
+                    })?
+                    .matches
+                    {
+                        if ![".ascx", ".aspx", ".master"]
+                            .iter()
+                            .any(|s| hit.file_path.to_ascii_lowercase().ends_with(s))
+                        {
+                            continue;
+                        }
+                        let score = 100
+                            + name_tokens(&query)
+                                .iter()
+                                .filter(|w| hit.line_text.to_lowercase().contains(w.as_str()))
+                                .count();
+                        let best = matched
+                            .entry(hit.file_path)
+                            .or_insert((0, String::new(), 0));
+                        if score > best.0 {
+                            *best = (score, hit.line_text.trim().to_owned(), hit.line);
+                        }
+                    }
+                }
+            }
+            Ok::<_, anyhow::Error>(matched)
+        })
             .await.map_err(|e| McpError::internal_error(e.to_string(), None))?
             .unwrap_or_else(|e| { coverage.failures.push(format!("method evidence unavailable: {e}")); BTreeMap::new() });
         if hits.is_empty() && member_matches.is_empty() {
@@ -2097,6 +2299,7 @@ fn pattern_member_matches(
     project: &str,
     query: &str,
     kind: PatternKind,
+    root: &std::path::Path,
 ) -> anyhow::Result<BTreeMap<String, (usize, String, u32)>> {
     fn term(word: &str) -> &str {
         match word {
@@ -2161,6 +2364,7 @@ fn pattern_member_matches(
             }
         }
     })?;
+    let mut caller_sources = BTreeMap::new();
     for (std::cmp::Reverse(score), id, name, path, line) in names {
         let calls = graph.neighbors(project, engram_graph::EdgeKind::Calls, &id, 32)?;
         let mut targets = Vec::new();
@@ -2185,6 +2389,63 @@ fn pattern_member_matches(
             name,
             targets.join(", ")
         );
+        if words.iter().any(|w| {
+            matches!(
+                w.as_str(),
+                "refuse" | "reject" | "prevent" | "deny" | "disallow"
+            )
+        }) {
+            let leaf = name
+                .rsplit(['.', ':'])
+                .next()
+                .unwrap_or(&name)
+                .to_lowercase();
+            for (caller, _) in graph.find_incoming_edges(project, Some(EdgeKind::Calls), &id, 16)? {
+                let Some(node) = graph.get_node(project, &caller)? else {
+                    continue;
+                };
+                let path = node.file_path.as_str();
+                if caller_sources.len() >= 16 && !caller_sources.contains_key(path) {
+                    caller_sources.clear();
+                }
+                let source = caller_sources.entry(path.to_owned()).or_insert_with(|| {
+                    crate::planner_source::read(graph, project, root, path).ok()
+                });
+                let Some(src) = source else {
+                    continue;
+                };
+                let lines: Vec<_> = src.lines().collect();
+                let start = node.start_line.saturating_sub(1) as usize;
+                let end = (node.end_line as usize).min(lines.len());
+                for i in start..end {
+                    if !lines[i].to_lowercase().contains(&leaf) {
+                        continue;
+                    }
+                    let excerpt = lines[i..(i + 6).min(end)].join("\n");
+                    let lower = excerpt.to_lowercase();
+                    if !["return", "throw", "exit sub", "exit function"]
+                        .iter()
+                        .any(|w| lower.contains(w))
+                    {
+                        continue;
+                    }
+                    let rank = fit
+                        + 12
+                        + usize::from(lower.contains("error") || lower.contains("throw")) * 4;
+                    let best = result
+                        .entry(path.to_owned())
+                        .or_insert((0, String::new(), 0));
+                    if rank > best.0 {
+                        *best = (
+                            rank,
+                            format!("{} at {}:{}\n{}", node.name, path, i + 1, excerpt),
+                            i as u32 + 1,
+                        );
+                    }
+                    break;
+                }
+            }
+        }
         let best = result.entry(path).or_insert((0, String::new(), line));
         if fit > best.0 {
             *best = (fit, witness, line);
@@ -2312,7 +2573,10 @@ pub(crate) fn infer_pattern_kind(query: &str) -> PatternKind {
 
 pub(crate) fn kind_matches(kind: PatternKind, path: &str) -> bool {
     let p = path.to_ascii_lowercase();
-    let is_page = p.ends_with(".aspx.vb")
+    let is_page = p.ends_with(".aspx")
+        || p.ends_with(".ascx")
+        || p.ends_with(".master")
+        || p.ends_with(".aspx.vb")
         || p.ends_with(".aspx.cs")
         || p.ends_with(".ascx.vb")
         || p.ends_with(".ascx.cs")
@@ -6001,6 +6265,67 @@ fn code_entity_path_eligible(path: &str) -> bool {
         .any(|suffix| lower.ends_with(suffix))
 }
 
+/// Retrieval uses the current narrative, excluding work-item metadata, superseded
+/// edits and clauses assigning responsibility to other stories.
+fn planning_scope(story: &str) -> String {
+    let mut selected = Vec::new();
+    let mut skip_section = false;
+    for line in story.lines() {
+        let trimmed = line.trim().trim_start_matches('-').trim();
+        let key = trimmed.trim_start_matches('#').trim().to_ascii_lowercase();
+        if trimmed.starts_with('#') {
+            if key.starts_with("edit history")
+                || key == "comments"
+                || key.starts_with("links and attachments")
+            {
+                break;
+            }
+            skip_section = key.contains("out of scope") || key == "source and related work";
+        }
+        if skip_section
+            || ["state:", "assigned to:", "area:", "iteration:"]
+                .iter()
+                .any(|prefix| key.starts_with(prefix))
+        {
+            continue;
+        }
+        for clause in trimmed.split(';').flat_map(|part| part.split(". ")) {
+            let lower = clause.to_ascii_lowercase();
+            if [
+                "out of scope",
+                "separate story",
+                "separate bug",
+                "separately owns",
+                " owns ",
+                "belong to the separate",
+                "remains the separate",
+                "are preserved",
+                "extracted from [story",
+            ]
+            .iter()
+            .any(|cue| lower.contains(cue))
+            {
+                continue;
+            }
+            selected.push(clause);
+        }
+    }
+    selected.join("\n")
+}
+
+#[cfg(test)]
+#[test]
+fn planner_scope_retains_criteria_and_qualified_names() {
+    let input = "# Story\n- Area: Distribution\n## Description\nUpdate Order.Total. Another story owns authorization.\n## Acceptance Criteria\nPreserve order totals.\n## Edit history\nOld behavior";
+    let scope = planning_scope(input);
+    assert!(scope.contains("Order.Total") && scope.contains("order totals"));
+    assert!(
+        !scope.contains("authorization")
+            && !scope.contains("Old behavior")
+            && !scope.contains("Distribution")
+    );
+}
+
 fn grounded_planning_concepts(
     graph: &engram_graph::GraphStore,
     project: &str,
@@ -6022,6 +6347,19 @@ fn grounded_planning_concepts(
                 .any(|p| p[0].is_ascii_lowercase() && p[1].is_ascii_uppercase());
         candidates.push((word.to_owned(), key, identifier));
     }
+    let mut phrases = BTreeMap::new();
+    let mut mentions = BTreeMap::new();
+    for line in story.lines() {
+        let terms = name_tokens(line);
+        for pair in terms.windows(2) {
+            let pair: Vec<_> = pair.iter().map(|w| canonical_story_name_term(w)).collect();
+            if pair.iter().all(|w| story_token(w).is_some()) {
+                let phrase = pair.join(" ");
+                *mentions.entry(phrase.clone()).or_insert(0usize) += 1;
+                phrases.entry(phrase).or_insert(0usize);
+            }
+        }
+    }
     let mut exact = graph.matched_schema_names(project, &seen)?;
     let mut frequency = std::collections::HashMap::<String, usize>::new();
     graph.visit_symbol_names(project, |_, _, name, _, _| {
@@ -6030,7 +6368,17 @@ fn grounded_planning_concepts(
         if seen.contains(&key) {
             exact.insert(key);
         }
-        for token in name_tokens(leaf) {
+        let words = name_tokens(leaf);
+        for pair in words.windows(2) {
+            let left = canonical_story_name_term(&pair[0]);
+            let right = canonical_story_name_term(&pair[1]);
+            for key in [format!("{left} {right}"), format!("{right} {left}")] {
+                if let Some(count) = phrases.get_mut(&key) {
+                    *count += 1;
+                }
+            }
+        }
+        for token in words {
             if seen.contains(&token) {
                 *frequency.entry(token).or_default() += 1;
             }
@@ -6068,16 +6416,24 @@ fn grounded_planning_concepts(
             Some((score, count, word))
         })
         .collect();
-    ranked.sort_by(|a, b| b.0.cmp(&a.0).then(a.1.cmp(&b.1)));
+    ranked.extend(
+        phrases
+            .into_iter()
+            .filter(|(_, count)| *count > 0)
+            .map(|(phrase, count)| (3, count, phrase)),
+    );
+    ranked.sort_by(|a, b| {
+        b.0.cmp(&a.0)
+            .then_with(|| mentions.get(&b.2).cmp(&mentions.get(&a.2)))
+            .then(a.1.cmp(&b.1))
+    });
     let mut concepts: Vec<_> = ranked
         .into_iter()
         .take(3)
         .map(|(_, _, name)| name)
         .collect();
     for word in extract_story_concepts(story) {
-        if (concepts.len() < 3 || word == "role")
-            && !concepts.iter().any(|c| c.eq_ignore_ascii_case(&word))
-        {
+        if concepts.len() < 3 && !concepts.iter().any(|c| c.eq_ignore_ascii_case(&word)) {
             concepts.push(word);
         }
     }
@@ -6186,7 +6542,7 @@ impl Engram {
         let concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
             _ => {
-                let story = story_for_concepts(&req.story);
+                let story = story_for_concepts(&planning_scope(&req.story));
                 let graph = self.state.graph.clone();
                 let project = req.project_id.clone();
                 tokio::task::spawn_blocking(move || grounded_planning_concepts(&graph, &project, &story))

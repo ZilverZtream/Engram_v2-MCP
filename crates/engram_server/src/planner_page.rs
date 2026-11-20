@@ -11,6 +11,9 @@ pub(crate) fn with_preview(mut packet: Value, evidence: &str, budget: usize) -> 
     packet["response_delivery"]["instruction"] = json!(
         "Selected evidence is shown. Follow next_call from offset zero for the complete saved report, including omitted rows, guidance and qualifications."
     );
+    packet["source_basis"] = json!(
+        "Indexed registered working checkout. Use get_index_freshness to bind cited files to a commit."
+    );
     packet["first_page"] = json!("");
     let fixed = packet.to_string().len();
     let Some(space) = budget.checked_sub(fixed) else {
@@ -79,25 +82,32 @@ pub(crate) fn evidence(tool: &str, body: &str) -> String {
                 if info.is_object() {
                     return json!({"method":info["fqn"],"file":info["file_path"],"signature":info["signature"],
                         "callers":info["called_by"],"tables":info["db_tables_accessed"],
-                        "effects":info["effects"],"consumer_call_paths":value["consumer_call_paths"],
+                        "ordered_source_observations":value["ordered_source_observations"],"effects":info["effects"],"consumer_call_paths":value["consumer_call_paths"],
                         "freshness":value["freshness"],"source_excerpt":value["full_source"].as_str().unwrap_or("").chars().take(1600).collect::<String>()}).to_string();
                 }
             }
             // Use the handler's own rendered sections, including their caller labels.
-            let mut selected = Vec::new();
-            let mut rest = Vec::new();
-            for section in body.split("\n## ") {
-                if section.starts_with("Called By\n")
-                    || section.starts_with("Database Tables\n")
-                    || section.starts_with("Consumer call paths\n")
-                    || section.contains("**Signature**")
-                {
-                    selected.push(section);
-                } else {
-                    rest.push(section);
+            let mut selected = vec!["Source basis: indexed working checkout".to_string()];
+            for title in [
+                "**Signature**",
+                "Called By",
+                "Database Tables",
+                "Ordered source observations",
+                "Consumer call paths",
+                "Calls",
+                "Full Source",
+                "Body Preview",
+            ] {
+                if let Some(section) = body.split("\n## ").find(|s| {
+                    if title == "**Signature**" {
+                        s.contains(title)
+                    } else {
+                        s.lines().next() == Some(title)
+                    }
+                }) {
+                    selected.push(section.chars().take(6500).collect());
                 }
             }
-            selected.extend(rest);
             selected.join("\n## ")
         }
         "plan_user_story" => body
