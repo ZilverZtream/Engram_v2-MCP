@@ -1355,6 +1355,11 @@ pub struct CompleteEditSessionRequest {
     /// disposition; they are not mandatory edits or an approval contract.
     #[serde(default)]
     pub dossier: Option<String>,
+    /// Use the complete original get_change_set dossier identified by
+    /// response_delivery.response_id for this project. Supply either this or
+    /// inline dossier text. The snapshot must still be retained.
+    #[serde(default)]
+    pub dossier_response_id: Option<String>,
 }
 
 /// TODO-29: edit-completeness check over an edited file set.

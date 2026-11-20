@@ -13589,6 +13589,24 @@ impl Engram {
         {
             return Err(McpError::invalid_params("session_revision must match the token returned by begin_edit_session for this lifecycle", None));
         }
+        let obligations = match (req.dossier.as_deref(), req.dossier_response_id.as_deref()) {
+            (Some(_), Some(_)) => {
+                return Err(McpError::invalid_params("Supply either dossier or dossier_response_id", None));
+            }
+            (Some(dossier), None) => extract_dossier_obligations(dossier),
+            (None, Some(id)) => {
+                let data_dir = self.state.cfg.data_dir.clone();
+                let project_id = req.project_id.clone();
+                let id = id.to_owned();
+                tokio::task::spawn_blocking(move || {
+                    let dossier = change_set_delivery::read_change_set_reference(&data_dir, &project_id, &id)?;
+                    Ok::<_, McpError>(extract_dossier_obligations(&dossier))
+                })
+                .await
+                .map_err(|error| McpError::internal_error(error.to_string(), None))??
+            }
+            (None, None) => Vec::new(),
+        };
         let planned: Vec<String> = session["planned_files"]
             .as_array()
             .map(|a| {
@@ -13660,38 +13678,30 @@ impl Engram {
         // Dossier references are review candidates, not mandatory edits.
         // Surface untouched references so the agent records applicability
         // and a disposition against the actual approved change scope.
-        if let Some(ref dossier) = req.dossier {
-            let obligations = extract_dossier_obligations(dossier);
-            if !obligations.is_empty() {
-                let met: Vec<&(String, String)> = obligations
-                    .iter()
-                    .filter(|(_, f)| {
-                        edited.iter().any(|e| {
-                            crate::services::pre_commit_review_service::path_suffix_match(e, f)
-                        })
+        if let Some(id) = &req.dossier_response_id {
+            out.push_str(&format!("\nDossier source response ID: {id}\n"));
+        }
+        if !obligations.is_empty() {
+            let unmet: Vec<_> = obligations
+                .iter()
+                .filter(|(_, file)| {
+                    !edited.iter().any(|edit| {
+                        crate::services::pre_commit_review_service::path_suffix_match(edit, file)
                     })
-                    .collect();
-                let unmet: Vec<&(String, String)> = obligations
-                    .iter()
-                    .filter(|(_, f)| {
-                        !edited.iter().any(|e| {
-                            crate::services::pre_commit_review_service::path_suffix_match(e, f)
-                        })
-                    })
-                    .collect();
-                out.push_str(&format!(
-                    "\n## Dossier reconciliation ({} of {} referenced files touched)\n",
-                    met.len(),
-                    obligations.len()
-                ));
-                if !unmet.is_empty() {
-                    out.push_str(
-                        "Referenced by the dossier but NOT in your edit set — address \
-                         each or state why it doesn't apply:\n",
-                    );
-                    for (section, f) in unmet.iter().take(30) {
-                        out.push_str(&format!("- `{f}` [{section}]\n"));
-                    }
+                })
+                .collect();
+            out.push_str(&format!(
+                "\n## Dossier reconciliation ({} of {} referenced files touched)\n",
+                obligations.len() - unmet.len(),
+                obligations.len()
+            ));
+            if !unmet.is_empty() {
+                out.push_str(
+                    "Referenced by the dossier but NOT in your edit set — address \
+                     each or state why it doesn't apply:\n",
+                );
+                for (section, file) in unmet.iter().take(30) {
+                    out.push_str(&format!("- `{file}` [{section}]\n"));
                 }
             }
         }

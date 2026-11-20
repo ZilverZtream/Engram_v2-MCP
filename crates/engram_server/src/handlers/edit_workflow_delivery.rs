@@ -336,6 +336,76 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn completion_reconciles_the_retained_change_set_without_resending_it() {
+        let (_owned, state, app) = fixture();
+        let dossier = format!(
+            "## Required edits\n- Site/Feature.vb\n{}## Related files\n- Site/Feature.aspx\n- Sql/Update.sql\n",
+            "Additional planning context.\n".repeat(8_000)
+        );
+        let delivery = snapshots::bounded_with_budget(
+            &state.cfg.data_dir,
+            PROJECT,
+            dossier.clone(),
+            false,
+            json!({}),
+            4096,
+        )
+        .unwrap();
+        let packet = manifest(&delivery, false);
+        let id = packet["response_delivery"]["response_id"].as_str().unwrap();
+        let wrong_family = snapshots::save_edit_report(
+            &state.cfg.data_dir,
+            PROJECT,
+            "A closing report with Site/Other.vb",
+            snapshots::EditReport::Complete,
+        )
+        .unwrap();
+        let open = || async {
+            let report = text(app.handle_begin_edit_session(opening(10240)).await.unwrap());
+            let report: Value = serde_json::from_str(&report).unwrap();
+            report["summary"]["session_revision"].clone()
+        };
+        let complete = |revision: &Value, dossier, dossier_response_id| {
+            serde_json::from_value(json!({
+                "project_id": PROJECT,
+                "session_id": "worker",
+                "session_revision": revision,
+                "edited_files": ["Site/Feature.vb"],
+                "dossier": dossier,
+                "dossier_response_id": dossier_response_id,
+            }))
+            .unwrap()
+        };
+        let revision = open().await;
+        let before = state.registry.get_meta(PROJECT, SESSIONS).unwrap();
+        for request in [
+            complete(&revision, None, Some(wrong_family.as_str())),
+            complete(&revision, Some(dossier.as_str()), Some(id)),
+        ] {
+            assert!(app.handle_complete_edit_session(request).await.is_err());
+            assert_eq!(state.registry.get_meta(PROJECT, SESSIONS).unwrap(), before);
+        }
+        let by_id = text(
+            app.handle_complete_edit_session(complete(&revision, None, Some(id)))
+                .await
+                .unwrap(),
+        );
+        let revision = open().await;
+        let inline = text(
+            app.handle_complete_edit_session(complete(&revision, Some(dossier.as_str()), None))
+                .await
+                .unwrap(),
+        );
+        let reconciliation = "\n## Dossier reconciliation (1 of 3 referenced files touched)\n\
+            Referenced by the dossier but NOT in your edit set — address each or state why it doesn't apply:\n\
+            - `Site/Feature.aspx` [Related files]\n\
+            - `Sql/Update.sql` [Related files]\n";
+        assert!(by_id.contains(&format!("Dossier source response ID: {id}")));
+        assert!(by_id.contains(reconciliation), "{by_id}");
+        assert!(inline.contains(reconciliation), "{inline}");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn completion_delivery_failure_is_retryable_and_old_recovery_preserves_reused_lifecycles()
     {
         let (_owned, state, app) = fixture();

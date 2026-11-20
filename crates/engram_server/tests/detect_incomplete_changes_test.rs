@@ -287,6 +287,7 @@ async fn session_bookends_track_scope_drift() {
                 session_revision: None,
                 edited_files: Some(vec!["a.aspx".into()]),
                 dossier: None,
+                dossier_response_id: None,
             },
         ))
         .await
@@ -313,6 +314,7 @@ async fn session_bookends_track_scope_drift() {
                 session_revision: None,
                 edited_files: Some(vec!["a.aspx".into()]),
                 dossier: None,
+                dossier_response_id: None,
             },
         ))
         .await;

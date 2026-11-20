@@ -435,6 +435,10 @@ pub(crate) fn read_complete_change_set(data_dir: &Path, project_id: &str, id: &s
     Ok(body)
 }
 
+pub(super) fn read_change_set_reference(data_dir: &Path, project_id: &str, id: &str) -> Result<String, McpError> {
+    read_snapshot(data_dir, project_id, id, Family::ChangeSet, SNAPSHOT_BYTES)
+}
+
 fn read_snapshot(data_dir: &Path, project_id: &str, id: &str, family: Family, max_bytes: usize) -> Result<String, McpError> {
     let max_bytes = max_bytes.min(SNAPSHOT_BYTES);
     let directory = directory_for(data_dir, project_id, family)?;
