@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "SQL_FRESHNESS_WEBFORMS_TRACE_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "update_project_zero_history_budget": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "Accepted TODO-36 bounded Git-history indexing cost and TODO-55 interactive source refresh tuning",
+      "observed_gap": "The installed S11 WebForms fixture's real project-wide update_project(max_commits=0) still processed one newly committed change and sent its commit message and patches to the provider. Zero is clamped to one before refresh enrichment.",
+      "implementation": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/handlers/git_tools.rs", "crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md", "docs/TUNING.md"],
+      "acceptance": "Normal and queued updates with an exact zero limit reflect the new source/deletion and explicitly skip Git enrichment, with no new history messages, patches or watermark movement. An unchanged source refresh also skips pending commits. A later explicit positive history run indexes those commits. Default, positive limits and only_paths remain usable.",
+      "source_commit": "4b92b2d181564433e1cb92efa336314139b89754",
+      "verification": "The prior installed S11 receipt demonstrates a full source update with max_commits zero nevertheless ingesting one Git commit and uploading its history message and patches to the owned loopback provider. A focused test of the actual amended clamp and skip path verified zero exits before repository access or writer setup and positive caps stay unchanged. Actual tool routing, job reporting and publication await packaged MCP checks.",
+      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/zero-history-source-refresh-20261120/focused-receipt.json",
+      "resources": "Owned compiler scratch was removed. First focused link attempt lacked a Windows import library; equivalent standard-library probe then passed. No Cargo build or production mutation."
+    },
     "s11_installed_webforms_revert": {
       "status": "INSTALLED_OWNED_PUBLIC_MCP_PASS",
       "requirement": "S11 supported Git revert, cold reopen and subsequent ordinary update preserve the correct selected source and vector identities.",
@@ -4436,7 +4447,14 @@
       "acceptance_contract": "Index an owned VB/WebForms and TypeScript or SQL fixture, advance one file's revision, and verify MCP exact-file freshness matches inherited bytes and detects an equal-size disk edit. Compare live LegacyValidation selected physical revision to exact-file integrity and raw disk hash to independent source."
     }
   ],
-  "next_source_batch_pending": [],
+  "next_source_batch_pending": [
+    {
+      "original_requirement_id": "TODO-36/TODO-55",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "4b92b2d181564433e1cb92efa336314139b89754",
+      "acceptance_contract": "In one owned WebForms Git project, publish VB and SQL edits through synchronous and queued max_commits zero requests, and run an unchanged refresh with pending commits. Observe source fingerprints, explicit skip and no provider Git inputs or indexed watermark advance. Invoke normal positive history indexing and confirm pending commits appear."
+    }
+  ],
   "sql_freshness_webforms_trace_delivered_batch": [
     {
       "original_requirement_id": "TODO-28",
