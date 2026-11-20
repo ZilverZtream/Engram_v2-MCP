@@ -623,6 +623,14 @@ literal getter observation without combining same-name entries. The QA preset
 includes the reader. Ordinary name searches and exact-file literal searches
 remain available.
 
+Set `output_format: "json"` to receive a versioned JSON matrix with named
+axis groups, authored guidance, case evidence, source actions and coverage.
+Axis groups report total and omitted counts. Each group shows up to 40 rows
+with up to four cited sites per row. Markdown is the default.
+`output_json: true` separately wraps either format in the existing delivery
+envelope. Follow `next_call` on a bounded response to recover the exact
+original result without deriving the matrix again.
+
 The matrix pins the published source selection while collecting indexed
 axes. For managed projects, file metadata and method declarations must match
 the selected physical revision, including inherited revisions. If that

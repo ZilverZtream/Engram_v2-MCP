@@ -10,10 +10,14 @@
 //! and — per setting — what to probe when testing.
 
 use crate::handlers::validate_project_id;
+use crate::models::requests::TestMatrixFormat;
 use crate::tools::Engram;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
 use std::collections::BTreeMap;
+
+const MATRIX_AXIS_LIMIT: usize = 40;
+const MATRIX_SITE_LIMIT: usize = 4;
 
 /// Is this node a settings-store accessor: a property/function/field whose
 /// class/namespace or name marks it as part of a settings/config store
@@ -1017,6 +1021,101 @@ impl Engram {
             (_, None) => (Vec::new(), vec!["Published source could not be pinned; indexed rule cases withheld.".into()]),
         };
 
+        let matrix_notes = coverage_notes
+            .iter()
+            .chain(&rule_notes)
+            .chain(&canonical_sweep.notes)
+            .collect::<Vec<_>>();
+        let can_read_settings = crate::tool_surface::includes(
+            self.state.cfg.effective_tool_preset(),
+            "get_setting",
+        );
+        if matches!(req.output_format, TestMatrixFormat::Json) {
+            let mut documents = BTreeMap::new();
+            let cases: Vec<_> = rule_cases.iter().map(|case| {
+                documents.entry(case.doc_id.as_str()).or_insert_with(|| serde_json::json!({
+                    "source_status": case.source_status,
+                    "supporting_context": case.supporting_context.as_deref(),
+                    "read_action": {
+                        "tool": "get_chunk",
+                        "arguments": {
+                            "project_id": req.project_id,
+                            "doc_id": case.doc_id,
+                            "namespace": "business_logic",
+                        },
+                    },
+                }));
+                serde_json::json!({
+                    "requirement": case.requirement,
+                    "document_id": case.doc_id,
+                    "source_status": case.source_status,
+                    "source_warnings": case.source_warnings,
+                    "expected_outcome_status": case.expected_outcome_status,
+                    "other_outcome_status": case.other_outcome_status,
+                    "source_diagnostic_qualification": case.source_diagnostic_qualification,
+                    "reaching_prerequisites_require_review": case.reaching_prerequisites_require_review,
+                    "reaching_qualification": case.reaching_qualification,
+                    "outcome_dependencies": case.outcome_dependencies,
+                })
+            }).collect();
+            let constructors: Vec<_> = constructor_context.iter().map(|(method_line, context)| {
+                let reads: Vec<_> = context.observations.iter().map(|item| {
+                    constructor_source_read(
+                        &req.project_id,
+                        &context.source_file,
+                        context.source_blake3.as_deref(),
+                        item.line,
+                    )
+                }).collect();
+                serde_json::json!({
+                    "method_line": method_line,
+                    "source_evidence": context,
+                    "source_reads": reads,
+                })
+            }).collect();
+            let report = serde_json::json!({
+                "schema_version": 1,
+                "project_id": req.project_id,
+                "source_generation": gen_,
+                "files": req.files,
+                "methods": req.methods,
+                "knowledge_before": req.knowledge_before,
+                "authored_guidance": project_policy_sources,
+                "axes": {
+                    "settings": structured_matrix_axis(&settings_axis, Some(&setting_labels), |id| {
+                        (can_read_settings && indexed_setting_ids.contains(id))
+                            .then(|| exact_setting_read(&req.project_id, id))
+                    }),
+                    "roles": structured_matrix_axis(&roles_axis, None, |_| None),
+                    "shared_state": structured_matrix_axis(&state_axis, None, |_| None),
+                    "configured_risk": structured_matrix_axis(&runtime_axes, None, |_| None),
+                    "sql_parameters": structured_matrix_axis(&sql_parameter_axes, None, |_| None),
+                    "identity_insert_batches": structured_matrix_axis(&identity_batch_axes, None, |_| None),
+                },
+                "constructor_setup": constructors,
+                "local_nullable_state": member_observations,
+                "direct_ui_context": companion_context,
+                "cases": cases,
+                "evidence_documents": documents,
+                "canonical_call_sweep": {
+                    "attempted": canonical_sweep.attempted,
+                    "summary": canonical_sweep.summary,
+                    "residuals": canonical_sweep.residuals,
+                },
+                "coverage": {
+                    "source_selection_held": matrix_view.is_some(),
+                    "notes": matrix_notes.iter().take(max_coverage_notes).collect::<Vec<_>>(),
+                    "omitted_notes": matrix_notes.len().saturating_sub(max_coverage_notes),
+                    "unresolved_files": unresolved,
+                    "configured_risk_pack_rules_loaded": configured_risk_count,
+                    "test_discovery": "not_run",
+                    "test_execution": "not_run",
+                    "interpretation": "Cases are inferred proposals. Confirm effective settings, runtime behavior and test outcomes independently.",
+                }
+            });
+            return Ok(CallToolResult::success(vec![Content::text(report.to_string())]));
+        }
+
         let mut out = format!("# Test matrix — {} requested file(s)\n", req.files.len());
         out.push_str("Evidence scope: indexed settings, permission and state references plus configured risk rules matched against source-verified snapshots. Test discovery: not_run. Test execution: not_run. These are proposed cases, not verified outcomes.\n");
         out.push_str(&project_policy_sources.render_markdown());
@@ -1051,18 +1150,9 @@ impl Engram {
                         "- Selected method {file}:{method_line}; constructor assignment {file}:{} for {}.\n  `{}`\n",
                         assignment.line, assignment.member_spelling, assignment.source.trim(),
                     ));
-                    let action = serde_json::json!({
-                        "tool": "get_full_method_body",
-                        "arguments": {
-                            "project_id": req.project_id,
-                            "file_path": file,
-                            "expected_file_blake3": context.source_blake3,
-                            "line_start": assignment.line,
-                            "line_end": assignment.line,
-                            "context_lines": 0,
-                            "output_json": true,
-                        },
-                    });
+                    let action = constructor_source_read(
+                        &req.project_id, file, context.source_blake3.as_deref(), assignment.line,
+                    );
                     out.push_str(&format!("  Source read: {action}\n"));
                 }
                 for gap in context.omissions {
@@ -1070,11 +1160,6 @@ impl Engram {
                 }
             }
         }
-        let matrix_notes = coverage_notes
-            .iter()
-            .chain(rule_notes.iter())
-            .chain(canonical_sweep.notes.iter())
-            .collect::<Vec<_>>();
         let note_limit = max_coverage_notes;
         for note in matrix_notes.iter().take(note_limit) {
             out.push_str(&format!("INCOMPLETE: {note}\n"));
@@ -1108,13 +1193,13 @@ impl Engram {
                 return;
             }
             out.push_str(&format!("\n## {title} — {}\n{instruction}\n", axis.len()));
-            if axis.len() > 40 {
+            if axis.len() > MATRIX_AXIS_LIMIT {
                 out.push_str(&format!(
-                    "INCOMPLETE: showing 40 of {} axes; narrow the requested files.\n",
+                    "INCOMPLETE: showing {MATRIX_AXIS_LIMIT} of {} axes; narrow the requested files.\n",
                     axis.len()
                 ));
             }
-            for (value, methods) in axis.iter().take(40) {
+            for (value, methods) in axis.iter().take(MATRIX_AXIS_LIMIT) {
                 let display = labels
                     .and_then(|labels| labels.get(value))
                     .map(|label| format!("{label} [node_id: {value}]"))
@@ -1123,13 +1208,13 @@ impl Engram {
                     "- **{display}** → {}\n",
                     methods
                         .iter()
-                        .take(4)
+                        .take(MATRIX_SITE_LIMIT)
                         .cloned()
                         .collect::<Vec<_>>()
                         .join("; ")
                 ));
-                if methods.len() > 4 {
-                    out.push_str(&format!("  (+{} more sites)\n", methods.len() - 4));
+                if methods.len() > MATRIX_SITE_LIMIT {
+                    out.push_str(&format!("  (+{} more sites)\n", methods.len() - MATRIX_SITE_LIMIT));
                 }
             }
         };
@@ -1140,14 +1225,13 @@ impl Engram {
             Some(&setting_labels),
             &mut out,
         );
-        if crate::tool_surface::includes(self.state.cfg.effective_tool_preset(), "get_setting") {
-            let mut actions = settings_axis.keys().take(40)
+        if can_read_settings {
+            let mut actions = settings_axis.keys().take(MATRIX_AXIS_LIMIT)
                 .filter(|id| indexed_setting_ids.contains(*id)).peekable();
             if actions.peek().is_some() {
                 out.push_str("\nExact setting reads for the displayed indexed rows:\n");
                 for id in actions {
-                    let action = serde_json::json!({"tool":"get_setting",
-                        "arguments":{"project_id":req.project_id,"node_id":id}});
+                    let action = exact_setting_read(&req.project_id, id);
                     out.push_str(&format!("- {action}\n"));
                 }
             }
@@ -1233,6 +1317,43 @@ impl Engram {
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
+}
+
+fn structured_matrix_axis(
+    axis: &BTreeMap<String, Vec<String>>,
+    labels: Option<&BTreeMap<String, String>>,
+    read: impl Fn(&str) -> Option<serde_json::Value>,
+) -> serde_json::Value {
+    let items: Vec<_> = axis
+        .iter()
+        .take(MATRIX_AXIS_LIMIT)
+        .map(|(id, sites)| serde_json::json!({
+            "id": id,
+            "label": labels.and_then(|labels| labels.get(id)).unwrap_or(id),
+            "sites": sites.iter().take(MATRIX_SITE_LIMIT).collect::<Vec<_>>(),
+            "site_count": sites.len(),
+            "omitted_sites": sites.len().saturating_sub(MATRIX_SITE_LIMIT),
+            "read_action": read(id),
+        }))
+        .collect();
+    serde_json::json!({
+        "total": axis.len(),
+        "omitted": axis.len().saturating_sub(items.len()),
+        "items": items,
+    })
+}
+
+fn exact_setting_read(project: &str, node_id: &str) -> serde_json::Value {
+    serde_json::json!({"tool":"get_setting","arguments":{"project_id":project,"node_id":node_id}})
+}
+
+fn constructor_source_read(
+    project: &str, file: &str, hash: Option<&str>, line: u32,
+) -> serde_json::Value {
+    serde_json::json!({"tool":"get_full_method_body","arguments":{
+        "project_id":project,"file_path":file,"expected_file_blake3":hash,
+        "line_start":line,"line_end":line,"context_lines":0,"output_json":true,
+    }})
 }
 
 /// Factor only byte-identical document provenance and repeated reaching text.

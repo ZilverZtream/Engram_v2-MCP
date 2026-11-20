@@ -2979,8 +2979,20 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "STAGED_REVIEW_AND_RELATED_SOURCE_WORK_READY",
+    "status": "WORKFLOW_CANDIDATE_VERIFIED_AND_QA_SOURCE_READY",
     "implementation_items_active": 0,
+    "qa_structured_matrix": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "TODO-4 structured bounded results and original agent-ready QA workflow",
+      "observed_gap": "The existing derive_test_matrix output_json delivery envelope carries one Markdown string. Agents must parse printed axes, coverage, candidate outcomes, authored guidance and source actions before using them.",
+      "implementation": ["crates/engram_server/src/handlers/settings_tools.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Return named JSON fields for axis rows, source actions, case evidence, authored policy and coverage with the original limits. Verify exact immutable recovery of a bounded JSON matrix, and preserve Markdown and the existing output_json delivery envelope.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/qa-structured-matrix-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "bd023d7b6f58993f1c94a19ed1f1f5580e003977030c348dc363305c988a9c19"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "4c9121a559cfceebaf77d22933d73eb467c95c3b586c83c10559af8f8aa4782c"},
+      "evidence": "The installed QA MCP preset advertises no format selector, and the existing envelope wraps Markdown. Owned fixture processes closed and fixture data was removed. The source adds a format selector with shared row and site limits. Rust syntax and whitespace checks passed. Candidate schema, recovery and same-label reader validation remain pending.",
+      "retention": "Keep the verifier and wire evidence in the recorded case directory until the combined QA batch has a verified delivery receipt."
+    },
     "qa_selected_revision_evidence": {
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "requirement": "S06 source-reader ownership and EG-24 QA source evidence",
@@ -3001,12 +3013,14 @@
       "evidence": "The installed QA profile returned both authored VB getter sites in a test matrix, but omitted get_setting from tools/list and offered no exact callable action. The revised source preserves indexed identities, keeps current-source qualification, and filters the action through the active preset. The frozen debug candidate predates this change."
     },
     "combined_debug_candidate": {
-      "status": "ONE_DEBUG_CANDIDATE_BUILD_RUNNING",
+      "status": "DEBUG_CANDIDATE_PUBLIC_CHECKS_PASSED_NOT_INSTALLED",
       "source_commit": "839892761dc3a0b842fc719cbd1155e2927585d4",
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/workflow-debug-candidate-20261120",
       "plan_sha256": "7fbbe81b97c87baebb96ec4756214a3406cc9ca10f5cefefb2dffc76c33734dc",
       "pipeline_owner": {"path": "pipeline-owner.json", "sha256": "40821f146e0ac141417bc678ec88bd8e5bd00ed1e062ec908d678774f4ee5c66"},
-      "acceptance": "One shared debug candidate for queued exact refresh/cancellation, method-scoped constructor setup, three source-refresh changes and staged review. Run the pinned affected public checks once. An optimized build, package and live replacement are separate delivery actions."
+      "receipt": {"path": "candidate-receipt.json", "sha256": "4c3122e933f1b1047d3f779b88cdc32ba9994a57161209f4b64febb0de652416"},
+      "binary_sha256": "0dbc1e7c1956a596c63252fc61591821221d37fe77a9565ebcdae1c34a05da95",
+      "acceptance": "One shared debug candidate passed seven pinned public checks covering queued exact refresh and cancellation, method-scoped constructor setup, source refresh and staged review. The native-write fixture independently logged guarded appends during initial indexing and retry and returned a keyed merge failure with the original revision still selected. The candidate was not installed and establishes no LegacyValidation latency gain."
     },
     "staged_review_index_evidence": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
@@ -5027,25 +5041,25 @@
   "next_source_batch_pending": [
     {
       "original_requirement_id": "TODO-37",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "DEBUG_CANDIDATE_PUBLIC_CHECKS_PASSED_NOT_INSTALLED",
       "source_commit": "103f477c6b459f21da34e0ecdff2cf6a676201e3",
       "acceptance_contract": "Queue an exact refresh, recover its scoped instruction observation, and verify independent cancellation and retry without advancing the outside file."
     },
     {
       "original_requirement_id": "EG-25",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "DEBUG_CANDIDATE_PUBLIC_CHECKS_PASSED_NOT_INSTALLED",
       "source_commit": "b1716d6c81d269f9d7f13dd3f1f2d980a9eb40ab",
       "acceptance_contract": "A model-free matrix for the exact invoice Add method includes the constructor setup and source read. The AddRange-only and historical controls withhold it."
     },
     {
       "original_requirement_id": "TODO-55",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "DEBUG_CANDIDATE_PUBLIC_CHECKS_PASSED_NOT_INSTALLED",
       "source_commit": "839892761dc3a0b842fc719cbd1155e2927585d4",
       "acceptance_contract": "Run forced incremental JS/SQL in both modes, narrow exact JS admission with inherited VB, and safe native vector failure/recovery. Verify the guarded empty-generation write separately from its fallback."
     },
     {
       "original_requirement_id": "TODO-34",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "DEBUG_CANDIDATE_PUBLIC_CHECKS_PASSED_NOT_INSTALLED",
       "source_commit": "e19f3b67366620e051a8e5f2dee07299f9ae0bbb",
       "acceptance_contract": "Verify staged object identity, steady worktree divergence and truthful JSON/Markdown verdict qualification."
     }

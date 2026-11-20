@@ -1547,6 +1547,10 @@ pub struct DescribeSettingRequest {
 #[serde(deny_unknown_fields)]
 pub struct DeriveTestMatrixRequest {
     pub project_id: String,
+    /// Output representation. JSON exposes typed axes, evidence and test cases.
+    /// The existing output_json control separately wraps either representation.
+    #[serde(default)]
+    pub output_format: TestMatrixFormat,
     /// The changed/planned files. The matrix derives from the settings,
     /// role gates, and shared-state keys wired to THESE files' methods.
     pub files: Vec<String>,
@@ -1573,6 +1577,14 @@ pub struct DeriveTestMatrixRequest {
     /// omission summary. Default 24, bounded to 5..=100.
     #[serde(default = "default_matrix_coverage_notes")]
     pub max_coverage_notes: usize,
+}
+
+#[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub enum TestMatrixFormat {
+    #[default]
+    Markdown,
+    Json,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
