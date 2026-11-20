@@ -2979,8 +2979,16 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "QA_CONSTRUCTOR_SETUP_AND_SCOPED_REFRESH_SOURCE_READY",
+    "status": "SOURCE_VECTOR_INSERTION_QA_AND_SCOPED_REFRESH_SOURCE_READY",
     "implementation_items_active": 0,
+    "source_vector_first_batch_insertion": {
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "requirement": "TODO-55 interactive source refresh and S02 exact vector identities during source publication",
+      "observed_gap": "A first batch into a clean candidate memory generation is routed through LanceDB merge_insert even though no existing row in that generation can match. The retained one-file LegacyValidation refresh spent 52 seconds in source indexing; the exact share attributable to merge is unmeasured.",
+      "implementation": ["crates/engram_index/src/hybrid.rs", "crates/engram_index/src/hybrid/snapshots.rs", "crates/engram_index/src/vector.rs"],
+      "acceptance": "Use a one-file refresh fixture to verify the first unique batch appends only after proving its pending physical generation has no memory rows. Verify exact lexical/native identities, unchanged siblings, and failure/retry with the existing durable recovery signal. Keep keyed upsert for nonempty or unverified generations and the other write entry points. Measure one equivalent LegacyValidation refresh only when appropriate to establish any live speedup.",
+      "limits": "Source and Rust syntax checks only. The previous candidate established the existing native-merge failure recovery behavior. The one-file append path and any timing gain remain unverified; neither the 52-second phase nor its cause is attributed to LanceDB alone."
+    },
     "qa_constructor_setup_evidence": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "Original LegacyValidation QA workflow and EG-24/25 task usefulness evidence",

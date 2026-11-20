@@ -238,6 +238,36 @@ pub async fn upsert_vectors(table: &Table, batches: Vec<RecordBatch>) -> anyhow:
     Ok(())
 }
 
+/// The caller holds the engine's ordered commit lane and supplies a batch
+/// of unique memory keys for one positive physical generation.
+pub(crate) async fn write_source_generation_batch(
+    table: &Table,
+    generation: u64,
+    batch: RecordBatch,
+) -> anyhow::Result<()> {
+    let filter = format!(
+        "namespace = 'memory' AND generation = {}",
+        crate::sql_literals::u64_literal(generation),
+    );
+    // A retry or another batch in this generation can already have rows.
+    // Preserve ordinary keyed replacement whenever emptiness is unproven.
+    let empty = tokio::time::timeout(
+        std::time::Duration::from_secs(1),
+        table.count_rows(Some(filter)),
+    )
+    .await
+    .is_ok_and(|result| result.is_ok_and(|count| count == 0));
+    if !empty {
+        return upsert_vectors(table, vec![batch]).await;
+    }
+    prepare_managed_write(table).await?;
+    let schema = batch.schema();
+    let reader = RecordBatchIterator::new(std::iter::once(Ok(batch)), schema);
+    table.add(Box::new(reader)).execute().await
+        .map_err(|error| anyhow::anyhow!("VEC1: LanceDB source append failed: {error:#}"))?;
+    Ok(())
+}
+
 pub async fn purge_old_generations(table: &Table, active_generation: u64) -> anyhow::Result<()> {
     purge_old_generations_with_source_selection(table, active_generation, None).await
 }

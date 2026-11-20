@@ -1269,7 +1269,7 @@ impl HybridSearchEngine {
         }
         let mut commit = scoped.acquire_commit(cancel).await?;
         scoped
-            .embed_vectors_in_commit(project_id, docs, cancel, None, Some(&mut commit))
+            .embed_vectors_in_commit(project_id, docs, cancel, None, Some(&mut commit), false)
             .await
     }
 
@@ -1284,7 +1284,7 @@ impl HybridSearchEngine {
         let scoped = self.with_bulk_writer(writer, project_id)?;
         writer.commit.validate(&scoped)?;
         scoped
-            .embed_vectors_in_commit(project_id, docs, cancel, None, Some(&mut writer.commit))
+            .embed_vectors_in_commit(project_id, docs, cancel, None, Some(&mut writer.commit), false)
             .await
     }
 
@@ -1302,7 +1302,7 @@ impl HybridSearchEngine {
             table.is_some(),
             "Exclusive vector staging requires an explicit table"
         );
-        self.embed_vectors_in_commit(project_id, docs, cancel, table, None)
+        self.embed_vectors_in_commit(project_id, docs, cancel, table, None, false)
             .await
     }
 
@@ -1313,9 +1313,10 @@ impl HybridSearchEngine {
         cancel: &CancellationToken,
         _table_override: Option<&str>,
         commit: Option<&mut commit::Guard>,
+        source_batch: bool,
     ) -> anyhow::Result<()> {
         #[cfg(not(feature = "vector"))]
-        let _ = (project_id, commit);
+        let _ = (project_id, commit, source_batch);
         if docs.is_empty() || cancel.is_cancelled() {
             return Ok(());
         }
@@ -1429,6 +1430,12 @@ impl HybridSearchEngine {
                     &vectors,
                     self.embedder.dimension(),
                 )?;
+                let generation = effective_gens[0];
+                let append_generation = (source_batch && ns == "memory" && generation > 0
+                    && effective_gens.iter().all(|value| *value == generation)
+                    && self.snapshots.is_pending(project_id, ns, generation)
+                    && pks.iter().collect::<std::collections::HashSet<_>>().len() == pks.len())
+                    .then_some(generation);
                 let written = if _table_override.is_some() {
                     // Recovery already owns an uncancelled native worker and
                     // exclusive admission. Keep its reservation through I/O.
@@ -1442,7 +1449,11 @@ impl HybridSearchEngine {
                         })?,
                         async move {
                             let _retained_allocation = retained_allocation;
-                            crate::vector::upsert_vectors(&table, vec![batch]).await
+                            if let Some(generation) = append_generation {
+                                crate::vector::write_source_generation_batch(&table, generation, batch).await
+                            } else {
+                                crate::vector::upsert_vectors(&table, vec![batch]).await
+                            }
                         },
                     )
                     .await
@@ -1463,8 +1474,13 @@ impl HybridSearchEngine {
         docs: &[IndexDoc],
         cancel: &CancellationToken,
         stats: &mut IngestStats,
+        single_file_refresh: bool,
     ) -> anyhow::Result<()> {
-        let result = self.embed_and_upsert_vectors_with_writer(writer, project_id, docs, cancel).await;
+        let scoped = self.with_bulk_writer(writer, project_id)?;
+        writer.commit.validate(&scoped)?;
+        let result = scoped
+            .embed_vectors_in_commit(project_id, docs, cancel, None, Some(&mut writer.commit), single_file_refresh)
+            .await;
         anyhow::ensure!(!cancel.is_cancelled(), "Source indexing cancelled during embedding");
         if let Err(error) = &result {
             if Self::embedding_provider_failed(error) {
@@ -1619,7 +1635,7 @@ impl HybridSearchEngine {
 
         // Both ingestion paths share the same routing and embedding contract.
         scoped
-            .embed_vectors_in_commit(project_id, docs, cancel, None, Some(&mut commit))
+            .embed_vectors_in_commit(project_id, docs, cancel, None, Some(&mut commit), false)
             .await?;
 
         Ok(())
@@ -3112,6 +3128,7 @@ impl HybridSearchEngine {
             ..IngestStats::default()
         };
         let total_files = files.len();
+        let single_file_refresh = total_files == 1;
         stats.files = total_files;
 
         // Single Tantivy writer for the entire index_files run.
@@ -3585,7 +3602,7 @@ impl HybridSearchEngine {
                 Self::write_docs_to_writer(&fields, guard, project_id, &batch.docs)?;
                 guard.maybe_commit(1000)?;
                 scoped
-                    .embed_source_batch(guard, project_id, &batch.docs, cancel, &mut stats)
+                    .embed_source_batch(guard, project_id, &batch.docs, cancel, &mut stats, single_file_refresh)
                     .await?;
                 batch.clear();
             }
@@ -3598,7 +3615,7 @@ impl HybridSearchEngine {
             let guard = guard.as_mut().expect("document batches require a search writer");
             Self::write_docs_to_writer(&fields, guard, project_id, &batch.docs)?;
             scoped
-                .embed_source_batch(guard, project_id, &batch.docs, cancel, &mut stats)
+                .embed_source_batch(guard, project_id, &batch.docs, cancel, &mut stats, single_file_refresh)
                 .await?;
         }
 

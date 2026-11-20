@@ -796,6 +796,12 @@ impl Catalog {
         Ok(maximum)
     }
 
+    #[cfg(feature = "vector")]
+    pub(super) fn is_pending(&self, project: &str, namespace: &str, generation: u64) -> bool {
+        let key = Key { project: project.into(), namespace: namespace.into(), generation };
+        self.read_record(&key).is_ok_and(|record| record.is_some_and(|record| record.pending))
+    }
+
     pub fn seal(&self, project: &str, namespace: &str, generation: u64) -> anyhow::Result<()> {
         engram_core::security::validate_key_component("project", project).map_err(anyhow::Error::msg)?;
         engram_core::security::validate_key_component("namespace", namespace).map_err(anyhow::Error::msg)?;
