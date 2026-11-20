@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "edit_session_saved_change_set": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-29 edit-session advisory reconciliation using the complete change-set report preserved by EG-02",
+      "observed_gap": "Edit-session completion accepts only inline dossier text. Recent retained LegacyValidation change sets exceed 200 KB, so reusing one for this check requires sending the recovered report back as tool input.",
+      "implementation": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "crates/engram_server/src/handlers/planning_tools.rs", "crates/engram_server/src/handlers/change_set_delivery.rs"],
+      "acceptance": "A completion call with a retained get_change_set response ID reconciles the same file references as the original inline dossier. Missing or mismatched snapshots and simultaneous inline/reference input keep the session open. Closing-report recovery remains independent.",
+      "source_commit": "284dc9cc1e20f7eabe8ef69a0604d3879bc5ec83",
+      "verification": "A focused executable using the changed request, snapshot reader and reconciliation code matched the inline advisory for a retained 220,277-byte LegacyValidation report with 224 file references. The owned cases also matched a known VB.NET, WebForms and SQL reference set and refused wrong-project, wrong-family, tampered and conflicting input. The executable and owned fixtures were cleaned up. The new lifecycle regression test and public MCP flow still require packaged validation. No Engram release build or live edit session ran.",
+      "retention": "Keep the reproduction script and numeric verification log under current-task-check/edit-session-saved-change-set-20261120 until combined MCP acceptance is recorded. The script reads the original cache in place and does not retain project source or report text."
+    },
     "verified_base_record": "eval/history-schema-review-candidate-20261119.json",
     "record": "eval/cumulative-agent-workflows-candidate-20261119.json",
     "full_original_goal_complete": false,
@@ -3891,6 +3901,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "e986057d5b72dcc843c1df255b05c2b540a64454",
       "acceptance_contract": "Write admission tolerates brief parser ownership without using another parser identity, and reports a bounded busy refusal if ownership persists. Read-only admission and the publication fence retain their existing behavior."
+    },
+    {
+      "original_requirement_id": "TODO-29",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "284dc9cc1e20f7eabe8ef69a0604d3879bc5ec83",
+      "acceptance_contract": "Use a real bounded get_change_set response from a disposable VB.NET/WebForms and SQL project. Close an edit session by dossier_response_id and verify the advisory references match inline completion with the recovered original. A wrong dossier ID must leave the first lifecycle retryable. Verify closing response recovery independently when the completion report is deferred."
     }
   ],
   "dossier_webforms_history_source_batch_20261120": [
