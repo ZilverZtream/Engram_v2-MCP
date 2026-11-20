@@ -1768,13 +1768,14 @@ impl Engram {
         reindex_paths: Vec<String>,
     ) -> Result<String, McpError> {
         self.spawn_job_update_project_with_instructions(project_id, new_gen,
-            max_commits, index_antipatterns, reindex_paths, None, None).await
+            max_commits, index_antipatterns, reindex_paths, None, false, None).await
     }
 
     async fn spawn_job_update_project_with_instructions(
         &self, project_id: String, new_gen: u64, max_commits: usize,
         index_antipatterns: bool, reindex_paths: Vec<String>,
         only_paths: Option<Vec<String>>,
+        skip_if_unchanged: bool,
         instruction_maintenance: Option<crate::services::instruction_maintenance::MaintenanceRequest>,
     ) -> Result<String, McpError> {
         // Serialize job registration with deletion's final admission check.
@@ -1868,7 +1869,7 @@ impl Engram {
                 if let Some(paths) = only_paths.as_deref() {
                     let outcome = engram.update_project_locked(
                         &project_id_for_job, max_commits, index_antipatterns,
-                        &reindex_paths, Some(paths), &token, Some(&phase),
+                        &reindex_paths, Some(paths), skip_if_unchanged, &token, Some(&phase),
                     ).await?;
                     if let Some(generation) = outcome.published_generation {
                         new_gen = generation;
@@ -2229,6 +2230,7 @@ impl Engram {
         out.record("files", self
             .handle_update_project(crate::models::UpdateProjectRequest {
                 only_paths: None,
+                skip_if_unchanged: false,
                 instruction_maintenance: None,
                 reindex_paths: Vec::new(),
                 project_id: req.project_id.clone(),
@@ -2327,6 +2329,9 @@ impl Engram {
         mut req: UpdateProjectRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if req.skip_if_unchanged && req.only_paths.is_none() {
+            return Err(McpError::invalid_params("skip_if_unchanged requires only_paths", None));
+        }
         if let Some(paths) = &req.only_paths {
             if paths.is_empty() || paths.len() > 4096
                 || !req.reindex_paths.is_empty()
@@ -2360,6 +2365,7 @@ impl Engram {
                     req.index_antipatterns,
                     &req.reindex_paths,
                     req.only_paths.as_deref(),
+                    req.skip_if_unchanged,
                     &cancel,
                 )
                 .await
@@ -2385,6 +2391,7 @@ impl Engram {
                 req.index_antipatterns,
                 req.reindex_paths.clone(),
                 req.only_paths,
+                req.skip_if_unchanged,
                 req.instruction_maintenance,
             )
             .await?;
@@ -2496,7 +2503,7 @@ impl Engram {
         cancel: &tokio_util::sync::CancellationToken,
     ) -> anyhow::Result<String> {
         self.update_project_with_scope(project_id, requested_generation, max_commits,
-            index_antipatterns, reindex_paths, None, cancel).await
+            index_antipatterns, reindex_paths, None, false, cancel).await
     }
 
     async fn update_project_with_scope(
@@ -2507,11 +2514,12 @@ impl Engram {
         index_antipatterns: bool,
         reindex_paths: &[String],
         only_paths: Option<&[String]>,
+        skip_if_unchanged: bool,
         cancel: &tokio_util::sync::CancellationToken,
     ) -> anyhow::Result<String> {
         let _update_guard = self.state.acquire_project_update_lock(project_id).await;
         self.update_project_locked(project_id, max_commits, index_antipatterns,
-            reindex_paths, only_paths, cancel, None).await.map(|outcome| outcome.summary)
+            reindex_paths, only_paths, skip_if_unchanged, cancel, None).await.map(|outcome| outcome.summary)
     }
 
     async fn update_project_locked(
@@ -2521,6 +2529,7 @@ impl Engram {
         index_antipatterns: bool,
         reindex_paths: &[String],
         only_paths: Option<&[String]>,
+        skip_if_unchanged: bool,
         cancel: &tokio_util::sync::CancellationToken,
         phase: Option<&Reporter>,
     ) -> anyhow::Result<SourceUpdateOutcome> {
@@ -2556,12 +2565,20 @@ impl Engram {
         }
         let project_service::SourceChangeScan { changed, deleted, extraction, vb_source_files, .. } =
             if let Some(paths) = only_paths {
-                project_service::exclusive_source_changes(&self.state, &ps.search, &source_head, &dir, &exts, paths).await?
+                project_service::exclusive_source_changes(&self.state, &ps.search, &source_head, &dir, &exts, paths, skip_if_unchanged).await?
             } else {
                 project_service::get_incremental_changes_for_update(&self.state, &ps.search, &source_head, &dir, &exts, reindex_paths).await?
             };
 
         if changed.is_empty() && deleted.is_empty() && reindex_paths.is_empty() {
+            if only_paths.is_some() {
+                anyhow::ensure!(!cancel.is_cancelled(), "update cancelled after exact source scan");
+                return Ok(SourceUpdateOutcome {
+                    summary: format!("status: unchanged\nactive_generation: {old_gen}\nupdate_scope: only_paths\nAll requested source files match their published fingerprints. No source generation published.\noutside_scope_disk_check: not_run\nglobal_enrichment: skipped\n"),
+                    published_generation: None,
+                    degraded: false,
+                });
+            }
             return self
                 .refresh_unchanged_source(
                     &_storage_mutation,

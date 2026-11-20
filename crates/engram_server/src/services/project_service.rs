@@ -609,7 +609,7 @@ fn verify_source_bytes(path: &Path, initial: &std::fs::Metadata) -> anyhow::Resu
         return Ok(None);
     }
     let mut hasher = blake3::Hasher::new();
-    let mut limited = (&file).take(MAX_VERIFY_BYTES + 1);
+    let mut limited = (&file).take(opened.len() + 1);
     let read = std::io::copy(&mut limited, &mut hasher)
         .map_err(|e| anyhow::anyhow!("Cannot verify source content {}: {e}", path.display()))?;
     let after = file.metadata()?;
@@ -1068,6 +1068,7 @@ pub(crate) async fn exclusive_source_changes(
     root: &Path,
     exts: &[&str],
     requested: &[String],
+    skip_if_unchanged: bool,
 ) -> anyhow::Result<SourceChangeScan> {
     anyhow::ensure!(!requested.is_empty() && requested.len() <= 4096,
         "only_paths requires 1..4096 exact eligible paths");
@@ -1099,7 +1100,7 @@ pub(crate) async fn exclusive_source_changes(
     let graph = state.graph.clone();
     let registry = state.registry.clone();
     let token = base.clone();
-    let (extraction, vb_source_files) = tokio::task::spawn_blocking(move || {
+    let (extraction, vb_source_files, skip_write) = tokio::task::spawn_blocking(move || {
         anyhow::ensure!(registry.source_head_is_current(&token)?, "Source head changed before exclusive admission");
         anyhow::ensure!(!registry.source_identity_needs_verification(token.project_id())?,
             "only_paths requires an already verified source identity; run a normal verified update first");
@@ -1112,10 +1113,33 @@ pub(crate) async fn exclusive_source_changes(
             &root, chunk_target, admitted_vb.as_ref().map(|path| path.as_str()).into_iter()
                 .chain(selected_vb.as_deref()).chain(graph_vb),
         )?;
+        let mut can_skip = skip_if_unchanged && exact_walk
+            && registry.get_project(token.project_id())?.is_some_and(|record| record.reindex_required_since_ms.is_none());
+        let revisions = source.selected_file_revisions();
+        let mut unverified = selected.clone();
+        // A large exact scope falls back to the regular write without
+        // pre-reading its entire contents a second time.
+        let mut verification_bytes_left = 64 * 1024 * 1024;
         for (path, metadata, generation) in metadata_rows {
             if selected.contains(&path) {
                 anyhow::ensure!(generation <= token.generation().saturating_add(1),
                     "Selected graph revision is beyond the next source generation; recover before only_paths: {}", path.as_str());
+                if generation > token.generation() {
+                    can_skip = false;
+                }
+                if can_skip && revisions.and_then(|files| files.get(path.as_str())) == Some(&generation)
+                    && let Some(meta) = metadata.as_ref().filter(|meta| extraction.metadata_is_compatible(meta, path.as_str()))
+                    && let Some(hash) = meta.get("file_hash").and_then(serde_json::Value::as_str)
+                {
+                    let file = engram_core::safe_join(&root, path.as_str())?;
+                    let disk = std::fs::metadata(&file)?;
+                    if disk.is_file() && disk.len() <= verification_bytes_left {
+                        verification_bytes_left -= disk.len();
+                        if verify_source_bytes(&file, &disk)?.is_some_and(|bytes| bytes.hash == hash) {
+                            unverified.remove(&path);
+                        }
+                    }
+                }
             } else {
                 anyhow::ensure!(generation <= token.generation()
                     && (generation != 0 || !meta_has_fingerprint(&metadata)),
@@ -1126,9 +1150,11 @@ pub(crate) async fn exclusive_source_changes(
                     "Inherited VB source requires compiler-context migration before only_paths: {}; run ordinary update_project without only_paths first", path.as_str());
             }
         }
-        Ok((extraction, vb_source_files))
+        Ok((extraction, vb_source_files, can_skip && unverified.is_empty()))
     }).await??;
-    drop(source);
+    if skip_write {
+        changed.clear();
+    }
     Ok(SourceChangeScan { changed, deleted:Vec::new(), extraction, vb_source_files, nonempty_disk_paths:None })
 }
 

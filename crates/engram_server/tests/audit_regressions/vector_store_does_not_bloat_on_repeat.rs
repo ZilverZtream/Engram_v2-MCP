@@ -74,6 +74,7 @@ async fn test_vector_store_does_not_bloat_on_repeat() {
     // Perform one update to establish "history" baseline
     let update_req = UpdateProjectRequest {
         only_paths: None,
+        skip_if_unchanged: false,
         instruction_maintenance: None,
         reindex_paths: Vec::new(),
         project_id: project_id.to_string(),
@@ -114,6 +115,7 @@ async fn test_vector_store_does_not_bloat_on_repeat() {
     for _ in 0..2 {
         let update_req = UpdateProjectRequest {
             only_paths: None,
+            skip_if_unchanged: false,
             instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.to_string(),

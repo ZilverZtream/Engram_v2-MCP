@@ -550,6 +550,7 @@ async fn test_memory_bank_persistence() {
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
             only_paths: None,
+            skip_if_unchanged: false,
             instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
@@ -802,6 +803,7 @@ async fn test_gc_preserves_global_namespaces() {
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
             only_paths: None,
+            skip_if_unchanged: false,
             instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
@@ -821,6 +823,7 @@ async fn test_gc_preserves_global_namespaces() {
         let _ps = engram_tmp
             .update_project(Parameters(engram_server::UpdateProjectRequest {
                 only_paths: None,
+                skip_if_unchanged: false,
                 instruction_maintenance: None,
                 reindex_paths: Vec::new(),
                 project_id: project_id.to_string(),
@@ -2913,6 +2916,7 @@ async fn test_immune_system_end_to_end() {
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
             only_paths: None,
+            skip_if_unchanged: false,
             instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
@@ -3083,6 +3087,7 @@ async fn test_dream_immune_integration() {
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
             only_paths: None,
+            skip_if_unchanged: false,
             instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
@@ -3616,6 +3621,7 @@ async fn test_gc_policy_preservation() {
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
             only_paths: None,
+            skip_if_unchanged: false,
             instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.to_string(),
@@ -3636,6 +3642,7 @@ async fn test_gc_policy_preservation() {
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
             only_paths: None,
+            skip_if_unchanged: false,
             instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: project_id.to_string(),

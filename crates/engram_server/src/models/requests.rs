@@ -557,6 +557,11 @@ pub struct UpdateProjectRequest {
     /// guidance selector it uses these paths under the existing 16-file limit.
     #[serde(default)]
     pub only_paths: Option<Vec<String>>,
+    /// With only_paths, skip the source write if every requested non-VB file
+    /// has a current extraction fingerprint and identical verified disk bytes.
+    /// Otherwise the whole requested scope is re-extracted as usual.
+    #[serde(default)]
+    pub skip_if_unchanged: bool,
     /// Observe selected instruction references after the source update.
     /// Queued calls return observation recovery through get_job_status.
     /// Draft proposals belong to pre_push_audit; no policy is written.

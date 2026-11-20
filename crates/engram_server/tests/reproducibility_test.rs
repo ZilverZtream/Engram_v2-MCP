@@ -373,6 +373,7 @@ namespace GoldenApp {
     engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
             only_paths: None,
+            skip_if_unchanged: false,
             instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id: pid.clone(),

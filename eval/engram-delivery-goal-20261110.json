@@ -2698,6 +2698,17 @@
       "TODO-28"
     ],
     "implementation_items_active": 0,
+    "exact_refresh_skip_unchanged": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "TODO-55 interactive LegacyValidation exact-file source refresh",
+      "observed_gap": "only_paths always forces the complete source write even when the requested current JavaScript bytes match, requiring a separate freshness call to avoid unnecessary re-extraction.",
+      "implementation": ["crates/engram_server/src/services/project_service.rs", "crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Sync and queued requests leave the generation unchanged when all requested non-VB files match held compatible fingerprints. Changed or unverified files, required repairs and explicit default force continue through extraction. Outside edits remain outside scope.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/exact-refresh-skip-unchanged-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "fa3f55f2f7efb660a1ef2d76e08adc756326bc3f09e1bde3c739c70fa104dad7"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "cf59f48a9477012efeb6eb6a0f8e922cb3da782b9fd0657c319e80f249734817"},
+      "evidence": "Installed MCP advanced an owned project from generation 1 to 2 for a byte-identical exact JavaScript refresh while keeping an edited sibling inherited. The opt-in change reuses source admission and the existing bounded raw byte verifier; the same no-write result flows through sync or job status. Rust syntax and whitespace checks passed. The frozen release candidate predates this change."
+    },
     "exact_setting_selected_source_read": {
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "requirement": "S06 source-reader ownership and original LegacyValidation setting-aware QA workflow",

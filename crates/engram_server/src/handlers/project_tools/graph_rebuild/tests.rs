@@ -79,7 +79,7 @@ async fn seed(root: &Path) -> anyhow::Result<Engram> {
         repo.join("Callee.cs"),
         "class Callee { public static int Next() { return 22; } }\n",
     )?;
-    app.update_project_with_scope(PID, 2, 0, false, &[], None, &CancellationToken::new())
+    app.update_project_with_scope(PID, 2, 0, false, &[], None, false, &CancellationToken::new())
         .await?;
     Ok(app)
 }

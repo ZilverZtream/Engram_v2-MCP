@@ -221,6 +221,7 @@ async fn test_incremental_update_byte_budget_enforced() {
     let update_res = engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
             only_paths: None,
+            skip_if_unchanged: false,
             instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id,
@@ -324,6 +325,7 @@ async fn test_chunk_cap_respected_for_index_and_update() {
     let update_res = engram
         .update_project(Parameters(engram_server::UpdateProjectRequest {
             only_paths: None,
+            skip_if_unchanged: false,
             instruction_maintenance: None,
             reindex_paths: Vec::new(),
             project_id,
