@@ -2653,7 +2653,7 @@
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
-    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selected-source-planning-20261120",
+    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\context-browser-event-20261120",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "incremental_codegen": {
@@ -3254,7 +3254,20 @@
       "acceptance": "Trace the actual dashboard binding and exact admitted VB handler from selected source, and retain ordinary click handling after quoted > in the existing regression fixture. Attribute-looking text inside another value must not create a binding. Keep runtime execution and postback unproven.",
       "verification": "Focused executable used the changed control markup reader and handler-selection function with immutable LegacyValidation source 6c4f23a5: exact markup line 725, VB line 294, one authored binding and selected handler, plus literal fixture click and exclusion of an apparent event attribute embedded in an unrelated attribute value. The executable reused cached dependencies. The existing trace regression fixture now exercises both public action spellings. Candidate MCP and installation remain pending."
     },
-    "next_action": "Freeze S06 implementation context, TODO-27 browser citations and TODO-31 dashboard event as one combined packaged MCP release."
+    "context_browser_event_release": {
+      "status": "FROZEN_OWNED_BASELINE_VERIFIED",
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\context-browser-event-20261120",
+      "source_commit": "0550e57baf9e351ad3055621c1229c821abf7437",
+      "original_requirement_ids": [
+        "S06",
+        "TODO-27",
+        "TODO-31"
+      ],
+      "baseline_sha256": "61a8351bdee97a0cfb38557d253804a21fd96b3bfaacb99f58c3eb04dacb11ca",
+      "verifier_sha256": "ac37a42a8743198bb44c5ddd4a9b90900cb246f30da7a58256023ade26fead53",
+      "retention": "Keep inputs and logs for package acceptance. The owned baseline fixture and process closed."
+    },
+    "next_action": "Build one shared release, verify all three public workflows in the packaged candidate, then verify and record installation."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -3651,6 +3664,26 @@
     "retention": "Temporary Git index removed. Keep the receipt for the next combined validation after the staged release is resolved."
   },
   "next_source_batch_pending": [
+    {
+      "original_requirement_id": "S06",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "88ff9e9a947232e19ac2bee1d862b9967767359e",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\context-browser-event-20261120\\verify-public.py"
+    },
+    {
+      "original_requirement_id": "TODO-27",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "f4eb8a543da705033b002bd0bfc552d2ff993521",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\context-browser-event-20261120\\verify-public.py"
+    },
+    {
+      "original_requirement_id": "TODO-31",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "0550e57baf9e351ad3055621c1229c821abf7437",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\context-browser-event-20261120\\verify-public.py"
+    }
+  ],
+  "selected_source_planning_source_batch_20261120": [
     {
       "original_requirement_id": "S16",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
