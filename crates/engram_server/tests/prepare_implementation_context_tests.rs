@@ -110,6 +110,48 @@ fn prepare_req(pid: &str, method: &str) -> serde_json::Value {
     })
 }
 
+#[tokio::test]
+async fn published_context_withholds_unselected_source_even_when_disk_fingerprint_matches() {
+    let (_owned, state, server, project) = fixture().await;
+    let generation: u64 = state.registry.get_meta(&project, "active_generation")
+        .unwrap().unwrap().parse().unwrap();
+    let methods = state.graph.query_nodes_in_file(&project, Some("function"), "Site/orders.vb", 20).unwrap();
+    let target = methods.iter().find(|node| node.start_line == 2).unwrap();
+    let mut caller = methods.iter().find(|node| node.start_line == 5).unwrap().clone();
+    caller.generation = generation + 1;
+    state.graph.upsert_nodes(&project, &[caller.clone()]).unwrap();
+    state.graph.upsert_edges(&project, &[engram_graph::Edge {
+        source_id: caller.node_id.clone(),
+        target_id: target.node_id.clone(),
+        namespace: "memory".into(),
+        language: "vbnet".into(),
+        edge_kind: engram_graph::EdgeKind::Calls,
+        weight: 1,
+        generation: caller.generation,
+        metadata: None,
+        updated_at_ms: 0,
+    }]).unwrap();
+    let mut request = prepare_req(&project, "GetAll");
+    request["include_pattern_examples"] = json!(true);
+    let reply = server.handle_prepare_implementation_context(
+        serde_json::from_value(request.clone()).unwrap(),
+    ).await.unwrap();
+    let report: serde_json::Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text).unwrap();
+    assert_eq!(report["source_generation"], generation);
+    assert_eq!(report["source_verification"], "matched_indexed_fingerprint");
+    assert!(report["method_body"].as_str().unwrap().contains("all-rows"));
+    assert!(report["pattern_examples"].as_array().unwrap().is_empty());
+    assert!(report["warnings"].to_string().contains("Caller pattern"));
+
+    let mut file = state.graph.get_node(&project, "file:Site/orders.vb").unwrap().unwrap();
+    file.generation = generation + 1;
+    state.graph.upsert_nodes(&project, &[file]).unwrap();
+    let error = server.handle_prepare_implementation_context(
+        serde_json::from_value(request).unwrap(),
+    ).await.unwrap_err();
+    assert!(error.message.contains("held published source selection"));
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn substring_sibling_does_not_create_false_ambiguity() {
     let (_t, _s, engram, pid) = fixture().await;

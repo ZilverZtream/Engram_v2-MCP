@@ -774,6 +774,8 @@ pub struct UpdatePanelSummary {
 pub struct ImplementationContext {
     pub method_info: MethodInfoResult,
     pub method_coverage: MethodInfoCoverage,
+    pub source_generation: u64,
+    pub source_verification: &'static str,
     pub coverage_interpretation: String,
     pub project_policy_sources: crate::services::project_policy::PolicyContext,
     pub method_body: Option<String>,
@@ -2478,9 +2480,25 @@ fn validate_held_method_revision(
         || !file_selected
         || node.namespace != engram_core::namespaces::NAMESPACE_MEMORY
     {
-        return Err("Method/file revision changed relative to the held downstream source selection; retry method context before editing".into());
+        return Err("Method/file revision changed relative to the held published source selection; retry method context before editing".into());
     }
     Ok(())
+}
+
+fn read_held_context_source(
+    graph: &GraphStore,
+    project: &str,
+    root: &str,
+    node: &Node,
+    membership: &engram_index::hybrid::SelectedSourceRevisionLookup,
+) -> Result<(Vec<u8>, &'static str), String> {
+    validate_held_method_revision(graph, project, node, Some(membership))?;
+    let file = node.file_path.as_str();
+    let path = safe_join(Path::new(root), file).map_err(|error| error.to_string())?;
+    let bytes = std::fs::read(path).map_err(|error| format!("Cannot verify {file}: {error}"))?;
+    let verification = verify_indexed_source_bytes(graph, project, file, &bytes)?;
+    validate_held_method_revision(graph, project, node, Some(membership))?;
+    Ok((bytes, verification))
 }
 
 fn render_downstream_safety(safety: &EditSafetyResult) -> String {
@@ -3314,6 +3332,10 @@ fn render_implementation_context_markdown(ctx: &ImplementationContext) -> String
         ctx.method_info.fqn
     ));
     md.push_str(&format!("{}\n\n", ctx.coverage_interpretation));
+    md.push_str(&format!(
+        "Selected source generation {}. Method source verification is `{}`.\n\n",
+        ctx.source_generation, ctx.source_verification
+    ));
     md.push_str(&ctx.project_policy_sources.render_markdown());
 
     if !ctx.warnings.is_empty() {
@@ -5168,6 +5190,13 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         context_response::validate(&req)?;
         let rec = self.ensure_project_record(&req.project_id).await?;
+        let runtime = self.ensure_project_runtime(&req.project_id).await?;
+        let (source_generation, source_view) = self
+            .pin_active_source_generation(&req.project_id, &runtime.search)
+            .await?;
+        let source_view = Arc::new(source_view);
+        let worker_view = source_view.clone();
+        let search = runtime.search.clone();
         let project_dir = rec.directory.clone();
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
@@ -5193,7 +5222,9 @@ impl Engram {
         let result = tokio::task::spawn_blocking(move || -> PrepCtxResult {
             let mut warnings = Vec::new();
             if requested_pattern_examples > 20 { warnings.push("Caller pattern limit capped at 20".into()); }
-            verify_indexed_source_span(&graph, &project_id, &project_dir, &file_path)?;
+            let membership = search.selected_source_revision_lookup(
+                &project_id, source_generation, worker_view,
+            ).map_err(|error| format!("Selected implementation source unavailable: {error:#}"))?;
             // 1. Resolve the target method
             // Round-6: reuse the shared resolver instead of a hand-rolled
             // candidate scan. select_method_node prefers an EXACT name over
@@ -5210,6 +5241,10 @@ impl Engram {
                 line,
             )?;
             let node = &resolved_node;
+            let (target_bytes, source_verification) = read_held_context_source(
+                &graph, &project_id, &project_dir, node, &membership,
+            )?;
+            let target_text = std::str::from_utf8(&target_bytes).map_err(std::io::Error::other);
             let (method_info, method_coverage) = build_method_info_with_coverage(node, &graph, &project_id);
             for (name, status) in [
                 ("callers", &method_coverage.callers),
@@ -5226,19 +5261,14 @@ impl Engram {
                 warnings.push(format!("{} indexed caller source nodes are unavailable", method_coverage.callers_dangling));
             }
 
-            // 2. Read the method body from disk
-            let full_path = safe_join(Path::new(&project_dir), &file_path)
-                .map_err(|e| format!("Path validation: {e}"))?;
-            // Round-5 P0: do NOT swallow a body-read failure with .ok() — a
-            // caller must be able to tell "read failed" from "no body".
-            let (method_body, body_read_error) =
-                match read_lines_from_file(&full_path, node.start_line, node.end_line, 0) {
+            // Derive the body and same-file diagnostics from the verified bytes.
+            let (method_body, body_read_error) = match target_text.as_ref() {
+                Ok(text) => match source_lines(text, node.start_line, node.end_line, 0) {
                     Ok((body, _)) => (Some(body), None),
-                    Err(e) => (
-                        None,
-                        Some(format!("could not read method body from disk: {e}")),
-                    ),
-                };
+                    Err(error) => (None, Some(format!("could not read method body: {error}"))),
+                },
+                Err(error) => (None, Some(format!("could not decode method source: {error}"))),
+            };
 
             // 3. Pattern examples from callers
             let mut pattern_examples: Vec<PatternExample> = Vec::new();
@@ -5261,27 +5291,21 @@ impl Engram {
                 for (source_id, kind, _weight) in callers.iter().take(max_pattern_examples) {
                     match graph.get_node(&project_id, source_id) {
                     Ok(Some(src_node)) => {
-                        let Ok(src_full) =
-                            safe_join(Path::new(&project_dir), src_node.file_path.as_str())
-                        else {
-                            warnings.push(format!("Caller pattern {source_id} withheld: invalid source path"));
-                            continue;
+                        let (bytes, verification) = match read_held_context_source(
+                            &graph, &project_id, &project_dir, &src_node, &membership,
+                        ) {
+                            Ok(source) => source,
+                            Err(error) => {
+                                warnings.push(format!("Caller pattern {source_id} withheld: {error}"));
+                                continue;
+                            }
                         };
-                        if let Err(error) = verify_indexed_source_span(
-                            &graph,
-                            &project_id,
-                            &project_dir,
-                            src_node.file_path.as_str(),
-                        ) {
-                            warnings.push(format!("Caller pattern withheld: {error}"));
-                            continue;
+                        if verification != "matched_indexed_fingerprint" {
+                            warnings.push(format!("Caller pattern {source_id}: {verification}"));
                         }
-                        match read_lines_from_file(
-                            &src_full,
-                            src_node.start_line,
-                            src_node.end_line,
-                            0,
-                        ) {
+                        match std::str::from_utf8(&bytes).map_err(std::io::Error::other)
+                            .and_then(|source| source_lines(source, src_node.start_line, src_node.end_line, 0))
+                        {
                           Ok((src_body, _)) => {
                             pattern_examples.push(PatternExample {
                                 caller_fqn: fqn_from_node(&src_node),
@@ -5518,10 +5542,8 @@ impl Engram {
 
             // 8. VB translation traps relevant to this method
             let vb_traps = if file_path.to_lowercase().ends_with(".vb") {
-                let full_path = safe_join(Path::new(&project_dir), &file_path)
-                    .map_err(|e| format!("Path validation: {e}"))?;
-                if let Ok(content) = std::fs::read_to_string(&full_path) {
-                    let files = vec![(file_path.as_str(), content.as_str())];
+                if let Ok(content) = target_text.as_ref() {
+                    let files = vec![(file_path.as_str(), *content)];
                     let report =
                         engram_index::vb_translation_traps::detect_vb_translation_traps(&files);
                     report
@@ -5574,10 +5596,8 @@ impl Engram {
                 };
 
                 if let Some(family) = family {
-                    let full_path = safe_join(Path::new(&project_dir), &file_path)
-                        .map_err(|e| format!("Path validation: {e}"))?;
-                    if let Ok(content) = std::fs::read_to_string(&full_path) {
-                        let files = vec![(file_path.as_str(), content.as_str())];
+                    if let Ok(content) = target_text.as_ref() {
+                        let files = vec![(file_path.as_str(), *content)];
                         let report =
                             engram_index::language_diagnostics::detect_language_diagnostics(
                                 family, &files,
@@ -5642,12 +5662,10 @@ impl Engram {
 
             // 10. Sync hazards in this method
             let sync_hazards = {
-                let full_path = safe_join(Path::new(&project_dir), &file_path)
-                    .map_err(|e| format!("Path validation: {e}"))?;
-                if let Ok(content) = std::fs::read_to_string(&full_path) {
+                if let Ok(content) = target_text.as_ref() {
                     let is_vb = file_path.to_lowercase().ends_with(".vb");
                     let report =
-                        engram_index::sync_hazard_detector::detect_sync_hazards(&content, is_vb);
+                        engram_index::sync_hazard_detector::detect_sync_hazards(content, is_vb);
                     report
                         .hazards
                         .into_iter()
@@ -5670,10 +5688,16 @@ impl Engram {
             if let Some(e) = body_read_error {
                 warnings.push(e);
             }
+            validate_held_method_revision(&graph, &project_id, node, Some(&membership))?;
             Ok(ImplementationContext {
                 method_info,
                 method_coverage,
-                coverage_interpretation: coverage_interpretation(),
+                source_generation,
+                source_verification,
+                coverage_interpretation: format!(
+                    "{} Target and caller sources use the held selection. Other live graph observations and authored guidance have separate coverage.",
+                    coverage_interpretation()
+                ),
                 project_policy_sources: crate::services::project_policy::resolve(
                     Path::new(&project_dir), &[file_path.clone()], &[],
                 ),
