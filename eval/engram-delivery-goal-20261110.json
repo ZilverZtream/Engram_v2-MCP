@@ -2981,8 +2981,10 @@
       "acceptance": "On an owned project with a successful source publication, a failed native merge surfaces the storage cause, leaves the previous file revision selected and records the existing vector recovery reason across reopen. Verify vector-only repair and retry in the same fixture. Provider fallback remains covered by retained S02 evidence.",
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/s02-native-write-recovery-20261120",
       "baseline": {"path": "baseline-observed/receipt.json", "sha256": "ef522207fa10965d73ca2fba9373f3c251efada260711c679b3259d0630f6dd8"},
-      "candidate_verifier": {"path": "verify.py", "sha256": "3bd77b3b3c0e4c445c2995def9ef269a683b1d5b1ce4844978c21d29a99c0848"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "630f69ffccfb831573ab01f56abff945e6ab76cf153a5a2fc78e43f783b5d490"},
+      "repair_baseline": {"path": "baseline-repair/receipt.json", "sha256": "402d47c5a539df0cc593e86475d0bb10dbfbeaf12675323c1b78da550979b880"},
       "evidence": "The installed binary on an owned project hit a native merge failure after valid embeddings. Generation 1 remained selected, the vector recovery reason was absent before and after reopening, and retry after removing the obstruction published generation 2. The fixture directory was removed. The first run retained the same expected JSON-RPC error but the observer stopped before examining recovery; the corrected run completed.",
+      "repair_evidence": "The installed vector-only repair rebuilt matching vector identities for the original selected revision while edited bytes remained on disk. Repair preserved the original indexed hash and generation. The subsequent source update published the independently hashed edit. The native write failure still lacks the durable recovery reason on the installed baseline.",
       "delivery": "Submit with a subsequent combined build. The currently running edit dossier release is frozen before this change."
     },
     "s02_installed_webforms_shrink_delete": {
