@@ -2973,16 +2973,27 @@
   "current_execution_focus": {
     "status": "HISTORY_TRACE_BROWSER_ANSWER_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "edit_advisory_verified_source_bytes": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "source_commit": "ac2254e8d263d349d6dda7ec7f7340b88c2f7103",
+      "requirement": "S06 selected source reader through edit evidence and the original source-backed edit-safety workflow",
+      "observed_gap": "The shared edit advisory verifies a fingerprint and then reopens the target file for the method body and the hazard scans. It also omits the fingerprint status and hash of the analyzed target in both public advisory paths.",
+      "implementation": ["crates/engram_server/src/handlers/access_layer_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Both edit entry points report the verified raw hash and derive method body, complexity and supported hazard scans from those same bytes under the held selection. Known changed bytes are refused and legacy missing fingerprints remain explicit. Compare the live result to independently read LegacyValidation source and exercise an owned change/refusal with exact bytes.",
+      "verification": "The focused check compiled the exact target read and report construction against the real graph dependency and actual LegacyValidation FileLayerZoomPolicy.vb bytes. The method body and hash matched, legacy absence stayed explicit, and an unindexed change was refused. The owned graph and fixture were closed and removed. Full MCP integration and deployment remain pending.",
+      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/edit-advisory-target-source-focused-20261120.json"
+    },
     "git_freshness_edit_safety_release": {
       "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
       "frozen_source_commit": "9594a6b62f507b0d1fc27b83b5d0d3a4ec0e46b4",
       "requirements": ["TODO-5", "TODO-4/EG-09", "TODO-33/TODO-4"],
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/git-freshness-edit-safety-20261120",
       "baseline": {"path": "baseline/receipt.json", "sha256": "1e12deb7553133ce753be252c6125b9a356cb7842531655eeaba3286a8a81909", "verifier": "verify-baseline.py"},
-      "candidate_verifier": {"path": "verify-public.py", "sha256": "2b21f3b973b38218ed724c852a57edeef3e0d6fe7a09070b8af47a3570209972"},
-      "release_plan": {"path": "release-plan.json", "sha256": "cc13dcc856b866eeb9e09c05ab7b21ae47b2a111124f83fe951157d386a50738"},
+      "candidate_verifier": {"path": "verify-public.py", "sha256": "b83d80747c8b2e7db514a0d959ac69c695fb61127a3075ffaa6f5b5e2c230dab"},
+      "release_plan": {"path": "release-plan.json", "sha256": "eef0a23c3801af1ce8e9740e0aece2a08c172bcfa287a409d595b59f928e1d9f"},
       "evidence": "Installed owned MCP confirms the Git compare option and batched safety are refused, while standalone text shows the actual VB caller and JSON omits caller locations and freshness. The standalone server exited and its fixture was removed. The shared verifier owns its fixture and captures direct, saved and refreshed results against Git and source evidence.",
       "active_processes": "Build, candidate and idle-live-install driver identities are recorded in pipeline-owner.json. Poll them or their terminal receipts. The existing shared release target and detached checkout were reused.",
+      "verification_correction": "Before candidate execution, the verifier was corrected to expect a stale-source refusal after changing file bytes. It separately touches the original bytes to verify the timestamp warning. The previous verifier and its digest are retained. The frozen release source is unchanged.",
       "next_acceptance": "Run the queued owned MCP and exact recovery checks against the candidate, then verify the installed pair and live LegacyValidation local origin tip and indexed VB caller. Package verification precedes idle-only cutover."
     },
     "batched_edit_safety": {
@@ -4643,6 +4654,14 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "9594a6b62f507b0d1fc27b83b5d0d3a4ec0e46b4",
       "acceptance_contract": "Batch actual LegacyValidation source, exact-file freshness and edit safety with one distinct failed safety request. Confirm ordering, independent errors and scoped caller/freshness evidence, then recover complete original safety and failures through the shared budget using exact continuation. Check the recovery action remains callable."
+    }
+  ],
+  "following_source_batch_pending": [
+    {
+      "original_requirement_id": "S06",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "ac2254e8d263d349d6dda7ec7f7340b88c2f7103",
+      "acceptance_contract": "Use both public edit tools on the same actual LegacyValidation VB method and compare their target_source raw hash and fingerprint status with independent file bytes. In the owned fixture check the method slice, preserved supported hazard reporting, and refusal after a content edit."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
