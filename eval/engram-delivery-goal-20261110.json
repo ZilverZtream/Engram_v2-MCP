@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "HISTORY_TRACE_BROWSER_ANSWER_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "edit_context_source_scoped_caller_policy": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "source_commit": "5753d8fd2e74a7834b9d8304ec89ea403cbf2bd3",
+      "requirement": "EG-01 exact path-scoped guidance in the original edit context and S06 source admission",
+      "observed_gap": "Installed public get_method_edit_context attached rules from a caller-only instruction file after that caller source was withheld. An identity-only row widened the target edit's reported policy scope.",
+      "implementation": ["crates/engram_server/src/handlers/access_layer_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Using the existing actual LegacyValidation VB target and separate owned caller, verify the caller-only guide is returned with actual caller source and withheld when the caller is only an identity. Retain target guidance, verified excerpts and guidance recovery.",
+      "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/git-freshness-edit-safety-20261120/caller-context-policy-baseline/receipt.json", "sha256": "c5526ac9c1a245647a10fc242b0284254013581e45c23724f0d708eec4366b38"},
+      "focused_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/caller-policy-scope-focused-20261120.json",
+      "verification": "The installed baseline included a caller-only rule despite an empty body and withheld excerpt. The exact amended path selection retained the target, the returned full caller and the returned excerpt, excluding the caller that supplied neither. The owned process and fixtures were closed and removed. Packaged public MCP integration remains pending."
+    },
     "edit_context_caller_source_omissions": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "source_commit": "d22429b46df3a4e0d9cf2faf3c1aca8936681306",
@@ -4679,6 +4690,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "d22429b46df3a4e0d9cf2faf3c1aca8936681306",
       "acceptance_contract": "On the exact LegacyValidation VB copy plus a separate owned caller, verify pre-edit target and caller bodies, then edit only that caller. The complete target advisory and other verified caller remain, with the changed body omitted and its reason visible in text and JSON. Identity-only output and policy scope remain accurate."
+    },
+    {
+      "original_requirement_id": "EG-01",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "5753d8fd2e74a7834b9d8304ec89ea403cbf2bd3",
+      "acceptance_contract": "Use the same owned caller fixture. Prove that a caller-only instruction is included with its actual caller source or excerpt and excluded when the caller source is withheld, despite its visible identity. Target guidance and exact recovery remain."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
