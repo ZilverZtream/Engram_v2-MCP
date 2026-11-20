@@ -187,7 +187,8 @@ mod tests {
                 "target_name":"SaveEventsToDB","target_file":"Service.vb","target_line":11,
                 "target_source_verified":true,"evidence":{"call_lines":[17],"compiler_details":"å".repeat(80_000)}}],
             "source_members":[{"node_id":"service","file":"Service.vb","line_start":11,"source_blake3":"retained-hash",
-                "excerpt":"original source","shown_lines":1,"excerpt_truncated":false}],
+                "excerpt":"original source","shown_lines":1,"excerpt_truncated":false,
+                "startup_script_registrations":{"candidates":[{"line":12,"key":"refresh","script_status":"literal"}]}}],
             "gaps":["Runtime DI selection is not proven"],"trigger_coverage":"unknown"
         }]}],"coverage":{"runtime_execution_proven":false}});
         let body = report.to_string();
@@ -204,6 +205,8 @@ mod tests {
         assert_eq!(manifest["coverage"],report["coverage"]);
         assert_eq!(manifest["response_delivery"]["omitted_paths"],0);
         assert_eq!(controller["source_members"][0]["source_blake3"],"retained-hash");
+        assert_eq!(controller["source_members"][0]["startup_script_registrations"],
+            report["api_traces"][0]["controllers"][0]["source_members"][0]["startup_script_registrations"]);
         let id = manifest["response_delivery"]["response_id"].as_str().unwrap();
         let mut recovered = String::new();
         loop {

@@ -11,11 +11,14 @@ const MAX_NODES: usize = 64;
 const MAX_DEPTH: usize = 6;
 const MAX_EDGES: usize = 128;
 const MAX_REDIRECTS_PER_METHOD: usize = 8;
+const MAX_STARTUP_SCRIPTS_PER_METHOD: usize = 8;
 
-pub(super) fn response_redirects(body: &str, start_line: u32) -> Option<serde_json::Value> {
+pub(super) fn response_redirects(
+    tokens: &[super::routing::Token],
+    start_line: u32,
+) -> Option<serde_json::Value> {
     use serde_json::json;
 
-    let tokens = super::routing::tokens(body, true);
     let mut candidates = Vec::new();
     let mut truncated = false;
     for call in tokens.windows(6) {
@@ -51,6 +54,55 @@ pub(super) fn response_redirects(body: &str, start_line: u32) -> Option<serde_js
         "candidates": candidates,
         "truncated": truncated,
         "interpretation": "VB source call spellings. Receiver binding, execution and HTTP status are unverified.",
+    }))
+}
+
+pub(super) fn startup_script_registrations(
+    tokens: &[super::routing::Token],
+    start_line: u32,
+) -> Option<serde_json::Value> {
+    use super::routing::{Token, arguments};
+    use serde_json::json;
+
+    fn literal(tokens: &[Token]) -> Option<&str> {
+        match tokens {
+            [token] if token.string => Some(token.text.as_str()),
+            _ => None,
+        }
+    }
+
+    let mut candidates = Vec::new();
+    let mut truncated = false;
+    for (index, call) in tokens.windows(4).enumerate() {
+        if call.iter().any(|token| token.string)
+            || !call[0].text.eq_ignore_ascii_case("ScriptManager")
+            || call[1].text != "."
+            || !call[2].text.eq_ignore_ascii_case("RegisterStartupScript")
+            || call[3].text != "("
+        {
+            continue;
+        }
+        let Some(args) = arguments(&tokens[index + 4..]) else {
+            continue;
+        };
+        let [_, _, key, script, _] = args.as_slice() else {
+            continue;
+        };
+        if candidates.len() == MAX_STARTUP_SCRIPTS_PER_METHOD {
+            truncated = true;
+            break;
+        }
+        let script = literal(script);
+        candidates.push(json!({
+            "line": start_line as usize + call[0].line - 1,
+            "key": literal(key).filter(|value| value.len() <= 256),
+            "script_status": if script.is_some() { "literal" } else { "unresolved_expression" },
+        }));
+    }
+    (!candidates.is_empty()).then(|| json!({
+        "candidates": candidates,
+        "truncated": truncated,
+        "interpretation": "Authored VB registrations. The generated script, browser execution and effects are unverified.",
     }))
 }
 
@@ -625,11 +677,14 @@ pub(super) fn trace_selected(
                     .collect::<Vec<_>>()
                     .join("\n")
             });
-            if vb
-                && let Some(body) = body.as_deref()
-                && let Some(redirects) = response_redirects(body, node.start_line)
-            {
-                member["response_redirects"] = redirects;
+            if vb && let Some(body) = body.as_deref() {
+                let tokens = super::routing::tokens(body, true);
+                if let Some(redirects) = response_redirects(&tokens, node.start_line) {
+                    member["response_redirects"] = redirects;
+                }
+                if let Some(scripts) = startup_script_registrations(&tokens, node.start_line) {
+                    member["startup_script_registrations"] = scripts;
+                }
             }
             result.source_members.push(member);
             if let (Some(database), Some(body)) = (&database, body.as_deref()) {

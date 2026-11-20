@@ -294,7 +294,7 @@ Dim example = "Response.Redirect(""example.aspx"")"
 Response.Redirect("done.aspx?id=" & orderId)
 Me.Response.RedirectPermanent("~/done.aspx", False)
 End Sub"#;
-    let evidence = execution::response_redirects(body, 10).unwrap();
+    let evidence = execution::response_redirects(&routing::tokens(body, true), 10).unwrap();
     let candidates = evidence["candidates"].as_array().unwrap();
     assert_eq!(candidates.len(), 2);
     assert_eq!(candidates[0]["line"], 13);
@@ -302,6 +302,22 @@ End Sub"#;
     assert_eq!(candidates[0]["destination_status"], "unresolved_expression");
     assert_eq!(candidates[1]["line"], 14);
     assert_eq!(candidates[1]["destination"], "~/done.aspx");
+}
+
+#[test]
+fn startup_script_registration_preserves_key_and_leaves_interpolation_unresolved() {
+    let body = r#"Sub Download()
+' ScriptManager.RegisterStartupScript(Page, Page.GetType(), "comment", "ignored", True)
+Dim example = "ScriptManager.RegisterStartupScript(Page, Page.GetType(), ""example"", ""ignored"", True)"
+ScriptManager.RegisterStartupScript(Page, Page.GetType(), "downloadImage", $"initiateDownload('{url}');", True)
+ScriptManager.RegisterStartupScript(Page, Page.GetType(), "refresh", "refreshList();", True)
+End Sub"#;
+    let evidence = execution::startup_script_registrations(&routing::tokens(body, true), 191).unwrap();
+    assert_eq!(evidence["candidates"], json!([
+        {"line":194,"key":"downloadImage","script_status":"unresolved_expression"},
+        {"line":195,"key":"refresh","script_status":"literal"}
+    ]));
+    assert_eq!(evidence["truncated"], false);
 }
 
 #[test]

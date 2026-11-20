@@ -21,6 +21,11 @@ Installed2026-11-16: retained SQL-source table resolutions select existing SQL r
 
 `trace_user_request` attaches `response_redirects` to verified VB method source records when it sees `Response.Redirect(...)` or `Response.RedirectPermanent(...)`. Each candidate carries the source line and uses the enclosing record's file and hash. Literal destinations up to 512 UTF-8 bytes are shown. Expressions remain unresolved, and the output reports when a method exceeds eight candidates. These source call spellings leave receiver binding, execution and HTTP status unverified.
 
+Verified VB source members also report `ScriptManager.RegisterStartupScript`
+calls with a source line, literal registration key when available, and script
+expression status. The location and source hash survive excerpt compaction.
+The trace leaves generated script content and browser execution unverified.
+
 Installed2026-11-16: `trace_user_request` composes existing indexed value lineage for at most8resolved page/controller entries. Helper invocation contexts remain separate; returned points must match selected physical file revisions and admitted raw source hashes. Existing partial/unavailable status, issues and static/runtime limits remain. Oversized traces retain lineage status/counts/issues with explicit deferral and exact full-report recovery. This does not infer new SQL, path-feasibility or runtime binding. Supported framework metadata is required for compiler bindings; source-only/unindexed flows remain partial or unavailable.
 
 Installed2026-11-16: public `evaluate_safety` identifies caller-supplied unverified inputs. Disabled policy keeps its configured allow/bypass but returns null confidence/risk and `policy_disabled_unassessed`. Enabled results retain their threshold decision/checks, label confidence as the fraction passed rather than a safety probability, and label risk as a heuristic on supplied scope. No source analysis, coverage measurement or test execution is performed. Internal policy/ADP decision types and enforcement thresholds remain unchanged.
