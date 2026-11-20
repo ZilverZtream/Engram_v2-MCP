@@ -179,6 +179,14 @@ impl RequestEvidence {
             trace["status"] == "static_candidates",
             "Request tracer returned an unexpected report kind"
         );
+        if trace["response_delivery"]["status"] == "DEFERRED_TRACE_NAVIGATION" {
+            self.provider.truncated = true;
+            self.note(&format!(
+                "{entry}: request navigation is deferred. Recover the original through {} before drawing conclusions.",
+                trace["response_delivery"]["next_call"]
+            ));
+            return Ok(());
+        }
         let pages = trace["routing"]["candidates"]
             .as_array()
             .map_or(0, Vec::len);

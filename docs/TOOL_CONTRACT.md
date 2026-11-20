@@ -33,6 +33,12 @@ source lines, simple literal status or content-type values, and literal header
 names where available. Values that require evaluation remain unresolved.
 These are authored statements with the enclosing source hash.
 
+If compact trace navigation exceeds the caller's reply budget, the trace can
+return `DEFERRED_TRACE_NAVIGATION` with no inline paths. Follow
+`response_delivery.next_call` to recover the complete captured report under
+the same budget. The response reports how many paths were deferred and the
+size of the compact navigation. Recovery uses the original source evidence.
+
 Installed2026-11-16: `trace_user_request` composes existing indexed value lineage for at most8resolved page/controller entries. Helper invocation contexts remain separate; returned points must match selected physical file revisions and admitted raw source hashes. Existing partial/unavailable status, issues and static/runtime limits remain. Oversized traces retain lineage status/counts/issues with explicit deferral and exact full-report recovery. This does not infer new SQL, path-feasibility or runtime binding. Supported framework metadata is required for compiler bindings; source-only/unindexed flows remain partial or unavailable.
 
 Installed2026-11-16: public `evaluate_safety` identifies caller-supplied unverified inputs. Disabled policy keeps its configured allow/bypass but returns null confidence/risk and `policy_disabled_unassessed`. Enabled results retain their threshold decision/checks, label confidence as the fraction passed rather than a safety probability, and label risk as a heuristic on supplied scope. No source analysis, coverage measurement or test execution is performed. Internal policy/ADP decision types and enforcement thresholds remain unchanged.

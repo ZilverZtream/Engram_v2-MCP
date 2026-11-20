@@ -168,7 +168,27 @@ pub(super) fn finish(data: &Path, project: &str, body: String, limit: usize) -> 
         }
     }
     if text.len() > limit {
-        return Err(McpError::invalid_params(format!("max_tokens is too small for the complete trace navigation view: at least {} estimated tokens ({} UTF-8 bytes) required. No path was silently removed.", text.len().div_ceil(4), text.len()),None));
+        let navigation_bytes = text.len();
+        let deferred = json!({
+            "status":report["status"],
+            "project_id":project,
+            "active_generation":report["active_generation"],
+            "response_delivery":{
+                "status":"DEFERRED_TRACE_NAVIGATION","complete":false,"inline_navigation":false,
+                "response_id":id,"original_bytes":body.len(),"response_budget_bytes":limit,
+                "path_count":counts[0],"omitted_paths":counts[0],
+                "compact_navigation_bytes":navigation_bytes,
+                "instruction":"Recover the immutable original before relying on paths, source, or authored guidance. Concatenate pages by byte offset and verify the BLAKE3 response ID. Recovery does not rerun the trace or recheck current source.",
+                "next_call":snapshots::request_trace_continuation(project,&id,0,limit)
+            }
+        });
+        text = serde_json::to_string(&deferred)
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        if text.len() > limit {
+            return Err(McpError::invalid_params(format!(
+                "max_tokens is too small for trace recovery metadata: at least {} estimated tokens ({} UTF-8 bytes) required.",
+                text.len().div_ceil(4), text.len()), None));
+        }
     }
     snapshots::save_request_trace(data,project,&body)?;
     Ok(text)
@@ -231,6 +251,44 @@ mod tests {
         assert_eq!(finish(temporary.path(),"project",body.clone(),65_536).unwrap(),body);
         assert!(finish(temporary.path(),"project",body,4).is_err());
         assert_eq!(std::fs::read_dir(temporary.path()).unwrap().count(),0);
+    }
+
+    #[test]
+    fn navigation_overflow_returns_recoverable_original_within_budget() {
+        let temporary = tempfile::tempdir().unwrap();
+        let original = json!({"status":"static_candidates","active_generation":7,
+            "routing":{"candidates":["Site/Orders.aspx"]},
+            "pages":[{"page":"Site/Orders.aspx","paths":[{
+                "from":"entry","to":"orders","kind":"calls",
+                "target_file":"Site/Orders.aspx.vb","target_line":27,
+                "target_name":"Orders.Save","target_source_verified":true}],
+                "gaps":["Authored source only.".repeat(150)]}],
+            "coverage":{"runtime_execution_proven":false}}).to_string();
+        let limit = 1024;
+        let first = finish(temporary.path(), "project", original.clone(), limit).unwrap();
+        assert!(first.len() <= limit);
+        let manifest: Value = serde_json::from_str(&first).unwrap();
+        assert_eq!(manifest["active_generation"], 7);
+        assert!(manifest.get("pages").is_none());
+        let delivery = &manifest["response_delivery"];
+        assert_eq!(delivery["status"], "DEFERRED_TRACE_NAVIGATION");
+        assert_eq!(delivery["inline_navigation"], false);
+        assert_eq!(delivery["omitted_paths"], 1);
+        let mut action = delivery["next_call"].clone();
+        let mut recovered = String::new();
+        while !action.is_null() {
+            let request = &action["arguments"];
+            let page = snapshots::recover_request_trace(
+                temporary.path(), "project", request["response_id"].as_str().unwrap(),
+                request["response_offset"].as_u64().unwrap() as usize, limit,
+            ).unwrap();
+            assert!(page.len() <= limit);
+            let page: Value = serde_json::from_str(&page).unwrap();
+            recovered.push_str(page["content"].as_str().unwrap());
+            action = page["next_call"].clone();
+        }
+        assert_eq!(recovered, original);
+        assert_eq!(delivery["response_id"], blake3::hash(original.as_bytes()).to_hex().as_str());
     }
 
     #[test]
