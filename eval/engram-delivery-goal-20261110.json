@@ -2653,7 +2653,7 @@
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
-    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\settings-review-history-20261120",
+    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-source-workflows-20261120",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "incremental_codegen": {
@@ -2973,6 +2973,26 @@
   "current_execution_focus": {
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "scoped_source_workflows_release": {
+      "status": "ONE_COMBINED_RELEASE_BUILD_RUNNING",
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-source-workflows-20261120",
+      "source_commit": "b7e09a13f2c3190ccb5e7f0d90534aea135ca9e7",
+      "original_requirement_ids": [
+        "EG-01",
+        "TODO-4",
+        "S07"
+      ],
+      "build_session": 61257,
+      "stage_session": 71666,
+      "build_driver_pid": 76448,
+      "build_relay_pid": 77324,
+      "release_plan_sha256": "e2b6b9185fe4a4bfc886099896196bdb97b8b920c357e1f60862c89add88fd62",
+      "baseline_sha256": "a038e78001513042aa88fc17af7427b565bb1981d044c21b598143f54ae01968",
+      "baseline": "Installed binary refused exact-file freshness and missed the quoted spaced path in the owned fixture. Existing pagination returned eight scoped settings and retained the external reader. The real LegacyValidation baseline warning and direct-count evidence remain pinned to the original scope probe.",
+      "verification": "One shared-target optimized build. The existing stage session runs the three isolated public checks when its exact build owner exits. Install the passed package once and verify live LegacyValidation Git bytes, scoped settings and current fingerprint observations.",
+      "retention": "Keep the recorded build checkout, verifier and receipts; newly owned compiler and source fixtures clean after their owners exit.",
+      "full_suites_started": 0
+    },
     "exact_file_index_freshness": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "requirement": "S07 published logical selection and source diagnostics agree for current agent evidence",
