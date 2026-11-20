@@ -14,7 +14,7 @@ use crate::handlers::validate_project_id;
 use crate::models::requests::PreCommitReviewRequest;
 use crate::services::pre_commit_review_service::{
     ReviewConfig, Severity, render_compact_markdown, render_json, render_markdown, resolve_review_diff,
-    run_parsed_review_with_source_view,
+    resolve_staged_review_diff, run_parsed_review_with_source_view,
 };
 use crate::services::project_service::ensure_project_record;
 use crate::tools::Engram;
@@ -112,22 +112,26 @@ impl Engram {
                 let (project_dir, review_source) =
                     resolve_review_directory(&root, req.working_directory.as_deref())
                         .map_err(|error| McpError::invalid_params(error.to_string(), None))?;
-                let diff_text = resolve_review_diff(&project_dir, &req.diff, &req.path_prefixes).map_err(|error| {
+                let diff_error = |error: anyhow::Error| {
                     McpError::invalid_params(format!("diff resolution failed: {error}"), None)
-                })?;
+                };
+                let (diff_text, staged_index, head) = if req.diff.trim() == "staged" {
+                    let staged = resolve_staged_review_diff(&project_dir, &req.path_prefixes)
+                        .map_err(diff_error)?;
+                    (staged.text, Some(staged.index), staged.head)
+                } else {
+                    let text = resolve_review_diff(&project_dir, &req.diff, &req.path_prefixes)
+                        .map_err(diff_error)?;
+                    (text, None, head_commit(&project_dir))
+                };
                 let parsed = std::sync::Arc::new(
                     crate::services::pre_commit_review_service::parse_unified_diff(&diff_text),
                 );
                 let diff_blake3 = (!diff_text.trim().is_empty())
                     .then(|| blake3::hash(diff_text.as_bytes()).to_hex().to_string());
                 drop(diff_text);
-                let head = head_commit(&project_dir);
                 let source = source_snapshot(&project_dir, &parsed);
-                let index = if req.diff.trim() == "staged" {
-                    staged_index_snapshot(&project_dir, &parsed).ok()
-                } else {
-                    None
-                };
+                let index = staged_index.as_ref().map(|index| staged_entries(index, &parsed));
                 Ok::<_, McpError>((req, project_dir, review_source, diff_blake3, parsed, head, source, index))
             })
             .await
@@ -564,13 +568,20 @@ fn staged_index_snapshot(
 ) -> anyhow::Result<BTreeMap<String, Option<StagedEntry>>> {
     let repository = git2::Repository::discover(root)?;
     let index = repository.index()?;
-    Ok(files.iter().map(|file| {
+    Ok(staged_entries(&index, files))
+}
+
+fn staged_entries(
+    index: &git2::Index,
+    files: &[crate::services::pre_commit_review_service::DiffFile],
+) -> BTreeMap<String, Option<StagedEntry>> {
+    files.iter().map(|file| {
         let entry = index.get_path(std::path::Path::new(&file.path), 0).map(|entry| StagedEntry {
             object_id: entry.id.to_string(),
             mode: entry.mode,
         });
         (file.path.clone(), entry)
-    }).collect())
+    }).collect()
 }
 
 fn source_snapshot(
@@ -624,8 +635,10 @@ fn source_snapshot(
 
 #[cfg(test)]
 mod worktree_binding_tests {
-    use super::resolve_review_directory;
-    use crate::services::pre_commit_review_service::resolve_diff_source;
+    use super::{resolve_review_directory, staged_entries, staged_index_snapshot};
+    use crate::services::pre_commit_review_service::{
+        parse_unified_diff, resolve_diff_source, resolve_staged_review_diff,
+    };
     use std::path::Path;
 
     fn repository_with_commit(path: &Path) -> git2::Repository {
@@ -675,5 +688,35 @@ mod worktree_binding_tests {
             .unwrap_err()
             .to_string();
         assert!(error.contains("different Git repository"), "{error}");
+    }
+
+    #[test]
+    fn staged_patch_keeps_its_index_snapshot_after_restaging() -> anyhow::Result<()> {
+        let fixture = tempfile::tempdir()?;
+        let root = fixture.path();
+        let repository = repository_with_commit(root);
+        let path = Path::new("tracked.txt");
+        let stage = |body: &str| -> anyhow::Result<String> {
+            std::fs::write(root.join(path), body)?;
+            let mut index = repository.index()?;
+            index.add_path(path)?;
+            index.write()?;
+            Ok(index.get_path(path, 0).expect("staged entry").id.to_string())
+        };
+        let reviewed = stage("selected version\n")?;
+        let captured = resolve_staged_review_diff(root, &[])?;
+        let restaged = stage("later version\n")?;
+        let files = parse_unified_diff(&captured.text);
+        let entries = staged_entries(&captured.index, &files);
+        let current = staged_index_snapshot(root, &files)?;
+
+        assert!(captured.text.contains("+selected version"));
+        assert_eq!(entries["tracked.txt"].as_ref().unwrap().object_id, reviewed);
+        assert_eq!(current["tracked.txt"].as_ref().unwrap().object_id, restaged);
+        assert_ne!(reviewed, restaged);
+        drop(captured);
+        drop(repository);
+        fixture.close()?;
+        Ok(())
     }
 }

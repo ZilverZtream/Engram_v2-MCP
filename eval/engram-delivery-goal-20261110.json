@@ -2985,12 +2985,12 @@
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "EG-19 decision-aware review and TODO-34 trustworthy staged review",
       "observed_gap": "A staged review can describe the same path's divergent working file, but the structured verdict can stay green. A changed staging-area snapshot is invisible when the final disk contents and Git HEAD are unchanged.",
-      "implementation": ["crates/engram_server/src/handlers/review_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "implementation": ["crates/engram_server/src/handlers/review_tools.rs", "crates/engram_server/src/services/pre_commit_review_service.rs", "docs/TOOL_CONTRACT.md"],
       "acceptance": "Compare staged Git blob identities/modes before and after review; expose those identities and current-file divergence in JSON and prose. Do not preserve an otherwise green verdict where source evidence does not support it. Keep original findings, red verdicts, and the Git staging area intact.",
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/staged-review-index-evidence-20261120",
       "baseline": {"path": "baseline/receipt.json", "sha256": "5b9076f816fc829c66f04710ac157adfbe72ea002e454464a63323ab78471de8"},
       "candidate_verifier": {"path": "verify.py", "sha256": "08bf62db923ef03fc19973697be62ef7abadde83c2247aace0298417629b8066"},
-      "evidence": "Installed MCP observed an unstaged edit to the staged VB file but emitted neither the Git object identity nor a verdict qualification. The candidate fixture checks the independently read Git index ID, stable before/after records and JSON/prose qualification. The retained fixture tests steady divergence; a concurrent restaging run and packaged verification are still open."
+      "evidence": "Installed MCP observed an unstaged edit to the staged VB file but emitted neither the Git object identity nor a verdict qualification. The candidate fixture checks independently read Git IDs and JSON/prose qualification. Patch resolution now hands the same in-memory index and HEAD to the initial identity capture. A focused regression case restages the file after capturing the patch and independently reads the new index. That test and packaged verification remain open."
     },
     "exact_refresh_scoped_walk": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",

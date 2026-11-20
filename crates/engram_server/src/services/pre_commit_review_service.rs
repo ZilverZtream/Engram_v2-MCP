@@ -814,6 +814,19 @@ pub(crate) fn resolve_review_diff(project_dir: &Path, diff_input: &str, scopes: 
     resolve_diff(project_dir, diff_input, scopes, MAX_REVIEW_DIFF_BYTES)
 }
 
+pub(crate) struct StagedReviewDiff {
+    pub text: String,
+    pub index: git2::Index,
+    pub head: Option<String>,
+}
+
+pub(crate) fn resolve_staged_review_diff(
+    project_dir: &Path,
+    scopes: &[String],
+) -> anyhow::Result<StagedReviewDiff> {
+    git_diff_staged(project_dir, scopes, MAX_REVIEW_DIFF_BYTES)
+}
+
 fn ensure_diff_size(bytes: usize, limit: usize) -> anyhow::Result<()> {
     anyhow::ensure!(bytes <= limit,
         "Review diff exceeds {limit} bytes. Narrow a native Git diff with path_prefixes or split the submitted patch by file. No review ran.");
@@ -822,7 +835,7 @@ fn ensure_diff_size(bytes: usize, limit: usize) -> anyhow::Result<()> {
 
 fn resolve_diff(project_dir: &Path, diff_input: &str, scopes: &[String], limit: usize) -> anyhow::Result<String> {
     match diff_input.trim() {
-        "staged" => git_diff_staged(project_dir, scopes, limit),
+        "staged" => git_diff_staged(project_dir, scopes, limit).map(|staged| staged.text),
         "unstaged" => git_diff_unstaged(project_dir, scopes, limit),
         "working_tree" => git_diff_working_tree(project_dir, scopes, limit.min(MAX_REVIEW_DIFF_BYTES)),
         "head" => git_diff_head(project_dir, scopes, limit),
@@ -952,13 +965,17 @@ fn review_diff_options(scopes: &[String]) -> git2::DiffOptions {
     opts
 }
 
-fn git_diff_staged(project_dir: &Path, scopes: &[String], limit: usize) -> anyhow::Result<String> {
+fn git_diff_staged(project_dir: &Path, scopes: &[String], limit: usize) -> anyhow::Result<StagedReviewDiff> {
     let repo = git2::Repository::discover(project_dir)?;
-    let head_tree = repo.head().ok().and_then(|h| h.peel_to_tree().ok());
+    let head = repo.head().ok();
+    let head_tree = head.as_ref().and_then(|h| h.peel_to_tree().ok());
+    let index = repo.index()?;
     let mut opts = review_diff_options(scopes);
     opts.include_untracked(false);
-    let diff = repo.diff_tree_to_index(head_tree.as_ref(), None, Some(&mut opts))?;
-    diff_to_patch_text(&diff, limit)
+    let diff = repo.diff_tree_to_index(head_tree.as_ref(), Some(&index), Some(&mut opts))?;
+    let text = diff_to_patch_text(&diff, limit)?;
+    let head = head.and_then(|head| head.target()).map(|id| id.to_string());
+    Ok(StagedReviewDiff { text, index, head })
 }
 
 fn git_diff_unstaged(project_dir: &Path, scopes: &[String], limit: usize) -> anyhow::Result<String> {
