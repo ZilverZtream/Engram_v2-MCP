@@ -88,8 +88,12 @@ pub(crate) fn evidence(tool: &str, body: &str) -> String {
             }
             // Use the handler's own rendered sections, including their caller labels.
             let mut selected = vec!["Source basis: indexed working checkout".to_string()];
+            // The embedded method report has its own level-one heading. Split
+            // at both heading levels so its signature cannot be selected again
+            // as part of the preceding consumer section.
+            let sections: Vec<_> = body.split("\n## ").flat_map(|s| s.split("\n# ")).collect();
             for title in [
-                "**Signature**",
+                "Method:",
                 "Called By",
                 "Database Tables",
                 "Ordered source observations",
@@ -98,9 +102,9 @@ pub(crate) fn evidence(tool: &str, body: &str) -> String {
                 "Full Source",
                 "Body Preview",
             ] {
-                if let Some(section) = body.split("\n## ").find(|s| {
-                    if title == "**Signature**" {
-                        s.contains(title)
+                if let Some(section) = sections.iter().find(|s| {
+                    if title == "Method:" {
+                        s.starts_with("Method: ")
                     } else {
                         s.lines().next() == Some(title)
                     }
@@ -116,5 +120,17 @@ pub(crate) fn evidence(tool: &str, body: &str) -> String {
             .collect::<Vec<_>>()
             .join("\n"),
         _ => String::new(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn method_preview_shows_identity_once_alongside_consumer_paths() {
+        let report = "# Edit Context\n\n## Consumer call paths\ncaller -> persist\n\n# Method: Store.Save\n- **Signature**: Save()\n\n## Calls\n- Write()";
+        let preview = super::evidence("get_method_edit_context", report);
+        for text in ["Method: Store.Save", "**Signature**", "caller -> persist", "Write()"] {
+            assert_eq!(preview.matches(text).count(), 1, "{preview}");
+        }
     }
 }

@@ -1480,7 +1480,7 @@ impl Engram {
                             let name = owner.name.rsplit('.').next().unwrap_or(&owner.name);
                             owners.insert(
                                 name.to_owned(),
-                                format!("{path}:{line} {name}.{}", &cap[1]),
+                                (format!("{path}:{line} {name}.{}", &cap[1]), Some(cap[1].to_owned())),
                             );
                         }
                     }
@@ -1488,12 +1488,18 @@ impl Engram {
                         let name = markup.rsplit('/').next().unwrap_or(markup);
                         owners.insert(
                             format!("{name}.ascx"),
-                            format!("{path} references {concept}"),
+                            (format!("{path} references {concept}"), None),
                         );
                     }
                 }
                 let mut result = BTreeMap::new();
-                for (owner, via) in owners.into_iter().take(12) {
+                for (owner, (via, property)) in owners.into_iter().take(12) {
+                    // A type name may also be a namespace, URL or arbitrary text.
+                    // Accept the declared type in a type position or a named member access.
+                    let type_use = property.as_ref().map(|member| regex::Regex::new(&format!(
+                        r"(?i)(?:\b(?:As|New|Of|GetType\()\s*(?:\w+\.)*{}\b|\b{}\s*\.\s*{}\b)",
+                        regex::escape(&owner), regex::escape(&owner), regex::escape(member)
+                    ))).transpose()?;
                     let query = engram_index::grep::GrepQuery {
                         project_id: project.clone(),
                         namespace: "memory".into(),
@@ -1513,7 +1519,17 @@ impl Engram {
                     for hit in
                         engram_index::grep::grep(&engine, &root, &query, || Ok(Vec::new()))?.matches
                     {
-                        if engram_core::is_vendor_path(&hit.file_path) {
+                        let path = hit.file_path.to_ascii_lowercase();
+                        if engram_core::is_vendor_path(&path) || path.split('/').any(|dir| matches!(dir, "bin" | "obj")) {
+                            continue;
+                        }
+                        let line = hit.line_text.trim_start();
+                        if let Some(type_use) = &type_use {
+                            if !path.ends_with(".vb") || line.starts_with('\'') || !type_use.is_match(line) {
+                                continue;
+                            }
+                        } else if !(line.to_lowercase().contains("register")
+                            && [".ascx", ".aspx", ".master"].iter().any(|ext| path.ends_with(ext))) {
                             continue;
                         }
                         let witness =
@@ -6326,10 +6342,28 @@ fn planner_scope_retains_criteria_and_qualified_names() {
     );
 }
 
+fn coordinated_story_subjects(raw: &str) -> Vec<String> {
+    let Some(title) = raw.lines().map(str::trim).find(|line| !line.is_empty()) else { return vec![] };
+    let title = title.trim_start_matches('#').trim();
+    let title = title.split_once(": ").map_or(title, |(_, text)| text).to_lowercase();
+    let Some((subjects, _)) = [" must ", " should ", " shall "].iter().find_map(|modal| title.split_once(modal)) else { return vec![] };
+    let Some((left, right)) = subjects.split_once(" and ") else { return vec![] };
+    let mut result = Vec::new();
+    for subject in [left, right] {
+        let words = name_tokens(subject);
+        if !(2..=3).contains(&words.len()) || words.iter().any(|word| matches!(word.as_str(),"we"|"the"|"that"|"and"|"with"|"for")) {
+            return vec![];
+        }
+        result.push(words.iter().map(|w| canonical_story_name_term(w)).collect::<Vec<_>>().join(" "));
+    }
+    result
+}
+
 fn grounded_planning_concepts(
     graph: &engram_graph::GraphStore,
     project: &str,
     story: &str,
+    subjects: Vec<String>,
 ) -> anyhow::Result<Vec<String>> {
     let mut candidates = Vec::new();
     let mut seen = HashSet::new();
@@ -6427,11 +6461,15 @@ fn grounded_planning_concepts(
             .then_with(|| mentions.get(&b.2).cmp(&mentions.get(&a.2)))
             .then(a.1.cmp(&b.1))
     });
-    let mut concepts: Vec<_> = ranked
-        .into_iter()
-        .take(3)
-        .map(|(_, _, name)| name)
-        .collect();
+    let mut concepts = subjects;
+    for (_, _, name) in ranked {
+        if concepts.len() >= 3 { break; }
+        // A phrase already covered by a more specific title subject adds no new topic.
+        let phrase = format!(" {name} ");
+        if !concepts.iter().any(|existing| format!(" {existing} ").contains(&phrase)) {
+            concepts.push(name);
+        }
+    }
     for word in extract_story_concepts(story) {
         if concepts.len() < 3 && !concepts.iter().any(|c| c.eq_ignore_ascii_case(&word)) {
             concepts.push(word);
@@ -6542,10 +6580,11 @@ impl Engram {
         let concepts: Vec<String> = match &req.concepts {
             Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
             _ => {
+                let subjects = coordinated_story_subjects(&req.story);
                 let story = story_for_concepts(&planning_scope(&req.story));
                 let graph = self.state.graph.clone();
                 let project = req.project_id.clone();
-                tokio::task::spawn_blocking(move || grounded_planning_concepts(&graph, &project, &story))
+                tokio::task::spawn_blocking(move || grounded_planning_concepts(&graph, &project, &story, subjects))
                     .await.map_err(|e| McpError::internal_error(e.to_string(), None))?
                     .map_err(|e| McpError::internal_error(e.to_string(), None))?
             },

@@ -1910,6 +1910,7 @@ fn assemble_edit_evidence(
     project_id: &str,
     project_dir: &str,
     node: Node,
+    source_generation: Option<u64>,
 ) -> Result<EditEvidence, String> {
     let (mut method_info, cov) = build_method_info_with_coverage(&node, graph, project_id);
     let mut completeness = EditContextCompleteness {
@@ -2031,15 +2032,22 @@ fn assemble_edit_evidence(
     };
 
     // Blast radius: failure is reported, never converted to "no risk".
-    let blast = match crate::services::blast_radius_service::compute_blast_radius(
+    let mut composite_available = false;
+    let blast = match crate::services::blast_radius_service::method_advisory(
         graph,
         project_id,
         &node.node_id,
-        node.generation,
-        false,
+        source_generation,
     ) {
-        Ok(r) => {
-            completeness.blast = if r.coverage.causal_truncated {
+        Ok((r, ranked)) => {
+            composite_available = ranked;
+            completeness.blast = if !ranked {
+                let mut reasons = vec!["Project ranking unavailable for the selected generation. The one-hop score used for edit-safety thresholds is a lower bound.".into()];
+                if r.coverage.causal_truncated {
+                    reasons.push(format!("Causal dependents capped at {}", r.coverage.cap_incoming));
+                }
+                ProviderStatus::Partial { reasons }
+            } else if r.coverage.causal_truncated {
                 ProviderStatus::Truncated {
                     shown: r.causal_dependents,
                     cap: r.coverage.cap_incoming,
@@ -2070,7 +2078,7 @@ fn assemble_edit_evidence(
         full_body,
         vb_traps,
         sync_hazards,
-        blast,
+        blast: blast.filter(|_| composite_available),
         edit_safety,
     })
 }
@@ -4502,7 +4510,7 @@ impl Engram {
         let result = tokio::task::spawn_blocking(move || {
             let _worker_source = worker_source;
             validate_held_method_revision(&graph, &project_id, &node, membership.as_ref())?;
-            let ev = assemble_edit_evidence(&graph, &project_id, &project_dir, node)?;
+            let ev = assemble_edit_evidence(&graph, &project_id, &project_dir, node, downstream_generation)?;
 
             // Keep the advisory's caller identities. Optional body reads
             // independently verify each caller and can withhold stale source.
@@ -6995,7 +7003,7 @@ impl Engram {
             // Same evidence assembly as get_method_edit_context: the verdict
             // is computed from identical facts (body read, complexity
             // estimated, blast attempted, coverage recorded).
-            let ev = assemble_edit_evidence(&graph, &project_id, &project_dir, node)?;
+            let ev = assemble_edit_evidence(&graph, &project_id, &project_dir, node, downstream_generation)?;
             // The callers travel WITH the verdict: they are already resolved
             // here, and "how many callers" cannot answer the question an edit
             // actually turns on — WHICH paths reach this method.

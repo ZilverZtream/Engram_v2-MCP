@@ -321,6 +321,28 @@ pub fn compute_blast_radius(
     compute_blast_radius_inner(graph,project_id,target_id,generation,include_guidance,RankingInput::OnDemand,None)
 }
 
+/// A method read may reuse a published project ranking. Computing PageRank here
+/// would traverse the entire graph and compete with indexing for its writer.
+pub(crate) fn method_advisory(
+    graph: &GraphStore,
+    project: &str,
+    target: &str,
+    generation: Option<u64>,
+) -> anyhow::Result<(BlastRadiusReport, bool)> {
+    let score = match generation {
+        Some(generation) => graph.get_cached_centrality(project, generation)?
+            .and_then(|scores| scores.get(target).copied())
+            .filter(|score| score.is_finite() && (0.0..=1.0).contains(score)),
+        None => None,
+    };
+    // With a missing nonnegative ranking contribution this is a lower bound.
+    let report = compute_blast_radius_inner(
+        graph, project, target, generation.unwrap_or_default(), false,
+        RankingInput::Observed(score), None,
+    )?;
+    Ok((report, score.is_some()))
+}
+
 enum RankingInput { OnDemand, Observed(Option<f32>) }
 
 /// Optional public advice must consume existing target observations only.
