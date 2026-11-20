@@ -3399,7 +3399,7 @@
       "verification": "The installed baseline returned ambiguous generic retrieval and zero commit evidence. Focused actual Git checks used the changed question parser/follow-up and existing first-parent reader on captured LegacyValidation revision 0a9fbcfc. They returned commit 77e0876c, its two scoped CSS/JS paths and an executable complete-commit action. The installed public search_history endpoint executed that exact action and its hash-bound recovery retained both paths. Exact-file patch behavior and scoped parsing checks passed. The owned executable scratch closed. Candidate and installed ask_codebase verification remain pending. No Cargo build."
     },
     "method_integrity_history_release": {
-      "status": "CANDIDATE_MCP_VERIFIED_AWAITING_CLIENT_QUIESCENCE",
+      "status": "INSTALLED_AND_FRESH_MCP_CONNECTED",
       "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-integrity-folder-history-20261120",
       "source_commit": "262bbf589cfb95700d0108d3e15a968a46aca2d9",
       "original_requirement_ids": [
@@ -3430,7 +3430,23 @@
       "queued_cutover": {
         "observer_session": 31480,
         "script_sha256": "2d170a5df8e450c2ae51f7cbdb7d33ad99ea475f8f3e567037a2a5db1a9d9951",
-        "condition": "Wait for installed Engram client proxies to close. Apply the verified binary only after the existing preflight succeeds. Observe the same process or check terminal receipts before retrying."
+        "condition": "Wait for installed Engram client proxies to close. Apply the verified binary only after the existing preflight succeeds. Observe the same process or check terminal receipts before retrying.",
+        "result": "Superseded by the completed user-authorized maintenance cutover."
+      },
+      "installed_cutover": {
+        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-integrity-folder-history-20261120\\live-cutover2\\status.json",
+        "receipt_sha256": "d3426a4aef0c82c829c7a9038a18d8e13ae91b39f892930990ca51021b00c693",
+        "daemon_pid": 59028,
+        "source_generation": 3222,
+        "disconnected_engram_proxy_pids": [
+          37352,
+          81308
+        ],
+        "matched_indexed_method_source": true,
+        "matching_lexical_vector_identities": 32271,
+        "folder_history_commit": "77e0876c384ecd14588f05bbbb09c053c8f5bdf1",
+        "owned_temporary_fixture_cleaned": true,
+        "additional_builds": 0
       }
     },
     "s18_adjacent_binary_round_trip": {
@@ -3453,7 +3469,7 @@
       "acceptance": "Write admission tolerates brief parser ownership without using another parser identity, and reports a bounded busy refusal if ownership persists. Read-only admission and the publication fence retain their existing behavior.",
       "verification": "The retained actual rollback MCP runs showed a busy refusal before generation advance, with a successful subsequent edit after retry. A focused executable compiled the exact changed lock code and committed regression test. With the original mutex held, reader admission refused, a sustained short writer wait returned busy, and a writer waited and acquired the same coordinator after release. The incremental scan now captures parser authority once in its existing blocking worker before stat-cache or publication work. The candidate already awaiting quiescence predates this change. No Cargo build or live write ran."
     },
-    "next_action": "Observe the existing cutover for the already verified package and continue separate ready source work for the following release."
+    "next_action": "Continue ready source work for the following release. The method, integrity and folder history package is installed and verified."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -3849,24 +3865,32 @@
     "builds_started": 0,
     "retention": "Temporary Git index removed. Keep the receipt for the next combined validation after the staged release is resolved."
   },
-  "next_source_batch_pending": [
+  "method_integrity_history_source_batch_20261120": [
     {
       "original_requirement_id": "S06",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_AND_FRESH_MCP_CONNECTED",
       "source_commit": "90aacfdecd2c7b1ce290d0576f210a5bd03abccb",
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-integrity-folder-history-20261120\\verify-public.py"
     },
     {
       "original_requirement_id": "TODO-39",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_AND_FRESH_MCP_CONNECTED",
       "source_commit": "3d2f4b185cca54e99046528d866456c50fd7226e",
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-integrity-folder-history-20261120\\verify-public.py"
     },
     {
       "original_requirement_id": "TODO-28",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_AND_FRESH_MCP_CONNECTED",
       "source_commit": "262bbf589cfb95700d0108d3e15a968a46aca2d9",
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-integrity-folder-history-20261120\\verify-public.py"
+    }
+  ],
+  "next_source_batch_pending": [
+    {
+      "original_requirement_id": "S03",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "e986057d5b72dcc843c1df255b05c2b540a64454",
+      "acceptance_contract": "Write admission tolerates brief parser ownership without using another parser identity, and reports a bounded busy refusal if ownership persists. Read-only admission and the publication fence retain their existing behavior."
     }
   ],
   "dossier_webforms_history_source_batch_20261120": [
