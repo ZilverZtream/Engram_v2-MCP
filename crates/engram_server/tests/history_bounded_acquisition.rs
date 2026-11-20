@@ -126,15 +126,18 @@ impl Fixture {
 #[tokio::test]
 async fn recent_lists_matching_history_in_order_and_keeps_older_matches_reachable() -> Result<()> {
     let fixture = Fixture::new().await?;
-    let first = fixture.search(json!({"project_id":fixture.pid,"query":"","mode":"recent",
+    let first = fixture.search(json!({"project_id":fixture.pid,"mode":"recent",
         "as_of_rev":fixture.commits[5],"file_filter":"invoice.sql", "date_after":1_700_000_004u64,
+        "author_filter":"Recent Author",
         "max_commits":3,"limit":1,"output_json":true})).await?;
     ensure!(first["results"][0]["commit"] == fixture.commits[5]);
     ensure!(first["semantic_retrieval"] == "not_run" && first["rerank"] == "not_run");
     let patch = &first["results"][0]["recovery"]["selected_file_patch"];
     ensure!(patch["tool"] == "search_history" && patch["arguments"]["as_of_rev"] == fixture.commits[5]);
+    ensure!(first["results"][0]["recovery"].as_object().unwrap().len() == 1);
     let next = &first["next_history_window"]["arguments"];
     ensure!(next["as_of_rev"] == fixture.commits[4] && next["file_filter"] == "invoice.sql");
+    ensure!(next["author_filter"] == "Recent Author" && next["date_after"] == 1_700_000_004u64);
     let newest = commit(&fixture.root, 6)?;
     let original = fixture.search(patch["arguments"].clone()).await?;
     ensure!(original["results"][0]["commit"] == fixture.commits[5]);

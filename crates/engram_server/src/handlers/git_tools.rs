@@ -2162,6 +2162,9 @@ impl Engram {
         req.validated_max_commits()
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         let mode = history_mode(req.mode.as_deref(), &req.query)?;
+        if mode != HistoryMode::Recent && req.query.trim().is_empty() {
+            return Err(McpError::invalid_params("query is required outside recent mode", None));
+        }
         if req.max_commits.is_some() && !matches!(mode, HistoryMode::Precedent | HistoryMode::Recent) {
             return Err(McpError::invalid_params("max_commits is only supported for precedent or recent history acquisition", None));
         }

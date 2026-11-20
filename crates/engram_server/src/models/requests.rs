@@ -2298,6 +2298,8 @@ pub struct SearchHistoryRequest {
     #[serde(default)]
     #[schemars(range(min = 1, max = 10000))]
     pub max_commits: Option<usize>,
+    /// Search text or exact commit ID. Omit for recent Git history.
+    #[serde(default)]
     pub query: String,
     pub project_id: String,
     /// Optional complete response budget, estimated as ceil(UTF-8 text bytes/4).
@@ -2351,10 +2353,11 @@ pub struct SearchHistoryRequest {
     /// words, text otherwise.
     /// Without vectors, precedent mode uses a disclosed lexical baseline.
     /// Projection providers are disclosed as degraded trigram ranking.
-    /// `recent`: pass an empty query. Lists matching first-parent changes from
+    /// `recent`: omit query. Lists matching first-parent changes from
     /// newest to oldest without embeddings or reranking. Filters literal Git
     /// paths before capping the file preview. Follow the returned
-    /// older-window action or recover an individual complete commit.
+    /// older-window action. Exact-file rows include a patch action; use commit
+    /// mode for a complete message and changed-file cohort.
     /// `commit`: query is an exact40hex Git commit ID. Returns the complete
     /// UTF-8 message and first-parent changed-file cohort, including generated
     /// files, inside as_of_rev or the origin default history scope. No index,

@@ -61,13 +61,16 @@ pub(super) fn recent(
     let resolved_revision = revision.to_string();
     for card in window.cards.iter().rev().take(limit) {
         let files = card.files.iter().take(12).collect::<Vec<_>>();
-        let mut recovery = recovery(&req.project_id, Some(&card.oid), None);
-        if let Some(path) = requested_path.as_ref().filter(|path| files.contains(path)) {
-            recovery["selected_file_patch"] = json!({"tool":"search_history","arguments":{
+        let exact_path = requested_path.as_ref()
+            .filter(|path| card.file_count == 1 && files.contains(path));
+        let recovery = if let Some(path) = exact_path {
+            json!({"selected_file_patch":{"tool":"search_history","arguments":{
                 "project_id":req.project_id,"mode":"patch","query":card.oid,
                 "as_of_rev":resolved_revision,"file_filter":path,"output_json":true
-            }});
-        }
+            }}})
+        } else {
+            recovery(&req.project_id, Some(&card.oid), None)
+        };
         let date = crate::utils::ymd_utc(card.timestamp.saturating_mul(1000));
         blocks.push(format!("\ncommit: {}\ndate: {date}\nauthor: {}\nmessage: {}\nfiles: {}\nrecovery: {recovery}\n",
             card.oid, card.author, card.title, json!(files)));
@@ -78,7 +81,7 @@ pub(super) fn recent(
     let scan = json!({"max_commits":max_commits,"commits_scanned":window.commits_scanned,
         "older_history_not_scanned":window.next_revision.is_some()});
     let header = format!("Recent changes ({scope}), newest on the first-parent line first. No model calls.\n\
-        Path filters apply to the Git changes before the file preview cap. Follow commit recovery for the full cohort.\n\
+        Path filters apply before the file preview cap. Use the exact-file patch action for the diff, or mode=commit with the commit ID for the full message and changed files.\n\
         History acquisition: {scan}\nnext_history_window: {}\n", json!(next_window));
     finish(req, header, &blocks, &rows, json!({"mode":"recent", "scope":scope,
         "resolved_revision":resolved_revision,"history_scan":scan,"next_history_window":next_window,
@@ -134,7 +137,7 @@ pub(super) fn finish(req: &SearchHistoryRequest, header: String, blocks: &[Strin
         } else if metadata["mode"]=="commit" {
             "One exact Git commit in the selected revision scope. Complete original UTF-8 message and first-parent changed-file cohort, including generated paths; no patch body or rename inference. No indexed search, embedding or LLM call. Use complete_capture or retain_response=true with output_json=true for immutable full-result recovery when the complete row exceeds a reply budget."
         } else if metadata["mode"]=="recent" {
-            "Newest-first first-parent changes in the scanned window. Path filters apply to Git tree deltas, including generated paths. File previews are capped. Recover any commit for its complete Git changed-file cohort. Older windows may contain more matches. No model calls."
+            "Newest-first first-parent Git changes in this window. Exact-file results include a patch action. Use mode=commit with the commit ID for the full message and changed files. Older windows may contain more matches. No model calls."
         } else {
             "Selected ranking window only. Text matched-file lists are drawn from retrieved documents, not the complete commit. Precedent descriptions and non-generated file lists are capped at 1500 characters and 40 paths before previews. Git recovery includes generated paths. No corpus completeness or snapshot guarantee; LLM reranking and mutable inputs can reorder pages."
         });
