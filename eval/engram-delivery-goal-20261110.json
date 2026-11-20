@@ -2653,7 +2653,7 @@
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
-    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-source-workflows-20261120",
+    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vector-dossier-net-review-20261120",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "incremental_codegen": {
@@ -2973,6 +2973,14 @@
   "current_execution_focus": {
     "status": "VECTOR_RECOVERY_DOSSIER_AND_COMBINED_REVIEW_READY_FOR_VALIDATION",
     "implementation_items_active": 0,
+    "vector_dossier_net_review_release": {
+      "status": "ONE_COMBINED_RELEASE_BUILD_RUNNING",
+      "source_commit": "a9965f53760d47a6a692b5a4123c73a76d5c8442",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/vector-dossier-net-review-20261120",
+      "release_plan_sha256": "9c6ac64d9b694dbef0297cfc55e3b499dc6360a75fd3860962e0854f7038200e",
+      "pipeline_owner": {"path": "pipeline-owner.json", "sha256": "5a30f9a36e9273a005fa35391d6d04303f7a4c33c554f5a44eb32c32e7c4e4fd"},
+      "scope": "One incremental optimized build in the shared target for the three source-ready outcomes. Stage previously verified sidecar assets, run each public fixture once against the candidate, install while idle, and verify the installed runtime."
+    },
     "review_combined_diff_guidance": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "TODO-34 and EG-02 complete scoped pre-commit review",
@@ -4908,6 +4916,26 @@
       "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "dfbc8015ffbedc17a702b60d7e309b75c0da8f94",
       "acceptance_contract": "Call plan_user_story under Core with the actual LegacyValidation VB and authored guide copy, verify the candidate scope and omissions, then follow the emitted action to exact source EOF. Confirm both tools are discoverable."
+    }
+  ],
+  "next_source_batch_pending": [
+    {
+      "original_requirement_id": "S02",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "c9fb72510d06a4ec9059f79c0ba3b66bf4d20a73",
+      "acceptance_contract": "Execute the pinned native-write recovery MCP fixture. Confirm the selected revision, durable vector reason across restart, exact advisory vector-only repair followed by successful source retry."
+    },
+    {
+      "original_requirement_id": "TODO-32",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "83e9654614ba5ad8a19ac210110ba703a51d48dc",
+      "acceptance_contract": "Execute the pinned dossier source-read MCP fixture. Follow the returned action to all 469 source lines across four pages, and prove raw-hash refusal after an owned source edit."
+    },
+    {
+      "original_requirement_id": "TODO-34",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "a9965f53760d47a6a692b5a4123c73a76d5c8442",
+      "acceptance_contract": "Execute the pinned mixed review MCP fixture. Follow the emitted working_tree action with its original path scope and review options, including the final VB edit and the new SQL file once each."
     }
   ],
   "source_refresh_edit_dossier_delivered_batch": [
