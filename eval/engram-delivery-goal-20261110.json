@@ -2653,7 +2653,7 @@
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
-    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-dossier-controls-20261120",
+    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selected-source-planning-20261120",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "incremental_codegen": {
@@ -3207,7 +3207,21 @@
       "acceptance": "A model-free dossier puts explicitly requested project-relative files before ranked candidates, preserves provenance and source admission, reports missing or stale requested entries individually, retains scoped guidance, and uses no server generation. Verify the actual LegacyValidation task-management page, code-behind and bulk-edit control against pinned source.",
       "verification": "The installed tools/list advertised only the explicit example, with no source_files selector. A focused executable used the exact ordering and bounded source-selection functions with three verified actual LegacyValidation Git blobs and 24 ranked candidates. All three exact paths retained their input order without duplicating the model/example or matched dependencies. The existing public dossier fixture now checks admission order, normalized deduplication, an explicitly missing selected child, and separately scoped authored guidance. Candidate MCP and installation remain pending. No Cargo build."
     },
-    "next_action": "Prepare and verify one combined package for S16 direct selected graph references, TODO-39 exact-file integrity, and TODO-32 explicit dossier source intake."
+    "selected_source_planning_batch": {
+      "status": "ONE_SHARED_TARGET_RELEASE_RUNNING",
+      "case": "selected-source-planning-20261120",
+      "source_commit": "8c7301e5429d7bbe13558b6c5b2c7f92fd3b652e",
+      "requirements": ["S16","TODO-39","TODO-32"],
+      "release_plan_sha256": "3058ad2eda8f4404351133c0f3e2ce525202d7e68f7b2a40717fea44a0218009",
+      "stage_and_verify_sha256": "e9adc619a898b125644773f93a0731eebf179af63ca19ead79e217cefd4bdd68",
+      "public_verifier_sha256": "7a3286640709a25b937e399f3ff9d2cbfc8ae6b0c8cde527524671987ee8aa3b",
+      "baseline_receipt_sha256": "2ae30ae0a90db05bdd1ecfc3f338a65f26d6de4d370198b3cd4bb33b0cc7895a",
+      "build_session": 34646,
+      "build_driver_pid": 83196,
+      "stage_session": 40341,
+      "baseline": "The exact installed-equivalent binary returned the current dossier without explicit path intake, a raw inherited TypeScript reference after an unrelated VB.NET update, and an existing whole-project identity mismatch after an owned substitution. All three owned fixture runtimes closed."
+    },
+    "next_action": "Follow build session 34646 and dependent stage session 40341. Stage runs the three public checks only for the passing exact release artifact."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -3605,22 +3619,22 @@
   },
   "next_source_batch_pending": [
     {
+      "original_requirement_id": "S16",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "ee63bd35728ce7fbf2f3aebee8f0d574bc9048ff",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selected-source-planning-20261120\\verify-public.py"
+    },
+    {
       "original_requirement_id": "TODO-39",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "644e7dcee060ae79d383f41699d43f32f53ffbc7",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-dossier-controls-20261120\\verify-public.py"
+      "source_commit": "83538eef2bf7d7e5c3965481b7dd06193c032fce",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selected-source-planning-20261120\\verify-public.py"
     },
     {
       "original_requirement_id": "TODO-32",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "e3f3b0983f9a6b24533c9b40c67f923ac34cded3",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-dossier-controls-20261120\\verify-public.py"
-    },
-    {
-      "original_requirement_id": "TODO-31",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "8f84817b079d4dfae22ebd7105c36dbe3675bc1d",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-dossier-controls-20261120\\verify-public.py"
+      "source_commit": "8c7301e5429d7bbe13558b6c5b2c7f92fd3b652e",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\selected-source-planning-20261120\\verify-public.py"
     }
   ],
   "sql_history_review_frozen_queue_20261119": [
