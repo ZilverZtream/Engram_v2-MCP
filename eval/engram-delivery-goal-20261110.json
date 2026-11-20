@@ -2698,80 +2698,6 @@
       "TODO-28"
     ],
     "implementation_items_active": 0,
-    "single_tool_delivery_schema_lookup": {
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "requirement": "TODO-4 common response delivery and TODO-52 hot MCP path cost",
-      "observed_gap": "Each dispatch cloned the entire registered tool list before checking the one request's delivery schema. The underlying rmcp router already exposes that exact definition by name.",
-      "implementation": ["crates/engram_server/src/tools.rs"],
-      "acceptance": "Use the normal public MCP read and mutation entry points for owned/shared budgets and immutable recovery, and verify the registered schema and unknown-tool behavior. Existing targeted delivery verifiers cover both handler-owned and shared response families.",
-      "evidence": "The installed dependency exposes the same definition from ToolRouter.map that list_all clones. Dispatch now passes a one-definition borrowed slice to both existing delivery selectors. Syntax and whitespace checks passed. Performance and packaged MCP remain unmeasured."
-    },
-    "queued_source_job_poll_action": {
-      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
-      "requirement": "TODO-37 pollable indexing and EG-18 callable workflow dependencies",
-      "observed_gap": "Queued update_project replies put the job ID only in acknowledgement prose. Deferred delivery loses it from the inline preview, so an agent must recover or parse the response to poll.",
-      "implementation": ["crates/engram_server/src/read_report_delivery.rs", "crates/engram_server/src/read_report_delivery_tests.rs", "docs/TOOL_CONTRACT.md"],
-      "acceptance": "Follow a typed get_job_status action from queued index and update acknowledgements. Recover the same job ID through deferred delivery and keep foreground updates distinct. Metadata budget refusal must occur before starting a job.",
-      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/queued-source-job-poll-action-20261120",
-      "baseline": {"path": "baseline/receipt.json", "sha256": "945a1aa8dff77ef4b09b22d157be6a0a8d709608917ce5d092bd1d7381df79d7"},
-      "candidate_verifier": {"path": "verify.py", "sha256": "2e36750a4dc29d2949dbd35dda5335a87044b40c9fb0fdb054a2b94a052aa845"},
-      "evidence": "Installed MCP completed both queued paths and returned no callable poll action; the verifier polled the IDs from the original acknowledgement text. Source adds an action only for recognized queued headers and reserves its metadata budget before execution. Syntax and whitespace checks passed. Candidate MCP and the single deferred-delivery regression test are pending; baseline resources were closed and removed."
-    },
-    "job_poll_tool_list_notifications": {
-      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
-      "requirement": "TODO-37 pollable indexing and EG-18 reliable tool discovery for agent clients",
-      "observed_gap": "Every ordinary get_job_status call sends tools/list_changed, including running jobs and repeated reads of the same terminal job. Tool rediscovery can open project runtimes and pin source just to return the same catalog.",
-      "implementation": ["crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
-      "acceptance": "Public MCP retains terminal job reports but sends one tool-list notification on the first successful terminal poll in a session, suppressing repeated notices for the bounded recent history. Nonterminal observations and saved-report recovery send none. Existing synchronous writer notifications stay available.",
-      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/job-poll-catalog-notifications-20261120",
-      "baseline": {"path": "baseline/receipt.json", "sha256": "4754424a4cfb72fbc82fbeb194474e1794b231e8bc535906dd88551309a5f4c7"},
-      "candidate_verifier": {"path": "verify.py", "sha256": "a75aa5b5d668b906206f77319f5910bba2179f8748828378c783481ef886a860"},
-      "evidence": "Installed public MCP sent a catalog-change notification for both running polls and all four terminal observations of one owned job. The same session observed its synchronous update notification. Source now keeps foreground writer notices and remembers recent completions per MCP session. Syntax and whitespace checks passed; candidate wire validation is pending. The owned baseline process and data were closed and removed."
-    },
-    "request_trace_bulk_copy_destination": {
-      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
-      "requirement": "TODO-31 source-cited WebForms database work",
-      "observed_gap": "The LegacyValidation marker-properties bulk import uses a typed SqlBulkCopy parameter, literal DestinationTableName and WriteToServer. Existing trace paths follow SqlCommand/ORM evidence but do not report this authored write destination.",
-      "implementation": ["crates/engram_server/src/services/request_trace.rs", "crates/engram_server/src/services/request_trace/bulk_copy.rs", "crates/engram_server/src/services/request_trace/execution.rs", "docs/TOOL_CONTRACT.md"],
-      "acceptance": "A reached unchanged LegacyValidation import method reports its qualified target and independently verified declaration, assignment and write lines. Ambiguous declarations, dynamic destinations and nonadjacent patterns stay outside the recognized form. Disabling database tracing removes the observation.",
-      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/legacy_validation-bulk-copy-trace-20261120",
-      "baseline": {"path": "baseline-observed/receipt.json", "sha256": "54b51f09f1e00f1a8817196f26e093236526e1203b2209335984ba53ce701c93"},
-      "candidate_verifier": {"path": "verify.py", "sha256": "2619c3e0a8bc5b66d06f2f820c5338ad3b5de6b8eaa3eaefaaf11b53a8e5ad92"},
-      "evidence": "Installed public MCP reached the unchanged import method from an owned WebForms event but omitted its bulk write. Independent Git source located the typed parameter, destination assignment and write at lines 131, 173 and 174. The new bounded path cites those operations and the raw hash. Syntax and whitespace checks passed. Both fixture runs cleaned up their process and data; candidate verification remains pending."
-    },
-    "exact_refresh_skip_unchanged": {
-      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
-      "requirement": "TODO-55 interactive LegacyValidation exact-file source refresh",
-      "observed_gap": "only_paths always forces the complete source write even when the requested current JavaScript bytes match, requiring a separate freshness call to avoid unnecessary re-extraction.",
-      "implementation": ["crates/engram_server/src/services/project_service.rs", "crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
-      "acceptance": "Sync and queued requests leave the generation unchanged when all requested non-VB files match held compatible fingerprints. Changed or unverified files, required repairs and explicit default force continue through extraction. Outside edits remain outside scope.",
-      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/exact-refresh-skip-unchanged-20261120",
-      "baseline": {"path": "baseline/receipt.json", "sha256": "fa3f55f2f7efb660a1ef2d76e08adc756326bc3f09e1bde3c739c70fa104dad7"},
-      "candidate_verifier": {"path": "verify.py", "sha256": "cf59f48a9477012efeb6eb6a0f8e922cb3da782b9fd0657c319e80f249734817"},
-      "evidence": "Installed MCP advanced an owned project from generation 1 to 2 for a byte-identical exact JavaScript refresh while keeping an edited sibling inherited. The opt-in change reuses source admission and the existing bounded raw byte verifier; the same no-write result flows through sync or job status. Rust syntax and whitespace checks passed. The frozen release candidate predates this change."
-    },
-    "exact_setting_selected_source_read": {
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "requirement": "S06 source-reader ownership and original LegacyValidation setting-aware QA workflow",
-      "observed_gap": "Exact get_setting uses a mutable graph node and file hash without pinning the published source selection. A literal getter returned as current also leaves the agent to construct the complete source read manually.",
-      "implementation": ["crates/engram_server/src/handlers/settings_tools.rs", "crates/engram_server/src/handlers/literal_settings.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
-      "acceptance": "An exact literal node in a held selected file returns a callable line read tied to the published raw file hash. After an unindexed edit the existing reader refuses the old action and the exact setting call withholds a current excerpt and action. Unpublished or unselected nodes do not pass exact selection. Preserve the name-based reader.",
-      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/qa-exact-setting-source-read-20261120",
-      "candidate_verifier": {"path": "verify.py", "sha256": "68ae8388a7b539cd565469ac92eb619ced806c3734a67801bbe7f632a9ddf46f"},
-      "evidence": "Exact selection now holds the published physical source view while resolving the setting. Literal line reads are offered only when the selected file hash matches disk. Source syntax and whitespace checks passed. The pinned earlier release predates this change; its runtime baseline and the new public behavior still require execution."
-    },
-    "exact_file_git_source_binding": {
-      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
-      "requirement": "S16 source freshness metadata and TODO-5 byte-level freshness for LegacyValidation edits",
-      "observed_gap": "Exact source_files freshness refuses expected_git_commit. The project-wide Git report cannot supply per-file proof that selected indexed bytes match a committed blob, especially when unrelated paths have work in progress.",
-      "implementation": ["crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/handlers/project_tools/file_freshness.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
-      "acceptance": "Verify the held indexed, disk and independently hashed Git-blob fingerprints for exact paths copied from LegacyValidation. An unrelated dirty file must leave exact-path proof usable. A changed target and a path absent from the commit must stay distinct. Existing project-wide HEAD/status diagnostics remain independent.",
-      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/exact-file-git-binding-20261120",
-      "baseline": {"path": "baseline/receipt.json", "sha256": "95a6bc975b062b26acf2a03a5fbe9feabf771bfd6d61ef40eebea68bd848ffd6"},
-      "candidate_verifier": {"path": "verify.py", "sha256": "995db577e4b3a76eafcbe0f00767a3c24683b723d6b2d78f8fbfb89b7493667e"},
-      "evidence": "Installed MCP matched indexed and disk hashes for an unchanged actual LegacyValidation defaultProject.js copy, with the same independently hashed Git blob and unrelated worktree changes. The combined exact-Git request was rejected. The source now adds immutable blob identity/bytes and separate indexed/disk equality observations. Syntax and whitespace checks passed. Runtime validation is pending and the running release candidate predates this change.",
-      "retention": "Keep the candidate verifier, source commit pin and baseline wire until combined delivery. Owned fixture process closed and fixture data was removed."
-    },
     "legacy_validation_quickstart_exact_source": {
       "status": "DOCUMENTED_AND_LIVE_MCP_VERIFIED",
       "requirement": "TODO-54 first verified query and EG-26 current tool contract",
@@ -3055,6 +2981,88 @@
   "current_execution_focus": {
     "status": "QA_TRACE_INTEGRITY_PACKAGE_VERIFIED_ACTIVE_CLIENT_PRESERVED",
     "implementation_items_active": 0,
+    "single_tool_delivery_schema_lookup": {
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "a6bab8bf1cb6ac10ad45e7e61f882441be26d129",
+      "requirement": "TODO-4 common response delivery and TODO-52 hot MCP path cost",
+      "observed_gap": "Each dispatch cloned the entire registered tool list before checking the one request's delivery schema. The underlying rmcp router already exposes that exact definition by name.",
+      "implementation": ["crates/engram_server/src/tools.rs"],
+      "acceptance": "Use the normal public MCP read and mutation entry points for owned/shared budgets and immutable recovery, and verify the registered schema and unknown-tool behavior. Existing targeted delivery verifiers cover both handler-owned and shared response families.",
+      "evidence": "The installed dependency exposes the same definition from ToolRouter.map that list_all clones. Dispatch now passes a one-definition borrowed slice to both existing delivery selectors. Syntax and whitespace checks passed. Performance and packaged MCP remain unmeasured."
+    },
+    "queued_source_job_poll_action": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "de8fd9ebf5921cbedcfb669c3d2780d4fcc20d9d",
+      "requirement": "TODO-37 pollable indexing and EG-18 callable workflow dependencies",
+      "observed_gap": "Queued update_project replies put the job ID only in acknowledgement prose. Deferred delivery loses it from the inline preview, so an agent must recover or parse the response to poll.",
+      "implementation": ["crates/engram_server/src/read_report_delivery.rs", "crates/engram_server/src/read_report_delivery_tests.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Follow a typed get_job_status action from queued index and update acknowledgements. Recover the same job ID through deferred delivery and keep foreground updates distinct. Metadata budget refusal must occur before starting a job.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/queued-source-job-poll-action-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "945a1aa8dff77ef4b09b22d157be6a0a8d709608917ce5d092bd1d7381df79d7"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "2e36750a4dc29d2949dbd35dda5335a87044b40c9fb0fdb054a2b94a052aa845"},
+      "evidence": "Installed MCP completed both queued paths and returned no callable poll action; the verifier polled the IDs from the original acknowledgement text. Source adds an action only for recognized queued headers and reserves its metadata budget before execution. Syntax and whitespace checks passed. Candidate MCP and the single deferred-delivery regression test are pending; baseline resources were closed and removed."
+    },
+    "job_poll_tool_list_notifications": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "8e6374fff3d181360fd185f410fa860bd56688c3",
+      "requirement": "TODO-37 pollable indexing and EG-18 reliable tool discovery for agent clients",
+      "observed_gap": "Every ordinary get_job_status call sends tools/list_changed, including running jobs and repeated reads of the same terminal job. Tool rediscovery can open project runtimes and pin source just to return the same catalog.",
+      "implementation": ["crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Public MCP retains terminal job reports but sends one tool-list notification on the first successful terminal poll in a session, suppressing repeated notices for the bounded recent history. Nonterminal observations and saved-report recovery send none. Existing synchronous writer notifications stay available.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/job-poll-catalog-notifications-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "4754424a4cfb72fbc82fbeb194474e1794b231e8bc535906dd88551309a5f4c7"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "a75aa5b5d668b906206f77319f5910bba2179f8748828378c783481ef886a860"},
+      "evidence": "Installed public MCP sent a catalog-change notification for both running polls and all four terminal observations of one owned job. The same session observed its synchronous update notification. Source now keeps foreground writer notices and remembers recent completions per MCP session. Syntax and whitespace checks passed; candidate wire validation is pending. The owned baseline process and data were closed and removed."
+    },
+    "request_trace_bulk_copy_destination": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "0f287493c5658fc09a7604412b1e087c648cdddf",
+      "requirement": "TODO-31 source-cited WebForms database work",
+      "observed_gap": "The LegacyValidation marker-properties bulk import uses a typed SqlBulkCopy parameter, literal DestinationTableName and WriteToServer. Existing trace paths follow SqlCommand/ORM evidence but do not report this authored write destination.",
+      "implementation": ["crates/engram_server/src/services/request_trace.rs", "crates/engram_server/src/services/request_trace/bulk_copy.rs", "crates/engram_server/src/services/request_trace/execution.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "A reached unchanged LegacyValidation import method reports its qualified target and independently verified declaration, assignment and write lines. Ambiguous declarations, dynamic destinations and nonadjacent patterns stay outside the recognized form. Disabling database tracing removes the observation.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/legacy_validation-bulk-copy-trace-20261120",
+      "baseline": {"path": "baseline-observed/receipt.json", "sha256": "54b51f09f1e00f1a8817196f26e093236526e1203b2209335984ba53ce701c93"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "2619c3e0a8bc5b66d06f2f820c5338ad3b5de6b8eaa3eaefaaf11b53a8e5ad92"},
+      "evidence": "Installed public MCP reached the unchanged import method from an owned WebForms event but omitted its bulk write. Independent Git source located the typed parameter, destination assignment and write at lines 131, 173 and 174. The new bounded path cites those operations and the raw hash. Syntax and whitespace checks passed. Both fixture runs cleaned up their process and data; candidate verification remains pending."
+    },
+    "exact_refresh_skip_unchanged": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "f5be173f8dd4a54ceba0aafc73e54069195a70dc",
+      "requirement": "TODO-55 interactive LegacyValidation exact-file source refresh",
+      "observed_gap": "only_paths always forces the complete source write even when the requested current JavaScript bytes match, requiring a separate freshness call to avoid unnecessary re-extraction.",
+      "implementation": ["crates/engram_server/src/services/project_service.rs", "crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Sync and queued requests leave the generation unchanged when all requested non-VB files match held compatible fingerprints. Changed or unverified files, required repairs and explicit default force continue through extraction. Outside edits remain outside scope.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/exact-refresh-skip-unchanged-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "fa3f55f2f7efb660a1ef2d76e08adc756326bc3f09e1bde3c739c70fa104dad7"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "cf59f48a9477012efeb6eb6a0f8e922cb3da782b9fd0657c319e80f249734817"},
+      "evidence": "Installed MCP advanced an owned project from generation 1 to 2 for a byte-identical exact JavaScript refresh while keeping an edited sibling inherited. The opt-in change reuses source admission and the existing bounded raw byte verifier; the same no-write result flows through sync or job status. Rust syntax and whitespace checks passed. The frozen release candidate predates this change."
+    },
+    "exact_setting_selected_source_read": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "4065d3d606cebcd524244a1ca12b9edbf3ddfdc8",
+      "requirement": "S06 source-reader ownership and original LegacyValidation setting-aware QA workflow",
+      "observed_gap": "Exact get_setting uses a mutable graph node and file hash without pinning the published source selection. A literal getter returned as current also leaves the agent to construct the complete source read manually.",
+      "implementation": ["crates/engram_server/src/handlers/settings_tools.rs", "crates/engram_server/src/handlers/literal_settings.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "An exact literal node in a held selected file returns a callable line read tied to the published raw file hash. After an unindexed edit the existing reader refuses the old action and the exact setting call withholds a current excerpt and action. Unpublished or unselected nodes do not pass exact selection. Preserve the name-based reader.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/qa-exact-setting-source-read-20261120",
+      "candidate_verifier": {"path": "verify-corrected-call.py", "sha256": "0fea3123f4f4bec8d5f4bb6c19054112a620087528cb26a602ed87a4c7da639b"},
+      "baseline": {"path": "baseline/receipt.json", "sha256": "e70cce85f1391cce71c3b6d5d2cc9001b128d11e18f7246ae7dbc136b4ad0e2f", "binary_sha256": "446e28af2b2f2f001ecf1cd2f2693e114fc659b760cc54e004471c79c285c158"},
+      "evidence": "Staged MCP found the current exact setting and ordinary name lookup on the same owned VB source; the exact result reported no callable source read. The corrected observer passes name within the RPC arguments instead of colliding with the Python helper parameter. Source holds the selected physical view and only offers the line read on hash-matching disk. Syntax and whitespace checks passed; candidate behavior remains pending. The baseline process and files were closed and removed."
+    },
+    "exact_file_git_source_binding": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "15c5472d7a8a855294cb891f93b8d4fa94b9b35e",
+      "requirement": "S16 source freshness metadata and TODO-5 byte-level freshness for LegacyValidation edits",
+      "observed_gap": "Exact source_files freshness refuses expected_git_commit. The project-wide Git report cannot supply per-file proof that selected indexed bytes match a committed blob, especially when unrelated paths have work in progress.",
+      "implementation": ["crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/handlers/project_tools/file_freshness.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Verify the held indexed, disk and independently hashed Git-blob fingerprints for exact paths copied from LegacyValidation. An unrelated dirty file must leave exact-path proof usable. A changed target and a path absent from the commit must stay distinct. Existing project-wide HEAD/status diagnostics remain independent.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/exact-file-git-binding-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "95a6bc975b062b26acf2a03a5fbe9feabf771bfd6d61ef40eebea68bd848ffd6"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "995db577e4b3a76eafcbe0f00767a3c24683b723d6b2d78f8fbfb89b7493667e"},
+      "evidence": "Installed MCP matched indexed and disk hashes for an unchanged actual LegacyValidation defaultProject.js copy, with the same independently hashed Git blob and unrelated worktree changes. The combined exact-Git request was rejected. The source now adds immutable blob identity/bytes and separate indexed/disk equality observations. Syntax and whitespace checks passed. Runtime validation is pending and the running release candidate predates this change.",
+      "retention": "Keep the candidate verifier, source commit pin and baseline wire until combined delivery. Owned fixture process closed and fixture data was removed."
+    },
     "qa_trace_integrity_release_candidate": {
       "status": "PACKAGE_STAGED_AND_OWNED_INSTALL_VERIFIED",
       "source_commit": "9a6135766015865fec5f9f90b0a1f4957d168b2d",
