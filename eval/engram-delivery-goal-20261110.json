@@ -2974,7 +2974,7 @@
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "scoped_source_workflows_release": {
-      "status": "ONE_COMBINED_RELEASE_BUILD_RUNNING",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-source-workflows-20261120",
       "source_commit": "b7e09a13f2c3190ccb5e7f0d90534aea135ca9e7",
       "original_requirement_ids": [
@@ -2989,12 +2989,95 @@
       "release_plan_sha256": "e2b6b9185fe4a4bfc886099896196bdb97b8b920c357e1f60862c89add88fd62",
       "baseline_sha256": "a038e78001513042aa88fc17af7427b565bb1981d044c21b598143f54ae01968",
       "baseline": "Installed binary refused exact-file freshness and missed the quoted spaced path in the owned fixture. Existing pagination returned eight scoped settings and retained the external reader. The real LegacyValidation baseline warning and direct-count evidence remain pinned to the original scope probe.",
-      "verification": "One shared-target optimized build. The existing stage session runs the three isolated public checks when its exact build owner exits. Install the passed package once and verify live LegacyValidation Git bytes, scoped settings and current fingerprint observations.",
+      "verification": "The exact installed and staged binaries passed the same owned public workflows. Fresh normal MCP confirmed scoped LegacyValidation counts, quoted Git blob and per-file disk/physical revision evidence at live generation 3222.",
       "retention": "Keep the recorded build checkout, verifier and receipts; newly owned compiler and source fixtures clean after their owners exit.",
-      "full_suites_started": 0
+      "full_suites_started": 0,
+      "build_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-source-workflows-20261120\\release1.json",
+        "sha256": "94525c731e4794bd5594433adefe7d9513e1c6faca75fec5bd162df26097df72",
+        "elapsed_seconds": 830.7677674000006,
+        "optimized_builds": 1,
+        "full_test_suites": 0
+      },
+      "package_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-source-workflows-20261120\\package-receipt.json",
+        "sha256": "ee3f47b7ceac06a717b92ef06cbf92216af5513c88f220f8080427ee017fd9b3",
+        "binary_sha256": "91856c31883851089e53fc659f663b9c949d293ee23ea7f897e96ecc29b6cf16",
+        "manifest_sha256": "5200b8ac37234f250d2c6a64a6c641c18044351aa1b717a5964a381f57bcbe6d",
+        "archive_sha256": "bd77c559c01de791c0e4b82b0ed1650d8f59633f670ff5963b4499d3263e95e2"
+      },
+      "candidate_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-source-workflows-20261120\\candidate\\receipt.json",
+        "sha256": "eab1bd42bb20c7663eabcd6d68fa9c7b0a475ce8e22b83e4be27a14b1b5ab25f"
+      },
+      "installed_fixture_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-source-workflows-20261120\\installed\\receipt.json",
+        "sha256": "1e0070a47461ea8ac1b18e78b622f95f1d92c51fba7ba7917628f53831b099a8"
+      },
+      "live_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-source-workflows-20261120\\live-cutover\\status.json",
+        "sha256": "18acd3f948f4c9fd3295884fb2fea42a3fe0835b4a90efdd2693c85c727c6ec7",
+        "generation": 3222,
+        "daemon_pid": 33988,
+        "previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-46e7539cf6f54e0baa564c4dd2b7b1a2",
+        "observed": {
+          "EG-01": {
+            "path": "Site/modules/system/DownloadFile.aspx.vb",
+            "bytes": 11060,
+            "revision": "c481dfa3a1b0a806354c3608e9a3bd245a08655e"
+          },
+          "TODO-4": [
+            {
+              "scope": "Site/modules/multitenant/",
+              "count": 3,
+              "unrelated_cap_warning": false
+            },
+            {
+              "scope": "Site/modules/dashboard/pages/public/taskmanagement/",
+              "count": 11,
+              "unrelated_cap_warning": false
+            }
+          ],
+          "S07": {
+            "path": "Site/App_Code/BundleConfig.vb",
+            "status": "matching_fingerprint",
+            "physical_revision": 3159
+          }
+        }
+      },
+      "installed_behavior": {
+        "EG-01": {
+          "path": "Site/Report Views/Zoom.vb",
+          "bytes": 54,
+          "revision": "cf022c71c561120c9651c99e8a877b3b3c4ca07c",
+          "owned_fixture_removed": true
+        },
+        "TODO-4": {
+          "paged_rows": [
+            5,
+            3
+          ],
+          "external_reader": true,
+          "owned_fixture_removed": true
+        },
+        "S07": {
+          "base": 1,
+          "active_generation": 2,
+          "edited_revision": 1,
+          "same_size_edit_detected": true,
+          "statuses": [
+            "disk_differs",
+            "matching_fingerprint",
+            "disk_unavailable",
+            "file_not_selected"
+          ],
+          "owned_fixture_removed": true
+        }
+      },
+      "limits": "Exact-file freshness observes requested bytes only. Scoped settings retain their indexed-row bound. Historical source and guidance use a pinned Git revision. Overall storage gates and task usefulness remain separately unverified."
     },
     "exact_file_index_freshness": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "requirement": "S07 published logical selection and source diagnostics agree for current agent evidence",
       "observed_gap": "Installed get_index_freshness rejects exact source_files scope. check_integrity(source_file) exposes a real LegacyValidation inherited physical revision but compares lexical/vector identities, independently of current source bytes. An agent wanting one file's disk comparison otherwise runs project-wide freshness or reads a known method.",
       "implementation": ["crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/handlers/project_tools/file_freshness.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs"],
@@ -3004,7 +3087,7 @@
       "retention": "Keep the small reproducer and numeric receipt under current-task-check/exact-file-freshness-20261120 through combined delivery. Owned compiler and graph fixtures were removed."
     },
     "scoped_settings_acquisition": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "requirement": "TODO-4 bounded and truthful indexed settings catalog",
       "observed_gap": "Installed scoped settings retained the project-wide 200,000-row cap warning for LegacyValidation multitenant and taskmanagement paths even when direct scoped index queries observed only 3 and 11 settings. Out-of-scope nodes consume the catalog's current capacity before filtering.",
       "implementation": ["crates/engram_server/src/handlers/settings_tools.rs", "crates/engram_graph/src/store.rs"],
@@ -3014,7 +3097,7 @@
       "retention": "Retain the reproduction script and numeric receipt under current-task-check/settings-scope-acquisition-20261120 through packaged acceptance. The focused compiler and GraphStore fixtures were removed."
     },
     "quoted_source_paths": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "requirement": "EG-01 historical source answers use the requested Git revision and return the corresponding source and authored guidance",
       "observed_gap": "Installed historical ask for the backtick-quoted LegacyValidation DownloadFile.aspx.vb path returned unrelated same-revision documents, while the unquoted path returned the requested file. The planner stores quoted text as Unknown, then drops the identical typed File mention during deduplication.",
       "implementation": ["crates/engram_server/src/services/ask_engine/planner.rs", "crates/engram_server/tests/ask_historical_source_tests.rs"],
@@ -3738,7 +3821,7 @@
       "acceptance": "Write admission tolerates brief parser ownership without using another parser identity, and reports a bounded busy refusal if ownership persists. Read-only admission and the publication fence retain their existing behavior.",
       "verification": "The retained actual rollback MCP runs showed a busy refusal before generation advance, with a successful subsequent edit after retry. A focused executable compiled the exact changed lock code and committed regression test. With the original mutex held, reader admission refused, a sustained short writer wait returned busy, and a writer waited and acquired the same coordinator after release. The incremental scan now captures parser authority once in its existing blocking worker before stat-cache or publication work. The candidate already awaiting quiescence predates this change. No Cargo build or live write ran."
     },
-    "next_action": "Advance the next ready unfinished original requirement. Settings paging, working-tree review and pinned history are installed with public MCP evidence."
+    "next_action": "Advance the next ready unfinished original requirement. Quoted source paths, scoped settings and exact-file freshness are installed with public MCP evidence."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -4194,26 +4277,27 @@
       "acceptance_contract": "Through public ask_codebase, verify recent changes to a literal file at an older as_of revision are identical to first-parent Git evidence, exclude the later edit and expose a patch action pinned to the requested basis. An unrelated pinned source question still returns its original blob."
     }
   ],
-  "next_source_batch_pending": [
+  "scoped_source_workflows_source_batch_20261120": [
     {
       "original_requirement_id": "EG-01",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "source_commit": "956832d583f9be8167896b9e200fd3237ecc4438",
       "acceptance_contract": "Send quoted and unquoted exact historical source asks through MCP at the same pinned LegacyValidation revision. Check both complete blobs against Git and verify the same scoped historical guidance. Verify an owned spaced filename remains one literal path."
     },
     {
       "original_requirement_id": "TODO-4",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "source_commit": "ace77a78bdcfea7b926728ff1b860140b163f692",
       "acceptance_contract": "Call installed list_settings in the two actual LegacyValidation scopes and compare the observed settings against independent direct graph reads, preserving the counts without the unrelated global cap warning. Verify a scoped paged fixture retains a caller from outside the declaration scope."
     },
     {
       "original_requirement_id": "S07",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "source_commit": "6b4363fe46c0cb18da39a13a255c06f9cd9794cb",
       "acceptance_contract": "Index an owned VB/WebForms and TypeScript or SQL fixture, advance one file's revision, and verify MCP exact-file freshness matches inherited bytes and detects an equal-size disk edit. Compare live LegacyValidation selected physical revision to exact-file integrity and raw disk hash to independent source."
     }
   ],
+  "next_source_batch_pending": [],
   "dossier_webforms_history_source_batch_20261120": [
     {
       "original_requirement_id": "TODO-32",
