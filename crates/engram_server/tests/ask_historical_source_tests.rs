@@ -196,6 +196,30 @@ fn explicitly_named_file_survives_unrelated_historical_scan_noise() -> Result<()
 }
 
 #[test]
+fn quoted_historical_path_keeps_spaces_and_selects_the_exact_blob() -> Result<()> {
+    let fixture = Fixture::new()?;
+    let path = "Site/Report Views/Zoom.vb";
+    let revision = fixture.commit(&[
+        (path, OLD_VB),
+        ("Zoom.vb", NEW_VB),
+        ("AGENTS.md", "Preserve the report minimum in the scoped preview.\n"),
+    ])?;
+    let report = fixture.ask(
+        "Explain `Site/Report Views/Zoom.vb` and the message 'not found'.",
+        json!({"commit":revision}),
+    )?;
+    ensure!(report.evidence.len() == 1);
+    ensure!(report.evidence[0].path.as_deref() == Some(path));
+    ensure!(report.evidence[0].content == OLD_VB);
+    ensure!(report.providers[0].examined == 1);
+    let plan = report.plan.entities;
+    ensure!(plan.iter().any(|entity|
+        entity.text == "not found"
+            && entity.guessed_kind == engram_server::services::ask_engine::plan::EntityKind::Unknown));
+    Ok(())
+}
+
+#[test]
 fn oversized_historical_source_is_disclosed_without_returning_current_source() -> Result<()> {
     let fixture = Fixture::new()?;
     let oversized = "' original historical source\n".repeat(6000);

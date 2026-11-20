@@ -498,6 +498,8 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
 
     // 1. Quoted strings — highest-signal literal entities/symptoms.
     let bytes = q.as_bytes();
+    let mut unquoted = String::new();
+    let mut copied = 0;
     let mut i = 0;
     while i < bytes.len() {
         let c = bytes[i] as char;
@@ -512,20 +514,36 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
             && (bytes[i + 1] as char).is_ascii_alphanumeric();
         if (c == '"' || c == '\'' || c == '`') && !mid_word {
             if let Some(rel) = q[i + 1..].find(c) {
-                let inner = &q[i + 1..i + 1 + rel];
-                if !inner.trim().is_empty() {
-                    push(inner.trim().to_string(), EntityKind::Unknown, &mut out);
+                let end = i + 1 + rel + 1;
+                let inner = q[i + 1..end - 1].trim();
+                if looks_like_source_file(inner)
+                    && !inner.chars().any(char::is_control)
+                    && let Some(path) = crate::services::project_policy::normalized_relative(inner)
+                {
+                    push(path, EntityKind::File, &mut out);
+                    // Keep one file mention even when a quoted path contains spaces.
+                    unquoted.push_str(&q[copied..i]);
+                    unquoted.push(' ');
+                    copied = end;
+                } else if !inner.is_empty() {
+                    push(inner.to_string(), EntityKind::Unknown, &mut out);
                 }
-                i = i + 1 + rel + 1;
+                i = end;
                 continue;
             }
         }
         i += 1;
     }
+    let token_text = if copied == 0 {
+        q
+    } else {
+        unquoted.push_str(&q[copied..]);
+        unquoted.as_str()
+    };
 
     // 2. Token scan for code-shaped identifiers.
     for raw in
-        q.split(|c: char| c.is_whitespace() || matches!(c, ',' | '(' | ')' | '?' | '!' | ';' | ':'))
+        token_text.split(|c: char| c.is_whitespace() || matches!(c, ',' | '(' | ')' | '?' | '!' | ';' | ':'))
     {
         let t = raw.trim_matches(|c: char| matches!(c, '"' | '\'' | '`' | '.' | ','));
         if t.len() < 2 {
@@ -562,14 +580,7 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
             continue;
         }
         if t.contains('.') && !t.starts_with('.') && !t.ends_with('.') {
-            let tl = t.to_lowercase();
-            let looks_file = [
-                ".cs", ".vb", ".ts", ".js", ".aspx", ".ascx", ".sql", ".resx", ".vbhtml", ".razor",
-                ".json", ".xml", ".config",
-            ]
-            .iter()
-            .any(|e| tl.ends_with(e));
-            let kind = if looks_file {
+            let kind = if looks_like_source_file(t) {
                 EntityKind::File
             } else {
                 EntityKind::Symbol
@@ -622,7 +633,7 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
         "sub",
         "webmethod",
     ];
-    let toks: Vec<&str> = q
+    let toks: Vec<&str> = token_text
         .split(|c: char| c.is_whitespace() || matches!(c, ',' | '(' | ')' | '?' | '!' | ';' | ':'))
         .map(|t| t.trim_matches(|c: char| matches!(c, '"' | '\'' | '`' | '.' | ',')))
         .filter(|t| !t.is_empty())
@@ -657,6 +668,16 @@ pub fn extract_entities(q: &str) -> Vec<EntityMention> {
         }
     }
     out
+}
+
+fn looks_like_source_file(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    [
+        ".cs", ".vb", ".ts", ".js", ".aspx", ".ascx", ".sql", ".resx", ".vbhtml", ".razor",
+        ".json", ".xml", ".config",
+    ]
+    .into_iter()
+    .any(|extension| lower.ends_with(extension) && lower.len() > extension.len())
 }
 
 /// Item 8 (live r44, ox_history_2): everyday verbs and nouns that a question
