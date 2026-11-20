@@ -1597,7 +1597,15 @@
       "id": "S01",
       "required_behavior": "One real file edit rewrites no unrelated chunk bodies or vectors; record physical revision identity and embedding calls.",
       "state": "Partial: native and actual no-vector public real-file update verify complete untouched physical source identity/no duplicates; native untouched vector PK and replacement-only provider inputs verified. Ollama dimension/timeout fix deployed with candidate public4dimension index/update and normal installed history probe. Retained direct-engine shrink/delete/old-reader/GC/reopen coverage remains. Physical fragment writes and all-writer scope are not closed.",
-      "public_update_validation_20261111": "eval/s01-public-update-validation-20261111.json"
+      "public_update_validation_20261111": "eval/s01-public-update-validation-20261111.json",
+      "mixed_source_vector_update_20261120": {
+        "result": "PASS_INSTALLED_OWNED_PUBLIC_MCP",
+        "installed_binary_sha256": "91856c31883851089e53fc659f663b9c949d293ee23ea7f897e96ecc29b6cf16",
+        "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/s01-webforms-vector-update-20261120/installed/receipt.json",
+        "receipt_sha256": "4e18c53f1f17ae00b4f5670747841190be0f2ccc6c68be2c3d9c83aa775044ca",
+        "observed": "A VB.NET edit published physical revision 2 and sent exactly one source payload to a local Ollama-protocol observer with the configured LegacyValidation model ID and vector width. Unchanged ASPX, JavaScript and SQL each inherited physical revision 1. All four selected files retained matching lexical/vector key counts and exact selected/current source fingerprints.",
+        "limits": "Deterministic loopback provider and owned project. This checks selected physical identities and actual embedding inputs. Raw underlying storage writes, production provider behavior and broader gates remain open. No new Engram build."
+      }
     },
     {
       "id": "S02",

@@ -2973,6 +2973,14 @@
   "current_execution_focus": {
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "s01_mixed_source_vector_update": {
+      "status": "INSTALLED_OWNED_PUBLIC_MCP_PASS",
+      "requirement": "S01 real edits preserve untouched physical source and vector identities and avoid unnecessary embedding inputs.",
+      "acceptance": "Observe one ordinary public background-capable refresh of an owned WebForms fixture with VB.NET, ASPX, JavaScript and SQL. Compare all four source fingerprints and published lexical/vector identity counts. Capture the exact replacement provider input and inherited sibling revisions.",
+      "verification": "Installed binary 91856c31883851089e53fc659f663b9c949d293ee23ea7f897e96ecc29b6cf16 passed. The generation advanced from 1 to 2, only Task.aspx.vb selected physical revision 2, and the other three paths retained revision 1 with one matching key each. The update sent only the replacement VB source to the owned Ollama-compatible observer at the configured 768 dimensions. The process exited naturally and the fixture and HTTP endpoint closed.",
+      "evidence": "eval/audit-inventory-20261101.json S01 mixed_source_vector_update_20261120",
+      "limits": "Selected persisted identity evidence with deterministic embeddings. Absolute physical storage writes and a real production-provider mutation remain outside the claim."
+    },
     "dossier_core_job_polling_release": {
       "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
       "frozen_source_commit": "a1a43c1b24b059b3be066617a9db2e1d97b4ad3d",
