@@ -2971,7 +2971,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "LIMITED_RECOVERY_GUIDANCE_RELEASE_INSTALLED_AND_MCP_VERIFIED",
+    "status": "SOURCE_REFRESH_EDIT_DOSSIER_INSTALLED_S02_SOURCE_READY",
     "implementation_items_active": 1,
     "s02_native_write_recovery_signal": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
@@ -2995,7 +2995,7 @@
       "limits": "No code change or build. This adds installed public transport evidence and leaves existing held-reader and no-vector test scope intact. Native partial storage write failure and evidence for all remaining S02/S08 gates remain open."
     },
     "source_refresh_edit_dossier_release": {
-      "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "frozen_source_commit": "c39927e7fd80b72547085d3075fedb509599694a",
       "requirements": ["TODO-55 exact refresh discovery", "EG-02/TODO-29 complete dossier reconciliation", "EG-02/TODO-29 spaced SQL reconciliation"],
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/source-refresh-edit-dossier-20261120",
@@ -3003,12 +3003,20 @@
       "candidate_verifier": {"path": "verify-public.py", "sha256": "737591e0bb1ade876ebd84ed4964328dcaeb7ae94e28cfd59c5d0645a9cb1203"},
       "queued_release_inputs": {"path": "queued-release-inputs.json", "sha256": "eea1cdddfc03a411444a6e282950150309e913c72eb3468c3d0948a3e20c6194"},
       "release_plan": {"path": "release-plan.json", "sha256": "8a8da55e3ddddddfa88da1378d3ce2f189bbb1351cf953903624fe5eacf6fc6c"},
-      "active_processes": "Exact build, candidate and idle-live-install driver identities are recorded in pipeline-owner.json. Verify those processes or terminal receipts before any retry.",
+      "package_receipt": {"path": "package-receipt.json", "sha256": "1d0091141711eb63a31dc463d0aa3c1603c5fcc4e3e508a0c5c1b34d9134622a"},
+      "candidate_receipt": {"path": "candidate/receipt.json", "sha256": "8b6d8d74927ba652b8a6a11b1521c5abd9971d50f63bfa23a6fdbc7556468a11"},
+      "installed_owned_receipt": {"path": "installed/receipt.json", "sha256": "7e0882f8724df832bc72dbe5d1cf5e1e9630174e1d201d2c95db6f9f4f43c434"},
+      "live_receipt": {"path": "live-cutover/status.json", "sha256": "7873f7e98f67b51c03012faf361ec22fb2716853900b7e79d65a03c379d8fa62"},
+      "installed_binary_sha256": "8379834404e2efab024141d63eb604a5417a37019aa9c42d45891825ee86b15b",
+      "installed_manifest_sha256": "6c9faa2fbb85f7848ccb1caa31e65d8fe0540ad930a4062ada91dd302ab25edc",
+      "installed_generation": 3231,
+      "build_seconds": 1033.092,
+      "delivery": "All three public checks passed through candidate and installed MCP. Cutover found no open proxies and a fresh live MCP connection matched the independently verified LegacyValidation file fingerprint at the same generation. The two candidate and two installed fixture processes closed and owned fixture/cutover directories were removed.",
       "evidence": "One owned fixture proved missing discovery guidance in Core and Full, verified that explicit forced refresh publishes the same raw JS hash at a new physical revision, and reproduced the 30-of-42 display cut and spaced-SQL identity loss. Candidate acceptance follows a bounded completion manifest and verifies all original paths and lifecycle uniqueness. Both baseline processes and their fixture were closed and removed.",
       "source_delta": "Three server source files beyond the verified installed limited recovery and guidance release. The build reuses the existing registered checkout and shared release target."
     },
     "edit_session_spaced_dossier_paths": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "c39927e7fd80b72547085d3075fedb509599694a",
       "requirement": "EG-02 complete exact change-set recovery and TODO-29 edit-session reconciliation for LegacyValidation SQL",
       "observed_gap": "Installed complete_edit_session turns two backtick-quoted tracked LegacyValidation SQL files under db-legacy_validation.sql/dbo/Stored Procedures into incorrect Procedures/... suffixes, losing the canonical candidate identities.",
@@ -3016,10 +3024,10 @@
       "acceptance": "Both backtick-quoted Markdown and JSON/double-quoted dossier paths with spaces retain the full path. With one of the tracked SQL paths in the edited set, only its sibling remains untreated. Existing bare paths and deduplication remain.",
       "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/limited-recovery-guidance-20261120/edit-session-spaced-dossier-baseline/receipt.json", "sha256": "20da1f21e4b3239099c198a6b5ce66543a3b293212dc425a130b1a3d96b4c87e"},
       "focused_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/edit-dossier-spaced-focused-20261120.json",
-      "verification": "Installed MCP reproduced loss of the full identities from two exact Git paths. The compiled production parser and reconciliation kept both paths in Markdown/JSON token forms and left just the actual sibling when one was edited. Existing tests retain bare path and deduplication behavior. Packaged workflow verification is pending."
+      "verification": "Baseline MCP reproduced loss of the full identities from two exact Git paths. Candidate and installed lifecycle recovery recognized the edited spaced SQL path and retained the full distinct untouched sibling. Existing focused coverage retains bare paths and deduplication."
     },
     "edit_session_complete_dossier_reconciliation": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "b1c6a637ad5416b70be3aeb21c55d470a318cfba",
       "requirement": "EG-02 complete bounded change-set recovery and TODO-29 edit-session reconciliation",
       "observed_gap": "Installed complete_edit_session acknowledged 42 untouched dossier references from tracked LegacyValidation paths but rendered only 30, without disclosing dropped identities. The complete lifecycle response could not recover the missing paths.",
@@ -3027,17 +3035,17 @@
       "acceptance": "An owned edit session with more than 30 distinct dossier references retains every untouched path and section. A deliberately small reply defers with exact immutable recovery. Completing and recovering consume the lifecycle only once.",
       "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/limited-recovery-guidance-20261120/edit-session-dossier-overflow-baseline/receipt.json", "sha256": "d0bfa74c9659875ca501de0b87e2dbf95c2a49002181dfa17728cf667a81051a"},
       "focused_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/edit-dossier-complete-focused-20261120.json",
-      "verification": "Installed owned MCP reported 42 untouched references in its heading but retained 30 identities. The exact amended production parser and renderer retained all 41 untouched tracked LegacyValidation paths when one of 42 paths was edited. Owned temporary files were removed. Packaged lifecycle and immutable paging integration are pending."
+      "verification": "Baseline MCP reported 42 untouched references but rendered 30. Candidate and installed MCP recovered all 42 untouched companions over 11 bounded pages, verified the response hash and refused duplicate session completion. The focused case also retained all 41 untouched tracked LegacyValidation paths when one of 42 was edited."
     },
     "exact_refresh_freshness_navigation": {
-      "status": "SOURCE_COMPLETE_EXACT_MCP_READ_VERIFIED_AWAITING_PACKAGED_DISCOVERY",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "90e2cecada48fde312b583317494ff332403fd8d",
       "requirement": "TODO-55 interactive source refresh and EG-18 reliable agent tool navigation",
       "observed_gap": "Installed update_project discovery does not direct agents that only need byte freshness to the exact-file check. Actual LegacyValidation defaultProject.js matched independent source bytes in 8.3 ms; the prior explicit only_paths forced refresh took 59.485 s.",
       "implementation": ["crates/engram_server/src/tools.rs", "crates/engram_server/src/models/requests.rs", "docs/TOOL_CONTRACT.md"],
       "acceptance": "MCP tools/list advertises the check before forced refresh. An agent can use exact source_files output to tell whether the published file matches current bytes without modifying the project. Preserve forced extraction for explicit repairs and disclose that byte equality alone does not certify parser migration.",
       "receipt": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/limited-recovery-guidance-20261120/exact-refresh-readability.json", "sha256": "fc968d91a3797e28f9a4162b32538ab178ea764545265acea955dac8b5ba00d7"},
-      "verification": "Live exact source-file freshness in 8.3 ms matched disk, selected source and independently calculated raw BLAKE3 for defaultProject.js at project generation 3224 and physical revision 3223. The earlier 59.485 s forced refresh observation is a different operation. No reindex was executed to repeat timing. The speed of a necessary refresh and the cause of the 52 s ingestion phase are unverified."
+      "verification": "Candidate and installed MCP discovery advertise the exact-file byte check in Core and Full. An explicit forced refresh of unchanged fixture bytes advances their physical revision. Fresh live MCP confirmed the same LegacyValidation file fingerprint at project generation 3231 without forcing a live reindex. Earlier 8.3 ms byte verification and 59.485 s forced refresh are observations of distinct operations."
     },
     "limited_recovery_guidance_release": {
       "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
@@ -4878,22 +4886,22 @@
       "acceptance_contract": "Call plan_user_story under Core with the actual LegacyValidation VB and authored guide copy, verify the candidate scope and omissions, then follow the emitted action to exact source EOF. Confirm both tools are discoverable."
     }
   ],
-  "next_source_batch_pending": [
+  "source_refresh_edit_dossier_delivered_batch": [
     {
       "original_requirement_id": "TODO-55 exact refresh discovery",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "90e2cecada48fde312b583317494ff332403fd8d",
       "acceptance_contract": "Inspect advertised update_project and only_paths schemas in Core and Full, then follow the existing source_files check and compare actual LegacyValidation file bytes. Fixture repair still forces re-extraction. Ship this documentation and discovery improvement within a later combined binary, without a standalone build."
     },
     {
       "original_requirement_id": "EG-02/TODO-29 complete dossier reconciliation",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "b1c6a637ad5416b70be3aeb21c55d470a318cfba",
       "acceptance_contract": "Complete a disposable edit lifecycle with the 42 independently sourced LegacyValidation path references under a reply budget that defers the report. Verify all untouched paths and section labels in the recovered original, exact BLAKE3, and refusal to close the same lifecycle twice. No actual application source edits."
     },
     {
       "original_requirement_id": "EG-02/TODO-29 spaced SQL reconciliation",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "c39927e7fd80b72547085d3075fedb509599694a",
       "acceptance_contract": "Complete the owned lifecycle with actual spaced LegacyValidation SQL candidates in Markdown quotes and JSON strings. Confirm the edited path is recognized exactly and the untouched sibling remains with its complete identity in the recovered original."
     }
