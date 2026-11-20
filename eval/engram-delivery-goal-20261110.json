@@ -2982,7 +2982,9 @@
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/queued-exact-source-refresh-20261120",
       "baseline": {"path": "baseline/receipt.json", "sha256": "ac889d13453487a3f63d9346c4ee6c5fc0c6aaeb348cbd568978b7fe91c7f1bc"},
       "candidate_verifier": {"path": "verify.py", "sha256": "5ce1dbbccf6f4a423e32f09b28df719fa6968fee3623f8655e0151fa64c1258a"},
-      "evidence": "Installed MCP rejected the queued request before any source publication. Running the same request synchronously published only the independently hashed selected edit, inherited the separately changed outside revision and returned the scoped guidance observation. The candidate check follows the returned job ID and saved observation. Scoped runtime cancellation verification remains open. The owned fixture was removed."
+      "cancellation_control": {"path": "cancel-baseline/receipt.json", "sha256": "04a941878c188c3dc1cdb4ad7137a3329ad27293a6a6628464c50c18dca28e96"},
+      "cancellation_verifier": {"path": "verify-cancel.py", "sha256": "269d180574fccf27f12e391d1cf17dca74833c25615dcb8685f5fe4eeef4f6aa"},
+      "evidence": "Installed MCP rejected the queued request before any source publication. Running the same request synchronously published only the independently hashed selected edit, inherited the separately changed outside revision and returned the scoped guidance observation. The candidate check follows the returned job ID and saved observation. An installed whole-project control held a native vector-provider request, observed source_flush, cancelled with generation 1 still selected, and retried successfully to generation 2. Candidate cancellation uses only_paths, with a separately edited outside file required to remain inherited. Scoped runtime proof remains pending. Both owned fixtures were removed."
     },
     "vector_dossier_net_review_release": {
       "status": "ONE_COMBINED_RELEASE_BUILD_RUNNING",
