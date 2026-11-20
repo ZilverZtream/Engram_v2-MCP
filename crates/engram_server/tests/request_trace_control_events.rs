@@ -8,7 +8,13 @@ use engram_server::services::request_trace::{
 use serde_json::{Value, json};
 use std::{collections::BTreeMap, sync::Arc};
 
-const PAGE: &str = "<%@ Page CodeFile='Entry.aspx.vb' AutoEventWireup='false' %>\n<asp:DropDownList ID='plan' runat='server' OnSelectedIndexChanged='PickPlan' />\n<asp:CheckBox ID='enabled' runat='server' />\n<asp:Button ID='save' runat='server' OnClick='Save' />\n<!-- <asp:DropDownList ID='plan' runat='server' OnSelectedIndexChanged='Phantom' /> -->\n";
+const PAGE: &str = r#"<%@ Page CodeFile='Entry.aspx.vb' AutoEventWireup='false' %>
+<asp:DropDownList ID='plan' Text="<%$ Resources: text, Plan %>" runat='server' OnSelectedIndexChanged='PickPlan' />
+<asp:CheckBox ID='enabled' runat='server' />
+<asp:Button ID='save' Text="<%$ Resources: text, Save %>" runat='server' OnClick='Save' />
+<asp:DropDownList ID='plan' runat='server' title="example OnSelectedIndexChanged='Phantom'" />
+<!-- <asp:DropDownList ID='plan' runat='server' OnSelectedIndexChanged='Phantom' /> -->
+"#;
 const VB: &str = "Public Class Entry\nPublic Sub PageLoad() Handles Me.Load\nEnd Sub\nPublic Sub PickPlan()\nDim db As New DataContext()\ndb.ExecuteCommand(\"UPDATE dbo.Preferences SET Plan=1\")\nEnd Sub\nPublic Sub Toggle() Handles enabled.CheckedChanged\nEnd Sub\nPublic Sub Save()\nEnd Sub\nPublic Sub Phantom()\nEnd Sub\nEnd Class\n";
 
 fn trace(action: &str, stale: bool) -> Value {

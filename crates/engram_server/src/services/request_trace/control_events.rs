@@ -1,8 +1,28 @@
 //! Explicit WebForms control events from authored markup, not browser execution.
-use super::execution::{attribute, without_markup_comments};
+use super::execution::without_markup_comments;
 use regex::Regex;
 use serde::Serialize;
 use std::sync::LazyLock;
+
+const ATTRIBUTE: &str = r#"\s+([A-Za-z_:][\w:.-]*)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|[^\s"'=<>`]+))?"#;
+static ATTRIBUTES: LazyLock<Regex> =
+    LazyLock::new(|| Regex::new(ATTRIBUTE).expect("control attributes"));
+static START_TAGS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(&format!(r"<[A-Za-z][\w:.-]*(?:{ATTRIBUTE})*\s*/?>"))
+        .expect("control start tags")
+});
+
+pub(super) fn start_tags(source: &str) -> impl Iterator<Item = regex::Match<'_>> {
+    START_TAGS.find_iter(source)
+}
+
+pub(super) fn attributes(tag: &str) -> impl Iterator<Item = (&str, &str)> {
+    ATTRIBUTES.captures_iter(tag).filter_map(|capture| {
+        let name = capture.get(1)?.as_str();
+        let value = capture.get(2).or_else(|| capture.get(3))?.as_str();
+        Some((name, value))
+    })
+}
 
 fn identifier(value: &str) -> bool {
     let mut bytes = value.bytes();
@@ -62,21 +82,28 @@ pub fn collect(file: &str, source: &str, control: &str, event: &str) -> Evidence
         interpretation: "Current authored server-control event declarations. Corresponding admitted method entries remain static candidates. Naming containers, control creation, postback/event validation, client event wiring, branch reachability, lifecycle order and actual execution are not established. Explicit VB Handles bindings can supply entries independently of these markup observations.",
     };
     let markup = without_markup_comments(source);
-    static TAGS: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(?s)<[A-Za-z][^>]*>").expect("markup tags"));
     let attribute_name = format!("On{event}");
     let source_hash = blake3::hash(source.as_bytes()).to_hex().to_string();
     let mut bytes = 0;
-    for tag in TAGS.find_iter(&markup) {
-        if !attribute(tag.as_str(), "ID").is_some_and(|id| id.eq_ignore_ascii_case(control))
-            || !attribute(tag.as_str(), "runat")
-                .is_some_and(|value| value.eq_ignore_ascii_case("server"))
+    for tag in start_tags(&markup) {
+        let mut id = None;
+        let mut runat = None;
+        let mut handler = None;
+        for (name, value) in attributes(tag.as_str()) {
+            if name.eq_ignore_ascii_case("ID") {
+                id = Some(value);
+            } else if name.eq_ignore_ascii_case("runat") {
+                runat = Some(value);
+            } else if name.eq_ignore_ascii_case(&attribute_name) {
+                handler = Some(value);
+            }
+        }
+        if !id.is_some_and(|id| id.eq_ignore_ascii_case(control))
+            || !runat.is_some_and(|value| value.eq_ignore_ascii_case("server"))
         {
             continue;
         }
-        let Some(handler) =
-            attribute(tag.as_str(), &attribute_name).filter(|name| identifier(name))
-        else {
+        let Some(handler) = handler.filter(|name| identifier(name)) else {
             continue;
         };
         if evidence.markup_bindings.len() == 32 || bytes + tag.len() > 16 * 1024 {
@@ -90,7 +117,7 @@ pub fn collect(file: &str, source: &str, control: &str, event: &str) -> Evidence
             .count() as u32
             + 1;
         evidence.markup_bindings.push(Binding {
-            handler,
+            handler: handler.into(),
             attribute: attribute_name.clone(),
             file: file.into(),
             line,

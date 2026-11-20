@@ -3246,7 +3246,15 @@
       "acceptance": "For the existing browser question, cite the indexed read and write spans in hash-matched selected source and make source recovery open the access line. Disclose stale or unproved access evidence. Keep store-wide clear candidates separate and preserve legacy state behavior.",
       "verification": "Installed baseline returned reader recovery line 1 and writer recovery line 51. The focused executable compiled the changed collector/provider against cached dependencies with an owned GraphStore. It used the two immutable LegacyValidation files with Git checkout filters, matched the independently observed installed raw hashes and indexed positions, recovered the read at line 8 and the write at line 52, and withheld only the changed read file. Owned test resources closed. The fixture first exposed LF Git blob versus indexed CRLF checkout differences and was corrected without a Cargo build. The public server fixture is updated; packaged MCP and installation remain pending."
     },
-    "next_action": "Advance a separate ready original requirement. Implementation-context source admission and browser citations are queued for combined packaged MCP verification."
+    "webforms_resource_attribute_event": {
+      "status": "IMPLEMENTED_FOCUSED_ACTUAL_SOURCE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-31 trace_user_request source-declared WebForms event and click bindings",
+      "observed_gap": "Installed trace_user_request for Site/modules/dashboard/Default.aspx, event chkActionStatus.CheckedChanged, returns zero markup bindings and omits chkActionStatus_CheckedChanged. LegacyValidation Git markup line 725 declares the event after a quoted resource expression containing >. The code-behind declares the handler at line 294 without a Handles clause.",
+      "implementation": ["crates/engram_server/src/services/request_trace/control_events.rs", "crates/engram_server/src/services/request_trace/execution.rs", "crates/engram_server/tests/request_trace_control_events.rs"],
+      "acceptance": "Trace the actual dashboard binding and exact admitted VB handler from selected source, and retain ordinary click handling after quoted > in the existing regression fixture. Attribute-looking text inside another value must not create a binding. Keep runtime execution and postback unproven.",
+      "verification": "Focused executable used the changed control markup reader and handler-selection function with immutable LegacyValidation source 6c4f23a5: exact markup line 725, VB line 294, one authored binding and selected handler, plus literal fixture click and exclusion of an apparent event attribute embedded in an unrelated attribute value. The executable reused cached dependencies. The existing trace regression fixture now exercises both public action spellings. Candidate MCP and installation remain pending."
+    },
+    "next_action": "Freeze S06 implementation context, TODO-27 browser citations and TODO-31 dashboard event as one combined packaged MCP release."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",

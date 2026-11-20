@@ -212,17 +212,23 @@ pub(super) fn handler_bindings(
     let form = requested.is_some_and(|a| a.eq_ignore_ascii_case("submit form"));
     let lifecycle_context =
         requested.is_none_or(|a| a.eq_ignore_ascii_case("load page")) || click.is_some() || form || control_event.is_some();
-    let tags = Regex::new(r"(?s)<[A-Za-z][^>]*>").expect("markup tag syntax");
     // Markup observations belong to the page, not each candidate method. In
     // particular, avoid compiling attribute readers for every tag/method pair.
     let click_bindings: Vec<_> = if click.is_some() || form {
-        tags.find_iter(markup).filter_map(|tag| {
-            let id = attribute(tag.as_str(), "ID");
-            if !form && !click.is_some_and(|target| id.as_deref().is_some_and(|id| id.eq_ignore_ascii_case(target))) {
+        super::control_events::start_tags(markup).filter_map(|tag| {
+            let mut id = None;
+            let mut handler = None;
+            for (name, value) in super::control_events::attributes(tag.as_str()) {
+                if name.eq_ignore_ascii_case("ID") {
+                    id = Some(value);
+                } else if name.eq_ignore_ascii_case("OnClick") {
+                    handler = Some(value);
+                }
+            }
+            if !form && !click.is_some_and(|target| id.is_some_and(|id| id.eq_ignore_ascii_case(target))) {
                 return None;
             }
-            let handler = attribute(tag.as_str(), "OnClick")?;
-            Some((id.unwrap_or_else(|| "unnamed control".into()), handler))
+            Some((id.unwrap_or("unnamed control"), handler?))
         }).collect()
     } else { Vec::new() };
     let auto_event_wireup = lifecycle_context && attribute(markup, "AutoEventWireup")
