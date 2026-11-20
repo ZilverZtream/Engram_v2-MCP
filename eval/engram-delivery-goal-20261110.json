@@ -2981,6 +2981,18 @@
   "current_execution_focus": {
     "status": "WORKFLOW_CANDIDATE_VERIFIED_AND_QA_SOURCE_READY",
     "implementation_items_active": 0,
+    "webforms_response_body_evidence": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "TODO-31 trace a WebForms request through the response",
+      "observed_gap": "LegacyValidation /sharedDownload/ uses both Response.TransmitFile and Response.OutputStream.Write in reached VB methods. The trace classifies redirects, headers and status but leaves body output buried in excerpts that can be clipped.",
+      "implementation": ["crates/engram_server/src/services/request_trace/execution.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Trace owned copies of the authored LegacyValidation download page and its code-behind with database traversal disabled. Verify source-cited file transmission and stream output independently of excerpts, follow a hash-guarded containing-method read, and retain response metadata and exact recovery.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/webforms-response-body-20261120",
+      "baseline": {"path": "baseline-with-app-root/receipt.json", "sha256": "3f7dee1e413c6d63c3a7178b9ea3bddd946a95bb9777b5a6777c36ff23f1dd48"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "c010dda01046425b381bb45dc663be2616622314d4bf403f26198faec4947c6b"},
+      "evidence": "Installed MCP on unchanged LegacyValidation Git copies resolved /sharedDownload/ and the containing VB methods. The compact response retained Content-Disposition but omitted all three body operations found independently at lines 102, 121 and 127. Fixture data and processes were closed and removed. Source syntax and whitespace checks passed. Validation of the new field and source action remains pending.",
+      "retention": "Keep the four-file source commit pin, verifier and both baseline wire observations in this case until the combined delivery receipt is recorded."
+    },
     "qa_structured_matrix": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "TODO-4 structured bounded results and original agent-ready QA workflow",

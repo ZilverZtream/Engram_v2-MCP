@@ -13,6 +13,7 @@ const MAX_EDGES: usize = 128;
 const MAX_REDIRECTS_PER_METHOD: usize = 8;
 const MAX_STARTUP_SCRIPTS_PER_METHOD: usize = 8;
 const MAX_RESPONSE_METADATA_PER_METHOD: usize = 8;
+const MAX_RESPONSE_BODY_WRITES_PER_METHOD: usize = 8;
 
 pub(super) fn response_redirects(
     tokens: &[super::routing::Token],
@@ -176,6 +177,60 @@ pub(super) fn response_metadata(
         "candidates": candidates,
         "truncated": truncated,
         "interpretation": "Authored VB response statements. Values are lexical source observations. Final status, headers and execution are unverified.",
+    }))
+}
+
+fn response_body_writes(
+    tokens: &[super::routing::Token],
+    start_line: u32,
+) -> Option<serde_json::Value> {
+    use serde_json::json;
+
+    let mut candidates = Vec::new();
+    let mut truncated = false;
+    for (index, call) in tokens.windows(4).enumerate() {
+        if call.iter().any(|token| token.string)
+            || !call[0].text.eq_ignore_ascii_case("Response")
+            || call[1].text != "."
+        {
+            continue;
+        }
+        let kind = match call[2].text.to_ascii_lowercase().as_str() {
+            "transmitfile" | "writefile" if call[3].text == "(" => "file",
+            "binarywrite" if call[3].text == "(" => "binary",
+            "write" if call[3].text == "(" => "response_write",
+            "outputstream" if call[3].text == "." => {
+                let Some([write, open]) = tokens.get(index + 4..index + 6) else {
+                    continue;
+                };
+                if write.string || open.string
+                    || !write.text.eq_ignore_ascii_case("Write") || open.text != "("
+                {
+                    continue;
+                }
+                "stream"
+            }
+            _ => continue,
+        };
+        if candidates.len() == MAX_RESPONSE_BODY_WRITES_PER_METHOD {
+            truncated = true;
+            break;
+        }
+        let operation = if kind == "stream" {
+            format!("{}.{}", call[2].text, tokens[index + 4].text)
+        } else {
+            call[2].text.clone()
+        };
+        candidates.push(json!({
+            "line": start_line as usize + call[0].line - 1,
+            "operation": operation,
+            "kind": kind,
+        }));
+    }
+    (!candidates.is_empty()).then(|| json!({
+        "candidates": candidates,
+        "truncated": truncated,
+        "interpretation": "Authored VB response body calls. Receiver binding, argument values and emitted content remain unresolved.",
     }))
 }
 
@@ -735,11 +790,13 @@ pub(super) fn trace_selected(
                 excerpt.push('\n');
                 shown += 1;
             }
+            let source_blake3 = blake3::hash(source.content.as_bytes()).to_hex().to_string();
             let mut member = serde_json::json!({"node_id":node.node_id,"file":source.path,"line_start":node.start_line,
-                "line_end":node.end_line,"source_blake3":blake3::hash(source.content.as_bytes()).to_hex().to_string(),
+                "line_end":node.end_line,"source_blake3":source_blake3,
                 "excerpt":excerpt,"shown_lines":shown,"excerpt_truncated":shown<lines,
                 "interpretation":"Authored code, including guards and response expressions. Source order does not prove an operation executes or completes.",
-                "recovery":{"tool":"get_full_method_body","arguments":{"project_id":project,"file_path":source.path,"line_start":node.start_line,"context_lines":0}}});
+                "recovery":{"tool":"get_full_method_body","arguments":{"project_id":project,"file_path":source.path,
+                    "line_start":node.start_line,"context_lines":0,"expected_file_blake3":source_blake3}}});
             let vb = source.path.to_ascii_lowercase().ends_with(".vb");
             let body = (node.node_type == "function" && (vb || database.is_some())).then(|| {
                 source
@@ -760,6 +817,9 @@ pub(super) fn trace_selected(
                 }
                 if let Some(metadata) = response_metadata(&tokens, node.start_line) {
                     member["response_metadata"] = metadata;
+                }
+                if let Some(writes) = response_body_writes(&tokens, node.start_line) {
+                    member["response_body_writes"] = writes;
                 }
             }
             result.source_members.push(member);

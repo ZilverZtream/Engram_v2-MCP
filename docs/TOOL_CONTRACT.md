@@ -33,6 +33,14 @@ source lines, simple literal status or content-type values, and literal header
 names where available. Values that require evaluation remain unresolved.
 These are authored statements with the enclosing source hash.
 
+The `response_body_writes` field identifies reached VB `Response.Write`,
+`BinaryWrite`, `WriteFile`, `TransmitFile` and `OutputStream.Write` call
+sites. Each verified member shows up to eight sites with file-relative
+lines. The sites survive excerpt clipping and the containing-method read
+checks the captured file hash. Use them to locate file downloads and
+stream writes in source. Receiver binding, argument values, output bytes
+and runtime execution remain unresolved.
+
 If compact trace navigation exceeds the caller's reply budget, the trace can
 return `DEFERRED_TRACE_NAVIGATION` with no inline paths. Follow
 `response_delivery.next_call` to recover the complete captured report under
