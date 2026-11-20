@@ -401,6 +401,8 @@ The provider reads one current snapshot with the existing4MiB raw-file cap. JSON
 The original completion report retains every recognized untouched dossier
 reference. If it exceeds the reply budget, follow the saved report continuation
 to recover those advisory candidates without completing the edit session again.
+Use backticks or JSON string quoting around paths containing spaces to keep
+their full identity in reconciliation.
 
   To reconcile a deferred `get_change_set` dossier, pass its
   `response_delivery.response_id` as `dossier_response_id` in the same project.

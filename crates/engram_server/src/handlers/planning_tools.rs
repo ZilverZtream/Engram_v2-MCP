@@ -14589,12 +14589,13 @@ pub(crate) fn strip_html(html: &str) -> String {
 /// snapshots), no emission-format coupling.
 pub(crate) fn extract_dossier_obligations(dossier: &str) -> Vec<(String, String)> {
     use std::sync::LazyLock;
-    // Project-relative paths with a source-ish extension; excludes bare
-    // filenames (must contain a '/') so prose words don't match.
+    // Delimiters identify full paths with spaces. Prefer them to the bare
+    // path scan so it cannot pick an inner suffix of a quoted path.
     static FILE_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-        regex::Regex::new(
-            r"[\w~][\w.~-]*(?:/[\w.~-]+)+\.(?:aspx\.vb|ascx\.vb|asax\.vb|master\.vb|vb|cs|ts|tsx|js|jsx|sql|resx|aspx|ascx|master|vbhtml|cshtml|config|dbml|css)\b",
-        )
+        let extension = r"(?:aspx\.vb|ascx\.vb|asax\.vb|master\.vb|vb|cs|ts|tsx|js|jsx|sql|resx|aspx|ascx|master|vbhtml|cshtml|config|dbml|css)";
+        let bare = format!(r"[\w~][\w.~-]*(?:/[\w.~-]+)+\.{extension}\b");
+        let quoted = format!(r"[\w~][\w. ~-]*(?:/[\w. ~-]+)+\.{extension}");
+        regex::Regex::new(&format!(r#"\x60({quoted})\x60|"({quoted})"|({bare})"#))
         .expect("valid regex")
     });
     let mut out: Vec<(String, String)> = Vec::new();
@@ -14606,10 +14607,10 @@ pub(crate) fn extract_dossier_obligations(dossier: &str) -> Vec<(String, String)
             section = h.trim().chars().take(60).collect();
             continue;
         }
-        for m in FILE_RE.find_iter(line) {
-            let f = m.as_str().to_string();
-            if seen.insert(f.to_lowercase()) {
-                out.push((section.clone(), f));
+        for fields in FILE_RE.captures_iter(line) {
+            let path = fields.iter().skip(1).flatten().next().expect("one path alternative");
+            if seen.insert(path.as_str().to_lowercase()) {
+                out.push((section.clone(), path.as_str().to_owned()));
             }
         }
     }
@@ -15166,6 +15167,25 @@ prose without paths; duplicate Site/App_Code/ata/code/HUVUD.VB ignored\n";
         assert!(
             obs.is_empty(),
             "bare filenames without '/' must not count: {obs:?}"
+        );
+    }
+
+    #[test]
+    fn quoted_sql_paths_keep_space_components_and_deduplicate() {
+        let dossier = r#"## SQL candidates
+- `database.sql/dbo/Stored Procedures/GetItems.sql`
+{"path":"database.sql/dbo/Stored Procedures/Save Items.sql"}
+- `database.sql/dbo/Stored Procedures/GETITEMS.sql`
+Site/App_Code/Inventory.vb
+"#;
+        let paths = extract_dossier_obligations(dossier);
+        assert_eq!(
+            paths.iter().map(|(_, path)| path.as_str()).collect::<Vec<_>>(),
+            [
+                "database.sql/dbo/Stored Procedures/GetItems.sql",
+                "database.sql/dbo/Stored Procedures/Save Items.sql",
+                "Site/App_Code/Inventory.vb"
+            ]
         );
     }
 }
