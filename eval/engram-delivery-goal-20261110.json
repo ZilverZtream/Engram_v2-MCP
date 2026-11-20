@@ -2974,7 +2974,7 @@
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "settings_review_history_release": {
-      "status": "ONE_COMBINED_RELEASE_BUILD_RUNNING",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\settings-review-history-20261120",
       "source_commit": "10ce96700bf35f2852d9af3d83b3cbe0659ceecc",
       "original_requirement_ids": [
@@ -2987,13 +2987,80 @@
       "build_relay_pid": 40340,
       "stage_session": 85380,
       "full_suites_started": 0,
-      "plan_sha256": "2d6bf6b2677b86ebbb6be13bed3d83610f49d3e793245ba9544a3eb63b63c0c2",
-      "baseline_sha256": "48fc335bc52e085c2e594ac3005ed78a00628a62fba92669b819669bb3c26068",
-      "verification": "Old installed binary reproduced the scoped review refusal, produced a bounded 20-of-27 settings reply without catalog continuation, and returned historical_source for a recent-change question. The owned fixture and MCP client closed. The same candidate stage session checks these paths on the new artifact after the exact build owner exits.",
-      "retention": "Use the existing detached release checkout and shared target. Keep the recorded release logs, pins and evidence until delivery is recorded; owned compiler and verifier fixtures clean on exit."
+      "plan_sha256": "5e82a12bdf0ebe11dfd04f589b98ac50210cac1412f95af9b23f0d98fabb3f57",
+      "baseline_sha256": "215dc0693c3d5ec5b985003a0879489d0c32013b5a9c2ce6688e5c0266bd8382",
+      "verification": "The exact installed pair matched the verified stage. All three owned public behavior checks passed again. Fresh normal MCP returned two pinned LegacyValidation commits and the 3,781-byte earlier file patch. Candidate and installed run fixture owners closed. A baseline fixture guide was shortened after the old runtime correctly reported its per-source read cap; the installed live proof then used the unquoted exact source request and the already captured successful history and patch calls. No source or binary rebuild was needed.",
+      "retention": "Use the existing detached release checkout and shared target. Keep the recorded release logs, pins and evidence until delivery is recorded; owned compiler and verifier fixtures clean on exit.",
+      "build_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\settings-review-history-20261120\\release1.json",
+        "sha256": "ac6261a887582288e5e61effde4aef0888a40c77301cf403c1e4e230b9e678b8",
+        "elapsed_seconds": 704.651808300001,
+        "optimized_builds": 1,
+        "full_test_suites": 0
+      },
+      "package_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\settings-review-history-20261120\\package-receipt.json",
+        "sha256": "e9a6210af31f2b1b640c1930e2c2bbd407c455a1e6517273f37f7def7d73941c",
+        "binary_sha256": "3737bdecf9b76f414141448f7cc351d2335545790efcef1635440e1bf1603507",
+        "manifest_sha256": "91d1b9f67d2bf44fb5d1b48c509f00a20edbf57e99045b13a38aee754797b568",
+        "archive_sha256": "bfe6f7b16810372282e2aab0457f109e4fd86e6bfdcabba2400f8fe5f7057036"
+      },
+      "candidate_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\settings-review-history-20261120\\candidate\\receipt.json",
+        "sha256": "60934b2708d610bff85268d8f343ff67b758aca55fbcafe12dbe054de7c48141"
+      },
+      "installed_fixture_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\settings-review-history-20261120\\installed\\receipt.json",
+        "sha256": "da3070a22e3adc008d594c4909b7d55e48e8d87844961783ba62c1804fc088be"
+      },
+      "live_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\settings-review-history-20261120\\live-proof-resume-r2\\receipt.json",
+        "sha256": "b56c79b19407ee320862e3f1b0cc94b101c4ad1f8c2170b3b0dfabe4ebaa4fff",
+        "generation": 3222,
+        "daemon_pid": 53848,
+        "previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-fcea310c4b0d4eed9166704ac04a8e04",
+        "pinned_history": {
+          "history_matches": 2,
+          "basis": "c481dfa3a1b0a806354c3608e9a3bd245a08655e",
+          "patch_bytes": 3781,
+          "source_recovery_pages": 0
+        }
+      },
+      "installed_behavior": {
+        "TODO-4": {
+          "rows": [
+            20,
+            7
+          ],
+          "recovery_pages": [
+            4,
+            0
+          ],
+          "continuation": true,
+          "exact_source_rows": 27,
+          "owned_fixture_removed": true
+        },
+        "TODO-28": {
+          "history_matches": 2,
+          "basis": "bf3752f68487806777593c6d8fd8cff5e6459c39",
+          "patch_bytes": 329,
+          "owned_fixture_removed": true
+        },
+        "EG-19": {
+          "submitted": [
+            "Site/Review/Report.aspx.vb",
+            "Site/Review/Totals.sql"
+          ],
+          "recovery_pages": 14,
+          "staged_follow_up": true,
+          "scoped_conditions_retained": true,
+          "owned_fixture_removed": true
+        }
+      },
+      "limits": "Settings continuations observe the current bounded index. Review checks do not establish source execution or current applicability of an imported decision. History is first-parent and bounded. No LegacyValidation source edits or storage-format transition. The live historical source probe with a backtick-quoted path returned other same-revision context; an unquoted exact path returned the complete requested blob. Quoted explicit-path selection remains open."
     },
     "ask_pinned_recent_history": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "requirement": "TODO-28 natural-language access to source-backed, revision-scoped history",
       "observed_gap": "At the parent of the latest DownloadFile.aspx.vb change, installed ask_codebase returns a pinned source blob and no commits for an explicit recent changes question. Git first-parent history shows two earlier changes.",
       "implementation": ["crates/engram_server/src/handlers/ask_recent_history.rs", "crates/engram_server/src/handlers/ask_tools.rs", "crates/engram_server/src/services/ask_engine/historical.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs"],
@@ -3003,7 +3070,7 @@
       "retention": "Keep the reproduction and numeric/commit receipt in current-task-check/pinned-ask-history-20261120 through combined delivery. Owned compiler scratch was removed."
     },
     "working_tree_review": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "requirement": "EG-19 bounded prior-decision evidence over the actual reviewed change scope",
       "observed_gap": "Agents reviewing an entire in-progress change have to submit their own combined patch or run separate staged and unstaged gates. An installed scoped working_tree review refused an actual changed LegacyValidation VB file before analysis.",
       "implementation": ["crates/engram_server/src/services/pre_commit_review_service.rs", "crates/engram_server/src/handlers/review_tools.rs", "crates/engram_server/src/handlers/review_tools/maintenance_context.rs", "crates/engram_server/src/handlers/review_tools/response_delivery.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs"],
@@ -3013,7 +3080,7 @@
       "retention": "Keep the reproduction script and numeric receipt under current-task-check/working-tree-review-20261120 through combined MCP acceptance. Owned temporary fixture closed and was removed. The LegacyValidation checkout was read only."
     },
     "settings_catalog_pagination": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "requirement": "TODO-4 bounded response delivery and pagination across existing tools",
       "observed_gap": "Live LegacyValidation settings catalog reported 2,023 indexed settings. Two categories exceed the 500-per-category maximum, leaving 745 rows inaccessible through list_settings. Existing deferred response recovery preserves only the rows selected for the current request.",
       "implementation": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/handlers/settings_tools.rs", "crates/engram_server/src/tools.rs"],
@@ -3621,7 +3688,7 @@
       "acceptance": "Write admission tolerates brief parser ownership without using another parser identity, and reports a bounded busy refusal if ownership persists. Read-only admission and the publication fence retain their existing behavior.",
       "verification": "The retained actual rollback MCP runs showed a busy refusal before generation advance, with a successful subsequent edit after retry. A focused executable compiled the exact changed lock code and committed regression test. With the original mutex held, reader admission refused, a sustained short writer wait returned busy, and a writer waited and acquired the same coordinator after release. The incremental scan now captures parser authority once in its existing blocking worker before stat-cache or publication work. The candidate already awaiting quiescence predates this change. No Cargo build or live write ran."
     },
-    "next_action": "Validate the queued settings paging, working-tree review and pinned history outcomes together in one release. The preceding VB admission, saved dossier and WebForms event package is installed."
+    "next_action": "Advance the next ready unfinished original requirement. Settings paging, working-tree review and pinned history are installed with public MCP evidence."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -4057,26 +4124,27 @@
       "acceptance_contract": "Trace the actual LegacyValidation TasksUpdated event from the pinned selected WebForms source. Verify the admitted receiver at line 33, the direct VB subscription at line 29, matching source fingerprints, ordinary load context, and compact citation plus exact immutable recovery."
     }
   ],
-  "next_source_batch_pending": [
+  "settings_review_history_source_batch_20261120": [
     {
       "original_requirement_id": "TODO-4",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "source_commit": "2384613b688cc0a39445e9a10086e59f63833284",
       "acceptance_contract": "Follow callable list_settings continuations in a scoped fixture with more than one page per category. Verify exact row coverage, remaining counts and no cross-scope rows. Run generated continuation from recovered bounded reply and preserve exact current-source mode."
     },
     {
       "original_requirement_id": "EG-19",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "source_commit": "e4e4fbc03670afdf6b1a9bad7e925ec9ce6b0394",
       "acceptance_contract": "Run a working_tree review through MCP for scoped current VB and SQL with a split staged/unstaged file and untracked companion. Confirm exact submitted paths, complete scoped guidance and advisory prior decisions, separate staged action, and the native basis in initial and recovered output."
     },
     {
       "original_requirement_id": "TODO-28",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "source_commit": "5196d1f6f4f34ed4354916bcfb265245528f3c27",
       "acceptance_contract": "Through public ask_codebase, verify recent changes to a literal file at an older as_of revision are identical to first-parent Git evidence, exclude the later edit and expose a patch action pinned to the requested basis. An unrelated pinned source question still returns its original blob."
     }
   ],
+  "next_source_batch_pending": [],
   "dossier_webforms_history_source_batch_20261120": [
     {
       "original_requirement_id": "TODO-32",
