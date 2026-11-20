@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "HISTORY_TRACE_BROWSER_ANSWER_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "edit_context_caller_source_omissions": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "source_commit": "d22429b46df3a4e0d9cf2faf3c1aca8936681306",
+      "requirement": "S06 held source selection through caller evidence and the original edit preparation workflow",
+      "observed_gap": "Installed get_method_edit_context(include_caller_bodies=true) rejected valid unchanged target source after a separate indexed caller alone changed. The verified caller reader used by get_full_method_body already retains other evidence and identifies per-caller omissions.",
+      "implementation": ["crates/engram_server/src/handlers/access_layer_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Copy an actual LegacyValidation VB source file and a separate owned indexed caller. Check both bodies initially, edit only the separate caller, and verify the original target advisory and valid caller remain with a named omission and no stale caller source. Preserve default caller identity output and source-scoped policy.",
+      "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/git-freshness-edit-safety-20261120/caller-context-baseline/receipt.json", "sha256": "b7eaad1ae5bd52ab84ce428f2d1aa956fc0c27da9f287b32211291722eb2371f"},
+      "focused_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/edit-context-caller-expansion-focused-20261120.json",
+      "verification": "Installed public MCP reproduced total rejection after editing a separate caller. The exact shared resolver passed held-selection tests, retained the real VB source, refused newer caller file/edge revisions, and displayed omissions in Markdown. Owned fixtures closed and were removed. Packaged handler integration remains pending."
+    },
     "edit_advisory_verified_source_bytes": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "source_commit": "ac2254e8d263d349d6dda7ec7f7340b88c2f7103",
@@ -4662,6 +4673,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "ac2254e8d263d349d6dda7ec7f7340b88c2f7103",
       "acceptance_contract": "Use both public edit tools on the same actual LegacyValidation VB method and compare their target_source raw hash and fingerprint status with independent file bytes. In the owned fixture check the method slice, preserved supported hazard reporting, and refusal after a content edit."
+    },
+    {
+      "original_requirement_id": "S06 caller evidence",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "d22429b46df3a4e0d9cf2faf3c1aca8936681306",
+      "acceptance_contract": "On the exact LegacyValidation VB copy plus a separate owned caller, verify pre-edit target and caller bodies, then edit only that caller. The complete target advisory and other verified caller remain, with the changed body omitted and its reason visible in text and JSON. Identity-only output and policy scope remain accurate."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
