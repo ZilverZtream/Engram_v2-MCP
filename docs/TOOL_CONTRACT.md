@@ -2007,6 +2007,13 @@ index and the worktree appears once against its final content. When an index
 version differs from the working copy, the tool offers a staged review action.
 JSON and deferred coverage expose this basis as `git_diff_source`.
 
+A staged review reports Git index object IDs and modes for the submitted
+paths before and after its gates. These observations are separate from the
+working-file hashes. If staging changes, or current-file context differs
+from the staged diff, an otherwise green verdict becomes yellow. Findings
+and critical verdicts remain visible. The observations are collected at
+separate times and do not establish an atomic Git and filesystem snapshot.
+
 Reviews accept up to 4 MiB of complete patch text. If the diff exceeds that
 limit, narrow the native review with `path_prefixes` or split the patch by file.
 The tool returns an error before review gates run.

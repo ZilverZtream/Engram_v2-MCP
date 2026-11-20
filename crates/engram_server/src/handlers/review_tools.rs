@@ -18,6 +18,7 @@ use crate::services::pre_commit_review_service::{
 };
 use crate::services::project_service::ensure_project_record;
 use crate::tools::Engram;
+use std::collections::BTreeMap;
 mod prior_context;
 mod pre_push_context;
 mod response_delivery;
@@ -106,7 +107,7 @@ impl Engram {
         let indexed_project_dir = PathBuf::from(rec.directory.clone());
         let start = std::time::Instant::now();
         let root = indexed_project_dir.clone();
-        let (req, project_dir, review_source, diff_blake3, parsed, head_before, source_before) =
+        let (req, project_dir, review_source, diff_blake3, parsed, head_before, source_before, index_before) =
             tokio::task::spawn_blocking(move || {
                 let (project_dir, review_source) =
                     resolve_review_directory(&root, req.working_directory.as_deref())
@@ -122,7 +123,12 @@ impl Engram {
                 drop(diff_text);
                 let head = head_commit(&project_dir);
                 let source = source_snapshot(&project_dir, &parsed);
-                Ok::<_, McpError>((req, project_dir, review_source, diff_blake3, parsed, head, source))
+                let index = if req.diff.trim() == "staged" {
+                    staged_index_snapshot(&project_dir, &parsed).ok()
+                } else {
+                    None
+                };
+                Ok::<_, McpError>((req, project_dir, review_source, diff_blake3, parsed, head, source, index))
             })
             .await
             .map_err(|error| McpError::internal_error(error.to_string(), None))??;
@@ -258,7 +264,8 @@ impl Engram {
         let root = project_dir.clone();
         let reviewed_files = parsed.clone();
         let scopes = req.path_prefixes.clone();
-        let (source_after, head_after, alternate_changes) = tokio::task::spawn_blocking(move || {
+        let staged = mode == "staged";
+        let (source_after, head_after, alternate_changes, index_after) = tokio::task::spawn_blocking(move || {
             let source = source_snapshot(&root, &reviewed_files);
             let head = head_commit(&root);
             let alternate = if native_diff {
@@ -266,7 +273,8 @@ impl Engram {
             } else {
                 None
             };
-            (source, head, alternate)
+            let index = if staged { staged_index_snapshot(&root, &reviewed_files).ok() } else { None };
+            (source, head, alternate, index)
         })
         .await
         .map_err(|error| McpError::internal_error(error.to_string(), None))?;
@@ -279,7 +287,7 @@ impl Engram {
             Some(_) if review_next_calls.is_empty() => "no_alternate_changes_observed",
             Some(_) => "alternate_changes_observed_after_review",
         };
-        let staged_worktree_drift = if mode == "staged" {
+        let staged_worktree_drift = if staged {
             alternate_changes.as_ref().map(|changes| {
                 parsed.iter()
                     .filter(|file| changes.staged_with_unstaged.contains(&file.path))
@@ -289,7 +297,12 @@ impl Engram {
         } else {
             None
         };
-        let changed_during_review = head_before != head_after || source_before != source_after;
+        let index_changed = index_before.as_ref().zip(index_after.as_ref())
+            .is_some_and(|(before, after)| before != after);
+        let staged_evidence_incomplete = staged
+            && (index_before.is_none() || index_after.is_none() || staged_worktree_drift.is_none());
+        let staged_context_diverged = staged_worktree_drift.as_ref().is_some_and(|paths| !paths.is_empty());
+        let changed_during_review = head_before != head_after || source_before != source_after || index_changed;
         let snapshot_unavailable = source_after
             .iter()
             .any(|(_, value)| value.starts_with("unavailable:"));
@@ -314,6 +327,10 @@ impl Engram {
             "changed_during_review":changed_during_review,
             "alternate_diff_scope_status":alternate_scope_status,
             "staged_files_with_unstaged_edits":staged_worktree_drift,
+            "staged_index_before":index_before,
+            "staged_index_after":index_after,
+            "staged_index_changed":staged.then_some(index_changed),
+            "staged_evidence_incomplete":staged.then_some(staged_evidence_incomplete),
             "source_snapshot_complete":!snapshot_unavailable,
             "diff_blake3":diff_blake3,
             "source_before":source_before,"source_after":source_after,
@@ -346,7 +363,19 @@ impl Engram {
         payload["prior_review_context"] = prior_review_context.clone();
         payload["instruction_maintenance_context"] = instruction_maintenance_context.clone();
         finding_context::annotate(&mut payload);
-        if (changed_during_review || snapshot_unavailable) && payload["verdict"] == "green" {
+        let source_qualification = if changed_during_review || snapshot_unavailable {
+            Some("source or staging snapshot changed or unavailable")
+        } else if staged_context_diverged {
+            Some("staged diff and current-file context diverge")
+        } else if staged_evidence_incomplete {
+            Some("staged source evidence is incomplete")
+        } else {
+            None
+        };
+        if let Some(reason) = source_qualification {
+            payload["verdict_source_qualification"] = reason.into();
+        }
+        if source_qualification.is_some() && payload["verdict"] == "green" {
             payload["verdict"] = "yellow".into();
         }
         let body = if config.output_json {
@@ -366,14 +395,16 @@ impl Engram {
                 render_markdown(&findings, files_analysed, gates_run, elapsed_ms, &outcomes)
             };
             report.push_str(&scope_note);
-            if changed_during_review || snapshot_unavailable {
-                report = report.replace(
+            if let Some(reason) = source_qualification {
+                report = report.replacen(
                     "GREEN — no concerns within reported static gate coverage",
-                    "YELLOW — source snapshot changed or unavailable",
+                    &format!("YELLOW — {reason}"),
+                    1,
                 );
-                report = report.replace(
+                report = report.replacen(
                     "# Pre-Commit Review - GREEN",
                     "# Pre-Commit Review - YELLOW",
+                    1,
                 );
             }
             if changed_during_review {
@@ -392,6 +423,11 @@ impl Engram {
             }
             if let Some(paths) = &staged_worktree_drift && !paths.is_empty() {
                 report.push_str(&format!("\nStaged review includes files with additional unstaged edits: {}. Current-file context for these paths can differ from the submitted staged diff.\n", coverage["staged_files_with_unstaged_edits"]));
+            }
+            if index_changed {
+                report.push_str("\nThe staging area changed during review. Review the staged diff again before committing.\n");
+            } else if staged_evidence_incomplete {
+                report.push_str("\nStaging or worktree evidence was unavailable. Verify the selected commit contents before relying on the verdict.\n");
             }
             if compact {
                 report.push_str(&format!(
@@ -514,6 +550,27 @@ fn head_commit(root: &std::path::Path) -> Option<String> {
         .ok()
         .and_then(|r| r.head().ok().and_then(|h| h.target()))
         .map(|id| id.to_string())
+}
+
+#[derive(PartialEq, Eq, serde::Serialize)]
+struct StagedEntry {
+    object_id: String,
+    mode: u32,
+}
+
+fn staged_index_snapshot(
+    root: &std::path::Path,
+    files: &[crate::services::pre_commit_review_service::DiffFile],
+) -> anyhow::Result<BTreeMap<String, Option<StagedEntry>>> {
+    let repository = git2::Repository::discover(root)?;
+    let index = repository.index()?;
+    Ok(files.iter().map(|file| {
+        let entry = index.get_path(std::path::Path::new(&file.path), 0).map(|entry| StagedEntry {
+            object_id: entry.id.to_string(),
+            mode: entry.mode,
+        });
+        (file.path.clone(), entry)
+    }).collect())
 }
 
 fn source_snapshot(
