@@ -2653,7 +2653,7 @@
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
-    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dossier-webforms-history-20261120",
+    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-integrity-folder-history-20261120",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "incremental_codegen": {
@@ -3398,7 +3398,20 @@
       "acceptance": "An explicit folder question returns the actual matching first-parent commit and paths with callable full-commit recovery, no generation call, and the same bounded older-history action. Keep exact-file patch behavior and reject generic or unsafe path spellings.",
       "verification": "The installed baseline returned ambiguous generic retrieval and zero commit evidence. Focused actual Git checks used the changed question parser/follow-up and existing first-parent reader on captured LegacyValidation revision 0a9fbcfc. They returned commit 77e0876c, its two scoped CSS/JS paths and an executable complete-commit action. The installed public search_history endpoint executed that exact action and its hash-bound recovery retained both paths. Exact-file patch behavior and scoped parsing checks passed. The owned executable scratch closed. Candidate and installed ask_codebase verification remain pending. No Cargo build."
     },
-    "next_action": "Freeze the three source outcomes for one packaged MCP release."
+    "method_integrity_history_release": {
+      "status": "FROZEN_OWNED_BASELINE_VERIFIED",
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-integrity-folder-history-20261120",
+      "source_commit": "262bbf589cfb95700d0108d3e15a968a46aca2d9",
+      "original_requirement_ids": [
+        "S06",
+        "TODO-39",
+        "TODO-28"
+      ],
+      "baseline_sha256": "30811036b1567e7af3071044c34a6c0e253c26e27943e76e09a0316940ea7eef",
+      "verifier_sha256": "a264e0acec5a99b092f63ccedeaa7441be2d565526a1212a4f7909b970dc135a",
+      "retention": "Keep inputs and output receipts for release verification. The owned baseline source, database and process closed."
+    },
+    "next_action": "Build one shared package and verify all three public workflows before recording installed delivery."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
@@ -3794,7 +3807,26 @@
     "builds_started": 0,
     "retention": "Temporary Git index removed. Keep the receipt for the next combined validation after the staged release is resolved."
   },
-  "next_source_batch_pending": [],
+  "next_source_batch_pending": [
+    {
+      "original_requirement_id": "S06",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "90aacfdecd2c7b1ce290d0576f210a5bd03abccb",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-integrity-folder-history-20261120\\verify-public.py"
+    },
+    {
+      "original_requirement_id": "TODO-39",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "3d2f4b185cca54e99046528d866456c50fd7226e",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-integrity-folder-history-20261120\\verify-public.py"
+    },
+    {
+      "original_requirement_id": "TODO-28",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "262bbf589cfb95700d0108d3e15a968a46aca2d9",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-integrity-folder-history-20261120\\verify-public.py"
+    }
+  ],
   "dossier_webforms_history_source_batch_20261120": [
     {
       "original_requirement_id": "TODO-32",
