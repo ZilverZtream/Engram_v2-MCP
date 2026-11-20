@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "GIT_FRESHNESS_EDIT_SAFETY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "story_planning_policy_recovery": {
+      "status": "SOURCE_COMPLETE_DIRECT_READER_VERIFIED_AWAITING_PACKAGED_MCP",
+      "source_commit": "dfbc8015ffbedc17a702b60d7e309b75c0da8f94",
+      "requirement": "EG-01 original scoped story planning and EG-18 executable guidance dependencies",
+      "observed_gap": "Installed plan_user_story on an owned copy of actual LegacyValidation FileLayerZoomPolicy.vb omits the oversized LegacyValidation Copilot guide under its budget without a callable recovery action.",
+      "implementation": ["crates/engram_server/src/handlers/planning_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "The same local LegacyValidation concept and source produce a brief with a hash-bound get_full_method_body action, whose complete paged source matches the authored bytes. The Core surface exposes both actions and retained planning scope qualifications remain present.",
+      "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/verified-method-edit-context-20261120/story-guide-recovery-baseline/receipt.json", "sha256": "c367e9a8a91e71882442a43bddf7e402826541315082034d9f72eae51790df2b"},
+      "verification": "Installed owned MCP reproduced the omission on an exact VB and guide copy. The implementation reuses the same helper as QA matrices and the existing hash-checked reader, already verified live on all 295 lines of the same guide. The planned package check must verify the story brief emits the action and Core can execute it."
+    },
     "qa_matrix_policy_recovery": {
       "status": "SOURCE_COMPLETE_DIRECT_READER_VERIFIED_AWAITING_PACKAGED_MCP",
       "source_commit": "71e1491a0d46e2fa5a5747c029313d662cb0e898",
@@ -4765,6 +4775,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "71e1491a0d46e2fa5a5747c029313d662cb0e898",
       "acceptance_contract": "In QA and live LegacyValidation, request one method-specific test matrix. Follow the emitted hash-checked action for its omitted guide through EOF and compare every source line. Historical cutoff supplies no live policy recovery."
+    },
+    {
+      "original_requirement_id": "EG-01 story planning",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "dfbc8015ffbedc17a702b60d7e309b75c0da8f94",
+      "acceptance_contract": "Call plan_user_story under Core with the actual LegacyValidation VB and authored guide copy, verify the candidate scope and omissions, then follow the emitted action to exact source EOF. Confirm both tools are discoverable."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
