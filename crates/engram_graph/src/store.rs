@@ -4209,6 +4209,9 @@ fn contains_case_insensitive_path(haystack: &str, needle: &str) -> bool {
     if needle.is_empty() {
         return true;
     }
+    if !haystack.is_ascii() || !needle.is_ascii() {
+        return haystack.replace('\\', "/").to_lowercase().contains(needle);
+    }
     let needle_bytes = needle.as_bytes();
     let haystack_bytes = haystack.as_bytes();
     if needle_bytes.len() > haystack_bytes.len() {
@@ -4941,6 +4944,10 @@ mod tests {
         assert!(contains_case_insensitive_path(
             "SRC\\Main\\APP.CS",
             "src/main/app.cs"
+        ));
+        assert!(contains_case_insensitive_path(
+            "Site\\Rapportöversikt\\År.aspx",
+            "rapportöversikt/år.aspx"
         ));
     }
 

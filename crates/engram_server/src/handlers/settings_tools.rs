@@ -161,37 +161,23 @@ impl Engram {
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
-        let scope = req
-            .scope
-            .as_deref()
-            .map(|s| s.replace('\\', "/").to_lowercase());
+        let scope = req.scope.clone().filter(|scope| !scope.is_empty());
 
         type Entry = (String, String, usize, Vec<String>); // name, node_id, reader_count, top readers
-        let (groups, truncated) = tokio::task::spawn_blocking(move || {
-            let nodes = graph
-                .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
-                .unwrap_or_default();
-            let truncated = nodes.len() >= crate::handlers::NODE_SCAN_LIMIT;
-            // node_id -> (name, file, line) for reader labelling.
-            let by_id: std::collections::HashMap<&str, (&str, &str, u32)> = nodes
+        let (groups, truncated) = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+            let limit = crate::handlers::NODE_SCAN_LIMIT;
+            let mut nodes = graph.query_nodes(&pid, None, None, scope.as_deref(), limit + 1)?;
+            let truncated = nodes.len() > limit;
+            nodes.truncate(limit);
+            let by_id: std::collections::HashMap<&str, (&str, u32)> = nodes
                 .iter()
-                .map(|n| {
-                    (
-                        n.node_id.as_str(),
-                        (n.name.as_str(), n.file_path.as_str(), n.start_line),
-                    )
-                })
+                .map(|node| (node.node_id.as_str(), (node.name.as_str(), node.start_line)))
                 .collect();
 
             let mut groups: BTreeMap<&'static str, Vec<Entry>> = BTreeMap::new();
             let mut literal_rows: BTreeMap<String, (usize, Vec<String>)> = BTreeMap::new();
             for n in &nodes {
                 let Some(cat) = category(n) else { continue };
-                if let Some(sc) = &scope
-                    && !n.file_path.as_str().to_lowercase().contains(sc.as_str())
-                {
-                    continue;
-                }
                 if n.node_type == "setting_key" {
                     let entry = literal_rows.entry(n.name.clone()).or_default();
                     entry.0 += 1;
@@ -213,7 +199,14 @@ impl Engram {
                     .filter_map(|(src, _kind, _w)| {
                         by_id
                             .get(src.as_str())
-                            .map(|(name, _file, line)| format!("{name}:{line}"))
+                            .map(|(name, line)| format!("{name}:{line}"))
+                            .or_else(|| {
+                                // The scoped inventory only contains declarations under that
+                                // path. A caller in another area can still be an exemplar.
+                                scope.as_ref()?;
+                                graph.get_node(&pid, src).ok().flatten()
+                                    .map(|node| format!("{}:{}", node.name, node.start_line))
+                            })
                     })
                     .take(2)
                     .collect();
@@ -238,9 +231,10 @@ impl Engram {
                         .then_with(|| a.1.cmp(&b.1))
                 });
             }
-            (groups, truncated)
+            Ok((groups, truncated))
         })
         .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let total: usize = groups.values().map(Vec::len).sum();

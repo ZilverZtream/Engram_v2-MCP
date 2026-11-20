@@ -151,7 +151,21 @@ async fn indexed_catalog_continuation_reaches_each_scoped_row_once() {
         }
     }
     rows.push(make("app_setting", "Site/Admin/web.config", "other_scope".into()));
+    let reader = make("function", "Site/Admin/Reader.vb", "ReadReportFlag".into());
+    let reader_id = reader.node_id.clone();
+    rows.push(reader);
     state.graph.upsert_nodes(PID, &rows).unwrap();
+    state.graph.upsert_edges(PID, &[engram_graph::Edge {
+        source_id: reader_id,
+        target_id: "app_setting:Site/Reports/web.config:setting_00".into(),
+        namespace: "memory".into(),
+        language: "vbnet".into(),
+        edge_kind: engram_graph::EdgeKind::ReadsSetting,
+        weight: 1,
+        generation: 1,
+        metadata: None,
+        updated_at_ms: 0,
+    }]).unwrap();
 
     let prefix = "Next catalog page: list_settings(";
     let mut args = json!({"project_id":PID,"scope":"Site/Reports","max_per_category":5});
@@ -164,6 +178,9 @@ async fn indexed_catalog_continuation_reaches_each_scoped_row_once() {
         );
         assert!(report.starts_with("# Settings catalog — 19 setting(s) (scope: Site/Reports)"));
         assert!(!report.contains("other_scope"));
+        if page == 0 {
+            assert!(report.contains("**setting_00** — 1 reader(s): ReadReportFlag:1"));
+        }
         let entries: Vec<_> = report
             .lines()
             .filter_map(|line| line.strip_prefix("- **").and_then(|row| row.split_once("**")))
