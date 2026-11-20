@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "SQL_FRESHNESS_WEBFORMS_TRACE_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "webforms_http_response_trace": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-31 trace_user_request retains authored response evidence along selected WebForms paths.",
+      "observed_gap": "Live load-page trace of actual LegacyValidation DownloadFile.aspx selects Page_Load and the streaming helper, but both compact source members have zero displayed lines and omit the authored HTTP 401, dynamic content type and Content-Disposition response header. The installation report download similarly lacks separately cited application/pdf.",
+      "implementation": ["crates/engram_server/src/services/request_trace/execution.rs", "crates/engram_server/src/services/request_trace/tests.rs", "crates/engram_server/src/handlers/request_trace_delivery.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Public MCP traces of the actual download files match their guarded source lines and hashes, retain 401, the dynamic MIME expression, Content-Disposition and literal application/pdf as applicable, and preserve metadata across compaction/exact recovery. No response execution, status propagation or dynamic header value is inferred.",
+      "source_commit": "6f160697007ab5d7ae9771fed3aa88b0c53599e7",
+      "verification": "Live baseline selected DownloadFile.aspx lines 12–69 and 75–109 with zero shown lines and no metadata; actual report download selected lines 5–35. Four focused checks executed the exact tokenizer and parser against these actual bodies and independent raw source hashes, and validated comment/comparison rejection, literal/dynamic handling and existing redirect and startup-script behavior. Compact retention coverage added to the existing test. Public MCP and deployment await the combined release.",
+      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/webforms-response-metadata-20261120/focused-receipt.json",
+      "limits": "Cited lexical response statements only. Effective response status and HTTP execution remain unknown. The compiler fixture was removed and no Cargo build ran."
+    },
     "browser_storage_multiple_access_sites": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "requirement": "TODO-27 agent-visible JS/TS browser state access evidence for LegacyValidation",
@@ -4470,6 +4481,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "d0e7db00b620cf35ff841f7afda9b3683434a558",
       "acceptance_contract": "Index the actual LegacyValidation defaultProject.js with the old package. Open its owned store with the candidate, verify fallback, refresh the same source and trace both setItem and removeItem positions with one writer identity and the independently verified source hash. Verify bounded repeated sites with omission count and separate readers/stores."
+    },
+    {
+      "original_requirement_id": "TODO-31",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "6f160697007ab5d7ae9771fed3aa88b0c53599e7",
+      "acceptance_contract": "Trace both actual LegacyValidation download paths via MCP. Match source hashes and the exact lines for HTTP 401, Content-Disposition, unresolved dynamic MIME type and application/pdf. Recover compact original evidence and verify that no dynamic header values or runtime claims are supplied."
     }
   ],
   "sql_freshness_webforms_trace_delivered_batch": [
