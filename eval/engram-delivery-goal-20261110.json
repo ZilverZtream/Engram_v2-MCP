@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "SQL_FRESHNESS_WEBFORMS_TRACE_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "browser_storage_multiple_access_sites": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-27 agent-visible JS/TS browser state access evidence for LegacyValidation",
+      "observed_gap": "Installed trace_state_usage for LegacyValidation defaultProjectId shows removeItem at line 30 but misses setItem at line 27, which shares the same containing function/key write relationship. The actual module-storage_pr_id trace similarly reports one of its two indexed writes.",
+      "implementation": ["crates/engram_index/src/parsing/modern_state/browser_storage.rs", "crates/engram_index/src/parsing.rs", "crates/engram_index/src/source_contract.rs", "crates/engram_server/src/handlers/cognitive_tools/state_trace.rs"],
+      "acceptance": "After a normal refresh, public trace of an owned copy of actual LegacyValidation code reports setItem and removeItem in the same indexed writer relationship with correct positions and source hash. Preserve key identity and reader separation, bound repeats and disclose omissions, and preserve explicit older-index fallback.",
+      "source_commit": "d0e7db00b620cf35ff841f7afda9b3683434a558",
+      "verification": "Live installed MCP retained only line 30 for the actual defaultProjectId writer. A focused test executed the exact grouping function with the actual line 27/30 operations and checked eight retained sites, three reported omissions, legacy representative and separate reader. Added a parser regression for one JS owner setting and removing the same key. The per-file observation marker makes old JS/TS metadata eligible for normal refresh. Packaged extraction, graph publication and trace verification remain pending.",
+      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/browser-storage-access-sites-20261120/focused-receipt.json",
+      "limits": "Indexed positions are bound to the indexed source hash. Runtime storage effects and dynamic keys remain unknown. Compiler fixtures were removed. No Cargo or release build ran."
+    },
     "update_project_zero_history_budget": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "requirement": "Accepted TODO-36 bounded Git-history indexing cost and TODO-55 interactive source refresh tuning",
@@ -4453,6 +4464,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "4b92b2d181564433e1cb92efa336314139b89754",
       "acceptance_contract": "In one owned WebForms Git project, publish VB and SQL edits through synchronous and queued max_commits zero requests, and run an unchanged refresh with pending commits. Observe source fingerprints, explicit skip and no provider Git inputs or indexed watermark advance. Invoke normal positive history indexing and confirm pending commits appear."
+    },
+    {
+      "original_requirement_id": "TODO-27",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "d0e7db00b620cf35ff841f7afda9b3683434a558",
+      "acceptance_contract": "Index the actual LegacyValidation defaultProject.js with the old package. Open its owned store with the candidate, verify fallback, refresh the same source and trace both setItem and removeItem positions with one writer identity and the independently verified source hash. Verify bounded repeated sites with omission count and separate readers/stores."
     }
   ],
   "sql_freshness_webforms_trace_delivered_batch": [
