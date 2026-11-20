@@ -1801,7 +1801,8 @@ fn extract_server_side_includes(
 
 // ── Path Utilities ──────────────────────────────────────────────────────────
 
-/// Record static local script hosting without guessing an emitted bundle's sources.
+/// Record static local script hosting, including a literal WebForms ResolveUrl.
+/// Bundle sources and computed URL expressions remain unresolved.
 /// Consume whole script blocks so script-shaped strings in inline JS are not tags.
 pub fn extract_template_script_includes(
     project_root: &Path,
@@ -1836,20 +1837,36 @@ fn extract_script_includes(
 ) {
     static TAGS: OnceLock<Regex> = OnceLock::new();
     static ATTRS: OnceLock<Regex> = OnceLock::new();
+    static RESOLVE_URL: OnceLock<Regex> = OnceLock::new();
     let Some(tags) = get_compiled_regex(
         &TAGS,
-        r#"(?is)<!--.*?-->|<%.*?%>|@\*.*?\*@|<script\b(?P<attrs>(?:[^>"']|"[^"]*"|'[^']*')*)>(?:.*?</script\s*>|$)"#,
+        r#"(?is)<!--.*?-->|<%.*?%>|@\*.*?\*@|<script\b(?P<attrs>(?:[^>"']|"(?:<%.*?%>|[^"])*"|'(?:<%.*?%>|[^'])*')*)>(?:.*?</script\s*>|$)"#,
         "script includes",
     ) else {
         return;
     };
     let Some(attrs) = get_compiled_regex(
         &ATTRS,
-        r#"([^\s=/>]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))"#,
+        r#"(?s)([^\s=/>]+)\s*=\s*(?:"((?:<%.*?%>|[^"])*)"|'((?:<%.*?%>|[^'])*)'|([^\s>]+))"#,
         "script attributes",
     ) else {
         return;
     };
+    let Some(resolve_url) = get_compiled_regex(
+        &RESOLVE_URL,
+        r#"(?i)^<%=\s*ResolveUrl\s*\(\s*"(~/[^"\r\n]+)"\s*\)\s*%>$"#,
+        "literal WebForms ResolveUrl script path",
+    ) else {
+        return;
+    };
+    let webforms = Path::new(rel_path.as_str())
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| {
+            ["aspx", "ascx", "master"]
+                .iter()
+                .any(|kind| ext.eq_ignore_ascii_case(kind))
+        });
     let mut seen = std::collections::HashSet::new();
     for tag in tags.captures_iter(source) {
         let Some(attributes) = tag.name("attrs") else {
@@ -1870,8 +1887,14 @@ fn extract_script_includes(
             continue;
         };
         let raw = raw.trim();
+        let literal = if webforms {
+            resolve_url.captures(raw).and_then(|capture| capture.get(1))
+        } else {
+            None
+        };
         // Query/fragment expressions do not change the static file path.
-        let path = raw
+        let path = literal
+            .map_or(raw, |path| path.as_str())
             .split(['?', '#'])
             .next()
             .unwrap_or("")

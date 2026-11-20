@@ -101,7 +101,7 @@ fn remote_dynamic_commented_and_non_src_attributes_are_not_dependencies() {
 <script src="https://cdn.example/a.js"></script>
 <script src="//cdn.example/a.js"></script>
 <script src="data:text/javascript,foo"></script>
-<script src="<%= ResolveUrl("~/Scripts/a.js") %>"></script>
+<script src="<%= ResolveUrl(ScriptLocation) %>"></script>
 <script src="{{ bundle }}"></script>
 <script src="../../outside.js"></script>
 <script src="/../outside.js"></script>
@@ -176,4 +176,27 @@ fn script_dependencies_coexist_with_server_side_includes_and_inline_code() {
     assert!(targets.contains(&"Shared/header.inc"));
     assert!(targets.contains(&"Scripts/shared.js"));
     assert_eq!(targets.len(), 2);
+}
+
+#[test]
+fn webforms_resolve_url_admits_only_a_literal_application_script() {
+    let root = Path::new("/project");
+    let page = RelPath::new("Pages/Report.aspx");
+    let markup = r#"<%@ Page Language="VB" %>
+<script src="<%= ResolveUrl("~/reporting-assets/quantity-report.js") %>"></script>
+<script src="<%= ResolveUrl("~/reporting-assets/" & ScriptName) %>"></script>
+<script src="<%= ResolveUrl(ReportScript) %>"></script>
+<script src="<%= ResolveUrl("~/reporting-assets/server.js") %>" runat="server"></script>
+<script src="/Scripts/shared.js"></script>
+"#;
+    let (_, edges) = extract_webforms(root, &page, markup);
+    let scripts: Vec<_> = edges
+        .iter()
+        .filter(|edge| edge.kind == "includes_file")
+        .map(|edge| (edge.target_name.as_str(), edge.source_start_line))
+        .collect();
+    assert_eq!(
+        scripts,
+        [("reporting-assets/quantity-report.js", 2), ("Scripts/shared.js", 6)]
+    );
 }
