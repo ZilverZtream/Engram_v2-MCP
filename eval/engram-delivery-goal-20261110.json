@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "SOURCE_REFRESH_BROWSER_DOWNLOAD_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "structured_edit_safety_evidence": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "source_commit": "64cf166e7957f7d153ef87037687f395225f90c3",
+      "requirement": "TODO-4 consistent structured evidence and the original source-backed LegacyValidation edit-safety workflow",
+      "observed_gap": "Standalone check_edit_safety computes caller locations and a file-time qualification for Markdown, but returns early in JSON before including either. The same verdict therefore reaches automated callers without the direct-call leads or the freshness qualification available in ordinary text.",
+      "implementation": ["crates/engram_server/src/handlers/access_layer_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Compare JSON and Markdown for the same indexed VB method with a real caller, retaining the same verdict, declared caller location, caller display limit and freshness qualifiers. Verify ordinary authored policy stays scoped to the selected method and existing exact saved-result recovery retains the new fields.",
+      "verification": "Installed Markdown includes FileLayerZoomPolicy.Resolve at declaration line 92 for ClassifyAutomatic. Independent LegacyValidation Git shows Resolve's declaration at 92 and its invocation at 96. A focused check compiled the exact report and freshness types with cached dependencies, exercised a newer file warning and an omitted caller, and preserved the previous advisory fields. Temporary probe files were removed. Public candidate integration is pending.",
+      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/structured-edit-safety-focused-20261120.json"
+    },
     "git_tip_in_index_freshness": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "source_commit": "7d3282f6dd2a191f7741db57191f16ffbfc7fcb1",
@@ -4594,6 +4604,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "7d3282f6dd2a191f7741db57191f16ffbfc7fcb1",
       "acceptance_contract": "From fresh MCP, call default, exact-source and project-wide opt-in freshness. In an owned WebForms Git fixture establish no indexed tip, index history, then publish a new source revision with max_commits zero. Compare the previous recorded tip, new local target and new source generation against independent Git and source evidence. Run positive history indexing and observe matching tips. Compare live LegacyValidation target tip with the local origin default ref."
+    },
+    {
+      "original_requirement_id": "TODO-4/EG-09",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "64cf166e7957f7d153ef87037687f395225f90c3",
+      "acceptance_contract": "Compare complete Markdown and JSON on actual LegacyValidation FileLayerZoomPolicy.ClassifyAutomatic, independently matching Resolve declaration at 92 and its invocation at 96. Verify scoped policy and unchanged advisory. Use an owned edit and caller fixture to show stale time status and bounded caller locations, then use the existing report recovery to retain the original after the edit."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
