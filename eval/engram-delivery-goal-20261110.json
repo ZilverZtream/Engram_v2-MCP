@@ -2971,7 +2971,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "GIT_FRESHNESS_EDIT_SAFETY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
+    "status": "VERIFIED_METHOD_EDIT_CONTEXT_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "limited_recovery_guidance_release": {
       "status": "OWNED_BASELINE_MCP_VERIFIED_RELEASE_INPUTS_QUEUED",
@@ -3029,7 +3029,7 @@
       "scope": "This adds callable per-row fresh recovery; the saved continuation delivery is tracked together under batch_read_preset_saved_continuation. Original tool payloads remain exact."
     },
     "verified_method_edit_context_release": {
-      "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "frozen_source_commit": "5753d8fd2e74a7834b9d8304ec89ea403cbf2bd3",
       "requirements": ["S06", "S06 caller evidence", "EG-01"],
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/verified-method-edit-context-20261120",
@@ -3038,11 +3038,19 @@
       "queued_release_inputs": {"path": "queued-release-inputs.json", "sha256": "7b4d158440a4542b774e31ec981be72cec4ef02ad11e96d29f5238d0d5dd44db"},
       "release_plan": {"path": "release-plan.json", "sha256": "8c921a2ccaf514a2c1aae79a4a7409221ab57b810a443621cbf94bd40fb97ba3"},
       "source_delta": "Only access_layer_tools.rs affects the shared binary beyond the verified Git-freshness and edit-safety release. The recorded build owner reuses the existing target and registered detached checkout.",
-      "active_processes": "Build, candidate and idle-live-install identities are retained in pipeline-owner.json. The case also retains terminal logs and receipts. Candidate acceptance precedes idle-only cutover.",
-      "evidence": "One owned project uses the exact LegacyValidation FileLayerZoomPolicy source with a separate VB caller and distinct scoped guides. Installed MCP verified all three old gaps with a positive VB Thread.Sleep detection control. The owned process and project fixture closed and were removed. Next verify the fixed behavior against the candidate and installed package, and compare live target raw hashes with independent source."
+      "installed_binary_sha256": "d1e023afb7b41a6c3c7818e2226914e98601f07cd024e359a6add5c566874e81",
+      "installed_manifest_sha256": "832577d79c52220c44f823f621bdf72edd0f2ce409c4efeffa086d84483cc74f",
+      "installed_generation": 3223,
+      "candidate_receipt": {"path": "candidate/receipt.json", "sha256": "005b8af6afae7607b56babcab6c3c1484542bf81257aa644c731508d5a3b6822"},
+      "installed_owned_receipt": {"path": "installed/receipt.json", "sha256": "c274b54ecbb42e75cd6bddf5483e6065da63ff03d0cb0f4bb9e0875bd39c2b8f"},
+      "live_receipt": {"path": "live-cutover/status.json", "sha256": "63e48eaafb93da5e8bf7c974a9ab07645b0567aa831c91e99efde985a9dfd90c"},
+      "delivery": "Both candidate and installed owned MCP verified the exact target hash, a VB Thread.Sleep hazard, changed-target refusal, retention of the valid Resolve caller after a separate caller edit, and withdrawal of only the withheld caller's guide. Both live edit tools matched the actual LegacyValidation raw target BLAKE3 and method context returned its verified caller.",
+      "cutover": "The idle-only pass saw one open MCP proxy and postponed swap. Under the user's existing restart authorization, the managed cutover checked for zero active jobs, disconnected only that verified Engram proxy, retained the old pair and started the new daemon. Fresh MCP succeeded against generation 3223. The disconnected session may require reconnection.",
+      "build_seconds": 956.8,
+      "temporary_resources": "Build, candidate, installed and cutover fixtures closed and their owned temporary directories were removed. Exact package, wires and the retained old install pair remain."
     },
     "edit_context_source_scoped_caller_policy": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "5753d8fd2e74a7834b9d8304ec89ea403cbf2bd3",
       "requirement": "EG-01 exact path-scoped guidance in the original edit context and S06 source admission",
       "observed_gap": "Installed public get_method_edit_context attached rules from a caller-only instruction file after that caller source was withheld. An identity-only row widened the target edit's reported policy scope.",
@@ -3050,10 +3058,10 @@
       "acceptance": "Using the existing actual LegacyValidation VB target and separate owned caller, verify the caller-only guide is returned with actual caller source and withheld when the caller is only an identity. Retain target guidance, verified excerpts and guidance recovery.",
       "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/git-freshness-edit-safety-20261120/caller-context-policy-baseline/receipt.json", "sha256": "c5526ac9c1a245647a10fc242b0284254013581e45c23724f0d708eec4366b38"},
       "focused_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/caller-policy-scope-focused-20261120.json",
-      "verification": "The installed baseline included a caller-only rule despite an empty body and withheld excerpt. The exact amended path selection retained the target, the returned full caller and the returned excerpt, excluding the caller that supplied neither. The owned process and fixtures were closed and removed. Packaged public MCP integration remains pending."
+      "verification": "Candidate and installed MCP included both authored guides while both sources were returned. After editing the separate caller, both body-enabled and identity-only reports retained the target guide and omitted the caller-only guide, with caller identity preserved."
     },
     "edit_context_caller_source_omissions": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "d22429b46df3a4e0d9cf2faf3c1aca8936681306",
       "requirement": "S06 held source selection through caller evidence and the original edit preparation workflow",
       "observed_gap": "Installed get_method_edit_context(include_caller_bodies=true) rejected valid unchanged target source after a separate indexed caller alone changed. The verified caller reader used by get_full_method_body already retains other evidence and identifies per-caller omissions.",
@@ -3061,16 +3069,16 @@
       "acceptance": "Copy an actual LegacyValidation VB source file and a separate owned indexed caller. Check both bodies initially, edit only the separate caller, and verify the original target advisory and valid caller remain with a named omission and no stale caller source. Preserve default caller identity output and source-scoped policy.",
       "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/git-freshness-edit-safety-20261120/caller-context-baseline/receipt.json", "sha256": "b7eaad1ae5bd52ab84ce428f2d1aa956fc0c27da9f287b32211291722eb2371f"},
       "focused_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/edit-context-caller-expansion-focused-20261120.json",
-      "verification": "Installed public MCP reproduced total rejection after editing a separate caller. The exact shared resolver passed held-selection tests, retained the real VB source, refused newer caller file/edge revisions, and displayed omissions in Markdown. Owned fixtures closed and were removed. Packaged handler integration remains pending."
+      "verification": "Candidate and installed MCP retained the unchanged target advisory and verified Resolve caller after a separate caller was edited. Markdown and JSON identify the stale caller omission. The lightweight identity-only report still lists the caller."
     },
     "edit_advisory_verified_source_bytes": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "ac2254e8d263d349d6dda7ec7f7340b88c2f7103",
       "requirement": "S06 selected source reader through edit evidence and the original source-backed edit-safety workflow",
       "observed_gap": "The shared edit advisory verifies a fingerprint and then reopens the target file for the method body and the hazard scans. It also omits the fingerprint status and hash of the analyzed target in both public advisory paths.",
       "implementation": ["crates/engram_server/src/handlers/access_layer_tools.rs", "docs/TOOL_CONTRACT.md"],
       "acceptance": "Both edit entry points report the verified raw hash and derive method body, complexity and supported hazard scans from those same bytes under the held selection. Known changed bytes are refused and legacy missing fingerprints remain explicit. Compare the live result to independently read LegacyValidation source and exercise an owned change/refusal with exact bytes.",
-      "verification": "The focused check compiled the exact target read and report construction against the real graph dependency and actual LegacyValidation FileLayerZoomPolicy.vb bytes. The method body and hash matched, legacy absence stayed explicit, and an unindexed change was refused. The owned graph and fixture were closed and removed. Full MCP integration and deployment remain pending.",
+      "verification": "Candidate and installed public MCP verified the source hash, exact VB target body, unchanged advisory and supported Thread.Sleep detection. Both live edit calls returned the independently verified LegacyValidation BLAKE3. The owned changed-target read refused stale bytes.",
       "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/edit-advisory-target-source-focused-20261120.json"
     },
     "git_freshness_edit_safety_release": {
@@ -4753,27 +4761,27 @@
       "acceptance_contract": "Batch actual LegacyValidation source, exact-file freshness and edit safety with one distinct failed safety request. Confirm ordering, independent errors and scoped caller/freshness evidence, then recover complete original safety and failures through the shared budget using exact continuation. Check the recovery action remains callable."
     }
   ],
-  "next_source_batch_pending": [
+  "verified_method_edit_context_delivered_batch": [
     {
       "original_requirement_id": "S06",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "ac2254e8d263d349d6dda7ec7f7340b88c2f7103",
       "acceptance_contract": "Use both public edit tools on the same actual LegacyValidation VB method and compare their target_source raw hash and fingerprint status with independent file bytes. In the owned fixture check the method slice, preserved supported hazard reporting, and refusal after a content edit."
     },
     {
       "original_requirement_id": "S06 caller evidence",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "d22429b46df3a4e0d9cf2faf3c1aca8936681306",
       "acceptance_contract": "On the exact LegacyValidation VB copy plus a separate owned caller, verify pre-edit target and caller bodies, then edit only that caller. The complete target advisory and other verified caller remain, with the changed body omitted and its reason visible in text and JSON. Identity-only output and policy scope remain accurate."
     },
     {
       "original_requirement_id": "EG-01",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "5753d8fd2e74a7834b9d8304ec89ea403cbf2bd3",
       "acceptance_contract": "Use the same owned caller fixture. Prove that a caller-only instruction is included with its actual caller source or excerpt and excluded when the caller source is withheld, despite its visible identity. Target guidance and exact recovery remain."
     }
   ],
-  "following_source_batch_pending": [
+  "next_source_batch_pending": [
     {
       "original_requirement_id": "EG-18/TODO-33",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
