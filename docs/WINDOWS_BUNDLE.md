@@ -121,3 +121,23 @@ provider credentials. Your AI client supplies the conversational model. Optional
 Engram embedding and text-generation providers can be configured later in
 `<InstallRoot>\engram.json`. The installer grants Engram access only to the project
 directory you supplied.
+
+## Managed VB parser update
+
+For an existing installation, `scripts/deploy_windows_release_pair.ps1 -ParserOnly`
+supports the same validation, upgrade, journal and rollback actions as the
+full-pair installer. Supply the complete package. The installer hashes both
+runtime inventories and accepts a change to `sidecar/vb_roslyn_sidecar-win-x64.dll`
+with the same server, framework, parser contract and companion assets.
+
+The release evidence for this mode includes a `parser_acceptance` object with
+the path and SHA-256 of a reviewed JSON receipt. Its `from_manifest_sha256` and
+`to_manifest_sha256` identify the tested direction. Record `passed` for
+`existing_index_refresh` and `public_tool_results` after reopening an existing
+index, updating it and verifying the affected public tools. Its `results` object
+pins the supporting file by path and SHA-256. The usual quiescence, data
+transition, wrapper inventory and transaction requirements still apply.
+
+After restarting the daemon, run `update_project` for each affected project
+and check the job and index freshness. Reopening a project alone can still
+return edges extracted by the previous parser.

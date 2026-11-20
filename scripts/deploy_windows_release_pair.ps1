@@ -1,10 +1,11 @@
-# PROPOSAL ONLY. Not invoked by preparation or by the build script.
+# Explicit managed cutover. Never invoked by preparation or by the build script.
 # Operates on a quiescent, operator-managed private installation. Its file lock
 # serializes cooperating installers; it is not an OS-wide filesystem CAS.
 [CmdletBinding()]
 param(
     [ValidateSet('ValidateUpgrade','Upgrade','ValidateRollback','Rollback')]
     [string]$Action = 'ValidateUpgrade',
+    [switch]$ParserOnly,
     [string]$InstallRoot,
     [string]$CandidateRoot,
     [string]$EvidenceFile,
@@ -176,7 +177,18 @@ function Package([string]$Root,$Identity,[bool]$Candidate) {
     ExactTree (Child $root 'sidecar') $sidecar $maxStageBytes
     $expected.Add('windows-release-manifest.json',$manifestSha)
     # Cargo's other release outputs are not package assets and are not copied.
-    return [pscustomobject]@{ Root=$root; Expected=$expected; Bytes=$bytes; ManifestSha=$manifestSha; BinarySha=$binarySha }
+    return [pscustomobject]@{ Root=$root; Expected=$expected; Bytes=$bytes; ManifestSha=$manifestSha; BinarySha=$binarySha; Framework=$(if ($ParserOnly) { $manifest.framework }) }
+}
+function ConfirmParserDelta($Old,$Candidate) {
+    $parser = 'sidecar/vb_roslyn_sidecar-win-x64.dll'
+    if ($Old.Framework -cne $Candidate.Framework -or $Old.Expected.Count -ne $Candidate.Expected.Count -or
+        $Old.Expected[$parser] -eq $Candidate.Expected[$parser]) { throw 'Expected a VB parser DLL update within the same runtime' }
+    foreach ($path in $Old.Expected.Keys) {
+        if (-not $Candidate.Expected.ContainsKey($path)) { throw "Parser update changed package inventory: $path" }
+        if ($path -notin @($parser,'windows-release-manifest.json') -and $Old.Expected[$path] -ne $Candidate.Expected[$path]) {
+            throw "Parser update changed another runtime asset: $path"
+        }
+    }
 }
 function AddAux($Expected,$Aux) {
     foreach ($file in @($Aux.files)) { $Expected.Add([string]$file.path,(Sha ([string]$file.sha256))) }
@@ -221,10 +233,7 @@ function Quiescent($Gate) {
         if (Get-Process -Id $appPrimaryPid -ErrorAction SilentlyContinue) { throw 'Recorded primary PID is live; no process is stopped by this script' }
     }
 }
-function Gate([string]$Path,[string]$Hash,[bool]$Rollback) {
-    $gate = JsonPin $Path $Hash
-    if ($gate.schema_version -ne 1 -or $gate.release_ready -isnot [bool] -or $gate.release_ready -ne $true -or (Full ([string]$gate.install_root)) -ne $InstallRoot) { throw 'Release evidence is not final for this installation' }
-    if ($gate.candidate.sidecar_contract -cnotin @('vb-ingestion-parser-v4', 'vb-ingestion-parser-v5', 'vb-ingestion-parser-v6')) { throw 'Candidate parser contract lacks final package evidence' }
+function ConfirmStorageGates($gate) {
     $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach ($item in @($gate.gates)) {
         if ($item.id -cnotmatch '^S(0[1-9]|1[0-9])$' -or -not $ids.Add([string]$item.id) -or $item.status -cne 'passed' -or
@@ -232,6 +241,12 @@ function Gate([string]$Path,[string]$Hash,[bool]$Rollback) {
         [void](Pin ([string]$item.receipt.path) ([string]$item.receipt.sha256) 1MB)
     }
     if ($ids.Count -ne 19) { throw 'All19 storage release gates are required; partial/local tests do not authorize installation' }
+}
+function Gate([string]$Path,[string]$Hash,[bool]$Rollback) {
+    $gate = JsonPin $Path $Hash
+    if ($gate.schema_version -ne 1 -or $gate.release_ready -isnot [bool] -or $gate.release_ready -ne $true -or (Full ([string]$gate.install_root)) -ne $InstallRoot) { throw 'Release evidence is not final for this installation' }
+    if ($gate.candidate.sidecar_contract -cnotin @('vb-ingestion-parser-v4', 'vb-ingestion-parser-v5', 'vb-ingestion-parser-v6')) { throw 'Candidate parser contract lacks final package evidence' }
+    if (-not $ParserOnly) { ConfirmStorageGates $gate }
     # Hashes/build dates do not establish whether a package move is an upgrade.
     # Every replacement needs reviewed current-data compatibility/materialization.
     $proof = $gate.storage_transition
@@ -241,6 +256,16 @@ function Gate([string]$Path,[string]$Hash,[bool]$Rollback) {
         (Sha ([string]$proof.to_manifest_sha256)) -ne (Sha ([string]$expectedTo))) { throw 'No exact-direction current-data transition compatibility/materialization proof; package replacement refused' }
     [void](Sha ([string]$proof.quiescent_data_state_identity))
     [void](Pin ([string]$proof.receipt.path) ([string]$proof.receipt.sha256) 1MB)
+    if ($ParserOnly) {
+        $check = JsonPin $gate.parser_acceptance.path $gate.parser_acceptance.sha256
+        if ($gate.candidate.sidecar_contract -cne $gate.installed.sidecar_contract -or
+            (Sha $check.from_manifest_sha256) -ne (Sha $expectedFrom) -or
+            (Sha $check.to_manifest_sha256) -ne (Sha $expectedTo) -or
+            $check.existing_index_refresh -cne 'passed' -or $check.public_tool_results -cne 'passed') {
+            throw 'Parser-only cutover needs a matching contract and direction-bound existing-index and tool acceptance'
+        }
+        [void](Pin $check.results.path $check.results.sha256 1MB)
+    }
     return $gate
 }
 function AcquireLock {
@@ -302,9 +327,10 @@ try {
     if (-not $rollback) {
         if (-not $CandidateRoot) { throw 'CandidateRoot is required for upgrade' }
         $old = Package $active $gate.installed $false
+        $candidate = Package $CandidateRoot $gate.candidate $true
+        if ($ParserOnly) { ConfirmParserDelta $old $candidate }
         AddAux $old.Expected $aux; AddRetained $old.Expected $gate.retained_extra_files
         ExactTree $active $old.Expected $maxArchiveBytes
-        $candidate = Package $CandidateRoot $gate.candidate $true
         AddAux $candidate.Expected $aux
         foreach ($file in @($aux.files)) {
             $pin = Pin (Child $active $file.path) $file.sha256 4096
@@ -367,6 +393,11 @@ try {
         $sourceStage = Child $InstallRoot ('engram-pair-stage-'+$transaction.id)
         if ((Full ([string]$transaction.backup)) -ne $backup -or (Full ([string]$transaction.active)) -ne $active -or (Full ([string]$transaction.stage)) -ne $sourceStage) { throw 'Unbound rollback paths' }
         $old = Package $backup $gate.installed $false
+        if ($ParserOnly) {
+            $parserSource = if (Test-Path -LiteralPath $active) { $active } else { $CandidateRoot }
+            if (-not $parserSource) { throw 'Supply CandidateRoot for parser rollback when active bin is absent' }
+            ConfirmParserDelta $old (Package $parserSource $gate.candidate $true)
+        }
         AddAux $old.Expected $aux; AddRetained $old.Expected $transaction.retained_extra_files
         ExactTree $backup $old.Expected $maxArchiveBytes
         $current = $null
