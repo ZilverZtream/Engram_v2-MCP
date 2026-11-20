@@ -2971,7 +2971,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "VERIFIED_METHOD_EDIT_CONTEXT_RELEASE_INSTALLED_AND_MCP_VERIFIED",
+    "status": "LIMITED_RECOVERY_GUIDANCE_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
     "s02_installed_webforms_shrink_delete": {
       "status": "INSTALLED_PUBLIC_MCP_BEHAVIOR_VERIFIED_WITH_FIXTURE_DIAGNOSTIC",
@@ -3024,7 +3024,7 @@
       "verification": "Live exact source-file freshness in 8.3 ms matched disk, selected source and independently calculated raw BLAKE3 for defaultProject.js at project generation 3224 and physical revision 3223. The earlier 59.485 s forced refresh observation is a different operation. No reindex was executed to repeat timing. The speed of a necessary refresh and the cause of the 52 s ingestion phase are unverified."
     },
     "limited_recovery_guidance_release": {
-      "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
+      "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "frozen_source_commit": "dfbc8015ffbedc17a702b60d7e309b75c0da8f94",
       "requirements": ["EG-18/TODO-33", "EG-01 QA matrix", "EG-01 story planning"],
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/limited-recovery-guidance-20261120",
@@ -3032,22 +3032,30 @@
       "candidate_verifier": {"path": "verify-public.py", "sha256": "dab8336581c107747103814f70fb444d596e8b5366e3f836da2af088e4483c2f"},
       "queued_release_inputs": {"path": "queued-release-inputs.json", "sha256": "de73b7c6c724e9079b9338e3625a94420878bd953b2d528853467a0187683ea6"},
       "release_plan": {"path": "release-plan.json", "sha256": "b456daba1698e063e6b5f210461253f7104f9d59cd0cb68b4c8af5e846726fee"},
-      "active_processes": "Exact build, staging and idle-install driver identities are retained in pipeline-owner.json. Follow live process and terminal receipt state before any recovery.",
-      "evidence": "One shared LegacyValidation source-and-guide fixture verified hidden refresh and saved-schema actions, omitted guides in QA and Core planning, historical guidance withholding and Full's direct reply contract. All four standalone children and their shared fixture closed and were removed. The next candidate follows each emitted action and compares schema hashes and exact authored source through EOF.",
+      "installed_binary_sha256": "4678db2e5e2fd3ac74eaa4cecc3165b55d19d3a961d967677ea42a2eeb391378",
+      "installed_manifest_sha256": "4c12d674e293e153d1dd5e94d22a43cf0740eaac1d73e3d622e7e30aa8761680",
+      "installed_generation": 3229,
+      "candidate_receipt": {"path": "candidate/receipt.json", "sha256": "e222b2146f338035167ad1d89438f8e101b0453cc7e77566247a2fe8e8ed15c9"},
+      "installed_owned_receipt": {"path": "installed/receipt.json", "sha256": "8bfd4205792ef06a38d3a22dafea02f6969143868cee1d14b37a77e6db9a979c"},
+      "live_receipt": {"path": "live-cutover/status.json", "sha256": "89fd5aa72f1d9ba2e32064f955e19b718c2f914b5ff0f5f20d08bc69f28492f2"},
+      "evidence": "Candidate and installed public MCP followed callable fresh actions in QA and Development and retained direct Full actions. Development recovered its original SQL response in 20 inner pages and 10 outer recovery pages with exact hashes. QA and Core story reports recovered the full 295-line authored guide in three exact pages, and historical QA withheld live guidance. Fresh live LegacyValidation MCP independently matched the guide bytes.",
+      "cutover": "The initial idle pass found one open Engram proxy. After checking for zero active jobs, the previously authorized managed restart disconnected only that proxy and retained the old installation pair. The replacement daemon served fresh connections and the live project remained at generation 3229.",
+      "build_seconds": 928.8,
+      "temporary_resources": "The owned build, four candidate and four installed fixture processes and cutover observer closed and removed their temporary directories. Original wires, receipts and packages remain.",
       "source_delta": "Four server source files beyond the verified installed method edit-context release and no sidecar or storage format change. The existing registered detached checkout and release target are reused."
     },
     "story_planning_policy_recovery": {
-      "status": "SOURCE_COMPLETE_DIRECT_READER_VERIFIED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "dfbc8015ffbedc17a702b60d7e309b75c0da8f94",
       "requirement": "EG-01 original scoped story planning and EG-18 executable guidance dependencies",
       "observed_gap": "Installed plan_user_story on an owned copy of actual LegacyValidation FileLayerZoomPolicy.vb omits the oversized LegacyValidation Copilot guide under its budget without a callable recovery action.",
       "implementation": ["crates/engram_server/src/handlers/planning_tools.rs", "docs/TOOL_CONTRACT.md"],
       "acceptance": "The same local LegacyValidation concept and source produce a brief with a hash-bound get_full_method_body action, whose complete paged source matches the authored bytes. The Core surface exposes both actions and retained planning scope qualifications remain present.",
       "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/verified-method-edit-context-20261120/story-guide-recovery-baseline/receipt.json", "sha256": "c367e9a8a91e71882442a43bddf7e402826541315082034d9f72eae51790df2b"},
-      "verification": "Installed owned MCP reproduced the omission on an exact VB and guide copy. The implementation reuses the same helper as QA matrices and the existing hash-checked reader, already verified live on all 295 lines of the same guide. The planned package check must verify the story brief emits the action and Core can execute it."
+      "verification": "Public candidate and installed Core briefs emitted the action and recovered all 295 independently verified guide lines within three hash-pinned excerpts. Concept scope qualifications stayed visible."
     },
     "qa_matrix_policy_recovery": {
-      "status": "SOURCE_COMPLETE_DIRECT_READER_VERIFIED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "71e1491a0d46e2fa5a5747c029313d662cb0e898",
       "requirement": "EG-01 scoped authored instructions and the original LegacyValidation test-matrix workflow",
       "observed_gap": "Live LegacyValidation derive_test_matrix for FileLayerZoomPolicy.ClassifyAutomatic marks .github/copilot-instructions.md omitted by the per-source character budget, but provides no callable hash-bound recovery for its complete contents.",
@@ -3055,10 +3063,10 @@
       "acceptance": "Live method-scoped matrix supplies the existing get_full_method_body action for the omitted guide. Follow the returned pages and compare original file hash and lines with actual LegacyValidation source. Historical matrices still withhold current guidance and do not publish live recovery actions.",
       "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/verified-method-edit-context-20261120/matrix-guidance-baseline.json", "sha256": "3147d9d363f2cf0210285d70b5a6a7baf66868798094018678691043f45b5926"},
       "direct_recovery": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/verified-method-edit-context-20261120/matrix-guidance-direct-recovery-receipt.json", "sha256": "14c4022ab5b714577b08af426319b78192c479eb623b9f8cfa854c02bc4e1df8"},
-      "verification": "Live MCP confirmed the matrix omitted the 25,022-byte guide without a callable action. The exact expected action was constructed independently and its existing live reader recovered all 295 lines in three hash-guarded excerpts. Candidate matrix emission and historical withholding must be verified in the next package."
+      "verification": "Candidate, installed and live MCP followed the emitted action to independently matched LegacyValidation guide lines and raw BLAKE3. Candidate and installed historical matrix checks withheld current guidance."
     },
     "batch_read_preset_saved_continuation": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "a7db038d84cf1812cf6b6712e3e7e8cf3c5ccedd",
       "requirement": "EG-18 callable workflow dependencies and TODO-4 exact saved-read delivery",
       "observed_gap": "On installed Development, a deferred SQL batch row saved 19,144 bytes but directed the caller to unadvertised query_schema. The previous change addressed fresh row actions only.",
@@ -3066,10 +3074,10 @@
       "acceptance": "Recover every page of that hidden SQL original through the returned batch row actions and verify its BLAKE3 without rerunning analysis or changing the original response. Discoverable operations keep their existing delivery actions.",
       "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/verified-method-edit-context-20261120/limited-batch-inner-delivery-baseline/receipt.json", "sha256": "32c012b7e31926d3626ebfbcb4475fda480a3b7113887fdf862aa8d343a96677"},
       "focused_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/batch-preset-saved-focused-20261120.json",
-      "verification": "Installed Development reproduced the unadvertised query_schema continuation. The focused check compiled the exact wrapper against its retained wire and confirmed the manifest and subsequent offset route preserve the original request and payload. Direct advertised operations remain unchanged. Owned temporary resources were removed; execute full packaged recovery before delivery."
+      "verification": "Candidate and installed Development reconstructed the entire saved SQL result through 20 callable batch row pages and verified the response BLAKE3. Outer batch recovery was verified independently."
     },
     "batch_read_preset_recovery": {
-      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "8550141e306c072a5b03bea0b0cf3ff778d31537",
       "requirement": "EG-18 callable workflow dependencies and TODO-33 batch read recovery",
       "observed_gap": "Installed QA batch_read returns get_method_info as per-row recovery even though that tool is outside QA discovery. Installed Development has the same defect for query_schema. Both nested reads succeed. The live LegacyValidation installation advertises Full, so the observed defect applies to opt-in limited workflows on LegacyValidation source.",
@@ -3077,7 +3085,7 @@
       "acceptance": "On actual LegacyValidation VB source in QA and SQL in Development, follow the returned single-row recovery via the advertised tool using the same arguments. Full and already-discoverable operations retain direct calls. Preserve immutable original batch recovery and independent row errors.",
       "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/verified-method-edit-context-20261120/batch-preset-recovery-evidence.json", "sha256": "dde8344a0194c941aa93e7c49b4f6281cbd0f9d590879e1dfe6e5b562c40305c"},
       "focused_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/batch-preset-recovery-focused-20261120.json",
-      "verification": "Owned installed QA and Development returned successful rows with hidden direct refresh actions. The focused compiled path preserved the exact request and its ID in advertised batch_read actions. It kept direct actions on Full and matching limited profiles. Owned fixtures and focused build artifacts were removed. The next packaged MCP check must execute these returned actions.",
+      "verification": "Candidate and installed QA and Development executed their emitted batch refresh actions against VB and SQL evidence. Request identity and arguments were preserved, and Full and matching limited profiles retained direct actions.",
       "scope": "This adds callable per-row fresh recovery; the saved continuation delivery is tracked together under batch_read_preset_saved_continuation. Original tool payloads remain exact."
     },
     "verified_method_edit_context_release": {
@@ -4833,28 +4841,28 @@
       "acceptance_contract": "Use the same owned caller fixture. Prove that a caller-only instruction is included with its actual caller source or excerpt and excluded when the caller source is withheld, despite its visible identity. Target guidance and exact recovery remain."
     }
   ],
-  "next_source_batch_pending": [
+  "limited_recovery_guidance_delivered_batch": [
     {
       "original_requirement_id": "EG-18/TODO-33",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "a7db038d84cf1812cf6b6712e3e7e8cf3c5ccedd",
       "included_source_commit": "8550141e306c072a5b03bea0b0cf3ff778d31537",
       "acceptance_contract": "In QA and Development, execute the returned discoverable batch refresh action and compare VB and SQL evidence and row identity. Recover every hidden SQL saved page through the row's next_call and validate the original BLAKE3. Full and matching limited presets retain direct actions. Outer batch recovery remains exact."
     },
     {
       "original_requirement_id": "EG-01 QA matrix",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "71e1491a0d46e2fa5a5747c029313d662cb0e898",
       "acceptance_contract": "In QA and live LegacyValidation, request one method-specific test matrix. Follow the emitted hash-checked action for its omitted guide through EOF and compare every source line. Historical cutoff supplies no live policy recovery."
     },
     {
       "original_requirement_id": "EG-01 story planning",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "INSTALLED_MCP_VERIFIED",
       "source_commit": "dfbc8015ffbedc17a702b60d7e309b75c0da8f94",
       "acceptance_contract": "Call plan_user_story under Core with the actual LegacyValidation VB and authored guide copy, verify the candidate scope and omissions, then follow the emitted action to exact source EOF. Confirm both tools are discoverable."
     }
   ],
-  "following_source_batch_pending": [
+  "next_source_batch_pending": [
     {
       "original_requirement_id": "TODO-55 exact refresh discovery",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
