@@ -1715,6 +1715,11 @@ the job ID, kind, project ID, status, message, timestamps and persisted phase
 progress. The existing `result.content` remains available. A null phase ETA
 means there is no current estimate. Saved recovery retains both representations.
 
+Polling a running job sends no tool-list change notification. The first
+successful terminal observation sends one notification for that job and MCP
+session. Repeated polls of the most recent 256 completed jobs and saved
+response recovery leave the tool catalog alone.
+
 Installed November16: ordinary `ask_codebase`
 history/rationale questions preserve each selected indexed commit message in full,
 including its recorded exceptions. Message evidence retains its indexed document

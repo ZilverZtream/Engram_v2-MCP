@@ -2698,6 +2698,17 @@
       "TODO-28"
     ],
     "implementation_items_active": 0,
+    "job_poll_tool_list_notifications": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "TODO-37 pollable indexing and EG-18 reliable tool discovery for agent clients",
+      "observed_gap": "Every ordinary get_job_status call sends tools/list_changed, including running jobs and repeated reads of the same terminal job. Tool rediscovery can open project runtimes and pin source just to return the same catalog.",
+      "implementation": ["crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Public MCP retains terminal job reports but sends one tool-list notification on the first successful terminal poll in a session, suppressing repeated notices for the bounded recent history. Nonterminal observations and saved-report recovery send none. Existing synchronous writer notifications stay available.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/job-poll-catalog-notifications-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "4754424a4cfb72fbc82fbeb194474e1794b231e8bc535906dd88551309a5f4c7"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "a75aa5b5d668b906206f77319f5910bba2179f8748828378c783481ef886a860"},
+      "evidence": "Installed public MCP sent a catalog-change notification for both running polls and all four terminal observations of one owned job. The same session observed its synchronous update notification. Source now keeps foreground writer notices and remembers recent completions per MCP session. Syntax and whitespace checks passed; candidate wire validation is pending. The owned baseline process and data were closed and removed."
+    },
     "request_trace_bulk_copy_destination": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "TODO-31 source-cited WebForms database work",

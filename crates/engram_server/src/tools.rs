@@ -7,11 +7,19 @@ use rmcp::{
     tool, tool_router,
     transport::stdio,
 };
+use std::{
+    collections::VecDeque,
+    sync::{Arc, Mutex},
+};
+
+const TOOL_LIST_JOB_HISTORY: usize = 256;
 
 #[derive(Clone)]
 pub struct Engram {
     pub state: AppState,
     pub tool_router: ToolRouter<Engram>,
+    // Each MCP session has its own client-side tool catalog.
+    notified_jobs: Arc<Mutex<VecDeque<String>>>,
 }
 
 #[tool_router]
@@ -20,6 +28,7 @@ impl Engram {
         Self {
             state,
             tool_router: Self::tool_router(),
+            notified_jobs: Arc::default(),
         }
     }
 
@@ -1845,13 +1854,29 @@ impl ServerHandler for Engram {
             );
             tracing::debug!(tool = %tool_name, guidance, "specialty tool navigation");
         }
+        let completed_job = if tool_name == "get_job_status" {
+            result.as_ref().ok().and_then(completed_job_id).map(str::to_owned)
+        } else {
+            None
+        };
         if let Some(delivery) = &shared_delivery {
             result = result.and_then(|response| delivery.finish(&self.state.cfg.data_dir, response));
         }
-        if matches!(tool_name.as_str(), "index_project" | "update_project" | "delete_project" | "repair_project" | "get_job_status") && result.is_ok() {
-            // Async writers can finish later; clients can always re-list after
-            // polling their job. This notification covers foreground changes.
-            if let Err(error) = peer.notify_tool_list_changed().await {
+        if result.is_ok() {
+            let first_completion = completed_job.is_some_and(|id| {
+                let Ok(mut jobs) = self.notified_jobs.lock() else { return false };
+                if jobs.contains(&id) {
+                    return false;
+                }
+                if jobs.len() == TOOL_LIST_JOB_HISTORY {
+                    jobs.pop_front();
+                }
+                jobs.push_back(id);
+                true
+            });
+            if (first_completion || matches!(tool_name.as_str(), "index_project" | "update_project" | "delete_project" | "repair_project"))
+                && let Err(error) = peer.notify_tool_list_changed().await
+            {
                 tracing::debug!(%error, "tool discovery notification unavailable");
             }
         }
@@ -1916,6 +1941,14 @@ impl ServerHandler for Engram {
         }
         Ok(ListToolsResult::with_all_items(items))
     }
+}
+
+fn completed_job_id(result: &CallToolResult) -> Option<&str> {
+    let mut header = result.content.first()?.as_text()?.text.lines();
+    let job_id = header.next()?.strip_prefix("job_id: ")?;
+    // The stored job status is the second header line. An outcome message
+    // can contain its own source or phase statuses.
+    matches!(header.next()?, "status: done" | "status: degraded").then_some(job_id)
 }
 
 pub async fn run_stdio(state: AppState) -> anyhow::Result<()> {
