@@ -2697,6 +2697,17 @@
       "TODO-28"
     ],
     "implementation_items_active": 0,
+    "webforms_startup_script_trace": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-31 trace_user_request surfaces authored response behavior along the selected WebForms handler path.",
+      "observed_gap": "Live LegacyValidation storage.aspx event ctrl_image_gallery/btnDownloadImg2.Click reaches btnDownloadImg_Click at lines 191–222, but its compact source member has zero shown lines and no structured evidence of the actual RegisterStartupScript call at line 219.",
+      "implementation": ["crates/engram_server/src/services/request_trace/execution.rs", "crates/engram_server/src/services/request_trace/tests.rs", "crates/engram_server/src/handlers/request_trace_delivery.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Live and owned public MCP trace surface registration key downloadImage at the exact verified file and line, retain an unresolved interpolated script, and preserve the clue in compact output and original delivery. Other redirects still work. Comments and string examples do not become calls.",
+      "source_commit": "b52eade19cd23ae7275e564df76334f23a595e3c",
+      "verification": "Installed live MCP had a source-admitted method with matching reported hash, zero shown source lines after compaction and no registration field. Three focused checks passed for the exact parser and source-body acquisition pattern, including the actual LegacyValidation file at line 219, literal and interpolated calls, comment/string decoys, and redirect parity. The compact delivery regression now asserts that the field survives excerpt removal. Public packaged MCP and deployment are pending. No Cargo build ran.",
+      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/webforms-startup-script-trace-20261120/focused-receipt.json",
+      "limits": "Source registration metadata only. Generated script text, browser effects and execution are unverified. Focused compiler resources were removed; receipt retained for combined acceptance."
+    },
     "batch_source_freshness": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "requirement": "TODO-33 multi-read context and TODO-5 exact indexed source freshness for an agent preparing an edit",
@@ -4387,6 +4398,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "b113d9bab7cbcdddec62c9c66aeee2a5c08a7ee0",
       "acceptance_contract": "Public MCP batch combines source and exact freshness, retains an independent invalid selector error, and recovers the original fingerprint and revision after the files change. Execute its ordinary recovery arguments and verify current disk differs. Check a read-only LegacyValidation file against its independent current hash."
+    },
+    {
+      "original_requirement_id": "TODO-31",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "b52eade19cd23ae7275e564df76334f23a595e3c",
+      "acceptance_contract": "Trace the registered WebForms image download event with a budget that compacts source excerpts. Match the source line/hash, downloadImage key and unresolved script in compact and exact recovered outputs. Verify a literal registration and existing redirect in an owned fixture and repeat the read-only LegacyValidation trace on the installed package."
     }
   ],
   "dossier_core_job_polling_delivered_batch": [
