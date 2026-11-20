@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "preset_history_followup_dependency": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "EG-18 advertised workflow dependencies are discoverable and callable under limited MCP profiles",
+      "observed_gap": "A current installed Core fixture returned a literal search_history patch action from ask_codebase, while the genuine tools/list omitted search_history. The recently added first-parent recent-history route offers that action in all presets. Normal LegacyValidation Full config remains verified and already exposes it.",
+      "implementation": ["crates/engram_server/src/tool_surface.rs", "crates/engram_server/tests/workflow_tool_presets.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Core and inheriting presets advertise the same registered search_history schema as Full and can execute the emitted pinned patch action. Preserve all existing tools and Full defaults; update advertised maximum counts where they change.",
+      "source_commit": "387ee3f6b49c9060707555e84cfc6c86789b7699",
+      "verification": "An owned real MCP Core config listed 31 capability-filtered tools and emitted a pinned search_history patch action for its VB file even though the tool was absent. The focused executable compared exact old/new membership for all limited presets, preserving every old member; Core, QA and Migration gain only search_history, Development is unchanged, and Full remains default. Added an owned handler test for executing the emitted patch action. The public packaged check remains pending. No release build or full suite ran.",
+      "limits": "Configured maxima before capability filtering are now Core 35, Development 38, QA and Migration 41. The normal LegacyValidation Full configuration is unchanged and already advertised search_history.",
+      "retention": "Keep the MCP baseline, focused reproducer and numeric receipts under current-task-check/core-history-dependency-20261120 through packaged acceptance. Owned MCP and compiler fixtures were removed."
+    },
     "feature_dossier_exact_source_scope": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "requirement": "TODO-32 usable pre-edit source dossier for an agent working on known LegacyValidation WebForms files",
@@ -4313,6 +4324,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "6e070bc964bbf0532606371838bfe3cdc4f23f6d",
       "acceptance_contract": "Through MCP with dossier_only and source_files_only enabled, request exact LegacyValidation WebForms paths and one missing path. Verify source fingerprints, scoped authored guidance, skipped ranking and pattern/composition discovery, no generation requests, and explicit omitted-path recovery. Retain regular discovery behavior and report actual elapsed time for the scoped mode."
+    },
+    {
+      "original_requirement_id": "EG-18",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "387ee3f6b49c9060707555e84cfc6c86789b7699",
+      "acceptance_contract": "Start an owned preset-filtered MCP client. Verify Core tools/list advertises search_history, ask_codebase emits a pinned patch request for a VB file, and the client executes that exact request. Verify unchanged Development and Full availability and inherited QA and Migration history advertisement."
     }
   ],
   "dossier_webforms_history_source_batch_20261120": [
