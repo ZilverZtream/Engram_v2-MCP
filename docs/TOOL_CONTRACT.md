@@ -1147,6 +1147,12 @@ direction; a successful all-namespace recovery makes a second signal a no-op.
 healthy output requires agreement after repair. Disabled embeddings and
 uncompiled vector support report unknown vector comparisons explicitly.
 
+A pending vector recovery requirement adds an advisory `next_tools` call to
+the project-wide integrity report. After resolving the storage or embedding
+issue, use that `repair_project(scope="vector_only")` call to rebuild vectors
+from the retained text while preserving the selected source revision. Inspect
+`recovery_requirements` again after repair for any outstanding reasons.
+
 These are count checks, not proof of correct row identities, embedding quality,
 complete historical source coverage or improved task outcomes. Equal-count
 wrong-row corruption remains outside this delivery. Namespace discovery reads

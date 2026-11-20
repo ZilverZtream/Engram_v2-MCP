@@ -2977,15 +2977,17 @@
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "S02 complete selected source revisions across native vector write failures",
       "observed_gap": "The source vector upsert flattens the VEC1 cause produced by a failed LanceDB merge into an unclassified message. The server inspects the error chain to record the durable vector recovery requirement and misses that cause.",
-      "implementation": ["crates/engram_index/src/hybrid.rs"],
-      "acceptance": "On an owned project with a successful source publication, a failed native merge surfaces the storage cause, leaves the previous file revision selected and records the existing vector recovery reason across reopen. Verify vector-only repair and retry in the same fixture. Provider fallback remains covered by retained S02 evidence.",
+      "implementation": ["crates/engram_index/src/hybrid.rs", "crates/engram_server/src/tool_guidance.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "On an owned project with a successful source publication, a failed native merge surfaces the storage cause, leaves the previous file revision selected and records the existing vector recovery reason across reopen. Read-only project integrity must provide the exact advisory vector-only repair call, retain the pending reason and report unhealthy despite matching published row identities. Execute that call after removing the obstruction, verify the action disappears and retry the original edit. Provider fallback remains covered by retained S02 evidence.",
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/s02-native-write-recovery-20261120",
       "baseline": {"path": "baseline-observed/receipt.json", "sha256": "ef522207fa10965d73ca2fba9373f3c251efada260711c679b3259d0630f6dd8"},
-      "candidate_verifier": {"path": "verify.py", "sha256": "630f69ffccfb831573ab01f56abff945e6ab76cf153a5a2fc78e43f783b5d490"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "801a789a17289b52c72d24edac639349e4bc32e33b9352b6808ee65e9c4f8d1c"},
       "repair_baseline": {"path": "baseline-repair/receipt.json", "sha256": "402d47c5a539df0cc593e86475d0bb10dbfbeaf12675323c1b78da550979b880"},
+      "integrity_baseline": {"path": "baseline-integrity-corrected/receipt.json", "sha256": "7b2867c2d2daad5aeae830db8a0a9103e7d646ad7b8050d2178ea008c3131c95"},
       "evidence": "The installed binary on an owned project hit a native merge failure after valid embeddings. Generation 1 remained selected, the vector recovery reason was absent before and after reopening, and retry after removing the obstruction published generation 2. The fixture directory was removed. The first run retained the same expected JSON-RPC error but the observer stopped before examining recovery; the corrected run completed.",
       "repair_evidence": "The installed vector-only repair rebuilt matching vector identities for the original selected revision while edited bytes remained on disk. Repair preserved the original indexed hash and generation. The subsequent source update published the independently hashed edit. The native write failure still lacks the durable recovery reason on the installed baseline.",
-      "delivery": "Submit with a subsequent combined build. The currently running edit dossier release is frozen before this change."
+      "integrity_evidence": "The new installed edit dossier release reports healthy on the unchanged revision after the reproduced failed write and supplies generic project_info guidance. The updated code preserves the native error and routes the resulting durable vector reason to exact vector-only repair using the existing registered-tool navigation and response budget. Candidate acceptance executes the emitted arguments and checks the targeted action stops appearing after repair.",
+      "delivery": "Submit with a subsequent combined build. The installed edit dossier release was frozen before this change."
     },
     "s02_installed_webforms_shrink_delete": {
       "status": "INSTALLED_PUBLIC_MCP_BEHAVIOR_VERIFIED_WITH_FIXTURE_DIAGNOSTIC",

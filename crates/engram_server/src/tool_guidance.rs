@@ -417,6 +417,9 @@ fn arguments_for(
             args.insert("job_id".into(), id.clone());
         }
     }
+    if target.name == "repair_project" && source_tool == "check_integrity" {
+        args.insert("scope".into(), json!("vector_only"));
+    }
     args.retain(|name, _| properties.contains_key(name));
     if target
         .input_schema
@@ -537,6 +540,19 @@ pub fn annotate(
                 "Choose a qualified identity from the returned candidates and repeat the lookup before acting on it.",
             )],
             "resolve_ambiguous_identity",
+        )
+    } else if tool == "check_integrity"
+        && data
+            .pointer("/recovery_requirements/reasons")
+            .and_then(Value::as_array)
+            .is_some_and(|reasons| reasons.iter().any(|reason| reason.as_str() == Some("vector")))
+    {
+        (
+            &[(
+                "repair_project",
+                "After resolving the storage or embedding issue, rebuild retained vectors from stored text while preserving the selected source revision.",
+            )],
+            "vector_recovery_required",
         )
     } else if empty {
         (
