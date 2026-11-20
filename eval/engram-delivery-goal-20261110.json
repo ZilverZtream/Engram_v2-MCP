@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "DOSSIER_CORE_JOB_POLLING_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "recent_history_spaced_sql_paths": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECKS_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-28 and the original usable-history workflow require ordinary explicit file-history questions to reach pinned evidence and a callable patch.",
+      "observed_gap": "Installed MCP returns unsupported for the plain or double-quoted LegacyValidation path db-legacy_validation.sql/dbo/Stored Procedures/aspnet_CheckSchemaVersion.sql at independently verified first-parent commit 5124f246c703591419d293f2a369e5069e25dcf1. The backtick form returns one commit and the pinned patch action.",
+      "implementation": ["crates/engram_server/src/handlers/ask_recent_history.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Plain, double-quoted and backtick spellings of the actual SQL path return the same pinned Git commit and callable patch. Explicit spaced directory paths stay scoped. Generic questions, traversal and trailing prose remain outside this literal route.",
+      "source_commit": "c85c60d936502e79ccf06210fbfc607b3f643524",
+      "verification": "Installed live MCP returned unsupported for two ordinary spellings and a pinned action for the backtick form. The existing patch endpoint returned the exact pinned SQL procedure change, 1884 bytes. Two focused tests executed the changed parser, including the actual path and independently selected Git commit, quoted and plain directories, and the previous rejection cases. Packaged MCP and installation remain pending.",
+      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/recent-spaced-sql-history-20261120/focused-receipt.json",
+      "temporary_resources": "The focused compiler fixture was removed. The receipt is retained for combined public acceptance. No Cargo or release build ran."
+    },
     "s01_mixed_source_vector_update": {
       "status": "INSTALLED_OWNED_PUBLIC_MCP_PASS",
       "requirement": "S01 real edits preserve untouched physical source and vector identities and avoid unnecessary embedding inputs.",
@@ -4353,7 +4364,14 @@
       "acceptance_contract": "Index an owned VB/WebForms and TypeScript or SQL fixture, advance one file's revision, and verify MCP exact-file freshness matches inherited bytes and detects an equal-size disk edit. Compare live LegacyValidation selected physical revision to exact-file integrity and raw disk hash to independent source."
     }
   ],
-  "next_source_batch_pending": [],
+  "next_source_batch_pending": [
+    {
+      "original_requirement_id": "TODO-28",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "c85c60d936502e79ccf06210fbfc607b3f643524",
+      "acceptance_contract": "Ask the same explicit recent-history question using the bare, quoted and backtick spellings of a spaced SQL path at the pinned LegacyValidation commit. Match first-parent Git and execute the identical emitted patch. Use a spaced folder question and preserve its scope."
+    }
+  ],
   "dossier_core_job_polling_delivered_batch": [
     {
       "original_requirement_id": "TODO-32",
