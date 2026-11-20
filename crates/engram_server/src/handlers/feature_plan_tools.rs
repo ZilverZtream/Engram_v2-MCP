@@ -190,9 +190,17 @@ fn change_request(
     }
 }
 
-fn path_candidates(change_set: &Value, patterns: &Value, model_file: Option<&str>) -> Vec<String> {
-    let mut paths: Vec<_> = model_file.into_iter().map(str::to_owned).collect();
-    // Preserve discovery order after the caller's exact selected example.
+fn path_candidates(
+    change_set: &Value,
+    patterns: &Value,
+    source_files: &[String],
+    model_file: Option<&str>,
+) -> Vec<String> {
+    let mut paths = source_files.to_vec();
+    if let Some(model_file) = model_file.filter(|path| !paths.iter().any(|file| file.as_str() == *path)) {
+        paths.push(model_file.to_owned());
+    }
+    // Preserve discovery order after caller-selected files and any example.
     // Dependencies and patterns remain explicit
     // context even when not admitted to the bounded source bundle.
     for key in ["files", "asset_dependencies", "caller_dependencies"] {
@@ -432,7 +440,12 @@ impl Engram {
                 json!({"status":"UNAVAILABLE", "recovery":{"tool":"find_implementation_pattern","arguments":{"project_id":req.project_id,"pattern_query":req.feature_description,"output_json":true}}})
             }
         };
-        let paths = path_candidates(&change_set, &patterns, model_file.as_deref());
+        let mut seen = BTreeSet::new();
+        let explicit: Vec<_> = req.source_files.iter()
+            .map(|path| path.replace('\\', "/"))
+            .filter(|path| seen.insert(path.clone()))
+            .collect();
+        let paths = path_candidates(&change_set, &patterns, &explicit, model_file.as_deref());
         let source_paths = initial_source_paths(&paths);
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
@@ -540,6 +553,21 @@ impl Engram {
             "explicit_model_after_file":model_file,
             "excerpt_limit":"One lexical window of at most 100 lines / 12 KiB per file; at most 192 KiB total; unshown lines are unexamined",
             "recovery":{"tool":"get_change_set","arguments":{"project_id":req.project_id,"story":story,"output_json":true,"detail":"full","concepts":retrieval_concepts,"history_semantic_timeout_ms":req.history_semantic_timeout_ms}}});
+        if !explicit.is_empty() {
+            output["source_coverage"]["explicit_source_files"] = json!(explicit.iter().map(|path| {
+                let row = evidence.iter().find(|row| &row.file_path == path);
+                let revision = view.selected_file_revisions().and_then(|files| files.get(path));
+                let status = match (row, revision) {
+                    (Some(_), _) => "admitted",
+                    (None, Some(_)) => "source_evidence_unavailable",
+                    (None, None) => "not_selected",
+                };
+                json!({
+                    "file_path":path, "status":status, "physical_revision":revision,
+                    "evidence_id":row.map(|row| &row.id),
+                })
+            }).collect::<Vec<_>>());
+        }
         let schema_names = if req.schema_tables.is_empty() {
             intent.as_ref().map_or(&[][..], |intent| intent.schema_names.as_slice())
         } else {
@@ -566,6 +594,15 @@ impl Engram {
             }
         }).collect();
         output["planning_context"] = json!({"change_set":change_set, "patterns":patterns, "schema":schema, "source_coverage":output["source_coverage"]});
+        if !explicit.is_empty() {
+            let directory = record.directory.clone();
+            let project = req.project_id.clone();
+            let policy = tokio::task::spawn_blocking(move || {
+                crate::services::project_policy::resolve(Path::new(&directory), &explicit, &[])
+                    .with_source_recovery(&project)
+            }).await.map_err(|_| failure("Cannot collect guidance for explicit feature source files"))?;
+            output["planning_context"]["explicit_source_policy"] = json!(policy);
+        }
         if evidence.is_empty() {
             output["reason"] = json!("no_current_source_evidence");
             return response(output);

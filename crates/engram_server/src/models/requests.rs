@@ -843,6 +843,10 @@ pub struct OneShotFeaturePlanRequest {
     /// safety verdict or generated implementation plan is produced. Default false.
     #[serde(default)]
     pub dossier_only: bool,
+    /// Select up to eight exact project-relative files before ranked source
+    /// candidates. Missing or stale files are reported in source_coverage.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub source_files: Vec<String>,
     /// Up to eight explicit schema table names to include in the planning context.
     /// Dossier mode reads only the named tables. Generated plans use model-selected
     /// names only when the caller leaves this list empty.

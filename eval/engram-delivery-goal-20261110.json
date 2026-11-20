@@ -3199,7 +3199,15 @@
       "acceptance": "A read-only exact path selects only its published revision, including inherited files, and compares bounded lexical and vector keys without counting the entire project. Report missing membership, missing vector support, and incomplete coverage explicitly. A scoped request must not trigger the existing project-wide auto-repair.",
       "verification": "The focused native test ran the exact new predicates and existing key reader against actual Tantivy and LanceDB stores. A 4,103-row lexical fixture exceeded the project key limit, then the exact selected revision observed two rows and one matching key in both stores. The query excluded an unpublished physical revision, a similarly named sibling and a native row from another namespace. The public integration fixture now checks inherited corruption, unaffected and absent files, and refusal of scoped auto-repair. Retained LegacyValidation project_info confirms the deployed VB.NET/WebForms and JavaScript/TypeScript configuration. Full packaged MCP acceptance remains pending. No Cargo build or live mutation."
     },
-    "next_action": "Advance an independent original requirement. Direct selected-source references and exact-file integrity are queued for combined public validation."
+    "feature_plan_explicit_source_files": {
+      "status": "IMPLEMENTED_FOCUSED_ACTUAL_SOURCE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-32 source-backed pre-edit dossier for the caller's known target files",
+      "observed_gap": "The model-free planner accepts one exact selected model_after file. An agent preparing a page/control change cannot supply the several confirmed paths as scoped dossier evidence, so it must depend on discovery ranking or make separate source and policy requests.",
+      "implementation": "Feature-plan request validation, source ordering and scoped authored policy evidence.",
+      "acceptance": "A model-free dossier puts explicitly requested project-relative files before ranked candidates, preserves provenance and source admission, reports missing or stale requested entries individually, retains scoped guidance, and uses no server generation. Verify the actual LegacyValidation task-management page, code-behind and bulk-edit control against pinned source.",
+      "verification": "The installed tools/list advertised only the explicit example, with no source_files selector. A focused executable used the exact ordering and bounded source-selection functions with three verified actual LegacyValidation Git blobs and 24 ranked candidates. All three exact paths retained their input order without duplicating the model/example or matched dependencies. The existing public dossier fixture now checks admission order, normalized deduplication, an explicitly missing selected child, and separately scoped authored guidance. Candidate MCP and installation remain pending. No Cargo build."
+    },
+    "next_action": "Prepare and verify one combined package for S16 direct selected graph references, TODO-39 exact-file integrity, and TODO-32 explicit dossier source intake."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",

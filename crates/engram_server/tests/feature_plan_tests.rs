@@ -66,6 +66,7 @@ fn feature_plan_public_handler_reports_disabled_provider_without_generating_a_pl
                 target_stack: "webforms_vbnet".into(),
                 detail_level: PlanDetailLevel::ReadyToCode,
                 dossier_only: false,
+                source_files: Vec::new(),
                 schema_tables: Vec::new(),
                 history_semantic_timeout_ms: None,
             })
@@ -330,6 +331,7 @@ fn feature_plan_rejects_unbounded_or_unrelated_intake() {
         target_stack: "webforms_vbnet".into(),
         detail_level: PlanDetailLevel::Detailed,
         dossier_only: false,
+        source_files: Vec::new(),
         schema_tables: Vec::new(),
         history_semantic_timeout_ms: None,
     };
@@ -337,6 +339,9 @@ fn feature_plan_rejects_unbounded_or_unrelated_intake() {
     req.target_stack = "java".into();
     assert!(validate_request(&req).is_err());
     req.target_stack = "webforms_vbnet".into();
+    req.source_files = vec!["../outside.vb".into()];
+    assert!(validate_request(&req).is_err());
+    req.source_files.clear();
     req.feature_description = "x".repeat(16 * 1024 + 1);
     assert!(validate_request(&req).is_err());
     assert!(parse_intent("{\"requirements\":[]}").is_err());

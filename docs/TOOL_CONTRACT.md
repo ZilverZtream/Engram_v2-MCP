@@ -143,6 +143,14 @@ ordinary schema coverage and source citations.
 Multiple named tables share one declaration scan. Each lookup keeps its own
 result, coverage and budget.
 
+Supply up to eight exact `source_files` when you already know the files for a
+feature. They are considered before the example and ranked candidates, in
+request order. Check each entry under `source_coverage.explicit_source_files`
+for its evidence ID, selected physical revision, or omission status.
+`planning_context.explicit_source_policy` reports applicable authored guidance
+for those paths. Each source excerpt remains bounded and subject to the
+dossier's selected-revision and current-content checks.
+
 An exact selected project-relative `model_after` file gets a source-dossier slot
 before ranked discovery candidates. It passes the same current-source and
 revision checks as any other candidate. Prose hints continue to guide discovery.

@@ -81,12 +81,21 @@ async fn unindexed_registered_control_retains_its_gap_and_returns_executable_cur
     let reply=fixture.server.handle_one_shot_feature_plan(serde_json::from_value(json!({
         "project_id":fixture.project,"feature_description":"Adjust Threshold settings editor",
         "model_after":"Settings.aspx","target_stack":"webforms_vbnet","detail_level":"Detailed","dossier_only":true,
+        "source_files":["Settings.sql", "Settings.aspx", "widgets\\Threshold.ascx", "Settings.sql"],
         "schema_tables":["dbo.Settings", "dbo.Missing", "dbo.SettingsAudit"],"history_semantic_timeout_ms":0
     }))?).await?;
     let dossier: Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text)?;
     ensure!(dossier["provenance"]["provider_calls"] == 0);
     ensure!(dossier["source_coverage"]["explicit_model_after_file"] == "Settings.aspx");
-    ensure!(dossier["source_evidence"][0]["file_path"] == "Settings.aspx");
+    ensure!(dossier["source_evidence"][0]["file_path"] == "Settings.sql");
+    ensure!(dossier["source_evidence"][1]["file_path"] == "Settings.aspx");
+    let requested = dossier["source_coverage"]["explicit_source_files"].as_array().unwrap();
+    ensure!(requested.len() == 3);
+    ensure!(requested[0]["status"] == "admitted" && requested[0]["physical_revision"] == generation);
+    ensure!(requested[1]["status"] == "admitted" && requested[1]["evidence_id"] == "E2");
+    ensure!(requested[2]["file_path"] == CHILD && requested[2]["status"] == "not_selected");
+    ensure!(dossier["planning_context"]["explicit_source_policy"].to_string()
+        .contains("Preserve ownership checks and read-only exceptions."));
     let schema = &dossier["planning_context"]["schema"][0];
     ensure!(schema["name"] == "dbo.Settings" && schema["result"]["active_generation"] == generation);
     let table = &schema["result"]["results"][0]["table"];

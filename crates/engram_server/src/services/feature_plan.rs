@@ -151,6 +151,13 @@ pub fn validate_request(req: &OneShotFeaturePlanRequest) -> Result<()> {
     for hint in [&req.area_hint, &req.model_after].into_iter().flatten() {
         ensure!(hint.len() <= 2048, "Planning hint exceeds 2 KiB");
     }
+    ensure!(req.source_files.len() <= 8, "source_files accepts at most eight paths");
+    for file in &req.source_files {
+        ensure!(
+            relative_file(&file.replace('\\', "/")),
+            "source_files entries must be literal project-relative paths"
+        );
+    }
     ensure!(req.schema_tables.len() <= 8, "schema_tables accepts at most eight names");
     for name in &req.schema_tables {
         super::schema_query::input_name(name)
