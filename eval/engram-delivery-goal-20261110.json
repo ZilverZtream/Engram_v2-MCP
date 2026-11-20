@@ -2653,7 +2653,7 @@
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
-    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-debug-candidate-20261120",
+    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-trace-integrity-candidate-20261120",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "incremental_codegen": {
@@ -2979,8 +2979,17 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "WORKFLOW_CANDIDATE_VERIFIED_AND_QA_SOURCE_READY",
+    "status": "COMBINED_QA_TRACE_INTEGRITY_RELEASE_CANDIDATE_RUNNING",
     "implementation_items_active": 0,
+    "qa_trace_integrity_release_candidate": {
+      "status": "FROZEN_COMBINED_RELEASE_CANDIDATE_RUNNING",
+      "source_commit": "9a6135766015865fec5f9f90b0a1f4957d168b2d",
+      "plan_sha256": "447c280a6777808b0b7f2dba8e101959ec37e6a6a09b72fc2d7e7dc39779810c",
+      "execution_session_id": 79931,
+      "owner": {"driver_pid": 40448, "relay_pid": 85568, "path": "release1-owner.json", "sha256": "70b52bd01ecc9fdffe1a7b8b72de7a7f4250e15cadf3d6f636460a470ffdab42"},
+      "acceptance": "One optimized server candidate for four independent source outcomes. Run five pinned public checks for the changed behaviors and the shared native integrity query. Retain the earlier exact-refresh, constructor and staged-review debug receipts. No full suite, second build or automatic installation.",
+      "retention": "Reuse the existing detached verification checkout and shared Cargo target. The owned runner handles compiler Job and temporary-directory teardown. Retain the frozen plan and receipts in the active release case."
+    },
     "source_integrity_lexical_observation": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "TODO-39 published source integrity and original EG-13 checks with and without vectors",
@@ -5063,6 +5072,32 @@
     }
   ],
   "next_source_batch_pending": [
+    {
+      "original_requirement_id": "EG-18",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "a1295a9b1e828838154e57cb232d9c8e08f5e345",
+      "acceptance_contract": "Owned QA MCP follows distinct same-label setting IDs with exact file and source qualification."
+    },
+    {
+      "original_requirement_id": "TODO-4",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "46ba4a1fd29e43fda55fb59355a1e06360c5b6ed",
+      "acceptance_contract": "Owned QA MCP returns named structured fields, callable exact evidence and hash-verified immutable recovery. Existing Markdown envelope remains usable."
+    },
+    {
+      "original_requirement_id": "TODO-31",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "5c545b6214a3ee79782b677fe89b0661b215d5cf",
+      "acceptance_contract": "Trace authored LegacyValidation download route copies and cite all three file/stream operations through compact and exact recovered responses."
+    },
+    {
+      "original_requirement_id": "TODO-39",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "9a6135766015865fec5f9f90b0a1f4957d168b2d",
+      "acceptance_contract": "Exact file and whole-selected integrity return independently established lexical counts with vectors disabled. Existing native write recovery and selected comparison remain callable."
+    }
+  ],
+  "workflow_debug_verified_source_batch_20261120": [
     {
       "original_requirement_id": "TODO-37",
       "status": "DEBUG_CANDIDATE_PUBLIC_CHECKS_PASSED_NOT_INSTALLED",
