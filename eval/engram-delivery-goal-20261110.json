@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "GIT_FRESHNESS_EDIT_SAFETY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "qa_matrix_policy_recovery": {
+      "status": "SOURCE_COMPLETE_DIRECT_READER_VERIFIED_AWAITING_PACKAGED_MCP",
+      "source_commit": "71e1491a0d46e2fa5a5747c029313d662cb0e898",
+      "requirement": "EG-01 scoped authored instructions and the original LegacyValidation test-matrix workflow",
+      "observed_gap": "Live LegacyValidation derive_test_matrix for FileLayerZoomPolicy.ClassifyAutomatic marks .github/copilot-instructions.md omitted by the per-source character budget, but provides no callable hash-bound recovery for its complete contents.",
+      "implementation": ["crates/engram_server/src/handlers/settings_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Live method-scoped matrix supplies the existing get_full_method_body action for the omitted guide. Follow the returned pages and compare original file hash and lines with actual LegacyValidation source. Historical matrices still withhold current guidance and do not publish live recovery actions.",
+      "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/verified-method-edit-context-20261120/matrix-guidance-baseline.json", "sha256": "3147d9d363f2cf0210285d70b5a6a7baf66868798094018678691043f45b5926"},
+      "direct_recovery": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/verified-method-edit-context-20261120/matrix-guidance-direct-recovery-receipt.json", "sha256": "14c4022ab5b714577b08af426319b78192c479eb623b9f8cfa854c02bc4e1df8"},
+      "verification": "Live MCP confirmed the matrix omitted the 25,022-byte guide without a callable action. The exact expected action was constructed independently and its existing live reader recovered all 295 lines in three hash-guarded excerpts. Candidate matrix emission and historical withholding must be verified in the next package."
+    },
     "batch_read_preset_saved_continuation": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "source_commit": "a7db038d84cf1812cf6b6712e3e7e8cf3c5ccedd",
@@ -4748,6 +4759,12 @@
       "source_commit": "a7db038d84cf1812cf6b6712e3e7e8cf3c5ccedd",
       "included_source_commit": "8550141e306c072a5b03bea0b0cf3ff778d31537",
       "acceptance_contract": "In QA and Development, execute the returned discoverable batch refresh action and compare VB and SQL evidence and row identity. Recover every hidden SQL saved page through the row's next_call and validate the original BLAKE3. Full and matching limited presets retain direct actions. Outer batch recovery remains exact."
+    },
+    {
+      "original_requirement_id": "EG-01 QA matrix",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "71e1491a0d46e2fa5a5747c029313d662cb0e898",
+      "acceptance_contract": "In QA and live LegacyValidation, request one method-specific test matrix. Follow the emitted hash-checked action for its omitted guide through EOF and compare every source line. Historical cutoff supplies no live policy recovery."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
