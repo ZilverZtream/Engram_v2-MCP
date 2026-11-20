@@ -3053,20 +3053,26 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "COMBINED_QA_TRACE_INTEGRITY_RELEASE_CANDIDATE_RUNNING",
+    "status": "QA_TRACE_INTEGRITY_PACKAGE_VERIFIED_ACTIVE_CLIENT_PRESERVED",
     "implementation_items_active": 0,
     "qa_trace_integrity_release_candidate": {
-      "status": "FROZEN_COMBINED_RELEASE_CANDIDATE_RUNNING",
+      "status": "PACKAGE_STAGED_AND_OWNED_INSTALL_VERIFIED",
       "source_commit": "9a6135766015865fec5f9f90b0a1f4957d168b2d",
       "plan_sha256": "447c280a6777808b0b7f2dba8e101959ec37e6a6a09b72fc2d7e7dc39779810c",
       "execution_session_id": 79931,
       "owner": {"driver_pid": 40448, "relay_pid": 85568, "path": "release1-owner.json", "sha256": "70b52bd01ecc9fdffe1a7b8b72de7a7f4250e15cadf3d6f636460a470ffdab42"},
       "terminal_observer": {"driver_pid": 80512, "candidate_pid": 85864, "execution_session_id": 40344, "path": "finish-candidate.py", "sha256": "f02f9576adf2fd966cdf7de522794ebf977fe9e5abc34be331a7e5911cbf8bab", "receipt": "delivery-observer-receipt.json", "scope": "Wait for the pinned candidate, correct only the independently verified QA display-label assertion when it is the sole failure, and package the same binary only after all public checks pass. No installation."},
+      "build_receipt": {"path": "release1.json", "sha256": "bc1d6599c9cb59f9efd116d92695be62ff6aec84f1cedcc423b6b84b737cec10", "elapsed_seconds": 2050.967},
+      "candidate_acceptance": {"path": "candidate-corrected-receipt.json", "sha256": "31f00bacc3d7e2f810a11a045da39bd1a7d49c98f3bee1a383e7b841be06f1b5", "checks_passed": 5},
+      "package_receipt": {"path": "package-receipt.json", "sha256": "1d4b1458e4e91cfcc921d54a16b822a18fdb6d661d412c2317b2f545b91aff7b", "binary_sha256": "446e28af2b2f2f001ecf1cd2f2693e114fc659b760cc54e004471c79c285c158", "archive_sha256": "15b3c1eb4365168b76ebc23fdd08dc603a2f10c16fbf8d1f2cd8435643867e13"},
+      "owned_install": {"path": "owned-package-smoke-receipt.json", "sha256": "70d28436bc52179c92420a8811fb098e365133253a719adc58d085c9bcb7520b", "verifier_sha256": "16453470573d9fd41c0dfd209e3fe4db1d5289efcc1ba48757383956ace8d77d"},
+      "resolution": "Cargo completed once. Initial QA checks stopped at a Python argument-name collision and an incorrect display-label assertion. The two corrected observers passed on the same binary; the other three were reused. The packaged executable and generated config opened an owned MCP stdio session and followed the structured QA setting action. The first smoke observer looked for the config in argv; the corrected run reads ENGRAM_CONFIG_PATH from the registered entry. Owned installs and fixtures were removed.",
+      "live_install": "Pending a quiescent window. An installed MCP client (PID 80468) was attached alongside the installed daemon (PID 11964); both were preserved. The installed server remains 8379834404e2efab024141d63eb604a5417a37019aa9c42d45891825ee86b15b. Reuse the staged package; no new build for this handoff.",
       "acceptance": "One optimized server candidate for four independent source outcomes. Run five pinned public checks for the changed behaviors and the shared native integrity query. Retain the earlier exact-refresh, constructor and staged-review debug receipts. No full suite, second build or automatic installation.",
       "retention": "Reuse the existing detached verification checkout and shared Cargo target. The owned runner handles compiler Job and temporary-directory teardown. Retain the frozen plan and receipts in the active release case."
     },
     "source_integrity_lexical_observation": {
-      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "status": "CANDIDATE_MCP_VERIFIED_NOT_LIVE_INSTALLED",
       "requirement": "TODO-39 published source integrity and original EG-13 checks with and without vectors",
       "observed_gap": "Selected-source integrity pins the correct managed source revisions, yet returns a null Tantivy count in lexical-only mode. A selected file with zero lexical rows is indistinguishable from a populated file in this report.",
       "implementation": ["crates/engram_index/src/hybrid.rs", "crates/engram_index/src/hybrid/source_integrity.rs", "crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
@@ -3078,7 +3084,7 @@
       "retention": "Keep the candidate verifier and baseline wire files until combined delivery. Both baseline fixture directories were removed and the subprocesses closed."
     },
     "webforms_response_body_evidence": {
-      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "status": "CANDIDATE_MCP_VERIFIED_NOT_LIVE_INSTALLED",
       "requirement": "TODO-31 trace a WebForms request through the response",
       "observed_gap": "LegacyValidation /sharedDownload/ uses both Response.TransmitFile and Response.OutputStream.Write in reached VB methods. The trace classifies redirects, headers and status but leaves body output buried in excerpts that can be clipped.",
       "implementation": ["crates/engram_server/src/services/request_trace/execution.rs", "docs/TOOL_CONTRACT.md"],
@@ -3090,7 +3096,7 @@
       "retention": "Keep the four-file source commit pin, verifier and both baseline wire observations in this case until the combined delivery receipt is recorded."
     },
     "qa_structured_matrix": {
-      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "status": "CANDIDATE_AND_OWNED_INSTALL_MCP_VERIFIED",
       "requirement": "TODO-4 structured bounded results and original agent-ready QA workflow",
       "observed_gap": "The existing derive_test_matrix output_json delivery envelope carries one Markdown string. Agents must parse printed axes, coverage, candidate outcomes, authored guidance and source actions before using them.",
       "implementation": ["crates/engram_server/src/handlers/settings_tools.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
@@ -3110,7 +3116,7 @@
       "evidence": "The matrix now holds the selected source guard across indexed providers and response rendering. The existing test for unpublished graph metadata also exercises older unselected and inherited selected physical revisions under the same head. Syntax and source review passed. The expanded test and packaged MCP verification remain pending; the running debug candidate predates this change."
     },
     "qa_exact_setting_followup": {
-      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "status": "CANDIDATE_AND_OWNED_INSTALL_MCP_VERIFIED",
       "requirement": "EG-18 callable QA dependencies and LegacyValidation setting-aware tests",
       "observed_gap": "The QA test matrix recommends get_setting but the QA preset omits it. Matrix rows include exact indexed node IDs, but get_setting only accepts a name, which can combine same-label literal observations from distinct files.",
       "implementation": ["crates/engram_server/src/handlers/settings_tools.rs", "crates/engram_server/src/handlers/literal_settings.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tool_surface.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
@@ -5149,25 +5155,25 @@
   "next_source_batch_pending": [
     {
       "original_requirement_id": "EG-18",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "CANDIDATE_PACKAGE_VERIFIED",
       "source_commit": "a1295a9b1e828838154e57cb232d9c8e08f5e345",
       "acceptance_contract": "Owned QA MCP follows distinct same-label setting IDs with exact file and source qualification."
     },
     {
       "original_requirement_id": "TODO-4",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "CANDIDATE_PACKAGE_VERIFIED",
       "source_commit": "46ba4a1fd29e43fda55fb59355a1e06360c5b6ed",
       "acceptance_contract": "Owned QA MCP returns named structured fields, callable exact evidence and hash-verified immutable recovery. Existing Markdown envelope remains usable."
     },
     {
       "original_requirement_id": "TODO-31",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "CANDIDATE_PACKAGE_VERIFIED",
       "source_commit": "5c545b6214a3ee79782b677fe89b0661b215d5cf",
       "acceptance_contract": "Trace authored LegacyValidation download route copies and cite all three file/stream operations through compact and exact recovered responses."
     },
     {
       "original_requirement_id": "TODO-39",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "status": "CANDIDATE_PACKAGE_VERIFIED",
       "source_commit": "9a6135766015865fec5f9f90b0a1f4957d168b2d",
       "acceptance_contract": "Exact file and whole-selected integrity return independently established lexical counts with vectors disabled. Existing native write recovery and selected comparison remain callable."
     }
