@@ -117,7 +117,7 @@ impl Engram {
             return self.deliver_ask_report(&req, out).await;
         }
         if !req.route_with_model
-            && let Some(path) = recent_history::requested_file(&req.question)
+            && let Some(path) = recent_history::requested_path(&req.question)
         {
             let out = recent_history::gather(&req, &rec.directory, path).await?;
             return self.deliver_ask_report(&req, out).await;

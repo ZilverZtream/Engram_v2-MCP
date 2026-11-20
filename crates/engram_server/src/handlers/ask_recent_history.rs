@@ -19,7 +19,7 @@ use crate::services::{
 const MAX_COMMITS: usize = 1000;
 const PROVIDER: &str = "recent_git_history";
 
-pub(super) fn requested_file(question: &str) -> Option<String> {
+pub(super) fn requested_path(question: &str) -> Option<String> {
     let question = question.trim();
     let question = question.strip_suffix('?').unwrap_or(question).trim_end();
     let lower = question.to_ascii_lowercase();
@@ -44,16 +44,43 @@ pub(super) fn requested_file(question: &str) -> Option<String> {
         path
     };
     let path = path.replace('\\', "/");
-    let file = Path::new(&path).file_name()?.to_str()?;
+    let normalized = path.strip_suffix('/').unwrap_or(&path);
+    let has_file_extension = Path::new(normalized)
+        .extension()
+        .is_some_and(|extension| !extension.is_empty());
     if path.len() > 1024
         || path.contains([':', '?', '\x60'])
         || path.chars().any(char::is_control)
-        || path.split('/').any(|part| matches!(part, "" | "." | ".."))
-        || Path::new(file).extension()?.is_empty()
+        || normalized.split('/').any(|part| matches!(part, "" | "." | ".."))
+        || !(has_file_extension || path.contains('/'))
     {
         return None;
     }
     Some(path)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::requested_path;
+
+    #[test]
+    fn recognizes_literal_history_paths_without_routing_generic_questions() {
+        for (question, path) in [
+            ("What changed recently in Site/Reports/?", "Site/Reports/"),
+            ("Show recent changes in Site\\Reports?", "Site/Reports"),
+            ("What changed recently to `Site/Report Views/`?", "Site/Report Views/"),
+            ("Show recent changes in Site/Reports/Page.aspx?", "Site/Reports/Page.aspx"),
+        ] {
+            assert_eq!(requested_path(question).as_deref(), Some(path));
+        }
+        for question in [
+            "What changed recently in reporting?",
+            "Show recent changes in /Site/Reports/",
+            "Show recent changes in Site/../Reports/",
+        ] {
+            assert_eq!(requested_path(question), None);
+        }
+    }
 }
 
 pub(super) async fn gather(
@@ -105,13 +132,19 @@ pub(super) async fn gather(
     let mut next_best = Vec::new();
     let mut evidence = Vec::new();
     for card in window.cards.iter().rev() {
-        let patch = json!({
-            "project_id": req.project_id, "mode": "patch", "query": card.oid,
-            "file_filter": git_path, "as_of_rev": tip.to_string(), "output_json": true
-        });
-        next_best.push(format!(
-            "Inspect the file diff with search_history({patch})"
-        ));
+        if !path.ends_with('/') && card.files.contains(&git_path) {
+            let patch = json!({
+                "project_id": req.project_id, "mode": "patch", "query": card.oid,
+                "file_filter": git_path, "as_of_rev": tip.to_string(), "output_json": true
+            });
+            next_best.push(format!("Inspect the file diff with search_history({patch})"));
+        } else {
+            let commit = json!({
+                "project_id": req.project_id, "mode": "commit", "query": card.oid,
+                "as_of_rev": tip.to_string(), "output_json": true
+            });
+            next_best.push(format!("Inspect the complete change with search_history({commit})"));
+        }
         evidence.push(EvidenceItem {
             evidence_id: format!("ev_{}", evidence.len() + 1),
             kind: EvidenceKind::HistoryCommit,
@@ -121,10 +154,11 @@ pub(super) async fn gather(
             symbol_id: None,
             title: Some(card.title.clone()),
             content: format!(
-                "Commit {} by {} (Unix time {}) changed {}.",
+                "Commit {} by {} (Unix time {}). {} matching changed paths. Showing {}.",
                 card.oid,
                 card.author,
                 card.timestamp,
+                card.file_count,
                 card.files.join(", ")
             ),
             generation: None,
@@ -200,7 +234,7 @@ pub(super) async fn gather(
             },
             count,
             note: Some(format!(
-                "Newest-first commit summaries from the {basis}. First-parent scan capped at {MAX_COMMITS} commits and {limit} matching results. Follow the file diff for exact changes."
+                "Newest-first commit summaries from the {basis}. First-parent scan capped at {MAX_COMMITS} commits and {limit} matching results. Follow the file patch or complete commit for exact changes."
             )),
             examined: window.commits_scanned,
             available: None,

@@ -3390,7 +3390,15 @@
       "acceptance": "An explicit read-only integrity request compares all selected physical keys for an LegacyValidation-sized snapshot, detects equal-count substitutions in an owned fixture, and discloses when the expanded row or byte budget is exceeded. Ordinary and exact-file behavior, background work and automatic repair remain unchanged.",
       "verification": "Fresh installed LegacyValidation check_integrity(auto_repair=false) reported matching counts of 32271 and managed_source_snapshot_counts_only. A focused executable linked the changed membership comparison to actual Tantivy and LanceDB with 32271 controlled selected keys. Standard mode returned no key comparison, expanded mode matched every key, and a substituted vector key preserved cardinality while returning 32270 matches. The owned database and scratch resources closed. The new MCP source_keys=true mode uses the same pinned selection and does no repair. Candidate and installed MCP acceptance remain pending. No Cargo build."
     },
-    "next_action": "Advance a third ready original requirement before packaging the indexed method and expanded integrity changes."
+    "recent_folder_history_answers": {
+      "status": "IMPLEMENTED_FOCUSED_ACTUAL_HISTORY_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-28 ordinary recent-history questions return scoped Git evidence and executable follow-ups",
+      "observed_gap": "Installed ask_codebase returns ambiguous generic retrieval with no commit for What changed recently in Site/reporting-assets/? Git first-parent history identifies commit 77e0876c and its reporting JavaScript and CSS files.",
+      "implementation": ["crates/engram_server/src/handlers/ask_recent_history.rs", "crates/engram_server/src/handlers/ask_tools.rs"],
+      "acceptance": "An explicit folder question returns the actual matching first-parent commit and paths with callable full-commit recovery, no generation call, and the same bounded older-history action. Keep exact-file patch behavior and reject generic or unsafe path spellings.",
+      "verification": "The installed baseline returned ambiguous generic retrieval and zero commit evidence. Focused actual Git checks used the changed question parser/follow-up and existing first-parent reader on captured LegacyValidation revision 0a9fbcfc. They returned commit 77e0876c, its two scoped CSS/JS paths and an executable complete-commit action. The installed public search_history endpoint executed that exact action and its hash-bound recovery retained both paths. Exact-file patch behavior and scoped parsing checks passed. The owned executable scratch closed. Candidate and installed ask_codebase verification remain pending. No Cargo build."
+    },
+    "next_action": "Freeze the three source outcomes for one packaged MCP release."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
