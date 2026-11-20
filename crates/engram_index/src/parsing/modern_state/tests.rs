@@ -19,6 +19,23 @@ fn browser_storage_tracks_literal_preferences_and_separates_session_state() {
     }
 }
 
+#[test]
+fn browser_storage_keeps_distinct_set_and_remove_sites_on_one_writer() {
+    let source = "function setSelection(on) {\n  if (on) localStorage.setItem('selection', 'active');\n  else localStorage.removeItem('selection');\n}\n";
+    let result = edges("selection.js", source);
+    let writers: Vec<_> = result.iter().filter(|edge| {
+        edge.target_name == "state:LocalStorage:selection" && edge.kind == "writes_state"
+    }).collect();
+    assert_eq!(writers.len(), 1);
+    let metadata = writers[0].metadata.as_ref().unwrap();
+    let sites: serde_json::Value = serde_json::from_str(&metadata["browser_storage_access_sites"]).unwrap();
+    assert_eq!(sites[0]["operation"], "setItem");
+    assert_eq!(sites[0]["line"], 2);
+    assert_eq!(sites[1]["operation"], "removeItem");
+    assert_eq!(sites[1]["line"], 3);
+    assert_eq!(metadata["browser_storage_access_sites_omitted"], "0");
+}
+
 fn edges(path: &str, source: &str) -> Vec<ExtractedEdge> {
     SymbolExtractor::new().extract(Path::new(path), source).1
 }

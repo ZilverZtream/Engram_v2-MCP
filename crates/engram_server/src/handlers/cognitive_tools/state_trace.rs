@@ -40,7 +40,7 @@ pub(super) fn evidence(
     let omitted = coverage["issues"]
         .as_array()
         .map_or(0, |issues| issues.len().saturating_sub(8));
-    let detail = serde_json::json!({
+    let mut detail = serde_json::json!({
         "file": source.file_path.as_str(),
         "access_line": metadata["state_access_line"],
         "access_column": metadata["state_access_column"],
@@ -54,5 +54,21 @@ pub(super) fn evidence(
         "issues": issues,
         "additional_issues": omitted
     });
+    if matches!(metadata["state_type"].as_str(), Some("LocalStorage" | "SessionStorage")) {
+        let sites = metadata["browser_storage_access_sites"].as_str()
+            .and_then(|raw| serde_json::from_str::<serde_json::Value>(raw).ok());
+        detail["access_sites_coverage"] = serde_json::json!(if sites.is_some() {
+            "retained_indexed_sites"
+        } else {
+            "single_indexed_observation; refresh source extraction for individual sites"
+        });
+        if let Some(sites) = sites {
+            detail["access_sites"] = sites;
+            detail["access_sites_omitted"] = serde_json::json!(
+                metadata["browser_storage_access_sites_omitted"].as_str()
+                    .and_then(|raw| raw.parse::<usize>().ok())
+            );
+        }
+    }
     Ok(format!("  Indexed access: {detail}\n"))
 }

@@ -18,7 +18,8 @@ fn current_modern_state(raw: &str, path: &str) -> bool {
         value["version"] == engram_core::modern_state::VERSION && value["status"] == "partial_static_coverage"
             && (!requires_script_call_contract(std::path::Path::new(path))
                 || (value["browser_storage_contract"] == 1 && value["browser_storage_clear_contract"] == 1
-                    && value["browser_storage_property_contract"] == 1)))
+                    && value["browser_storage_property_contract"] == 1
+                    && value["browser_storage_observation_contract"] == 1)))
 }
 
 pub fn requires_script_call_contract(path: &std::path::Path) -> bool {

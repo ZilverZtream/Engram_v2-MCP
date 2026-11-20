@@ -1,6 +1,74 @@
 //! Browser storage keys share a project-local identity, with no origin or tab claim.
 use super::*;
 
+const MAX_SITES_PER_RELATION: usize = 8;
+
+fn emit_access(
+    out: &mut Output<'_>,
+    node: Node<'_>,
+    category: &str,
+    key: &str,
+    operation: &str,
+    (reads, writes): (bool, bool),
+) {
+    let first = out.edges.len();
+    out.emit(node, category, key, reads, writes);
+    for edge in &mut out.edges[first..] {
+        if let Some(metadata) = edge.metadata.as_mut() {
+            metadata.insert("browser_storage_operation".into(), operation.into());
+        }
+    }
+}
+
+/// Keep the graph's containing-symbol relationships and retain individual
+/// access sites before repeated edges would overwrite one another.
+fn retain_access_sites(out: &mut Output<'_>, first_edge: usize) {
+    use serde_json::{Value, json};
+
+    let edges = out.edges.split_off(first_edge);
+    let mut positions = HashMap::new();
+    let mut sites: Vec<(usize, Vec<Value>, usize)> = Vec::new();
+    for edge in edges {
+        let Some(metadata) = edge.metadata.as_ref() else {
+            out.edges.push(edge);
+            continue;
+        };
+        let Some(operation) = metadata.get("browser_storage_operation").filter(|op| *op != "clear") else {
+            out.edges.push(edge);
+            continue;
+        };
+        let key = (
+            edge.source_name.clone(), edge.source_kind.clone(),
+            metadata.get("source_declaration_line").cloned(),
+            edge.target_name.clone(), edge.kind.clone(),
+        );
+        let group = *positions.entry(key).or_insert_with(|| {
+            sites.push((out.edges.len(), Vec::new(), 0));
+            out.edges.push(edge.clone());
+            sites.len() - 1
+        });
+        let (index, observed, omitted) = &mut sites[group];
+        if observed.len() < MAX_SITES_PER_RELATION {
+            observed.push(json!({
+                "operation": operation,
+                "line": edge.source_start_line,
+                "column": metadata.get("state_access_column").and_then(|value| value.parse::<usize>().ok()),
+                "start_byte": metadata.get("state_access_byte").and_then(|value| value.parse::<usize>().ok()),
+                "end_byte": metadata.get("state_access_end_byte").and_then(|value| value.parse::<usize>().ok()),
+            }));
+        } else {
+            *omitted += 1;
+        }
+        // Preserve the legacy most recent representative and its span.
+        out.edges[*index] = edge;
+    }
+    for (index, observed, omitted) in sites {
+        let metadata = out.edges[index].metadata.get_or_insert_with(Default::default);
+        metadata.insert("browser_storage_access_sites".into(), Value::Array(observed).to_string());
+        metadata.insert("browser_storage_access_sites_omitted".into(), omitted.to_string());
+    }
+}
+
 pub(super) fn extract(
     bindings: &Bindings<'_, '_>,
     nodes: &[Node<'_>],
@@ -10,6 +78,7 @@ pub(super) fn extract(
     let Some(script) = bindings.script else {
         return;
     };
+    let first_edge = out.edges.len();
     for &node in nodes {
         if node.kind() != "call_expression" {
             extract_property(script, node, root, out);
@@ -73,7 +142,7 @@ pub(super) fn extract(
             .and_then(|arguments| arguments.named_child(0))
             .and_then(|argument| literal(argument, out.source));
         match key {
-            Some(key) => out.emit(node, category, &key, access.0, access.1),
+            Some(key) => emit_access(out, node, category, &key, operation, access),
             None => {
                 out.issues.insert(format!(
                     "browser_storage_dynamic_key_unresolved:{category}:{}",
@@ -82,6 +151,7 @@ pub(super) fn extract(
             }
         }
     }
+    retain_access_sites(out, first_edge);
 }
 
 fn property_key(node: Node<'_>, source: &str) -> Option<String> {
@@ -162,5 +232,6 @@ fn extract_property(
     } else {
         direction(node)
     };
-    out.emit(node, category, &key, reads, writes);
+    let operation = if deleted { "delete_property" } else { "property_access" };
+    emit_access(out, node, category, &key, operation, (reads, writes));
 }

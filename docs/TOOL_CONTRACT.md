@@ -1815,6 +1815,12 @@ does not override an explicit workflow preset.
 
 ### Browser storage questions in ask_codebase
 
+`trace_state_usage` reports up to eight indexed access sites per browser-key
+reader or writer, with operation, line, column and byte range. It reports the
+number of additional sites and keeps the containing graph relationship.
+Older indexes retain their earlier single observation until a source refresh.
+Locations refer to the indexed source hash.
+
 Current-source questions such as `Where is localStorage key "tabbedModalExtended"
 read and written?` and `Who uses sessionStorage.getItem('selection')?` compose
 existing indexed browser-state relationships. LocalStorage and SessionStorage
