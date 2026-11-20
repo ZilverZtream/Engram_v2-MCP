@@ -274,7 +274,10 @@ async fn complete_large_pre_edit_policy_recovers_without_repeating_source_or_ana
         let deferred = report(&fixture.project, controls)?
             .finish(&fixture.server.state.cfg.data_dir, original.clone())?;
         let manifest: Value = serde_json::from_str(text(&deferred))?;
-        ensure!(manifest["report_content"] == "DEFERRED_NOT_SUPPLIED");
+        ensure!(manifest["report_content"] == "PARTIAL_EVIDENCE");
+        let first_page = manifest["first_page"].as_str().unwrap();
+        ensure!(first_page.contains("saveOrder") && first_page.contains("dispatchOrder"));
+        ensure!(first_page.contains("Site/order.ts"));
         manifests.push(manifest);
     }
     let original_safety = fixture.safety(true).await?;
