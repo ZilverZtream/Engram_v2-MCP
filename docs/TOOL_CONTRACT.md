@@ -1982,6 +1982,10 @@ with the returned `project_id`, optional `job_id` and acknowledgement kind (`ind
 `existing_registration`, or `index_job_started`). An unrecognized acknowledgement
 supplies no inferred IDs. A queued acknowledgement never proves job completion.
 
+Queued `index_project` and `update_project` replies include
+`operation.poll_job` in JSON and in deferred acknowledgements. Call it to
+read the same job's typed status. Foreground updates supply no poll action.
+
 The default complete reply-text budget is 40KiB, estimated at4UTF-8bytes/token.
 Oversized results retain the original acknowledgement, all report warnings and every
 separate guidance part in the existing immutable result store. The deferred reply

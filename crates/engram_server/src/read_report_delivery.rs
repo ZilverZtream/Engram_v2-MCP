@@ -178,6 +178,37 @@ fn generation_instruction(tool: &str) -> Option<&'static str> {
 }
 
 const INDEX_DELIVERY_INSTRUCTION: &str = "Do not repeat index_project to recover this response. The original acknowledgement is in the saved result. A queued job acknowledgement does not establish job completion; poll get_job_status for its job_id. If recovery expires, reconcile list_projects/project_info and any returned job_id before deciding on a new operation. Delivery does not imply rollback.";
+const UPDATE_DELIVERY_INSTRUCTION: &str = "Do not repeat update_project to recover this response. Recover the original acknowledgement before acting on its outcome. Poll the returned job before assuming completion. Delivery does not establish rollback or current source freshness.";
+
+fn add_job_poll(operation: &mut Value, job_id: &str) {
+    operation["job_id"] = json!(job_id);
+    operation["poll_job"] = json!({
+        "tool": "get_job_status",
+        "arguments": {"job_id": job_id, "output_json": true},
+    });
+}
+
+fn update_operation(job: Option<&str>) -> Value {
+    let mut operation = json!({
+        "handler_returned": true,
+        "outcome": "Original acknowledgement and any separate instruction observation are in the saved result.",
+        "instruction": UPDATE_DELIVERY_INSTRUCTION,
+    });
+    if let Some(job_id) = job {
+        operation["acknowledgement"] = json!("update_job_started");
+        add_job_poll(&mut operation, job_id);
+    }
+    operation
+}
+
+fn update_job_id(original: &CallToolResult) -> Option<&str> {
+    let mut lines = original.content.first()?.as_text()?.text.lines();
+    if lines.next()? != "\u{1f7e1} Update job started." {
+        return None;
+    }
+    let job = lines.next()?.strip_prefix("job_id: ")?;
+    uuid::Uuid::parse_str(job).ok().map(|_| job)
+}
 
 // Read identities only from the handler's acknowledgement header, never from
 // report warnings, a project name, a path or a later content part.
@@ -201,7 +232,7 @@ fn index_operation(original: &CallToolResult) -> Value {
         value["acknowledgement"] = json!(kind);
         value["project_id"] = json!(project);
         if let Some(job) = job.filter(|id| uuid::Uuid::parse_str(id).is_ok()) {
-            value["job_id"] = json!(job);
+            add_job_poll(&mut value, job);
         }
     }
     value
@@ -423,10 +454,15 @@ impl Report {
         }
         // Reserve both full-length IDs before any indexing is admitted. These
         // placeholders are only a sizing probe; actual replies use the header.
-        let probe = json!({"handler_returned":true,"acknowledgement":"existing_registration",
-            "project_id":"00000000-0000-0000-0000-000000000000",
-            "job_id":"00000000-0000-0000-0000-000000000000",
-            "instruction":INDEX_DELIVERY_INSTRUCTION});
+        const SIZING_ID: &str = "00000000-0000-0000-0000-000000000000";
+        let probe = if self.tool == "update_project" {
+            update_operation(Some(SIZING_ID))
+        } else {
+            let mut index = json!({"handler_returned":true,"acknowledgement":"existing_registration",
+                "project_id":SIZING_ID,"instruction":INDEX_DELIVERY_INSTRUCTION});
+            add_job_poll(&mut index, SIZING_ID);
+            index
+        };
         self.manifest_for(id, bytes, Some(&probe))
     }
 
@@ -463,15 +499,8 @@ impl Report {
             value["operation"] = json!({"handler_returned":true,
                 "instruction":"Do not repeat refresh_corpora to recover this report. Original per-stage results/errors are saved; earlier successful writes are not rolled back. A returned result is not proof of complete or fresh corpora."});
         }
-        if self.tool == "update_project" {
-            value["operation"] = json!({
-                "handler_returned":true,
-                "outcome":"Original acknowledgement and any separate instruction observation are in the saved result.",
-                "instruction":"Do not repeat update_project to recover this response. Recover the original acknowledgement before acting on its outcome. A returned background-job acknowledgement does not establish job completion; poll get_job_status for its job_id. Delivery does not establish rollback or current source freshness."
-            });
-        }
-        if self.tool == "index_project" {
-            if let Some(operation) = operation { value["operation"] = operation.clone(); }
+        if matches!(self.tool, "index_project" | "update_project") && let Some(operation) = operation {
+            value["operation"] = operation.clone();
         }
         if self.tool == "one_shot_feature_plan"
             && let Some(summary) = operation
@@ -591,6 +620,7 @@ impl Report {
                 }
                 fallback.content.push(Content::text(json!({
                     "tool":"update_project","project_id":self.project,
+                    "operation":update_operation(update_job_id(&fallback)),
                     "response_delivery":{
                         "status":"ORIGINAL_OUTCOME_PRESERVED_DELIVERY_FAILED",
                         "budget_honored":false,"response_budget_bytes":self.budget,
@@ -619,6 +649,7 @@ impl Report {
         }
         let stage_error = (self.tool == "refresh_corpora" || maintenance_operation(self.tool)) && original.is_error == Some(true);
         let operation = if self.tool == "index_project" { Some(index_operation(&original)) }
+            else if self.tool == "update_project" { Some(update_operation(update_job_id(&original))) }
             else if maintenance_operation(self.tool) { Some(maintenance_outcome(self.tool)) }
             else { None };
         let plan_summary = if self.tool == "one_shot_feature_plan" {

@@ -2698,6 +2698,17 @@
       "TODO-28"
     ],
     "implementation_items_active": 0,
+    "queued_source_job_poll_action": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "TODO-37 pollable indexing and EG-18 callable workflow dependencies",
+      "observed_gap": "Queued update_project replies put the job ID only in acknowledgement prose. Deferred delivery loses it from the inline preview, so an agent must recover or parse the response to poll.",
+      "implementation": ["crates/engram_server/src/read_report_delivery.rs", "crates/engram_server/src/read_report_delivery_tests.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Follow a typed get_job_status action from queued index and update acknowledgements. Recover the same job ID through deferred delivery and keep foreground updates distinct. Metadata budget refusal must occur before starting a job.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/queued-source-job-poll-action-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "945a1aa8dff77ef4b09b22d157be6a0a8d709608917ce5d092bd1d7381df79d7"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "2e36750a4dc29d2949dbd35dda5335a87044b40c9fb0fdb054a2b94a052aa845"},
+      "evidence": "Installed MCP completed both queued paths and returned no callable poll action; the verifier polled the IDs from the original acknowledgement text. Source adds an action only for recognized queued headers and reserves its metadata budget before execution. Syntax and whitespace checks passed. Candidate MCP and the single deferred-delivery regression test are pending; baseline resources were closed and removed."
+    },
     "job_poll_tool_list_notifications": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "TODO-37 pollable indexing and EG-18 reliable tool discovery for agent clients",

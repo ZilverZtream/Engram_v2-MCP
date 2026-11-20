@@ -16,6 +16,31 @@ fn text(result: &CallToolResult) -> &str {
 }
 
 #[test]
+fn deferred_update_keeps_a_callable_job_id_from_its_header() {
+    let owned = tempfile::tempdir().unwrap();
+    let job = "a13ef31a-7adf-4d9a-94bb-3797c2b7dd6f";
+    let original = CallToolResult::success(vec![
+        Content::text(format!("\u{1f7e1} Update job started.\njob_id: {job}")),
+        Content::text("separate advisory\n".repeat(750)),
+    ]);
+    let report = prepared("update_project", json!({
+        "project_id": "project", "wait": false, "max_tokens": 512,
+    }));
+    let delivered = report.finish(owned.path(), original).unwrap();
+    assert!(text(&delivered).len() <= 2048);
+    let body: Value = serde_json::from_str(text(&delivered)).unwrap();
+    assert_eq!(body["response_delivery"]["status"], "DEFERRED_READ_REPORT");
+    assert_eq!(body["operation"]["poll_job"], json!({
+        "tool": "get_job_status",
+        "arguments": {"job_id": job, "output_json": true},
+    }));
+    let foreground = CallToolResult::success(vec![Content::text(format!(
+        "Updated source\njob_id: {job}"
+    ))]);
+    assert!(update_operation(update_job_id(&foreground)).get("poll_job").is_none());
+}
+
+#[test]
 fn schemas_expose_shared_recovery_for_selected_reports_and_preserve_existing_owners() {
     let original = registry();
     let eligible_names = original.iter().filter_map(eligible).collect::<Vec<_>>();
