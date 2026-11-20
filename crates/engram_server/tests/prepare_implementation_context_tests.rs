@@ -143,6 +143,20 @@ async fn published_context_withholds_unselected_source_even_when_disk_fingerprin
     assert!(report["pattern_examples"].as_array().unwrap().is_empty());
     assert!(report["warnings"].to_string().contains("Caller pattern"));
 
+    let body_request = json!({
+        "project_id":project,"fqn":"orders.GetAll","context_lines":0,
+        "include_caller_bodies":true,"output_json":true
+    });
+    let body = server.handle_get_full_method_body(
+        serde_json::from_value(body_request.clone()).unwrap(),
+    ).await.unwrap();
+    let body: serde_json::Value = serde_json::from_str(&body.content[0].as_text().unwrap().text).unwrap();
+    assert_eq!(body["source_generation"], generation);
+    assert_eq!(body["source_verification"], "matched_indexed_fingerprint");
+    assert!(body["source_code"].as_str().unwrap().contains("all-rows"));
+    assert!(body["caller_bodies"].as_array().unwrap().is_empty());
+    assert_eq!(body["caller_expansion"]["status"], "partial");
+
     let mut file = state.graph.get_node(&project, "file:Site/orders.vb").unwrap().unwrap();
     file.generation = generation + 1;
     state.graph.upsert_nodes(&project, &[file]).unwrap();
@@ -150,6 +164,17 @@ async fn published_context_withholds_unselected_source_even_when_disk_fingerprin
         serde_json::from_value(request).unwrap(),
     ).await.unwrap_err();
     assert!(error.message.contains("held published source selection"));
+    let error = server.handle_get_full_method_body(
+        serde_json::from_value(body_request).unwrap(),
+    ).await.unwrap_err();
+    assert!(error.message.contains("held published source selection"));
+    let direct = server.handle_get_full_method_body(serde_json::from_value(json!({
+        "project_id":project,"file_path":"Site/orders.vb","line_start":2,"line_end":4,
+        "context_lines":0,"output_json":true
+    })).unwrap()).await.unwrap();
+    let direct: serde_json::Value = serde_json::from_str(&direct.content[0].as_text().unwrap().text).unwrap();
+    assert!(direct.get("source_generation").is_none());
+    assert!(direct["source_code"].as_str().unwrap().contains("all-rows"));
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

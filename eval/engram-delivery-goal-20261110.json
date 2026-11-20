@@ -3374,7 +3374,15 @@
       "limits": "Generated-plan semantic acceptance, task-usefulness gates, runtime browser execution, previously indexed graph refresh and the full original backlog remain open.",
       "retention": "Owned processes, temporary repositories and build resources closed. Keep release inputs, receipts and the prior package pair for rollback and audit. The corrected baseline included the authored companion fixture."
     },
-    "next_action": "Advance the next ready original requirement. This release is installed and its three public checks are verified."
+    "indexed_method_body_source_lease": {
+      "status": "IMPLEMENTED_FOCUSED_ACTUAL_SOURCE_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "S06 hold source selection through indexed source reads and enrichment",
+      "observed_gap": "get_full_method_body FQN lookup checks current disk bytes against the live graph without admitting the selected method/file revision. Its caller expansion reads disk twice. The installed LegacyValidation task-management probe reports a matching fingerprint without identifying a published generation.",
+      "implementation": ["crates/engram_server/src/handlers/access_layer_tools.rs", "crates/engram_server/tests/prepare_implementation_context_tests.rs"],
+      "acceptance": "An indexed FQN read pins one managed selection, admits the target and caller revisions, uses the fingerprint-checked bytes for returned spans, and retains the lease through report delivery. Inherited selected files pass; future observations with matching bytes are withheld. Explicit current-file/range and legacy fingerprint results preserve their existing modes.",
+      "verification": "Installed FQN request returned the actual LegacyValidation task-management LoadComplete method with matched_indexed_fingerprint but no source_generation. Focused compiled source reader and caller expansion used the actual LegacyValidation bytes in an owned fixture with a real Tantivy selection and GraphStore. It admitted target/caller records inherited from revision 1 at published generation 2 and withheld a revision-3 caller edge, caller node and target file despite unchanged bytes. The public regression fixture also asserts direct-range source remains readable and the indexed response reports the held generation. Owned resources closed. Candidate/installed verification remains pending. No Cargo build."
+    },
+    "next_action": "Advance a separate ready original requirement before the next combined packaged MCP release."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",

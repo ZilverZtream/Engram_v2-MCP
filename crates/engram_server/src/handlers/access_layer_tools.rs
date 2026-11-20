@@ -162,6 +162,9 @@ pub struct MethodBodyResult {
     /// Explicit ranges do not establish method boundaries, even if they happen to match.
     pub retrieval_scope: &'static str,
     pub boundary_guidance: &'static str,
+    /// Published generation for a managed indexed method read.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_generation: Option<u64>,
     /// Verification of the exact complete-file bytes used for the returned lines.
     pub source_verification: &'static str,
     /// BLAKE3 hex digest of those complete-file bytes, before line normalization.
@@ -386,6 +389,7 @@ fn current_file_excerpt(
         project,
         directory.to_str().ok_or("Project path is not UTF-8")?,
         None,
+        None,
         request.include_caller_bodies,
         request.max_callers,
     );
@@ -398,6 +402,7 @@ fn current_file_excerpt(
     Ok(MethodBodyResult {
         retrieval_scope: "current_file_excerpt",
         boundary_guidance: "These are bounded current-file lines, not a resolved method. Surrounding context is omitted. The hash binds the returned lines to the loaded complete-file bytes; it does not verify indexed-generation freshness, method boundaries or invocation locations.",
+        source_generation: None,
         source_verification: "current_file_snapshot_not_index_verified",
         source_file_hash: hash.clone(),
         source_file_hash_algorithm: "blake3",
@@ -2615,6 +2620,7 @@ fn expand_caller_bodies(
     project: &str,
     root: &str,
     target: Option<&Node>,
+    membership: Option<&engram_index::hybrid::SelectedSourceRevisionLookup>,
     requested: bool,
     limit: usize,
 ) -> (Vec<CallerBody>, CallerExpansion) {
@@ -2674,11 +2680,26 @@ fn expand_caller_bodies(
                 .get_node(project, &source_id)
                 .map_err(|e| e.to_string())?
                 .ok_or_else(|| "Caller source node is missing from the index".to_string())?;
-            verify_indexed_source_span(graph, project, root, source.file_path.as_str())?;
-            let path =
-                safe_join(Path::new(root), source.file_path.as_str()).map_err(|e| e.to_string())?;
-            let text = std::fs::read_to_string(path)
-                .map_err(|e| format!("Cannot read {}: {e}", source.file_path))?;
+            let bytes = if let Some(membership) = membership {
+                let (bytes, _) = read_held_context_source(graph, project, root, &source, membership)?;
+                let endpoint = (source_id.clone(), kind.clone(), target.node_id.clone());
+                let edges = graph.get_edges_by_endpoints(project, &[endpoint])
+                    .map_err(|error| error.to_string())?;
+                if !edges.iter().any(|edge| {
+                    edge.generation == source.generation
+                        && edge.namespace == engram_core::namespaces::NAMESPACE_MEMORY
+                }) {
+                    return Err("Caller edge is unavailable at the selected caller revision".into());
+                }
+                bytes
+            } else {
+                let file = source.file_path.as_str();
+                let path = safe_join(Path::new(root), file).map_err(|error| error.to_string())?;
+                let bytes = std::fs::read(path).map_err(|error| format!("Cannot read {file}: {error}"))?;
+                verify_indexed_source_bytes(graph, project, file, &bytes)?;
+                bytes
+            };
+            let text = std::str::from_utf8(&bytes).map_err(|error| error.to_string())?;
             let lines: Vec<_> = text.lines().collect();
             if source.start_line == 0 || source.end_line < source.start_line {
                 return Err("Indexed caller line span is invalid; refresh the index".into());
@@ -2772,6 +2793,9 @@ fn render_method_body_markdown(result: &MethodBodyResult) -> String {
         "**Source verification**: `{}`\n\n**Source file BLAKE3**: `{}`\n\n",
         result.source_verification, result.source_file_hash
     ));
+    if let Some(generation) = result.source_generation {
+        md.push_str(&format!("**Published source generation**: `{generation}`\n\n"));
+    }
     md.push_str(&format!(
         "**File**: `{}` (lines {}–{})\n\n",
         result.file_path, result.line_start, result.line_end
@@ -4119,7 +4143,7 @@ impl Engram {
         if let Some(body)=method_source_delivery::recover(&self.state.cfg.data_dir,&req)? {
             return Ok(CallToolResult::success(vec![Content::text(body)]));
         }
-        let (original,paths)=self.full_method_body_evidence(req.clone()).await?;
+        let (original, paths, source_view) = self.full_method_body_evidence(req.clone()).await?;
         let root=std::path::PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
         let body=original.content.first().and_then(|content| content.as_text())
             .ok_or_else(||McpError::internal_error("Method/source evidence returned no text",None))?.text.clone();
@@ -4128,12 +4152,14 @@ impl Engram {
             .await.map_err(|error|McpError::internal_error(error.to_string(),None))?
             .map_err(|error|McpError::invalid_params(error.to_string(),None))?;
         let body=method_source_delivery::finish(&self.state.cfg.data_dir,&req,body,&paths,&policy)?;
-        Ok(CallToolResult::success(vec![Content::text(body)]))
+        let result = CallToolResult::success(vec![Content::text(body)]);
+        drop(source_view);
+        Ok(result)
     }
 
     async fn full_method_body_evidence(
         &self,req: GetFullMethodBodyRequest,
-    ) -> Result<(CallToolResult,Vec<String>),McpError> {
+    ) -> Result<(CallToolResult, Vec<String>, Option<Arc<engram_index::SourceSnapshotGuard>>), McpError> {
         validate_source_hash_request(&req).map_err(|e| McpError::invalid_params(e, None))?;
         validate_source_ranges(&req).map_err(|e| McpError::invalid_params(e, None))?;
         if req.fqn.is_some()
@@ -4171,7 +4197,7 @@ impl Engram {
             if out.len() > EXCERPT_RESPONSE_BYTES {
                 return Err(McpError::invalid_params("source_ranges rendered response exceeds the32KiB budget; no partial windows returned", None));
             }
-            return Ok((CallToolResult::success(vec![Content::text(out)]),vec![result.file_path.clone()]));
+            return Ok((CallToolResult::success(vec![Content::text(out)]), vec![result.file_path.clone()], None));
         }
         let project_dir = rec.directory.clone();
         let graph = self.state.graph.clone();
@@ -4187,6 +4213,16 @@ impl Engram {
         let line_start = req.line_start;
         let line_end = req.line_end;
         let excerpt_request = req.clone();
+        let indexed_snapshot = if fqn.is_some() {
+            let runtime = self.ensure_project_runtime(&req.project_id).await?;
+            let (generation, view) = self
+                .pin_active_source_generation(&req.project_id, &runtime.search)
+                .await?;
+            Some((generation, Arc::new(view), runtime.search.clone()))
+        } else {
+            None
+        };
+        let source_view = indexed_snapshot.as_ref().map(|(_, view, _)| Arc::clone(view));
 
         let result = tokio::task::spawn_blocking(move || {
             if fqn.is_none() && file_path.is_some() && line_end.is_none() {
@@ -4196,6 +4232,15 @@ impl Engram {
             let target_node = fqn.as_deref()
                 .map(|query| resolve_unique_function(&graph, &project_id, query))
                 .transpose()?;
+            let (source_generation, membership) = match indexed_snapshot.as_ref() {
+                Some((generation, view, search)) if view.selected_file_revisions().is_some() => {
+                    let membership = search.selected_source_revision_lookup(&project_id, *generation, Arc::clone(view))
+                        .map_err(|error| format!("Selected method source unavailable: {error:#}"))?;
+                    (Some(*generation), Some(membership))
+                }
+                // Existing legacy method locators have no managed file map.
+                _ => (None, None),
+            };
             let (resolved_fqn, resolved_file, resolved_start, resolved_end, language) =
                 if let Some(ref node) = target_node {
                     (
@@ -4219,25 +4264,37 @@ impl Engram {
 
             // Verify and slice one byte snapshot: a second read could observe
             // an intervening edit after the fingerprint check succeeded.
-            let full_path = safe_join(Path::new(&project_dir), &resolved_file)
-                .map_err(|e| format!("Path validation failed for '{}': {e}", resolved_file))?;
-            let source = std::fs::read_to_string(&full_path)
-                .map_err(|e| format!("Cannot read '{}': {e}", resolved_file))?;
-            let source_file_hash = blake3::hash(source.as_bytes()).to_hex().to_string();
-            verify_expected_source_hash(&excerpt_request, &source_file_hash)?;
-            let source_verification = if target_node.is_some() {
-                verify_indexed_source_bytes(&graph, &project_id, &resolved_file, source.as_bytes())?
+            let (bytes, source_verification) = if let (Some(node), Some(membership)) =
+                (target_node.as_ref(), membership.as_ref())
+            {
+                read_held_context_source(&graph, &project_id, &project_dir, node, membership)?
             } else {
-                "explicit_range_current_file_snapshot"
+                let full_path = safe_join(Path::new(&project_dir), &resolved_file)
+                    .map_err(|error| format!("Path validation failed for '{resolved_file}': {error}"))?;
+                let bytes = std::fs::read(full_path)
+                    .map_err(|error| format!("Cannot read '{resolved_file}': {error}"))?;
+                let verification = if target_node.is_some() {
+                    verify_indexed_source_bytes(&graph, &project_id, &resolved_file, &bytes)?
+                } else {
+                    "explicit_range_current_file_snapshot"
+                };
+                (bytes, verification)
             };
+            let source_file_hash = blake3::hash(&bytes).to_hex().to_string();
+            verify_expected_source_hash(&excerpt_request, &source_file_hash)?;
+            let source = std::str::from_utf8(&bytes)
+                .map_err(|error| format!("Cannot read '{resolved_file}': {error}"))?;
             let (body, context) =
-                source_lines(&source, resolved_start, resolved_end, context_lines)
+                source_lines(source, resolved_start, resolved_end, context_lines)
                     .map_err(|e| format!("Cannot read '{}': {}", resolved_file, e))?;
 
             let (caller_bodies, caller_expansion) = expand_caller_bodies(
                 &graph, &project_id, &project_dir, target_node.as_ref(),
-                include_callers, max_callers,
+                membership.as_ref(), include_callers, max_callers,
             );
+            if let Some(node) = target_node.as_ref() {
+                validate_held_method_revision(&graph, &project_id, node, membership.as_ref())?;
+            }
 
             Ok(MethodBodyResult {
                 retrieval_scope: if target_node.is_some() { "indexed_method" } else { "explicit_source_range" },
@@ -4246,6 +4303,7 @@ impl Engram {
                 } else {
                     "These are the requested source lines; method boundaries have not been resolved. A search chunk can end mid-method. Use a unique fqn, or get_method_edit_context with file_path, method_name and line, to resolve the method body."
                 },
+                source_generation,
                 source_verification,
                 source_file_hash,
                 source_file_hash_algorithm: "blake3",
@@ -4288,10 +4346,10 @@ impl Engram {
                 out
             };
             let Some(page)=body_result.file_excerpt.as_mut() else {
-                return Ok((CallToolResult::success(vec![Content::text(out)]),policy_paths.clone()));
+                return Ok((CallToolResult::success(vec![Content::text(out)]), policy_paths, source_view));
             };
             if out.len()<=EXCERPT_RESPONSE_BYTES {
-                return Ok((CallToolResult::success(vec![Content::text(out)]),policy_paths.clone()));
+                return Ok((CallToolResult::success(vec![Content::text(out)]), policy_paths, source_view));
             }
             if page.returned_lines<=1 {
                 return Err(McpError::invalid_params("The first requested line and response metadata exceed the32KiB excerpt response budget; no source was clipped or skipped",None));
