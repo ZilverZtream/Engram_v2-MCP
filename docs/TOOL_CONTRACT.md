@@ -1689,6 +1689,10 @@ assessment. Saved batch recovery returns the previously captured assessment.
 When the active limited preset omits a row's underlying tool from discovery,
 the row's `recovery` contains a single-read `batch_read` call with the same
 request ID and arguments. Discoverable tools keep the direct refresh action.
+If a hidden tool returned a saved-result manifest or page, the row also
+exposes a callable `next_call` through `batch_read`. Follow it while pages
+remain, and retain the original response ID and content for verification.
+This action continues the saved result. The row's `recovery` is a fresh read.
 
 ### HTTP requests in natural-language answers (installed November17)
 

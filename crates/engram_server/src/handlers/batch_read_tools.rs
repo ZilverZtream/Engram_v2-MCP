@@ -23,6 +23,7 @@ struct Row {
     response_bytes: u64,
     response: Option<Value>,
     recovery: Value,
+    next_call: Option<Value>,
     included: bool,
 }
 
@@ -33,6 +34,8 @@ struct WireRow<'a> {
     response_bytes: u64,
     response: Option<&'a Value>,
     recovery: &'a Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    next_call: Option<&'a Value>,
 }
 
 #[derive(Serialize)]
@@ -82,12 +85,29 @@ fn recovery_call(item: &BatchReadItem, preset: ToolPreset) -> Result<Value, McpE
         .as_str()
         .is_some_and(|name| !crate::tool_surface::includes(preset, name))
     {
-        return Ok(json!({
-            "tool": "batch_read",
-            "arguments": {"requests": [{"request_id": item.request_id, "request": request}]}
-        }));
+        return Ok(single_read_call(&item.request_id, &request));
     }
     Ok(request)
+}
+
+fn single_read_call(request_id: &str, request: &Value) -> Value {
+    json!({
+        "tool": "batch_read",
+        "arguments": {"requests": [{"request_id": request_id, "request": request}]}
+    })
+}
+
+fn hidden_saved_read_call(row: &Row, response: &Value) -> Option<Value> {
+    let hidden_tool = row.recovery.pointer("/arguments/requests/0/request/tool")?.as_str()?;
+    let text = response.pointer("/content/0/text")?.as_str()?;
+    let body: Value = serde_json::from_str(text).ok()?;
+    let action = body.pointer("/response_delivery/next_call").or_else(|| body.get("next_call"))?;
+    if action.get("tool")?.as_str()? != hidden_tool
+        || action.pointer("/arguments/response_id")?.as_str()?.is_empty()
+    {
+        return None;
+    }
+    Some(single_read_call(&row.request_id, action))
 }
 
 impl BudgetedBatch {
@@ -121,6 +141,7 @@ impl BudgetedBatch {
                 response_bytes: u64::MAX,
                 response: None,
                 recovery,
+                next_call: None,
                 included: false,
             });
         }
@@ -165,6 +186,7 @@ impl BudgetedBatch {
                 response_bytes: row.response_bytes,
                 response: row.response.as_ref().filter(|_| include),
                 recovery: &row.recovery,
+                next_call: row.next_call.as_ref().filter(|_| include),
             }
         }).collect();
         let omitted_count = results.iter().filter(|row| row.status == OMITTED).count();
@@ -183,6 +205,7 @@ impl BudgetedBatch {
         let row = &mut self.rows[index];
         row.response_bytes =
             serde_json::to_vec(&response).map_err(serialization)?.len() as u64;
+        row.next_call = (status == "ok").then(|| hidden_saved_read_call(row, &response)).flatten();
         row.status = status;
         row.response = Some(response);
         row.included = true;
@@ -335,6 +358,32 @@ mod tests {
                 batch.rows[direct].recovery,
                 serde_json::to_value(&request.requests[direct].request).unwrap()
             );
+        }
+    }
+
+    #[test]
+    fn hidden_saved_schema_pages_keep_original_payload_and_receive_callable_actions() {
+        let request: BatchReadRequest = serde_json::from_value(json!({"requests": [
+            {"request_id":"schema", "request":{"tool":"query_schema","arguments":{
+                "project_id":"p","query_type":{"kind":"table","name":"dbo.Tasks"}
+            }}}
+        ]})).unwrap();
+        let next = json!({"tool":"query_schema", "arguments":{
+            "project_id":"p","response_id":"saved","response_offset":26,"max_tokens":512
+        }});
+        for body in [
+            json!({"response_delivery":{"next_call":next}}),
+            json!({"content":"saved page","next_call":next}),
+        ] {
+            let original = json!({"content":[{"type":"text","text":body.to_string()}]});
+            let mut batch = BudgetedBatch::new(&request, ToolPreset::Development).unwrap();
+            batch.insert(0, "ok", original.clone()).unwrap();
+            let reply: Value = serde_json::from_str(&batch.encode().unwrap()).unwrap();
+            let row = &reply["results"][0];
+            assert_eq!(row["response"], original);
+            assert_eq!(row["next_call"]["tool"], "batch_read");
+            assert_eq!(row["next_call"]["arguments"]["requests"][0]["request_id"], "schema");
+            assert_eq!(row["next_call"]["arguments"]["requests"][0]["request"], next);
         }
     }
 
