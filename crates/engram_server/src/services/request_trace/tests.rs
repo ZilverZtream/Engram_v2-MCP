@@ -321,6 +321,28 @@ End Sub"#;
 }
 
 #[test]
+fn response_metadata_distinguishes_assignments_from_comparisons_and_expressions() {
+    let body = r#"Sub Download()
+' Response.StatusCode = 500
+Dim example = "Response.StatusCode = 500"
+If Response.StatusCode = 404 Then Return
+Response.StatusCode = 401
+Response.ContentType = "application/pdf"
+Response.ContentType = "application/" & format
+Response.AppendHeader("Content-Disposition", BuildName(fileName))
+Response.AddHeader(ContentLengthHeader, length)
+End Sub"#;
+    let report = execution::response_metadata(&routing::tokens(body, true), 10).unwrap();
+    assert_eq!(report["candidates"], json!([
+        {"line":14,"member":"StatusCode","operation":"assignment","value":401,"value_status":"literal"},
+        {"line":15,"member":"ContentType","operation":"assignment","value":"application/pdf","value_status":"literal"},
+        {"line":16,"member":"ContentType","operation":"assignment","value":null,"value_status":"unresolved_expression"},
+        {"line":17,"member":"AppendHeader","operation":"header_call","name":"Content-Disposition","name_status":"literal"},
+        {"line":18,"member":"AddHeader","operation":"header_call","name":null,"name_status":"unresolved_expression"}
+    ]));
+}
+
+#[test]
 fn stale_source_and_wrong_physical_revision_withhold_handler_paths() {
     let fixture = fixture();
     let changed = VB.replace("Orders.Save()", "Other.Save()");

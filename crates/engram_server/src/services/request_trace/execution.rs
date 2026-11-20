@@ -12,6 +12,7 @@ const MAX_DEPTH: usize = 6;
 const MAX_EDGES: usize = 128;
 const MAX_REDIRECTS_PER_METHOD: usize = 8;
 const MAX_STARTUP_SCRIPTS_PER_METHOD: usize = 8;
+const MAX_RESPONSE_METADATA_PER_METHOD: usize = 8;
 
 pub(super) fn response_redirects(
     tokens: &[super::routing::Token],
@@ -103,6 +104,78 @@ pub(super) fn startup_script_registrations(
         "candidates": candidates,
         "truncated": truncated,
         "interpretation": "Authored VB registrations. The generated script, browser execution and effects are unverified.",
+    }))
+}
+
+pub(super) fn response_metadata(
+    tokens: &[super::routing::Token],
+    start_line: u32,
+) -> Option<serde_json::Value> {
+    use super::routing::arguments;
+    use serde_json::json;
+
+    let mut candidates = Vec::new();
+    let mut truncated = false;
+    for (index, call) in tokens.windows(5).enumerate() {
+        if call[..4].iter().any(|token| token.string)
+            || !call[0].text.eq_ignore_ascii_case("Response")
+            || call[1].text != "."
+        {
+            continue;
+        }
+        let line = start_line as usize + call[0].line - 1;
+        let operation = &call[2].text;
+        let candidate = match operation.to_ascii_lowercase().as_str() {
+            member @ ("statuscode" | "contenttype") if call[3].text == "=" => {
+                // Require a statement start so comparisons are not assignments.
+                if index > 0 && tokens[index - 1].line == call[0].line
+                    && tokens[index - 1].text != ":"
+                {
+                    continue;
+                }
+                let value = &call[4];
+                let single_value = tokens.get(index + 5).is_none_or(|next| {
+                    next.line > value.line || (!next.string && next.text == ":")
+                });
+                let literal = if single_value && member == "statuscode" && !value.string {
+                    value.text.parse::<u16>().ok()
+                        .filter(|code| (100..=599).contains(code)).map(|code| json!(code))
+                } else if single_value && member == "contenttype" && value.string
+                    && value.text.len() <= 256
+                {
+                    Some(json!(value.text))
+                } else {
+                    None
+                };
+                json!({"line":line,"member":operation,"operation":"assignment","value":literal,
+                       "value_status":if literal.is_some() {"literal"} else {"unresolved_expression"}})
+            }
+            "appendheader" | "addheader" if call[3].text == "(" => {
+                let Some(args) = arguments(&tokens[index + 4..]) else {
+                    continue;
+                };
+                let [name, _] = args.as_slice() else {
+                    continue;
+                };
+                let literal_name = match *name {
+                    [name] if name.string && name.text.len() <= 256 => Some(name.text.as_str()),
+                    _ => None,
+                };
+                json!({"line":line,"member":operation,"operation":"header_call","name":literal_name,
+                       "name_status":if literal_name.is_some() {"literal"} else {"unresolved_expression"}})
+            }
+            _ => continue,
+        };
+        if candidates.len() == MAX_RESPONSE_METADATA_PER_METHOD {
+            truncated = true;
+            break;
+        }
+        candidates.push(candidate);
+    }
+    (!candidates.is_empty()).then(|| json!({
+        "candidates": candidates,
+        "truncated": truncated,
+        "interpretation": "Authored VB response statements. Values are lexical source observations. Final status, headers and execution are unverified.",
     }))
 }
 
@@ -684,6 +757,9 @@ pub(super) fn trace_selected(
                 }
                 if let Some(scripts) = startup_script_registrations(&tokens, node.start_line) {
                     member["startup_script_registrations"] = scripts;
+                }
+                if let Some(metadata) = response_metadata(&tokens, node.start_line) {
+                    member["response_metadata"] = metadata;
                 }
             }
             result.source_members.push(member);

@@ -188,7 +188,8 @@ mod tests {
                 "target_source_verified":true,"evidence":{"call_lines":[17],"compiler_details":"å".repeat(80_000)}}],
             "source_members":[{"node_id":"service","file":"Service.vb","line_start":11,"source_blake3":"retained-hash",
                 "excerpt":"original source","shown_lines":1,"excerpt_truncated":false,
-                "startup_script_registrations":{"candidates":[{"line":12,"key":"refresh","script_status":"literal"}]}}],
+                "startup_script_registrations":{"candidates":[{"line":12,"key":"refresh","script_status":"literal"}]},
+                "response_metadata":{"candidates":[{"line":13,"member":"StatusCode","value":401}]}}],
             "gaps":["Runtime DI selection is not proven"],"trigger_coverage":"unknown"
         }]}],"coverage":{"runtime_execution_proven":false}});
         let body = report.to_string();
@@ -207,6 +208,8 @@ mod tests {
         assert_eq!(controller["source_members"][0]["source_blake3"],"retained-hash");
         assert_eq!(controller["source_members"][0]["startup_script_registrations"],
             report["api_traces"][0]["controllers"][0]["source_members"][0]["startup_script_registrations"]);
+        assert_eq!(controller["source_members"][0]["response_metadata"],
+            report["api_traces"][0]["controllers"][0]["source_members"][0]["response_metadata"]);
         let id = manifest["response_delivery"]["response_id"].as_str().unwrap();
         let mut recovered = String::new();
         loop {
