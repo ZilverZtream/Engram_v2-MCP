@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "VERIFIED_METHOD_EDIT_CONTEXT_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "exact_refresh_freshness_navigation": {
+      "status": "SOURCE_COMPLETE_EXACT_MCP_READ_VERIFIED_AWAITING_PACKAGED_DISCOVERY",
+      "source_commit": "90e2cecada48fde312b583317494ff332403fd8d",
+      "requirement": "TODO-55 interactive source refresh and EG-18 reliable agent tool navigation",
+      "observed_gap": "Installed update_project discovery does not direct agents that only need byte freshness to the exact-file check. Actual LegacyValidation defaultProject.js matched independent source bytes in 8.3 ms; the prior explicit only_paths forced refresh took 59.485 s.",
+      "implementation": ["crates/engram_server/src/tools.rs", "crates/engram_server/src/models/requests.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "MCP tools/list advertises the check before forced refresh. An agent can use exact source_files output to tell whether the published file matches current bytes without modifying the project. Preserve forced extraction for explicit repairs and disclose that byte equality alone does not certify parser migration.",
+      "receipt": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/limited-recovery-guidance-20261120/exact-refresh-readability.json", "sha256": "fc968d91a3797e28f9a4162b32538ab178ea764545265acea955dac8b5ba00d7"},
+      "verification": "Live exact source-file freshness in 8.3 ms matched disk, selected source and independently calculated raw BLAKE3 for defaultProject.js at project generation 3224 and physical revision 3223. The earlier 59.485 s forced refresh observation is a different operation. No reindex was executed to repeat timing. The speed of a necessary refresh and the cause of the 52 s ingestion phase are unverified."
+    },
     "limited_recovery_guidance_release": {
       "status": "RELEASE_RUNNING_BASELINE_MCP_VERIFIED",
       "frozen_source_commit": "dfbc8015ffbedc17a702b60d7e309b75c0da8f94",
@@ -4802,6 +4812,14 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "dfbc8015ffbedc17a702b60d7e309b75c0da8f94",
       "acceptance_contract": "Call plan_user_story under Core with the actual LegacyValidation VB and authored guide copy, verify the candidate scope and omissions, then follow the emitted action to exact source EOF. Confirm both tools are discoverable."
+    }
+  ],
+  "following_source_batch_pending": [
+    {
+      "original_requirement_id": "TODO-55 exact refresh discovery",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "90e2cecada48fde312b583317494ff332403fd8d",
+      "acceptance_contract": "Inspect advertised update_project and only_paths schemas in Core and Full, then follow the existing source_files check and compare actual LegacyValidation file bytes. Fixture repair still forces re-extraction. Ship this documentation and discovery improvement within a later combined binary, without a standalone build."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
