@@ -131,12 +131,19 @@ async fn recent_lists_matching_history_in_order_and_keeps_older_matches_reachabl
         "max_commits":3,"limit":1,"output_json":true})).await?;
     ensure!(first["results"][0]["commit"] == fixture.commits[5]);
     ensure!(first["semantic_retrieval"] == "not_run" && first["rerank"] == "not_run");
+    let patch = &first["results"][0]["recovery"]["selected_file_patch"];
+    ensure!(patch["tool"] == "search_history" && patch["arguments"]["as_of_rev"] == fixture.commits[5]);
     let next = &first["next_history_window"]["arguments"];
     ensure!(next["as_of_rev"] == fixture.commits[4] && next["file_filter"] == "invoice.sql");
     let newest = commit(&fixture.root, 6)?;
+    let original = fixture.search(patch["arguments"].clone()).await?;
+    ensure!(original["results"][0]["commit"] == fixture.commits[5]);
+    ensure!(original["results"][0]["path"] == "invoice.sql");
+    ensure!(original["results"][0]["patch"].as_str().unwrap().contains("+SELECT 5;"));
     let older = fixture.search(next.clone()).await?;
     ensure!(older["results"][0]["commit"] == fixture.commits[4]);
     ensure!(older["results"][0]["commit"] != newest);
+    ensure!(older["results"][0]["recovery"]["selected_file_patch"]["arguments"]["as_of_rev"] == fixture.commits[4]);
 
     for index in 0..41 {
         std::fs::write(fixture.root.join(format!("Area{index:02}.ts")), "export const value = 1;\n")?;
@@ -152,6 +159,7 @@ async fn recent_lists_matching_history_in_order_and_keeps_older_matches_reachabl
         "max_commits":1,"limit":1,"output_json":true})).await?;
     ensure!(scoped["results"][0]["files"] == json!(["zBilling/Invoice.designer.vb"]));
     ensure!(scoped["results"][0]["file_count"] == 1);
+    ensure!(scoped["results"][0]["recovery"].get("selected_file_patch").is_none());
     fixture.close()
 }
 

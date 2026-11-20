@@ -3314,7 +3314,15 @@
       "acceptance": "Resolve the actual application-relative literal in page composition and retain the correct source file and fingerprint. Preserve literal src behavior and exclude variable and concatenated expressions. Runtime execution and existing graph refresh are independently qualified.",
       "verification": "The fresh installed get_page_context returned only the markup component. A focused executable compiled the changed WebForms module, existing page composition and neighboring script regression tests against cached dependencies. All 41 checks passed, including the exact immutable LegacyValidation page/script pair copied to an owned fixture: source edge line 590, client_script component with the authored page as declaring file and matching normalized fingerprint. Tests retained the dynamic exclusion with a variable input and covered concatenations and runat=server. No Cargo build, production write or reindex. Candidate and installed get_page_context verification remain pending."
     },
-    "next_action": "Advance a separate ready original requirement before packaging the planning and WebForms source changes."
+    "exact_file_recent_history_patch": {
+      "status": "IMPLEMENTED_FOCUSED_ACTUAL_PATCH_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-4 actionable bounded search_history results for the original usable-history workflow",
+      "observed_gap": "Live recent history filtered to LegacyValidation Site/modules/system/DownloadFile.aspx.vb returns exact commits and paths. Each row offers whole-commit recovery but omits the callable exact-file MCP patch, requiring a second discovery step.",
+      "implementation": ["crates/engram_server/src/handlers/history_response.rs", "crates/engram_server/tests/history_bounded_acquisition.rs"],
+      "acceptance": "The requested file row supplies an executable exact patch pinned to the commit and resolved revision. Older windows preserve their own revision basis, and a directory filter adds no exact-file action. Existing complete commit recovery and budgets remain intact.",
+      "verification": "The installed recent-file rows omitted the exact patch action. Focused compiled report code composed the action from the real LegacyValidation file, commit a1581c1f and captured revision 0a9fbcfc, confirming JSON, rendered action, Windows path normalization and directory exclusion. The installed public patch tool executed those exact generated arguments. Its 8975-byte patch applied to the old Git blob in an owned repository and reconstructed the new blob byte-for-byte. The owned fixture closed. The history regression fixture now exercises the action after advancing HEAD and across an older result window. No Cargo build. Candidate and installed verification of the amended recent tool remain pending."
+    },
+    "next_action": "Freeze the three source outcomes for one packaged MCP release."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",

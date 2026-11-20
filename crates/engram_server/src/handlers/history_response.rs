@@ -57,9 +57,17 @@ pub(super) fn recent(
     }).transpose()?;
     let mut blocks = Vec::new();
     let mut rows = Vec::new();
+    let requested_path = req.file_filter.as_deref().map(|path| path.replace('\\', "/"));
+    let resolved_revision = revision.to_string();
     for card in window.cards.iter().rev().take(limit) {
         let files = card.files.iter().take(12).collect::<Vec<_>>();
-        let recovery = recovery(&req.project_id, Some(&card.oid), None);
+        let mut recovery = recovery(&req.project_id, Some(&card.oid), None);
+        if let Some(path) = requested_path.as_ref().filter(|path| files.contains(path)) {
+            recovery["selected_file_patch"] = json!({"tool":"search_history","arguments":{
+                "project_id":req.project_id,"mode":"patch","query":card.oid,
+                "as_of_rev":resolved_revision,"file_filter":path,"output_json":true
+            }});
+        }
         let date = crate::utils::ymd_utc(card.timestamp.saturating_mul(1000));
         blocks.push(format!("\ncommit: {}\ndate: {date}\nauthor: {}\nmessage: {}\nfiles: {}\nrecovery: {recovery}\n",
             card.oid, card.author, card.title, json!(files)));
@@ -73,7 +81,7 @@ pub(super) fn recent(
         Path filters apply to the Git changes before the file preview cap. Follow commit recovery for the full cohort.\n\
         History acquisition: {scan}\nnext_history_window: {}\n", json!(next_window));
     finish(req, header, &blocks, &rows, json!({"mode":"recent", "scope":scope,
-        "resolved_revision":revision.to_string(),"history_scan":scan,"next_history_window":next_window,
+        "resolved_revision":resolved_revision,"history_scan":scan,"next_history_window":next_window,
         "file_filter":req.file_filter,"exclude_paths":req.exclude_paths,
         "semantic_retrieval":"not_run","rerank":"not_run","ranked_matches_before_limit":matches}))
 }
