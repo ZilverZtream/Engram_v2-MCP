@@ -546,7 +546,9 @@ pub struct RefreshCorporaRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateProjectRequest {
-    /// Exclusive synchronous source refresh. Outside paths are inherited
+    /// Force exclusive synchronous re-extraction, even when bytes match.
+    /// Use get_index_freshness with source_files to check bytes without a write.
+    /// Outside paths are inherited
     /// without checking disk bytes; Git and global enrichment are skipped.
     /// Requires a verified existing source identity, 1..4096 eligible paths,
     /// wait=true, and no reindex_paths or anti-pattern refresh. Optional

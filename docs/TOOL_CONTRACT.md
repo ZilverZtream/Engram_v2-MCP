@@ -2541,6 +2541,11 @@ Installed November 18 ([delivery](../eval/request-guidance-function-batch-delive
 
 `update_project(wait=true, only_paths=[...], instruction_maintenance=...)` refreshes selected files and collects a separate worktree instruction observation. With no guidance selector, maintenance uses `only_paths` under its existing 16-file selection limit; invalid maintenance requests refuse before source work. Explicit guidance selectors remain independent. The observation's `source_update_scope` states the refreshed paths, inherited outside revisions and omitted outside disk check. Guidance/Git evidence can be read outside those paths without refreshing their index rows. Observation failure preserves successful source publication with an explicit unavailable observation. No authored policy is written.
 
+`only_paths` forces re-extraction even when bytes match. For a freshness
+check on known files, call `get_index_freshness(source_files=[...])` first.
+A matching fingerprint establishes byte equality for that selected revision.
+Parser migration or an explicit repair can still require a refresh.
+
 `query_schema` accepts `query_type={"kind":"function","name":"billing.CalculateFee"}`. `ask_codebase` composes that reader for explicit named SQL-function questions. Complete admitted token-normalized signatures/bodies, lexical references and exact raw-source hash/span citations are retained. Scalar and table-valued declarations remain source function objects. Qualified names preserve ambiguity; Full clarification uses `query_schema`, and Core uses a qualified `ask_codebase` question. Existing selected-source refusal, scoped guidance and saved report delivery remain. This does not establish deployed definitions, runtime return types, dependency binding or execution.
 
 ## Attribute-route and SQL-function instruction evidence
