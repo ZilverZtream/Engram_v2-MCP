@@ -41,6 +41,13 @@ checks the captured file hash. Use them to locate file downloads and
 stream writes in source. Receiver binding, argument values, output bytes
 and runtime execution remain unresolved.
 
+Database-enabled request traces report `sql_bulk_copy_writes_table` when a
+reached VB method assigns a literal schema-qualified `DestinationTableName`
+and immediately calls `WriteToServer` or `WriteToServerAsync` on the same
+directly declared `SqlBulkCopy` receiver. The path cites the declaration,
+assignment and call with the raw file hash. These source observations leave
+the effective destination, transaction, trigger options and execution unresolved.
+
 If compact trace navigation exceeds the caller's reply budget, the trace can
 return `DEFERRED_TRACE_NAVIGATION` with no inline paths. Follow
 `response_delivery.next_call` to recover the complete captured report under

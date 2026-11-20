@@ -821,6 +821,12 @@ pub(super) fn trace_selected(
                 if let Some(writes) = response_body_writes(&tokens, node.start_line) {
                     member["response_body_writes"] = writes;
                 }
+                if database.is_some() {
+                    super::bulk_copy::append(
+                        &node, source, &source_blake3, &tokens,
+                        &mut result.paths, &mut result.gaps, MAX_EDGES,
+                    );
+                }
             }
             result.source_members.push(member);
             if let (Some(database), Some(body)) = (&database, body.as_deref()) {

@@ -2,6 +2,7 @@
 pub mod api;
 mod api_attributes;
 mod container_registrations;
+mod bulk_copy;
 pub(crate) mod client_callers;
 mod database;
 mod dbml;

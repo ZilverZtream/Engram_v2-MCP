@@ -2698,6 +2698,17 @@
       "TODO-28"
     ],
     "implementation_items_active": 0,
+    "request_trace_bulk_copy_destination": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "TODO-31 source-cited WebForms database work",
+      "observed_gap": "The LegacyValidation marker-properties bulk import uses a typed SqlBulkCopy parameter, literal DestinationTableName and WriteToServer. Existing trace paths follow SqlCommand/ORM evidence but do not report this authored write destination.",
+      "implementation": ["crates/engram_server/src/services/request_trace.rs", "crates/engram_server/src/services/request_trace/bulk_copy.rs", "crates/engram_server/src/services/request_trace/execution.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "A reached unchanged LegacyValidation import method reports its qualified target and independently verified declaration, assignment and write lines. Ambiguous declarations, dynamic destinations and nonadjacent patterns stay outside the recognized form. Disabling database tracing removes the observation.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/legacy_validation-bulk-copy-trace-20261120",
+      "baseline": {"path": "baseline-observed/receipt.json", "sha256": "54b51f09f1e00f1a8817196f26e093236526e1203b2209335984ba53ce701c93"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "2619c3e0a8bc5b66d06f2f820c5338ad3b5de6b8eaa3eaefaaf11b53a8e5ad92"},
+      "evidence": "Installed public MCP reached the unchanged import method from an owned WebForms event but omitted its bulk write. Independent Git source located the typed parameter, destination assignment and write at lines 131, 173 and 174. The new bounded path cites those operations and the raw hash. Syntax and whitespace checks passed. Both fixture runs cleaned up their process and data; candidate verification remains pending."
+    },
     "exact_refresh_skip_unchanged": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "TODO-55 interactive LegacyValidation exact-file source refresh",
