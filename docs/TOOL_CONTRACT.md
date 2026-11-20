@@ -652,6 +652,13 @@ with up to four cited sites per row. Markdown is the default.
 envelope. Follow `next_call` on a bounded response to recover the exact
 original result without deriving the matrix again.
 
+JSON settings rows expose `setting_evidence` where an observation was
+admitted. Indexed rows identify the node type, source location and selected
+physical revision. Literal getter rows expose the key, store and getter
+spellings as separate fields. Current-file fallback includes the raw
+source hash and carries a distinct evidence kind. Targets outside the
+selected revision keep an unresolved row without an exact read action.
+
 For verified current VB methods, `axes.bulk_copy_writes` groups directly
 observed bulk-copy writes by qualified destination. Each JSON site gives
 the declaration, assignment and call lines, plus a guarded source action

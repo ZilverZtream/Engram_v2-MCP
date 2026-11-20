@@ -579,11 +579,13 @@ impl Engram {
         let axis_selection_note = source_selection_note.clone();
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
-        let (settings_axis, setting_labels, indexed_setting_ids, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, bulk_copy_axes, unresolved, coverage_notes, companion_context, member_observations, constructor_context) =
+        let include_typed_settings = matches!(req.output_format, TestMatrixFormat::Json);
+        let (settings_axis, setting_labels, indexed_setting_ids, mut setting_evidence, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, bulk_copy_axes, unresolved, coverage_notes, companion_context, member_observations, constructor_context) =
             tokio::task::spawn_blocking(move || {
                 let mut settings_axis: Axis = BTreeMap::new();
                 let mut setting_labels: BTreeMap<String, String> = BTreeMap::new();
                 let mut indexed_setting_ids = std::collections::BTreeSet::new();
+                let mut setting_evidence = BTreeMap::new();
                 let mut roles_axis: Axis = BTreeMap::new();
                 let mut state_axis: Axis = BTreeMap::new();
                 let mut runtime_axes: Axis = BTreeMap::new();
@@ -662,6 +664,18 @@ impl Engram {
                                     for site in report.observations {
                                         let id=format!("current:{}:{}:{}:{}",site.file_path,site.observation.line,site.raw_blake3,site.observation.name);
                                         setting_labels.insert(id.clone(),format!("{} (current file literal; getter {}; compiler/store binding and value unverified)",site.observation.name,site.observation.getter));
+                                        if include_typed_settings {
+                                            setting_evidence.insert(id.clone(), serde_json::json!({
+                                                "evidence_kind": "current_file_literal",
+                                                "name": site.observation.name,
+                                                "literal_key": site.observation.key,
+                                                "store_spelling": site.observation.store,
+                                                "getter_spelling": site.observation.getter,
+                                                "file_path": site.file_path,
+                                                "line": site.observation.line,
+                                                "source_blake3": site.raw_blake3,
+                                            }));
+                                        }
                                         settings_axis.entry(id).or_default().push(format!("{}:{} | raw BLAKE3 {} | current code observation only; review task applicability",site.file_path,site.observation.line,site.raw_blake3));
                                     }
                                     coverage_notes.push(format!("{file}: current source setting observations were collected independently; unavailable indexed role/state/business axes remain incomplete. No compiler/project source inventory or index refresh was performed for these literal observations."));
@@ -788,6 +802,9 @@ impl Engram {
                         if n.node_type == "setting_key" {
                             indexed_setting_ids.insert(n.node_id.clone());
                             setting_labels.insert(n.node_id.clone(), setting_label(n));
+                            if include_typed_settings {
+                                setting_evidence.insert(n.node_id.clone(), indexed_setting_evidence(n, selected.is_some()));
+                            }
                             settings_axis.entry(n.node_id.clone()).or_default().push(format!(
                                 "{}:{} (literal-key read in requested source; whether it governs this task requires source review)",
                                 n.file_path, n.start_line));
@@ -856,11 +873,20 @@ impl Engram {
                                 }
                                 for (target, _) in neigh {
                                     let setting_name = match graph.get_node(&pid, &target) {
-                                        Ok(Some(t)) => {
+                                        Ok(Some(t)) if t.generation <= gen_ && selected.is_none_or(|files|
+                                            files.get(t.file_path.as_str()) == Some(&t.generation)) => {
                                             if category(&t).is_some() {
                                                 indexed_setting_ids.insert(t.node_id.clone());
+                                                if include_typed_settings {
+                                                    setting_evidence.entry(t.node_id.clone())
+                                                        .or_insert_with(|| indexed_setting_evidence(&t, selected.is_some()));
+                                                }
                                             }
                                             setting_label(&t)
+                                        }
+                                        Ok(Some(_)) => {
+                                            coverage_notes.push(format!("{label}: setting target {target} is outside its published physical revision; exact setting evidence withheld."));
+                                            "unadmitted setting target".to_string()
                                         }
                                         Ok(None) => {
                                             let observation = nullable_observations.entry(target.clone()).or_insert_with(||
@@ -960,6 +986,7 @@ impl Engram {
                     settings_axis,
                     setting_labels,
                     indexed_setting_ids,
+                    setting_evidence,
                     roles_axis,
                     state_axis,
                     runtime_axes,
@@ -1062,7 +1089,18 @@ impl Engram {
             self.state.cfg.effective_tool_preset(),
             "get_setting",
         );
-        if matches!(req.output_format, TestMatrixFormat::Json) {
+        if include_typed_settings {
+            let mut settings = structured_matrix_axis(&settings_axis, Some(&setting_labels), |id| {
+                (can_read_settings && indexed_setting_ids.contains(id))
+                    .then(|| exact_setting_read(&req.project_id, id))
+            });
+            if let Some(items) = settings["items"].as_array_mut() {
+                for item in items {
+                    if let Some(evidence) = item["id"].as_str().and_then(|id| setting_evidence.remove(id)) {
+                        item["setting_evidence"] = evidence;
+                    }
+                }
+            }
             let mut documents = BTreeMap::new();
             let cases: Vec<_> = rule_cases.iter().map(|case| {
                 documents.entry(case.doc_id.as_str()).or_insert_with(|| serde_json::json!({
@@ -1114,10 +1152,7 @@ impl Engram {
                 "knowledge_before": req.knowledge_before,
                 "authored_guidance": project_policy_sources,
                 "axes": {
-                    "settings": structured_matrix_axis(&settings_axis, Some(&setting_labels), |id| {
-                        (can_read_settings && indexed_setting_ids.contains(id))
-                            .then(|| exact_setting_read(&req.project_id, id))
-                    }),
+                    "settings": settings,
                     "roles": structured_matrix_axis(&roles_axis, None, |_| None),
                     "shared_state": structured_matrix_axis(&state_axis, None, |_| None),
                     "configured_risk": structured_matrix_axis(&runtime_axes, None, |_| None),
@@ -1366,6 +1401,23 @@ impl Engram {
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
+}
+
+fn indexed_setting_evidence(node: &engram_graph::Node, selection_held: bool) -> serde_json::Value {
+    let metadata = |key| node.metadata.as_ref().and_then(|value| value.get(key))
+        .and_then(serde_json::Value::as_str);
+    serde_json::json!({
+        "evidence_kind": "indexed_setting",
+        "node_type": node.node_type,
+        "name": node.name,
+        "literal_key": metadata("literal_setting_key"),
+        "getter_spelling": metadata("literal_setting_getters"),
+        "store_spelling": metadata("literal_setting_store"),
+        "file_path": node.file_path.as_str(),
+        "line": (node.start_line > 0).then_some(node.start_line),
+        "indexed_generation": node.generation,
+        "selected_physical_revision": selection_held.then_some(node.generation),
+    })
 }
 
 fn collect_bulk_copy_axis(

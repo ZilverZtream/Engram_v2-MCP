@@ -2981,6 +2981,17 @@
   "current_execution_focus": {
     "status": "QA_TRACE_INTEGRITY_PACKAGE_VERIFIED_ACTIVE_CLIENT_PRESERVED",
     "implementation_items_active": 0,
+    "qa_setting_axis_source_identity": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "LegacyValidation setting-aware QA and S06 selected-source evidence",
+      "observed_gap": "The structured settings axis still blends the key, getter and qualification into one display label. A ReadsSetting graph edge can also offer an exact action for a catalog target outside the held source selection.",
+      "implementation": ["crates/engram_server/src/handlers/settings_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Same-label VB observations expose explicit literal keys, getters and distinct selected locations alongside their existing actions. Withhold actions and identity for targets outside the held physical revision. Current-file fallback stays explicitly qualified.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/qa-setting-axis-identity-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "43cacc6a9e0e794d103bc81f680aab23af061afd0824fb6f7a2e2c362acdd449"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "b2553e5c11ee6fb8d3a0872daa2051fc5b6aec7ba6dd62539855b7778a4611d1"},
+      "evidence": "Staged MCP returned two same-label selected VB settings with distinct IDs and no typed setting evidence. Source adds typed identities for admitted indexed/current-file observations, and checks setting graph targets before offering exact actions. Rust syntax and whitespace checks passed. Candidate runtime remains pending. The owned baseline exited and its fixture was removed."
+    },
     "qa_bulk_copy_write_evidence": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "LegacyValidation QA source evidence and TODO-31 database work navigation",
