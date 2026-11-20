@@ -1846,7 +1846,9 @@ retain their own existing bounded provider and diagnostics.
 hashes, explicit declaration/file scope and hash-bound get_full_method_body reads.
 The ordinary answer includes applicable authored guidance and existing JSON,
 Markdown and complete-report recovery behavior. Source excerpts inside indexed
-members are literal-key windows, not verified access-site or compiler bindings.
+members retain up to eight verified indexed access spans per role, with
+operation labels when the index records them. The answer counts omitted or
+withheld sites. This evidence does not establish compiler or runtime binding.
 
 The existing clear reader supplies separate source-admitted store-wide candidates,
 including when no literal access exists for the queried key. A clear candidate

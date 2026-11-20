@@ -208,17 +208,18 @@ pub fn collect(
                     continue;
                 };
                 let file_level = node.node_type == "file" && node.node_id == format!("file:{path}");
-                let site = if browser {
-                    let Some(site) = browser_state::access_site(edge.metadata.as_ref(), source, role)
-                    else {
+                let (sites, omitted_sites) = if browser {
+                    let (sites, omitted) = browser_state::access_sites(edge.metadata.as_ref(), source, role);
+                    if sites.is_empty() {
                         missing += 1;
                         continue;
-                    };
-                    Some(site)
+                    }
+                    out.provider.truncated |= omitted > 0;
+                    (sites, omitted)
                 } else {
-                    None
+                    (Vec::new(), 0)
                 };
-                let (citation, recovery_line, source_excerpt, excerpt_truncated) = if let Some(site) = &site {
+                let (citation, recovery_line, source_excerpt, excerpt_truncated) = if let Some(site) = sites.first() {
                     (
                         Some((site.line, site.end_line)),
                         site.line as usize,
@@ -260,8 +261,10 @@ pub fn collect(
                     let item = &mut out.items[*position];
                     let mut content: Value = serde_json::from_str(&item.content)?;
                     content["roles"].as_array_mut().unwrap().push(json!(role));
-                    if let Some(site) = site {
-                        content["access_sites"].as_array_mut().unwrap().push(json!(site));
+                    if browser {
+                        content["access_sites"].as_array_mut().unwrap().extend(sites.iter().map(|site| json!(site)));
+                        let previous = content["access_sites_omitted"].as_u64().unwrap_or(0);
+                        content["access_sites_omitted"] = json!(previous.saturating_add(omitted_sites as u64));
                     }
                     item.content = content.to_string();
                     continue;
@@ -273,7 +276,7 @@ pub fn collect(
                 if !out.matched_names.contains(&query.key) {
                     out.matched_names.push(query.key.clone());
                 }
-                let unlocalized = file_level && site.is_none();
+                let unlocalized = file_level && sites.is_empty();
                 out.file_scoped_count += usize::from(unlocalized);
                 let warnings = if unlocalized {
                     vec![INTERPRETATION.into(), FILE_SCOPE.into()]
@@ -289,8 +292,9 @@ pub fn collect(
                     "source_recovery":{"tool":"get_full_method_body","arguments":{"project_id":project,
                         "file_path":path,"line_start":recovery_line,"context_lines":0,"output_json":true,"expected_file_blake3":hash}},
                     "interpretation":INTERPRETATION});
-                if let Some(site) = site {
-                    content["access_sites"] = json!([site]);
+                if browser {
+                    content["access_sites"] = json!(sites);
+                    content["access_sites_omitted"] = json!(omitted_sites);
                 }
                 out.items.push(EvidenceItem {
                     memory_record: None,

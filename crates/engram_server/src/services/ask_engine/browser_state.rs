@@ -8,11 +8,13 @@ use regex::Regex;
 use serde_json::{Value, json};
 use std::sync::LazyLock;
 
-pub const INTERPRETATION: &str = "Indexed browser-storage reader/writer candidates with access spans in hash-matched selected source. Each relationship may retain a single observation per role. Clear operations are separately source-admitted store-wide candidates. Project membership does not prove a shared browser origin, tab/session, script inclusion, built-in binding, execution order or stored value. Dynamic keys and unsupported extraction remain unknown; source reads and graph observations are not an atomic snapshot.";
+pub const INTERPRETATION: &str = "Indexed browser-storage reader/writer candidates with access spans in hash-matched selected source. Up to eight retained sites per role are checked; older relationships may retain a single observation. Clear operations are separately source-admitted store-wide candidates. Project membership does not prove a shared browser origin, tab/session, script inclusion, built-in binding, execution order or stored value. Dynamic keys and unsupported extraction remain unknown; source reads and graph observations are not an atomic snapshot.";
 
 #[derive(serde::Serialize)]
 pub(super) struct AccessSite<'a> {
     role: &'a str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    operation: Option<String>,
     pub line: u32,
     pub end_line: u32,
     byte_column: usize,
@@ -21,15 +23,15 @@ pub(super) struct AccessSite<'a> {
     pub excerpt_truncated: bool,
 }
 
-pub(super) fn access_site<'a>(
-    metadata: Option<&Value>,
+fn verified_access_site<'a>(
     source: &str,
     role: &'a str,
+    start: usize,
+    end: usize,
+    expected_line: usize,
+    expected_column: usize,
+    operation: Option<String>,
 ) -> Option<AccessSite<'a>> {
-    let metadata = metadata?;
-    let number = |field| metadata.get(field)?.as_str()?.parse::<usize>().ok();
-    let start = number("state_access_byte")?;
-    let end = number("state_access_end_byte")?;
     let access = source.get(start..end)?;
     if access.is_empty() {
         return None;
@@ -37,13 +39,14 @@ pub(super) fn access_site<'a>(
     let preceding = &source.as_bytes()[..start];
     let line = preceding.iter().filter(|&&byte| byte == b'\n').count() + 1;
     let column = preceding.iter().rev().take_while(|&&byte| byte != b'\n').count() + 1;
-    if line != number("state_access_line")? || column != number("state_access_column")? {
+    if line != expected_line || column != expected_column {
         return None;
     }
     let end_line = line + access.trim_end_matches('\n').bytes().filter(|&byte| byte == b'\n').count();
     let excerpt: String = access.chars().take(2048).collect();
     Some(AccessSite {
         role,
+        operation,
         line: line as u32,
         end_line: end_line as u32,
         byte_column: column,
@@ -51,6 +54,34 @@ pub(super) fn access_site<'a>(
         excerpt_truncated: excerpt.len() < access.len(),
         excerpt,
     })
+}
+
+pub(super) fn access_sites<'a>(
+    metadata: Option<&Value>,
+    source: &str,
+    role: &'a str,
+) -> (Vec<AccessSite<'a>>, usize) {
+    let Some(metadata) = metadata else { return (Vec::new(), 0) };
+    if let Some(rows) = metadata["browser_storage_access_sites"].as_str()
+        .and_then(|raw| serde_json::from_str::<Vec<Value>>(raw).ok())
+    {
+        let mut sites: Vec<_> = rows.iter().take(8).filter_map(|row| {
+            let number = |field: &str| usize::try_from(row[field].as_u64()?).ok();
+            verified_access_site(source, role, number("start_byte")?, number("end_byte")?,
+                number("line")?, number("column")?, row["operation"].as_str().map(str::to_owned))
+        }).collect();
+        sites.sort_by_key(|site| site.byte_range[0]);
+        let omitted = metadata["browser_storage_access_sites_omitted"].as_str()
+            .and_then(|raw| raw.parse::<usize>().ok()).unwrap_or(0)
+            .saturating_add(rows.len().saturating_sub(sites.len()));
+        return (sites, omitted);
+    }
+    let single = (|| {
+        let number = |field: &str| metadata[field].as_str()?.parse::<usize>().ok();
+        verified_access_site(source, role, number("state_access_byte")?, number("state_access_end_byte")?,
+            number("state_access_line")?, number("state_access_column")?, None)
+    })();
+    (single.into_iter().collect(), 0)
 }
 static MENTIONS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
