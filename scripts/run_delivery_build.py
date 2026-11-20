@@ -10,12 +10,58 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 SCRATCH = Path(r"C:\ai-projects\Engram-MCP_v2\target\diagnostics\snapshot-verification-20261101\p131-modern-state-20261112\current-task-check")
 
+
+def check_test_scope(arguments):
+    # Owned build runners take the forwarded Cargo command after their own --.
+    if arguments and arguments[0] in {"test", "t"}:
+        cargo = arguments
+    elif "--" in arguments:
+        cargo = arguments[arguments.index("--") + 1:]
+    else:
+        return
+    if not cargo or cargo[0] not in {"test", "t"}:
+        return
+    cargo_args = cargo[1:cargo.index("--")] if "--" in cargo else cargo[1:]
+    harness_args = cargo[cargo.index("--") + 1:] if "--" in cargo else []
+    broad = {"--all", "--workspace", "--all-targets", "--tests", "--benches",
+             "--examples"}
+    if broad.intersection(cargo_args):
+        raise ValueError("Full-suite Cargo selection refused. Use a named test target or a test filter.")
+    # Follow only the scope signals used by the existing delivery runners.
+    # An explicitly named integration target is focused even without a filter.
+    named_target = any(argument.startswith("--test=") and argument[7:]
+                       for argument in cargo_args) or any(
+                           argument == "--test" and not name.startswith("-")
+                           for argument, name in zip(cargo_args, cargo_args[1:]))
+    cargo_values = {"-p", "--package", "-j", "--jobs", "-F", "--features",
+                    "--target", "--target-dir", "--manifest-path", "--profile",
+                    "--config", "--color", "--message-format", "--exclude",
+                    "--example", "--bin", "--bench", "--test", "-Z", "-C"}
+    harness_values = {"--skip", "--test-threads", "--format", "--color",
+                      "--logfile", "--shuffle-seed", "-Z"}
+    if not (named_target or has_test_filter(cargo_args, cargo_values)
+            or has_test_filter(harness_args, harness_values)):
+        raise ValueError("Unfiltered Cargo tests refused. Name an integration target or a test filter.")
+
+
+def has_test_filter(arguments, value_options):
+    remaining = iter(arguments)
+    for argument in remaining:
+        if argument in value_options:
+            next(remaining, None)
+        elif argument.strip() and not argument.startswith("-"):
+            return True
+    return False
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--case", type=Path, required=True)
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("arguments", nargs=argparse.REMAINDER)
     args = parser.parse_args()
+    trailing = args.arguments[1:] if args.arguments[:1] == ["--"] else args.arguments
+    check_test_scope(trailing)
     goal = json.loads((ROOT / "eval/engram-delivery-goal-20261110.json").read_text(encoding="utf-8-sig"))
     policy = goal["delivery_cadence_correction_20261115"]
     active_case = policy.get("active_release_case")
@@ -50,7 +96,6 @@ def main():
                            cwd=worktree, check=True, capture_output=True)
         if (case / "release1-owner.json").exists():
             raise ValueError("Build blocked: release1 was already started for this frozen batch")
-    trailing = args.arguments[1:] if args.arguments[:1] == ["--"] else args.arguments
     command = [sys.executable, "-B", "-u", str(case / "build.py"), *trailing]
     if args.dry_run:
         print(json.dumps({"status": "BATCH_GATE_PASSED_NO_BUILD_STARTED", "command": command, "build_environment": {"CARGO_INCREMENTAL": "1"}}))

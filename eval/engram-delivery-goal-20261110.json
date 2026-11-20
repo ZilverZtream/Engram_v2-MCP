@@ -2653,6 +2653,13 @@
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
+    "test_scope_enforcement_20261120": {
+      "status": "IMPLEMENTED_AND_VERIFIED_WITHOUT_CARGO",
+      "implementation": "scripts/run_delivery_build.py",
+      "behavior": "The shared delivery runner enforces the user's no-full-suite direction before spawning a runner. Build commands, explicitly named integration targets and filtered tests remain available.",
+      "verification": "Verified five allowed build/test argument forms and six refusals, including workspace-wide and unfiltered library suites. The real dry-run entry point returned exit 2 with the scope error before launch. No Cargo process or live installation started.",
+      "coverage": "This applies to the existing delivery entry point. The preceding compiler profile trial did not establish a speedup and this change makes no latency claim."
+    },
     "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-trace-integrity-candidate-20261120",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
