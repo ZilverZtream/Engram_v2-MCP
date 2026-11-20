@@ -3001,9 +3001,10 @@
       "requirements": ["TODO-28", "TODO-33/TODO-5", "TODO-31"],
       "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/sql-freshness-webforms-trace-20261120",
       "baseline": {"path": "baseline/receipt.json", "sha256": "33fa455d9855d6dbaf171151601c8aa127068d0f6f8fd67e246ae4e71b7a9a14"},
+      "fixture_preflight": {"path": "fixture-preflight/receipt.json", "sha256": "a97fa965917028ee7df8939d0f2368638c8c69229f8a453e13171607b54c01ac"},
       "evidence": "The installed baseline reproduced the three gaps in one owned stdio MCP project using actual LegacyValidation source. Only the backtick path yielded the pinned SQL change, direct freshness worked but the batch refused it, and the image-download handler was reached without registration metadata. The baseline process exited naturally and the fixture was removed.",
-      "active_processes": "release1-owner.json binds the one shared-target release. stage-owner.json binds the waiting candidate stage to the same release process. Inspect those exact owners or terminal receipts before retrying.",
-      "next_acceptance": "On the same build, run the queued candidate public checks and use the verified artifact for installation. Then confirm fresh live MCP and source hashes, the pinned SQL patch and compact WebForms registration. No separate full-suite invocation.",
+      "active_processes": "release1-owner.json binds the one shared-target release. stage-owner.json binds the candidate stage to that release, and install-owner.json binds the cutover driver to that exact stage. Inspect those actual owners or terminal receipts before retrying.",
+      "next_acceptance": "The candidate stage runs the public checks on the same build. After a passing candidate receipt the cutover driver attempts the managed install only with no connected clients or active jobs, then runs installed fixtures. Confirm fresh live LegacyValidation MCP and retained receipts. No separate full-suite invocation.",
       "temporary_resources": "Compiler and public fixture owners release and remove their own directories. Retain only the frozen scripts, package and evidence under this case through installed verification."
     },
     "recent_history_spaced_sql_paths": {
