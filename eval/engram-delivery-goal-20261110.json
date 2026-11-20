@@ -3399,7 +3399,7 @@
       "verification": "The installed baseline returned ambiguous generic retrieval and zero commit evidence. Focused actual Git checks used the changed question parser/follow-up and existing first-parent reader on captured LegacyValidation revision 0a9fbcfc. They returned commit 77e0876c, its two scoped CSS/JS paths and an executable complete-commit action. The installed public search_history endpoint executed that exact action and its hash-bound recovery retained both paths. Exact-file patch behavior and scoped parsing checks passed. The owned executable scratch closed. Candidate and installed ask_codebase verification remain pending. No Cargo build."
     },
     "method_integrity_history_release": {
-      "status": "FROZEN_OWNED_BASELINE_VERIFIED",
+      "status": "CANDIDATE_MCP_VERIFIED_AWAITING_CLIENT_QUIESCENCE",
       "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-integrity-folder-history-20261120",
       "source_commit": "262bbf589cfb95700d0108d3e15a968a46aca2d9",
       "original_requirement_ids": [
@@ -3409,9 +3409,31 @@
       ],
       "baseline_sha256": "30811036b1567e7af3071044c34a6c0e253c26e27943e76e09a0316940ea7eef",
       "verifier_sha256": "a264e0acec5a99b092f63ccedeaa7441be2d565526a1212a4f7909b970dc135a",
-      "retention": "Keep inputs and output receipts for release verification. The owned baseline source, database and process closed."
+      "retention": "Keep signed-by-hash release inputs, exact package, candidate evidence and first cutover refusal until installation or rollback audit is resolved. Owned candidate and build processes and temporary resources closed.",
+      "candidate_binary_sha256": "9b8a4f4470b247199a544a41c0f210a45cd131c68305f223ace77f6fd0347d50",
+      "candidate_manifest_sha256": "1dbb2aeaa640446b6dda0498beb141d9ebd9d15000439b9b23d4dba6cf9b9b6f",
+      "candidate_archive_sha256": "27dca26af73c3312bd02f8f0b1964dea68cce58dbb6fa7860823b17b8fc0cfb9",
+      "candidate_receipt_sha256": "f37bdac482777ff9a5eb935e37bdfbcf19c557a12abe37435530556a8021bb4f",
+      "build_receipt_sha256": "317bdfddb149178e40a46089c79b0bee8f10dff21d060f2938304bc6727579fb",
+      "build_seconds": 854.7851746999986,
+      "optimized_builds": 1,
+      "full_test_suites": 0,
+      "cutover1": {
+        "status": "OPEN_CLIENTS_BEFORE_BINARY_SWAP",
+        "open_client_proxy_pids": [
+          37352,
+          81308
+        ],
+        "previous_binary_sha256": "526a384daad4522c0faa4aa0e7cee9f718e2b0d210d78f208460e5ad78360d07",
+        "config_hold_release_sha256": "e2c49192733743357eadbfb64ad7c411171aa31d581e805bf6deb265d5f9ee0f"
+      },
+      "queued_cutover": {
+        "observer_session": 31480,
+        "script_sha256": "2d170a5df8e450c2ae51f7cbdb7d33ad99ea475f8f3e567037a2a5db1a9d9951",
+        "condition": "Wait for installed Engram client proxies to close. Apply the verified binary only after the existing preflight succeeds. Observe the same process or check terminal receipts before retrying."
+      }
     },
-    "next_action": "Build one shared package and verify all three public workflows before recording installed delivery."
+    "next_action": "Observe the existing cutover for this already verified binary. Continue other ready original work if client connections remain open."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
