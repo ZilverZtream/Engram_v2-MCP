@@ -2653,7 +2653,7 @@
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
-    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-integrity-folder-history-20261120",
+    "active_release_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-admission-dossier-event-20261120",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": "eval/review-bootstrap-parser-batch-delivery-20261119.json",
     "incremental_codegen": {
@@ -2982,6 +2982,30 @@
       "source_commit": "c40ee73678f1c44e4ae5dda7cb4f21875bf4391a",
       "verification": "Installed MCP at generation 3222 reproduced the omission. A focused build of the current request trace module with cached dependencies ran four changed or neighboring validations. With exact LegacyValidation Git blobs and owned admitted graph evidence, the event selected the receiver at line 33 and the subscription cited the exact source line 29 and BLAKE3. The compact record retained line, handler and hash, with the excerpt deferred. Separately authored fixtures covered independent load/markup/Handles entries, unrelated and commented subscriptions, and stale handler source. Public MCP delivery and exact recovery on the compiled release are pending.",
       "retention": "Retain the small reproduction script and numeric receipt under current-task-check/webforms-vb-event-subscription-20261120 until combined MCP acceptance is recorded. Owned graph and compiler fixtures were closed and removed. No live project files were changed."
+    },
+    "vb_admission_dossier_event_release": {
+      "status": "ONE_COMBINED_RELEASE_BUILD_RUNNING",
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-admission-dossier-event-20261120",
+      "source_commit": "a9855edc069d97bbf91d9f8409f0cc50e03f80ca",
+      "original_requirement_ids": [
+        "S03",
+        "TODO-29",
+        "TODO-31"
+      ],
+      "build_session": 73314,
+      "build_driver_pid": 55716,
+      "build_relay_pid": 18472,
+      "stage_session": 65865,
+      "release_plan_sha256": "3edac5ae25ec13dd5cab05f90ffce0c9d8ce17253e4d0a088509da19c8c5887b",
+      "baseline_receipt_sha256": "9746aaa87214f8b7197e1a64cce081a52938bb3b7842331c3b4fb3ea253761e9",
+      "public_verifier_sha256": "2c43ce17b7cea48e343550e49e9987416a84b121eac7ea632ba8f3d6f439a518",
+      "candidate_stage_sha256": "9926374c57c19469473ee320af90faec2976382351f3976786c5be587c7b61db",
+      "cutover_sha256": "b5cf58c496d29a4dac26ff815bf90ad3487af03fdee1362848349e1858ec65f8",
+      "prepare_cutover_sha256": "373cd7d0b37f288fdb65283418514eda729ca4d4ff2e8d228c310e5ea907dbaa",
+      "full_suites_started": 0,
+      "baseline": "Installed MCP verified the older trace omits the direct subscription. The owned public dossier produced an 18,330-byte exact four-page capture and inline advisory. The retained first baseline attempt discovered the minimum navigation budget; the corrected fixture preserved compact output and exact recovery.",
+      "verification": "Poll these exact running handles. On passing build, the existing stage session verifies the three public candidate workflows before packaging. Validate and install that pair once, then verify a fresh live MCP connection and the three isolated acceptance paths on the installed binary.",
+      "retention": "Reuse the existing recorded detached build worktree and shared target. The build and verifier own their temporary resources. Keep the release plan, logs and exact proof/receipts until delivery is recorded; preserve prior package and unrelated work."
     },
     "edit_session_saved_change_set": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
