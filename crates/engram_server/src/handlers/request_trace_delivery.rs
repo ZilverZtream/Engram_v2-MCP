@@ -23,14 +23,18 @@ fn node(id: &Value, target: Option<&Value>, nodes: &mut Vec<Value>, indices: &mu
 }
 
 fn compact_control_event(event: &mut Value, counts: &mut [usize; 3]) {
-    if let Some(bindings) = event.get_mut("markup_bindings").and_then(Value::as_array_mut) {
-        for binding in bindings {
-            if let Some(object) = binding.as_object_mut() {
-                if let Some(excerpt) = object.remove("excerpt") {
-                    counts[1] += 1;
-                    counts[2] += excerpt.as_str().map(str::len).unwrap_or(0);
-                }
-                object.insert("source_excerpt_deferred".into(), json!(true));
+    for field in ["markup_bindings", "vb_subscriptions"] {
+        for binding in event
+            .get_mut(field)
+            .and_then(Value::as_array_mut)
+            .into_iter()
+            .flatten()
+        {
+            if let Some(excerpt) = binding.as_object_mut().and_then(|object| object.remove("excerpt"))
+            {
+                counts[1] += 1;
+                counts[2] += excerpt.as_str().map(str::len).unwrap_or(0);
+                binding["source_excerpt_deferred"] = json!(true);
             }
         }
     }

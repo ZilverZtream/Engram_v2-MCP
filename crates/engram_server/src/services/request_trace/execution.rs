@@ -280,6 +280,14 @@ pub(super) fn handler_bindings(
                     reasons.push(format!("{} {}={name} (authored server-control event)", request.control, binding.attribute));
                 }
             }
+            for subscription in &request.vb_subscriptions {
+                if subscription.handler.eq_ignore_ascii_case(name) {
+                    reasons.push(format!(
+                        "AddHandler {}.{}, AddressOf {name} ({}:{})",
+                        request.control, request.event, subscription.file, subscription.line
+                    ));
+                }
+            }
         }
         for (id, handler) in &click_bindings {
             if handler.eq_ignore_ascii_case(name) {
@@ -376,7 +384,8 @@ pub fn trace_page(
             .gaps
             .push(format!("Method inventory truncated at {MAX_METHODS}"));
     }
-    result.control_event = requested_event.map(|(control, event)| super::control_events::collect(page.path, page.content, control, event));
+    result.control_event = requested_event
+        .map(|(control, event)| super::control_events::collect(*page, *source, control, event));
     let mut chosen = handler_bindings(&markup, source.content, &methods, action, result.control_event.as_ref());
     add_base_context(graph,project,&mut result,*page,*source,&mut chosen,sources,selected)?;
     if chosen.is_empty() {
@@ -464,7 +473,7 @@ fn trace_control_instances<'a>(
         let mut methods=graph.query_nodes_in_file(project,Some("function"),code.path,MAX_METHODS+1)?;
         if methods.len()>MAX_METHODS {methods.truncate(MAX_METHODS);result.gaps.push(format!("{}: method inventory truncated at{MAX_METHODS}",code.path));}
         let is_terminal=routes.terminals.iter().any(|path|path==markup_source.path);
-        let evidence=is_terminal.then(||super::control_events::collect(markup_source.path,markup_source.content,local,event));
+        let evidence=is_terminal.then(||super::control_events::collect(markup_source,code,local,event));
         let markup=without_markup_comments(markup_source.content);
         let entries=handler_bindings(&markup,code.content,&methods,
             Some(if is_terminal {&terminal_action} else {"load page"}),evidence.as_ref());

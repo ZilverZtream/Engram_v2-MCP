@@ -1,5 +1,6 @@
 //! Explicit WebForms control events from authored markup, not browser execution.
 use super::execution::without_markup_comments;
+use super::routing::{Source, tokens};
 use regex::Regex;
 use serde::Serialize;
 use std::sync::LazyLock;
@@ -65,21 +66,42 @@ pub struct Binding {
 }
 
 #[derive(Serialize)]
+pub struct Subscription {
+    pub handler: String,
+    pub file: String,
+    pub line: u32,
+    pub source_blake3: String,
+    pub excerpt: String,
+}
+
+#[derive(Serialize)]
 pub struct Evidence {
     pub control: String,
     pub event: String,
     pub markup_bindings: Vec<Binding>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub vb_subscriptions: Vec<Subscription>,
     pub truncated: bool,
     pub interpretation: &'static str,
 }
 
-pub fn collect(file: &str, source: &str, control: &str, event: &str) -> Evidence {
+pub(super) fn collect(
+    markup_source: Source<'_>,
+    codebehind: Source<'_>,
+    control: &str,
+    event: &str,
+) -> Evidence {
+    let Source {
+        path: file,
+        content: source,
+    } = markup_source;
     let mut evidence = Evidence {
         control: control.into(),
         event: event.into(),
         markup_bindings: vec![],
+        vb_subscriptions: vec![],
         truncated: false,
-        interpretation: "Current authored server-control event declarations. Corresponding admitted method entries remain static candidates. Naming containers, control creation, postback/event validation, client event wiring, branch reachability, lifecycle order and actual execution are not established. Explicit VB Handles bindings can supply entries independently of these markup observations.",
+        interpretation: "Current authored server-control event declarations and direct, single-line VB AddHandler subscriptions. Corresponding admitted method entries remain static candidates. Naming containers, control creation, postback/event validation, client event wiring, branch reachability, lifecycle order and actual execution are not established. Explicit VB Handles bindings can supply entries independently of these observations.",
     };
     let markup = without_markup_comments(source);
     let attribute_name = format!("On{event}");
@@ -125,6 +147,49 @@ pub fn collect(file: &str, source: &str, control: &str, event: &str) -> Evidence
             source_blake3: source_hash.clone(),
             excerpt: tag.as_str().into(),
         });
+    }
+    if codebehind.path.to_ascii_lowercase().ends_with(".vb") {
+        let source_hash = blake3::hash(codebehind.content.as_bytes()).to_hex().to_string();
+        for (index, line) in codebehind.content.lines().enumerate() {
+            let statement = line.trim_start();
+            if !statement
+                .get(..10)
+                .is_some_and(|prefix| prefix.eq_ignore_ascii_case("AddHandler"))
+            {
+                continue;
+            }
+            let statement_tokens = tokens(statement, true);
+            let [verb, receiver, dot, binding_event, comma, address_of, handler] =
+                statement_tokens.as_slice()
+            else {
+                continue;
+            };
+            if statement_tokens.iter().any(|token| token.string)
+                || !verb.text.eq_ignore_ascii_case("AddHandler")
+                || !receiver.text.eq_ignore_ascii_case(control)
+                || dot.text != "."
+                || !binding_event.text.eq_ignore_ascii_case(event)
+                || comma.text != ","
+                || !address_of.text.eq_ignore_ascii_case("AddressOf")
+                || !identifier(&handler.text)
+            {
+                continue;
+            }
+            if evidence.markup_bindings.len() + evidence.vb_subscriptions.len() == 32
+                || bytes + line.len() > 16 * 1024
+            {
+                evidence.truncated = true;
+                break;
+            }
+            bytes += line.len();
+            evidence.vb_subscriptions.push(Subscription {
+                handler: handler.text.clone(),
+                file: codebehind.path.into(),
+                line: index as u32 + 1,
+                source_blake3: source_hash.clone(),
+                excerpt: statement.into(),
+            });
+        }
     }
     evidence
 }

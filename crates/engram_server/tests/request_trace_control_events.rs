@@ -15,7 +15,27 @@ const PAGE: &str = r#"<%@ Page CodeFile='Entry.aspx.vb' AutoEventWireup='false' 
 <asp:DropDownList ID='plan' runat='server' title="example OnSelectedIndexChanged='Phantom'" />
 <!-- <asp:DropDownList ID='plan' runat='server' OnSelectedIndexChanged='Phantom' /> -->
 "#;
-const VB: &str = "Public Class Entry\nPublic Sub PageLoad() Handles Me.Load\nEnd Sub\nPublic Sub PickPlan()\nDim db As New DataContext()\ndb.ExecuteCommand(\"UPDATE dbo.Preferences SET Plan=1\")\nEnd Sub\nPublic Sub Toggle() Handles enabled.CheckedChanged\nEnd Sub\nPublic Sub Save()\nEnd Sub\nPublic Sub Phantom()\nEnd Sub\nEnd Class\n";
+const VB: &str = r#"Public Class Entry
+Public Sub PageLoad() Handles Me.Load
+    AddHandler plan.Updated, AddressOf RefreshPlan
+    ' AddHandler plan.Updated, AddressOf Phantom
+    Dim example = "AddHandler plan.Updated, AddressOf Phantom"
+    AddHandler other.Updated, AddressOf Phantom
+End Sub
+Public Sub PickPlan()
+Dim db As New DataContext()
+db.ExecuteCommand("UPDATE dbo.Preferences SET Plan=1")
+End Sub
+Public Sub Toggle() Handles enabled.CheckedChanged
+End Sub
+Public Sub Save()
+End Sub
+Public Sub RefreshPlan()
+End Sub
+Public Sub Phantom()
+End Sub
+End Class
+"#;
 
 fn trace(action: &str, stale: bool) -> Value {
     // Database owners close before the directory on both success and unwinding.
@@ -68,7 +88,7 @@ fn trace(action: &str, stale: bool) -> Value {
         selected.insert(source.path.to_owned(), 1);
     }
     let lines: Vec<_> = VB.lines().collect();
-    for name in ["PageLoad", "PickPlan", "Toggle", "Save", "Phantom"] {
+    for name in ["PageLoad", "PickPlan", "Toggle", "Save", "RefreshPlan", "Phantom"] {
         let start = lines
             .iter()
             .position(|line| line.contains(&format!("Sub {name}(")))
@@ -156,6 +176,28 @@ fn declared_dropdown_event_keeps_markup_and_handler_sources_and_reaches_sql() {
             .unwrap()
             .contains("actual execution are not established")
     );
+}
+
+#[test]
+fn vb_subscription_reports_the_registration_and_admitted_event_handler() {
+    let value = trace("event plan.Updated", false);
+    let subscriptions = value["control_event"]["vb_subscriptions"].as_array().unwrap();
+    assert_eq!(subscriptions.len(), 1);
+    assert_eq!(subscriptions[0]["handler"], "RefreshPlan");
+    assert_eq!(subscriptions[0]["file"], "Entry.aspx.vb");
+    assert_eq!(subscriptions[0]["line"], 3);
+    assert_eq!(
+        subscriptions[0]["source_blake3"],
+        blake3::hash(VB.as_bytes()).to_hex().to_string()
+    );
+    let handlers = value["handlers"].as_array().unwrap();
+    assert!(handlers.iter().any(|handler| handler["name"] == "PageLoad"));
+    assert!(handlers.iter().any(|handler| {
+        handler["name"] == "RefreshPlan"
+            && handler["binding"].as_str().unwrap().contains("AddHandler plan.Updated")
+    }));
+    assert!(!handlers.iter().any(|handler| handler["name"] == "Phantom"));
+    assert!(trace("event plan.Updated", true)["handlers"].as_array().unwrap().is_empty());
 }
 
 #[test]
