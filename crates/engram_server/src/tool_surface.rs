@@ -160,6 +160,8 @@ pub const CORE_TOOLS: &[&str] = &[
     // 6 natural-language understanding + identity
     "ask_codebase",
     "resolve_id",
+    // Explicit recent-history answers provide exact Git patch and commit actions.
+    "search_history",
     // 1 story-to-change scope
     "plan_user_story",
     "get_change_set",
@@ -210,7 +212,7 @@ pub const CORE_TOOLS: &[&str] = &[
 pub fn workflow_tools(preset: ToolPreset) -> &'static [&'static str] {
     match preset {
         ToolPreset::Development => &[
-            "batch_read", "get_method_info", "search_history", "pre_push_audit",
+            "batch_read", "get_method_info", "pre_push_audit",
         ],
         ToolPreset::Qa => &[
             "derive_test_matrix", "analyze_business_logic", "trace_state_usage",

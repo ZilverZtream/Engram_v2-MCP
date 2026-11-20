@@ -16,7 +16,6 @@ fn roots(preset: ToolPreset) -> &'static [&'static str] {
         ToolPreset::Development => &[
             "batch_read",
             "get_method_info",
-            "search_history",
             "pre_push_audit",
         ],
         ToolPreset::Qa => &[
@@ -79,8 +78,8 @@ fn workflow_surfaces_contain_registered_roots_and_shared_dependencies_with_ident
     let full = tool_surface::advertised(all.clone(), true);
     for (preset, count) in [
         (ToolPreset::Development, 38),
-        (ToolPreset::Qa, 40),
-        (ToolPreset::Migration, 40),
+        (ToolPreset::Qa, 41),
+        (ToolPreset::Migration, 41),
     ] {
         let selected = tool_surface::advertised_with_preset(all.clone(), preset);
         let actual: BTreeSet<_> = selected.iter().map(|tool| tool.name.as_ref()).collect();
@@ -104,6 +103,7 @@ fn workflow_surfaces_contain_registered_roots_and_shared_dependencies_with_ident
             "cancel_job",
             "pre_push_audit",
             "trace_user_request",
+            "search_history",
         ] {
             ensure!(actual.contains(name), "{preset:?} lacks {name}");
         }
@@ -119,7 +119,7 @@ fn workflow_surfaces_contain_registered_roots_and_shared_dependencies_with_ident
             );
         }
     }
-    ensure!(tool_surface::advertised_with_preset(all.clone(), ToolPreset::Core).len() == 34);
+    ensure!(tool_surface::advertised_with_preset(all.clone(), ToolPreset::Core).len() == 35);
     ensure!(tool_surface::advertised_with_preset(all.clone(), ToolPreset::Full).len() == all.len());
     Ok(())
 }
@@ -206,6 +206,32 @@ impl Fixture {
 }
 fn body(result: &CallToolResult) -> &str {
     &result.content[0].as_text().unwrap().text
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn core_can_follow_the_history_patch_action_it_advertises() -> Result<()> {
+    let fixture = Fixture::new(ToolPreset::Core).await?;
+    let tools = tool_surface::advertised_with_preset(
+        Engram::tool_registry().list_all(),
+        ToolPreset::Core,
+    );
+    ensure!(tools.iter().any(|tool| tool.name == "search_history"));
+    let answer = fixture.e.handle_ask_codebase(serde_json::from_value(json!({
+        "project_id":fixture.project,
+        "question":format!("What changed recently in {FILE}?"),
+        "output_format":"json","depth":"quick"
+    }))?).await?;
+    let answer: Value = serde_json::from_str(body(&answer))?;
+    let call = answer["next_best"].as_array().unwrap().iter()
+        .filter_map(Value::as_str)
+        .find_map(|line| line.strip_prefix("Inspect the file diff with search_history("))
+        .and_then(|rest| rest.strip_suffix(')')).unwrap();
+    let request: Value = serde_json::from_str(call)?;
+    let patch = fixture.e.handle_search_history(serde_json::from_value(request.clone())?).await?;
+    let patch: Value = serde_json::from_str(body(&patch))?;
+    ensure!(patch["results"][0]["as_of_commit"] == request["as_of_rev"]);
+    ensure!(patch["results"][0]["patch"].as_str().unwrap().contains("Public Class Entry"));
+    fixture.close()
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

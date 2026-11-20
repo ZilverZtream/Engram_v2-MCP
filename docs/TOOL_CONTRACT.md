@@ -1670,8 +1670,9 @@ asks retain their revision-bound path. No routing or synthesis model request is
 added, and no latency or general task-usefulness improvement is claimed.
 The Core preset includes `trace_user_request` so the emitted ordinary and nested
 trace recovery actions are advertised and callable; Full remains the default.
-Core currently advertises 34 tools; clients selecting it need at least 34 tool
-slots. Its focused surface checks include the request-trace recovery dependency.
+Core also includes `search_history` for the exact Git patch, commit and older
+window actions emitted by recent-history answers. Core has up to 35 tools
+before capability filtering.
 
 ### Discover prior review evidence from file paths
 
@@ -1769,15 +1770,15 @@ Restart the server and reconnect clients after changing its tool surface.
 tool_preset: qa
 ```
 
-Each named workflow includes the 34 Core tools for project selection, source
-and citation reads, memory sections, review records, indexing/jobs and edit
+Each named workflow includes the 35 Core tools for project selection, source
+and citation reads, history, memory sections, review records, indexing/jobs and edit
 sessions. The additions and maximum counts before project capability filtering are:
 
 | Preset | Maximum | Added workflow tools |
 | --- | ---: | --- |
-| development | 38 | batch_read, get_method_info, search_history, pre_push_audit |
-| qa | 40 | derive_test_matrix, analyze_business_logic, trace_state_usage, query_schema, batch_read, pre_push_audit |
-| migration | 40 | query_schema, analyze_database_intelligence, generate_migration_blueprint, generate_migration_plan, generate_migration_scaffold, pre_push_audit |
+| development | 38 | batch_read, get_method_info, pre_push_audit |
+| qa | 41 | derive_test_matrix, analyze_business_logic, trace_state_usage, query_schema, batch_read, pre_push_audit |
+| migration | 41 | query_schema, analyze_database_intelligence, generate_migration_blueprint, generate_migration_plan, generate_migration_scaffold, pre_push_audit |
 
 These surfaces use the same registered schemas and handlers as Full. Actual
 `tools/list` also applies existing project capability filters; the presets do
