@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "SOURCE_REFRESH_BROWSER_DOWNLOAD_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "batched_edit_safety": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "source_commit": "9594a6b62f507b0d1fc27b83b5d0d3a4ec0e46b4",
+      "requirement": "TODO-33 batched context acquisition and TODO-4 complete bounded read delivery",
+      "observed_gap": "Installed batch_read refuses check_edit_safety with MCP invalid params before reading any requested evidence. Agents preparing an LegacyValidation WebForms edit cannot ask for source, freshness and the method safety advisory in the same read batch.",
+      "implementation": ["crates/engram_server/src/models/requests.rs", "crates/engram_server/src/handlers/batch_read_tools.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Public MCP batch source, exact-file freshness and edit safety for the same actual LegacyValidation method. Preserve request order, independently observed safety errors and complete scoped policy, caller and freshness evidence through whole-result omission and exact saved recovery. Verify the single-call recovery arguments remain callable.",
+      "verification": "Installed MCP refused the new batch operation as an unknown variant. The focused exact request/schema check passed, preserving the source selector, output format, summary default and callable single-tool action. Temporary probe artifacts were removed; public integration is pending.",
+      "receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/batch-edit-safety-focused-20261120.json"
+    },
     "structured_edit_safety_evidence": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "source_commit": "64cf166e7957f7d153ef87037687f395225f90c3",
@@ -4610,6 +4620,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "64cf166e7957f7d153ef87037687f395225f90c3",
       "acceptance_contract": "Compare complete Markdown and JSON on actual LegacyValidation FileLayerZoomPolicy.ClassifyAutomatic, independently matching Resolve declaration at 92 and its invocation at 96. Verify scoped policy and unchanged advisory. Use an owned edit and caller fixture to show stale time status and bounded caller locations, then use the existing report recovery to retain the original after the edit."
+    },
+    {
+      "original_requirement_id": "TODO-33/TODO-4",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "9594a6b62f507b0d1fc27b83b5d0d3a4ec0e46b4",
+      "acceptance_contract": "Batch actual LegacyValidation source, exact-file freshness and edit safety with one distinct failed safety request. Confirm ordering, independent errors and scoped caller/freshness evidence, then recover complete original safety and failures through the shared budget using exact continuation. Check the recovery action remains callable."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
