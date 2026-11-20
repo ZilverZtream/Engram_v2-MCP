@@ -2558,7 +2558,12 @@ Installed November 18 ([delivery](../eval/request-guidance-function-batch-delive
 
 `trace_user_request` resolves explicit `.ashx` WebHandler Class/code-behind directives to a matching VB instance method with an authored single-line `Implements IHttpHandler.ProcessRequest` binding. Method names alone do not establish that entry. Selected class/member ranges or qualified fallback ownership and existing source fingerprints are checked. The existing source/SQL trace continues from that entry. Page lifecycle methods are excluded. Inline, App_Code-only, inherited and multiline bindings remain explicit gaps; hosting, dispatch and execution are unproven.
 
-`update_project(wait=true, only_paths=[...], instruction_maintenance=...)` refreshes selected files and collects a separate worktree instruction observation. With no guidance selector, maintenance uses `only_paths` under its existing 16-file selection limit; invalid maintenance requests refuse before source work. Explicit guidance selectors remain independent. The observation's `source_update_scope` states the refreshed paths, inherited outside revisions and omitted outside disk check. Guidance/Git evidence can be read outside those paths without refreshing their index rows. Observation failure preserves successful source publication with an explicit unavailable observation. No authored policy is written.
+`update_project(only_paths=[...], instruction_maintenance=...)` refreshes selected files and collects a separate worktree instruction observation. With no guidance selector, maintenance uses `only_paths` under its existing 16-file selection limit; invalid maintenance requests refuse before source work. Explicit guidance selectors remain independent. The observation's `source_update_scope` states the refreshed paths, inherited outside revisions and omitted outside disk check. Guidance/Git evidence can be read outside those paths without refreshing their index rows. Observation failure preserves successful source publication with an explicit unavailable observation. No authored policy is written.
+
+Use `wait=false` to queue the same exclusive refresh. Poll the returned job
+with `get_job_status` for its phase, terminal outcome and any saved instruction
+observation. The job only publishes the selected files and inherits outside
+revisions. A job cancelled after publication reports the committed outcome.
 
 `only_paths` forces re-extraction even when bytes match. For a freshness
 check on known files, call `get_index_freshness(source_files=[...])` first.

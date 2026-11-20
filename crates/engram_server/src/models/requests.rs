@@ -546,12 +546,13 @@ pub struct RefreshCorporaRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct UpdateProjectRequest {
-    /// Force exclusive synchronous re-extraction, even when bytes match.
+    /// Force exclusive re-extraction, even when bytes match.
     /// Use get_index_freshness with source_files to check bytes without a write.
     /// Outside paths are inherited
     /// without checking disk bytes; Git and global enrichment are skipped.
     /// Requires a verified existing source identity, 1..4096 eligible paths,
-    /// wait=true, and no reindex_paths or anti-pattern refresh. Optional
+    /// and no reindex_paths or anti-pattern refresh. With wait=false, poll the
+    /// returned job ID with get_job_status. Optional
     /// instruction maintenance is a separate worktree observation; with no
     /// guidance selector it uses these paths under the existing 16-file limit.
     #[serde(default)]

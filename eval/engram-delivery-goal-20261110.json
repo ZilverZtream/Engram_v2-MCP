@@ -2971,8 +2971,19 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "VECTOR_RECOVERY_DOSSIER_AND_COMBINED_REVIEW_READY_FOR_VALIDATION",
+    "status": "SCOPED_REFRESH_JOB_SOURCE_READY_WITH_PREVIOUS_RELEASE_RUNNING",
     "implementation_items_active": 0,
+    "queued_exact_source_refresh": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "TODO-37 pollable indexing and TODO-55 interactive LegacyValidation source refresh",
+      "observed_gap": "Installed update_project only_paths requires wait=true. The retained exact LegacyValidation JS refresh took 59.485 seconds, including 52.045 seconds in index_files. Agents cannot run that bounded refresh through get_job_status.",
+      "implementation": ["crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Submit a one-file wait=false refresh on an owned mixed project. Poll the returned job, verify the new revision independently and confirm outside edits remain outside scope. Retain the scoped instruction observation after the source update when requested. Preserve cancellable worker ownership and distinguish cancellation before publication from a committed degraded outcome.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/queued-exact-source-refresh-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "ac889d13453487a3f63d9346c4ee6c5fc0c6aaeb348cbd568978b7fe91c7f1bc"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "5ce1dbbccf6f4a423e32f09b28df719fa6968fee3623f8655e0151fa64c1258a"},
+      "evidence": "Installed MCP rejected the queued request before any source publication. Running the same request synchronously published only the independently hashed selected edit, inherited the separately changed outside revision and returned the scoped guidance observation. The candidate check follows the returned job ID and saved observation. Scoped runtime cancellation verification remains open. The owned fixture was removed."
+    },
     "vector_dossier_net_review_release": {
       "status": "ONE_COMBINED_RELEASE_BUILD_RUNNING",
       "source_commit": "a9965f53760d47a6a692b5a4123c73a76d5c8442",

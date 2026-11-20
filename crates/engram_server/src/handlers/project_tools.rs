@@ -31,6 +31,21 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use uuid::Uuid;
 
+struct SourceUpdateOutcome {
+    summary: String,
+    published_generation: Option<u64>,
+    degraded: bool,
+}
+
+fn add_instruction_source_update_scope(observation: &mut serde_json::Value, paths: &[String]) {
+    observation["instruction_reference_observation"]["source_update_scope"] = serde_json::json!({
+        "requested_only_paths":paths,
+        "outside_scope_disk_check":"not_run",
+        "outside_source_revisions":"inherited",
+        "observation_reads":"Guidance and its evidence may be read outside the source refresh scope; this does not refresh their indexed revisions."
+    });
+}
+
 /// Correlate ordinary watcher updates with external resource samples without
 /// logging source contents. `returned` marks a control-flow boundary, not a
 /// success claim: several enrichment results intentionally remain best effort.
@@ -1753,12 +1768,13 @@ impl Engram {
         reindex_paths: Vec<String>,
     ) -> Result<String, McpError> {
         self.spawn_job_update_project_with_instructions(project_id, new_gen,
-            max_commits, index_antipatterns, reindex_paths, None).await
+            max_commits, index_antipatterns, reindex_paths, None, None).await
     }
 
     async fn spawn_job_update_project_with_instructions(
         &self, project_id: String, new_gen: u64, max_commits: usize,
         index_antipatterns: bool, reindex_paths: Vec<String>,
+        only_paths: Option<Vec<String>>,
         instruction_maintenance: Option<crate::services::instruction_maintenance::MaintenanceRequest>,
     ) -> Result<String, McpError> {
         // Serialize job registration with deletion's final admission check.
@@ -1846,8 +1862,21 @@ impl Engram {
 
             let mut new_gen = new_gen;
             let mut source_published = false;
+            let mut scoped_outcome = None;
             let res = async {
                 let engram = Engram::new(state.clone());
+                if let Some(paths) = only_paths.as_deref() {
+                    let outcome = engram.update_project_locked(
+                        &project_id_for_job, max_commits, index_antipatterns,
+                        &reindex_paths, Some(paths), &token, Some(&phase),
+                    ).await?;
+                    if let Some(generation) = outcome.published_generation {
+                        new_gen = generation;
+                        source_published = true;
+                    }
+                    scoped_outcome = Some(outcome);
+                    return Ok(());
+                }
                 let source_record = engram.ensure_project_record(&project_id_for_job).await
                     .map_err(|error| anyhow::anyhow!(error.message))?;
                 let source_head = engram.capture_source_head(&project_id_for_job, &source_record.directory, &source_record.project_type).await?;
@@ -2066,7 +2095,7 @@ impl Engram {
             }
 
             let instruction_delivery = if let Some(request) = instruction_maintenance {
-                let observation = if !token.is_cancelled() && (res.is_ok() || source_published) {
+                let mut observation = if !token.is_cancelled() && (res.is_ok() || source_published) {
                     phase.phase("instruction_observation", None, None);
                     Engram::new(state.clone()).collect_job_instruction_observation(
                         &project_id_for_job, request, project_dir.clone()).await
@@ -2076,6 +2105,9 @@ impl Engram {
                         "reason":"Source job failed or cancellation was requested; no post-update instruction capture was attempted."
                     }})
                 };
+                if let Some(paths) = only_paths.as_deref().filter(|_| source_published) {
+                    add_instruction_source_update_scope(&mut observation, paths);
+                }
                 let observed = observation["instruction_reference_observation"]["status"] == "observed";
                 let captured = crate::read_report_delivery::save_job_instruction_observation(
                     &state.cfg.data_dir, &job_id_for_job, observation);
@@ -2098,7 +2130,7 @@ impl Engram {
                 .map(|g| g.clone())
                 .unwrap_or_default();
 
-            let final_status = determine_job_status(
+            let mut final_status = determine_job_status(
                 token.is_cancelled() && !source_published,
                 res.is_err() && !source_published,
                 &enrich_warnings_collected,
@@ -2108,7 +2140,13 @@ impl Engram {
                 res.as_ref().err().filter(|_| !source_published).map(|e| e.to_string()).as_deref(),
                 &enrich_warnings_collected,
             );
-            if max_commits == 0 && matches!(final_status, "done" | "degraded") {
+            if let Some(outcome) = scoped_outcome {
+                if final_status == "done" && outcome.degraded {
+                    final_status = "degraded";
+                }
+                final_msg.push('\n');
+                final_msg.push_str(&outcome.summary);
+            } else if max_commits == 0 && matches!(final_status, "done" | "degraded") {
                 final_msg.push('\n');
                 final_msg.push_str(super::git_tools::SOURCE_REFRESH_HISTORY_SKIPPED);
             }
@@ -2127,7 +2165,7 @@ impl Engram {
 
             // Fix 11: Write failure/cancellation checkpoint on abnormal exit.
             // "degraded" still advances generation — do not write a failure checkpoint for it.
-            if final_status != "done" && final_status != "degraded" {
+            if only_paths.is_none() && final_status != "done" && final_status != "degraded" {
                 let engram = Engram::new(state.clone());
                 engram
                     .write_checkpoint(
@@ -2291,10 +2329,10 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         if let Some(paths) = &req.only_paths {
-            if !req.wait || paths.is_empty() || paths.len() > 4096
+            if paths.is_empty() || paths.len() > 4096
                 || !req.reindex_paths.is_empty()
                 || req.index_antipatterns {
-                return Err(McpError::invalid_params("only_paths requires wait=true, 1..4096 paths, and no reindex_paths or anti-pattern refresh",None));
+                return Err(McpError::invalid_params("only_paths requires 1..4096 paths and no reindex_paths or anti-pattern refresh",None));
             }
             if let Some(maintenance) = req.instruction_maintenance.as_mut() {
                 // Reuse the edit scope for guidance discovery when the caller
@@ -2333,12 +2371,7 @@ impl Engram {
                 let mut observation = self.collect_instruction_observation(&req.project_id, maintenance,
                     "separate_worktree_observation_collected_after_source_update").await;
                 if let Some(paths) = &req.only_paths {
-                    observation["instruction_reference_observation"]["source_update_scope"] = serde_json::json!({
-                        "requested_only_paths":paths,
-                        "outside_scope_disk_check":"not_run",
-                        "outside_source_revisions":"inherited",
-                        "observation_reads":"Guidance and its evidence may be read outside the source refresh scope; this does not refresh their indexed revisions."
-                    });
+                    add_instruction_source_update_scope(&mut observation, paths);
                 }
                 result.content.push(Content::text(observation.to_string()));
             }
@@ -2352,6 +2385,7 @@ impl Engram {
                 req.sanitized_max_commits(),
                 req.index_antipatterns,
                 req.reindex_paths.clone(),
+                req.only_paths,
                 req.instruction_maintenance,
             )
             .await?;
@@ -2477,6 +2511,21 @@ impl Engram {
         cancel: &tokio_util::sync::CancellationToken,
     ) -> anyhow::Result<String> {
         let _update_guard = self.state.acquire_project_update_lock(project_id).await;
+        self.update_project_locked(project_id, max_commits, index_antipatterns,
+            reindex_paths, only_paths, cancel, None).await.map(|outcome| outcome.summary)
+    }
+
+    async fn update_project_locked(
+        &self,
+        project_id: &str,
+        max_commits: usize,
+        index_antipatterns: bool,
+        reindex_paths: &[String],
+        only_paths: Option<&[String]>,
+        cancel: &tokio_util::sync::CancellationToken,
+        phase: Option<&Reporter>,
+    ) -> anyhow::Result<SourceUpdateOutcome> {
+        anyhow::ensure!(!cancel.is_cancelled(), "update cancelled before source scan");
         // External audit 2026-08-29 P0-1: the watcher and update_project(wait=true)
         // reach this path without a job guard, so the GC never saw the update.
         let _indexing_slot = crate::state::ActiveIndexingSlot::acquire(&self.state);
@@ -2503,6 +2552,9 @@ impl Engram {
             .checked_add(1)
             .ok_or_else(|| anyhow::anyhow!("source generation exhausted"))?;
 
+        if let Some(phase) = phase {
+            phase.phase("scanning", None, None);
+        }
         let project_service::SourceChangeScan { changed, deleted, extraction, vb_source_files, .. } =
             if let Some(paths) = only_paths {
                 project_service::exclusive_source_changes(&self.state, &ps.search, &source_head, &dir, &exts, paths).await?
@@ -2531,10 +2583,14 @@ impl Engram {
                     max_commits,
                     index_antipatterns,
                     cancel,
-                    None,
+                    phase.cloned(),
                 )
                 .await
-                .map(|(summary, _)| summary);
+                .map(|(summary, warning)| SourceUpdateOutcome {
+                    summary,
+                    published_generation: None,
+                    degraded: warning.is_some(),
+                });
         }
 
         // Resume from a previously interrupted job: narrow the pending-file list
@@ -2586,6 +2642,9 @@ impl Engram {
             .unwrap_or(engram_core::NamespaceVersioning::Snapshot);
 
         if memory_policy == engram_core::NamespaceVersioning::Snapshot {
+            if let Some(phase) = phase {
+                phase.phase("preparing_snapshot", Some(changed.len() as u64), Some("files"));
+            }
             let changed_paths = changed
                 .iter()
                 .map(|path| {
@@ -2623,6 +2682,9 @@ impl Engram {
 
         // Vector failure requires complete recovery. Retrying only these changed
         // files can otherwise publish a snapshot with inherited vectors missing.
+        if let Some(phase) = phase {
+            phase.phase("source_indexing", Some(changed.len() as u64), Some("files"));
+        }
         observe_source_update(project_id, new_gen, "index_files", "begin");
         let stats = self
             .index_files_with_parse_guard(
@@ -2635,7 +2697,14 @@ impl Engram {
                 Some(vb_source_files),
                 self.state.cfg.max_chunks_per_file,
                 cancel,
-                |_, _| {},
+                move |done, total| {
+                    if let Some(phase) = phase {
+                        phase.advance("source_indexing", done, total, "files");
+                        if done == total {
+                            phase.phase("source_flush", None, None);
+                        }
+                    }
+                },
             )
             .await?;
         observe_source_update(project_id, new_gen, "index_files", "returned");
@@ -2644,6 +2713,9 @@ impl Engram {
         #[cfg(test)]
         crate::actors::watcher::behavior_tests::staged(project_id).await;
         anyhow::ensure!(!cancel.is_cancelled(), "update cancelled before graph enrichment");
+        if let Some(phase) = phase {
+            phase.phase("graph_processing", None, None);
+        }
         observe_source_update(project_id, new_gen, "graph_ingest", "begin");
         self.process_ingest_stats(project_id, new_gen, &stats)
             .await
@@ -2703,6 +2775,9 @@ impl Engram {
         let _ = source_publication_tests::foreground_publication(
             &self.state.registry, project_id, false, cancel,
         ).await;
+        if let Some(phase) = phase {
+            phase.phase("source_publication", None, None);
+        }
         anyhow::ensure!(
             !cancel.is_cancelled(),
             "update cancelled before source generation publication"
@@ -2733,6 +2808,9 @@ impl Engram {
         // Every failure above remains a failed unpublished attempt. From this
         // point the complete source head is visible; follow-up failures must
         // report that committed outcome instead of implying publication failed.
+        if let Some(phase) = phase {
+            phase.phase("source_finalization", None, None);
+        }
         #[cfg(test)]
         let injected_step = source_publication_tests::foreground_publication(
             &self.state.registry, project_id, true, cancel,
@@ -2887,10 +2965,15 @@ impl Engram {
         let scope_report = if only_paths.is_some() {
             "update_scope: only_paths\noutside_scope_disk_check: not_run\noutside_source_revisions: inherited\nglobal_enrichment: skipped\n"
         } else { "update_scope: project\n" };
-        Ok(format!(
+        let summary = format!(
             "✅ Updated project_id: {project_id}\nstatus: {update_status}\nactive_generation: {new_gen}\nSource generation {new_gen} published.\n{scope_report}{purge_note}\nfiles={} chunks={} bytes={}\n{git_summary}\n{finalization_report}\n",
             stats.files, stats.chunks, stats.bytes
-        ))
+        );
+        Ok(SourceUpdateOutcome {
+            summary,
+            published_generation: Some(new_gen),
+            degraded: update_status == "degraded",
+        })
     }
 
     pub async fn handle_list_projects(&self) -> Result<CallToolResult, McpError> {
