@@ -1134,7 +1134,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Compare Tantivy and vector index integrity, optionally auto-repair. Supply source_file for a read-only comparison of one exact published file and its selected physical revision, including bounded vector key matching. Scoped checks cannot request auto_repair. Use repair_project for targeted rebuilds."
+        description = "Compare Tantivy and vector index integrity, optionally auto-repair. Set source_keys=true for a read-only comparison of published physical keys across up to 65536 selected memory rows and 16 MiB of lexical key text. Supply source_file instead to compare one exact selected file at its physical revision. These two modes cannot request auto_repair. Use repair_project for targeted rebuilds."
     )]
     pub async fn check_integrity(
         &self,

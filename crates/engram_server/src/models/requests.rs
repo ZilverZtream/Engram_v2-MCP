@@ -3064,6 +3064,10 @@ pub struct CheckIntegrityRequest {
     /// revision. This mode is read-only and cannot request auto-repair.
     #[serde(default)]
     pub source_file: Option<String>,
+    /// Read-only comparison of selected memory keys across the project.
+    /// Cannot be combined with source_file or auto_repair=true.
+    #[serde(default)]
+    pub source_keys: bool,
     /// Auto-repair mismatches if found (overrides config). Default: use config value.
     #[serde(default)]
     pub auto_repair: Option<bool>,

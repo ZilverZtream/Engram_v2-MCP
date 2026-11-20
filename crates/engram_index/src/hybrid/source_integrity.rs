@@ -12,9 +12,17 @@ pub struct SourceGenerationObservation {
 use std::collections::HashSet;
 
 #[cfg(feature = "vector")]
-const MAX_IDENTITY_ROWS: usize = 4096;
+#[derive(Clone, Copy)]
+pub(super) struct IdentityBudget {
+    rows: usize,
+    key_bytes: usize,
+}
+
 #[cfg(feature = "vector")]
-const MAX_IDENTITY_BYTES: usize = 4 * 1024 * 1024;
+impl IdentityBudget {
+    pub(super) const STANDARD: Self = Self { rows: 4096, key_bytes: 4 * 1024 * 1024 };
+    pub(super) const EXPANDED: Self = Self { rows: 65_536, key_bytes: 16 * 1024 * 1024 };
+}
 
 #[cfg(feature = "vector")]
 #[derive(Clone)]
@@ -57,15 +65,15 @@ pub(super) fn lexical_rows(
     searcher: &tantivy::Searcher,
     query: &dyn tantivy::query::Query,
     pk: tantivy::schema::Field,
-    compare_keys: bool,
+    identity_budget: Option<IdentityBudget>,
 ) -> anyhow::Result<(usize, Option<HashSet<String>>)> {
     use tantivy::collector::{Count, DocSetCollector};
     use tantivy::schema::Value;
 
     let count = searcher.search(query, &Count)?;
-    if !compare_keys || count > MAX_IDENTITY_ROWS {
+    let Some(budget) = identity_budget.filter(|budget| count <= budget.rows) else {
         return Ok((count, None));
-    }
+    };
     let mut keys = HashSet::with_capacity(count);
     let mut bytes = 0;
     for address in searcher.search(query, &DocSetCollector)? {
@@ -76,7 +84,7 @@ pub(super) fn lexical_rows(
             .filter(|value| !value.is_empty())
             .ok_or_else(|| anyhow::anyhow!("Selected Tantivy row has no primary key"))?;
         bytes += value.len();
-        if bytes > MAX_IDENTITY_BYTES {
+        if bytes > budget.key_bytes {
             return Ok((count, None));
         }
         anyhow::ensure!(

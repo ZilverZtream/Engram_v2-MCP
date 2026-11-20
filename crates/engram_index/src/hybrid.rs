@@ -2876,7 +2876,8 @@ impl HybridSearchEngine {
                 return Ok(None);
             }
             Ok(Some(self.observe_selected_source_rows(
-                project_id, view._snapshot.clone(), None, compare_keys,
+                project_id, view._snapshot.clone(), None,
+                compare_keys.then_some(source_integrity::IdentityBudget::STANDARD),
             ).await?))
         }
         #[cfg(not(feature = "vector"))]
@@ -2884,6 +2885,25 @@ impl HybridSearchEngine {
             let _ = (project_id, generation, compare_keys);
             Ok(None)
         }
+    }
+
+    /// Compare physical memory keys under an expanded budget for explicit
+    /// diagnostics while holding the caller's published source selection.
+    pub async fn observe_selected_source_keys(
+        &self,
+        project_id: &str,
+        generation: u64,
+        view: &SourceSnapshotGuard,
+    ) -> anyhow::Result<Option<SourceGenerationObservation>> {
+        self.validate_source_snapshot_guard(project_id, generation, view)?;
+        #[cfg(feature = "vector")]
+        if view.is_managed() {
+            return Ok(Some(self.observe_selected_source_rows(
+                project_id, view._snapshot.clone(), None,
+                Some(source_integrity::IdentityBudget::EXPANDED),
+            ).await?));
+        }
+        Ok(None)
     }
 
     /// Compare one literal selected path at its physical revision. The caller's
@@ -2903,7 +2923,8 @@ impl HybridSearchEngine {
                 return Ok(None);
             };
             Ok(Some(self.observe_selected_source_rows(
-                project_id, view._snapshot.clone(), Some(source_integrity::FileScope { path: path.to_owned(), revision: *revision }), true,
+                project_id, view._snapshot.clone(), Some(source_integrity::FileScope { path: path.to_owned(), revision: *revision }),
+                Some(source_integrity::IdentityBudget::STANDARD),
             ).await?))
         }
         #[cfg(not(feature = "vector"))]
@@ -2919,7 +2940,7 @@ impl HybridSearchEngine {
         project_id: &str,
         snapshot: snapshots::Lease,
         file: Option<source_integrity::FileScope>,
-        compare_keys: bool,
+        identity_budget: Option<source_integrity::IdentityBudget>,
     ) -> anyhow::Result<SourceGenerationObservation> {
         let lexical_snapshot = snapshot.clone();
         let lexical_file = file.clone();
@@ -2939,7 +2960,7 @@ impl HybridSearchEngine {
             clauses.push((Occur::Must, source));
             let reader = lexical.tantivy_index.reader()?;
             source_integrity::lexical_rows(
-                &reader.searcher(), &BooleanQuery::new(clauses), lexical.fields.pk, compare_keys,
+                &reader.searcher(), &BooleanQuery::new(clauses), lexical.fields.pk, identity_budget,
             )
         }).await??;
         let epoch = self.pin_vector_epoch(project_id)?;

@@ -3382,7 +3382,15 @@
       "acceptance": "An indexed FQN read pins one managed selection, admits the target and caller revisions, uses the fingerprint-checked bytes for returned spans, and retains the lease through report delivery. Inherited selected files pass; future observations with matching bytes are withheld. Explicit current-file/range and legacy fingerprint results preserve their existing modes.",
       "verification": "Installed FQN request returned the actual LegacyValidation task-management LoadComplete method with matched_indexed_fingerprint but no source_generation. Focused compiled source reader and caller expansion used the actual LegacyValidation bytes in an owned fixture with a real Tantivy selection and GraphStore. It admitted target/caller records inherited from revision 1 at published generation 2 and withheld a revision-3 caller edge, caller node and target file despite unchanged bytes. The public regression fixture also asserts direct-range source remains readable and the indexed response reports the held generation. Owned resources closed. Candidate/installed verification remains pending. No Cargo build."
     },
-    "next_action": "Advance a separate ready original requirement before the next combined packaged MCP release."
+    "expanded_source_key_integrity": {
+      "status": "IMPLEMENTED_FOCUSED_ACTUAL_STORES_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-39 compare physical lexical/vector identities at the scale of the registered LegacyValidation project",
+      "observed_gap": "Fresh installed check_integrity reports managed_source_snapshot_counts_only at generation 3222 with 32271 rows in each store. The current key comparison is capped at 4096 rows.",
+      "implementation": ["crates/engram_index/src/hybrid/source_integrity.rs", "crates/engram_index/src/hybrid.rs", "crates/engram_server/src/handlers/project_tools.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs"],
+      "acceptance": "An explicit read-only integrity request compares all selected physical keys for an LegacyValidation-sized snapshot, detects equal-count substitutions in an owned fixture, and discloses when the expanded row or byte budget is exceeded. Ordinary and exact-file behavior, background work and automatic repair remain unchanged.",
+      "verification": "Fresh installed LegacyValidation check_integrity(auto_repair=false) reported matching counts of 32271 and managed_source_snapshot_counts_only. A focused executable linked the changed membership comparison to actual Tantivy and LanceDB with 32271 controlled selected keys. Standard mode returned no key comparison, expanded mode matched every key, and a substituted vector key preserved cardinality while returning 32270 matches. The owned database and scratch resources closed. The new MCP source_keys=true mode uses the same pinned selection and does no repair. Candidate and installed MCP acceptance remain pending. No Cargo build."
+    },
+    "next_action": "Advance a third ready original requirement before packaging the indexed method and expanded integrity changes."
   },
   "windows_reconnect_release_interruption": {
     "status": "INTERRUPTED_NO_NEW_BINARY",
