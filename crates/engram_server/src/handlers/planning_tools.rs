@@ -7106,6 +7106,7 @@ fn change_set_independent(s: &str) -> bool {
             | "lexicon"
             | "gloss"
             | "family"
+            | "anchored_companion"
             | "broad"
             | "disk"
     )
@@ -7119,6 +7120,7 @@ fn change_set_strength(sigs: &BTreeSet<&'static str>) -> usize {
             !matches!(
                 **s,
                 "family"
+                    | "anchored_companion"
                     | "broad"
                     | "disk"
                     | "specific"
@@ -7239,6 +7241,7 @@ fn change_set_tier(sigs: &BTreeSet<&'static str>) -> u8 {
         || sigs.contains("entity")
         || sigs.contains("gloss")
         || sigs.contains("name")
+        || sigs.contains("anchored_companion")
         || corroborated_lexicon;
     let concept = sigs.contains("concept");
     let independent = sigs.iter().filter(|s| change_set_independent(s)).count();
@@ -8206,7 +8209,7 @@ fn change_set_evidence_class(signals: &[&str]) -> &'static str {
         "direct_behavioral_candidate"
     } else if historical {
         "historical_companion_candidate"
-    } else if has("family") || has("disk") {
+    } else if has("structural_companion") || has("family") || has("disk") {
         "structural_companion_candidate"
     } else {
         "retrieval_candidate"
@@ -8973,7 +8976,7 @@ pub(crate) fn change_set_rows(
     });
     let signals = |sigs: &BTreeSet<&'static str>| -> Vec<&'static str> {
         sigs.iter()
-            .filter(|s| !matches!(**s, "family" | "specific" | "optional_history_lead"))
+            .filter(|s| !matches!(**s, "family" | "anchored_companion" | "specific" | "optional_history_lead"))
             .map(|s| {
                 if *s == "vtop" {
                     "vector"
@@ -10738,6 +10741,12 @@ impl Engram {
             let mut fam: Vec<(String, BTreeSet<&'static str>)> = Vec::new();
             for (p, sigs) in &prov {
                 let ps = strip(p);
+                // The sibling relationship is evidence. The anchor's symbol,
+                // history and lexical matches belong to the anchor alone.
+                let mut companion = BTreeSet::from(["structural_companion"]);
+                if change_set_tier(sigs) <= 1 {
+                    companion.insert("anchored_companion");
+                }
                 if ps.ends_with(".aspx") || ps.ends_with(".ascx") {
                     for ext in [".vb", ".cs", ".designer.vb", ".designer.cs"] {
                         let sib = format!("{ps}{ext}");
@@ -10745,7 +10754,7 @@ impl Engram {
                             why.entry(sib.clone())
                                 .or_default()
                                 .push(format!("code-behind/designer companion of {p}"));
-                            fam.push((sib, sigs.clone()));
+                            fam.push((sib, companion.clone()));
                         }
                     }
                 }
@@ -10778,7 +10787,7 @@ impl Engram {
                                 .find(|k| strip(k) == markup)
                                 .cloned()
                                 .unwrap_or_else(|| markup.clone());
-                            let mut fs = sigs.clone();
+                            let mut fs = companion.clone();
                             fs.insert("family");
                             why.entry(key.clone())
                                 .or_default()
@@ -10794,15 +10803,18 @@ impl Engram {
                     let dir = &ps[..slash + 1];
                     let stem = ps[slash + 1..].split('.').next().unwrap_or("");
                     if !stem.is_empty() {
-                        let want = format!("{dir}{stem}");
+                        // Keep the seed in its atomic resource family without
+                        // presenting it as independent evidence for itself.
+                        fam.push((p.clone(), BTreeSet::from(["family"])));
+                        let want = format!("{dir}{stem}.");
                         for f in &index {
-                            if f.starts_with(&want) && f.ends_with(".resx") {
+                            if f != &ps && f.starts_with(&want) && f.ends_with(".resx") {
                                 // Tag "family": a localized resx set is atomic — if
                                 // one language is in the set, ALL must be (the
                                 // completeness rule). Tagging lets render exempt the
                                 // language siblings from the per-layer tail cap, so a
                                 // seeded family is never shown half-complete.
-                                let mut fs = sigs.clone();
+                                let mut fs = companion.clone();
                                 fs.insert("family");
                                 why.entry(f.clone())
                                     .or_default()
@@ -10821,7 +10833,7 @@ impl Engram {
                         why.entry(c.clone())
                             .or_default()
                             .push(format!("compiled bundle / source pair of {p}"));
-                        fam.push((c, sigs.clone()));
+                        fam.push((c, companion.clone()));
                     }
                 }
                 // Interface <-> implementation (.NET IService convention).
@@ -10830,7 +10842,7 @@ impl Engram {
                         why.entry(c.clone())
                             .or_default()
                             .push(format!("interface/implementation pair of {p}"));
-                        fam.push((c, sigs.clone()));
+                        fam.push((c, companion.clone()));
                     }
                 }
                 for candidate in dbml_family_candidates(&p.replace('\\', "/")) {
@@ -10840,7 +10852,7 @@ impl Engram {
                             .map(|path| (path, true))
                     });
                     if let Some((path, disk_only)) = resolved {
-                        let mut fs = sigs.clone();
+                        let mut fs = companion.clone();
                         fs.insert("family");
                         if disk_only {
                             fs.insert("disk");

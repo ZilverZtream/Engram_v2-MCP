@@ -32,6 +32,7 @@ mod metadata_cache;
 mod extraction;
 use extraction::{describe, MAX_CARD_FILES, MAX_DESCRIPTION};
 pub(crate) use extraction::recent_window;
+pub(crate) const RECENT_BODY_CHARS: usize = 400;
 #[cfg(test)]
 use extraction::is_generated;
 pub(crate) use extraction::parse_pr_identity;

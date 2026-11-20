@@ -5,7 +5,7 @@
 //! vector, skip individual gates via the request's `skip_gates` field, and
 //! test each one in isolation with a mock `GateContext`.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::LazyLock;
 
 use async_trait::async_trait;
@@ -3473,12 +3473,12 @@ impl Gate for ComplexityGate {
                             "complexity_budget",
                             df.path.clone(),
                             format!(
-                                "`{name}` declares {n} parameters (SonarQube max {SQ_PARAMS_MAX})"
+                                "`{name}` declares {n} parameters (review threshold {SQ_PARAMS_MAX})"
                             ),
                             format!(
-                                "This diff adds a declaration with {n} parameters. SonarQube \
-                                 flags any function over {SQ_PARAMS_MAX}; long parameter lists \
-                                 are also the most common agent-generated review bounce."
+                                "The declaration in the submitted diff has {n} parameters. \
+                                 Engram's local threshold is {SQ_PARAMS_MAX}. Check the caller \
+                                 contract before changing this signature."
                             ),
                             "Group the parameters into a parameter object (options/query/DTO \
                              type) or split the function so each piece takes a coherent subset.",
@@ -3496,16 +3496,26 @@ impl Gate for ComplexityGate {
                 continue;
             }
             let disk = String::from_utf8_lossy(&disk_bytes);
-            let touched: Vec<(usize, usize)> = df
-                .hunks
-                .iter()
-                .map(|h| (h.new_start, h.new_start + h.new_count.max(1) - 1))
-                .collect();
-            let added_line_set: HashSet<usize> = df.added_lines.iter().map(|(n, _)| *n).collect();
+            let added: BTreeSet<_> = df.added_lines.iter().map(|(line, _)| *line).collect();
+            // A deletion lies between two surviving lines. Only a deletion
+            // inside a surviving function is evidence of touching that function.
+            let mut deletion_gaps = BTreeSet::new();
+            for hunk in &df.hunks {
+                let mut next_line = hunk.new_start + usize::from(hunk.new_count == 0);
+                for line in &hunk.body {
+                    match line.as_bytes().first() {
+                        Some(b'-') => { deletion_gaps.insert(next_line); }
+                        Some(b'+' | b' ') => next_line += 1,
+                        _ => {}
+                    }
+                }
+            }
             let disk_lines: Vec<&str> = disk.lines().collect();
             let mut over: Vec<(u32, usize, String, bool)> = Vec::new();
             for (start, end, name) in function_spans(&disk, vb_style) {
-                if !touched.iter().any(|(ts, te)| start <= *te && end >= *ts) {
+                if added.range(start..=end).next().is_none()
+                    && !deletion_gaps.range(..=end).next_back().is_some_and(|line| *line > start)
+                {
                     continue;
                 }
                 let body = disk_lines
@@ -3514,7 +3524,7 @@ impl Gate for ComplexityGate {
                     .join("\n");
                 let cx = estimate_complexity(&body);
                 if cx > SQ_COMPLEXITY_MAX {
-                    over.push((cx, start, name, added_line_set.contains(&start)));
+                    over.push((cx, start, name, added.range(start..=end).count() == end - start + 1));
                 }
             }
             over.sort_by(|a, b| b.0.cmp(&a.0));
@@ -3530,7 +3540,7 @@ impl Gate for ComplexityGate {
                     (
                         Severity::Warning,
                         format!(
-                            "New function `{name}` has estimated complexity {cx} (review threshold {SQ_COMPLEXITY_MAX})"
+                            "Added function body `{name}` has estimated complexity {cx} (review threshold {SQ_COMPLEXITY_MAX})"
                         ),
                         format!(
                             "Engram's local estimate ({cx} decision points) exceeds its \

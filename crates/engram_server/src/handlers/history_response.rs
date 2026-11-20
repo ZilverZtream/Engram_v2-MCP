@@ -72,11 +72,24 @@ pub(super) fn recent(
             recovery(&req.project_id, Some(&card.oid), None)
         };
         let date = crate::utils::ymd_utc(card.timestamp.saturating_mul(1000));
-        blocks.push(format!("\ncommit: {}\ndate: {date}\nauthor: {}\nmessage: {}\nfiles: {}\nrecovery: {recovery}\n",
-            card.oid, card.author, card.title, json!(files)));
-        rows.push(json!({"commit":card.oid,"author":card.author,"timestamp":card.timestamp,
+        let mut row = json!({"commit":card.oid,"author":card.author,"timestamp":card.timestamp,
             "message":card.title,"files":files,"file_count":card.file_count,
-            "files_truncated":card.file_count>files.len(),"files_scope":"changed paths matching the requested Git path filters","recovery":recovery}));
+            "files_truncated":card.file_count>files.len(),"files_scope":"changed paths matching the requested Git path filters","recovery":recovery});
+        let mut block = format!("\ncommit: {}\ndate: {date}\nauthor: {}\nmessage: {}\n",
+            card.oid, card.author, card.title);
+        if !card.description.is_empty() {
+            let mut chars = card.description.chars();
+            let excerpt: String = chars.by_ref()
+                .take(crate::services::change_card_service::RECENT_BODY_CHARS).collect();
+            let truncated = chars.next().is_some();
+            block.push_str(&format!("commit body: {}{}\n", json!(excerpt),
+                if truncated { " (excerpt; mode=commit retrieves the full message)" } else { "" }));
+            row["message_body_excerpt"] = json!(excerpt);
+            row["message_body_truncated"] = json!(truncated);
+        }
+        block.push_str(&format!("files: {}\nrecovery: {recovery}\n", json!(files)));
+        blocks.push(block);
+        rows.push(row);
     }
     let scan = json!({"max_commits":max_commits,"commits_scanned":window.commits_scanned,
         "older_history_not_scanned":window.next_revision.is_some()});

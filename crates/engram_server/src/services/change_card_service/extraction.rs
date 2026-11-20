@@ -62,7 +62,9 @@ pub(crate) fn recent_window(
             cards.push(Arc::new(ChangeCard {
                 oid: oid.to_string(),
                 title: commit.summary().unwrap_or("").chars().take(MAX_DESCRIPTION).collect(),
-                description: String::new(),
+                // One lookahead character lets the reply signal truncation.
+                description: commit.body().unwrap_or("").trim_end().chars()
+                    .take(super::RECENT_BODY_CHARS + 1).collect(),
                 author: author.to_owned(),
                 timestamp,
                 files,
