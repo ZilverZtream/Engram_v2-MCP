@@ -2081,6 +2081,14 @@ from the staged diff, an otherwise green verdict becomes yellow. Findings
 and critical verdicts remain visible. The observations are collected at
 separate times and do not establish an atomic Git and filesystem snapshot.
 
+Set `retain_reviewed_patch: true` to save the exact submitted patch,
+including its original context lines. The complete review returns a
+`reviewed_patch` record with its BLAKE3, byte count and recovery action.
+If the review itself is deferred, recover the complete review to find the
+patch action. Follow its pages and verify the hash before using the patch.
+Restaging does not change these saved bytes. Patch and review snapshots
+share the existing retention limits.
+
 Reviews accept up to 4 MiB of complete patch text. If the diff exceeds that
 limit, narrow the native review with `path_prefixes` or split the patch by file.
 The tool returns an error before review gates run.

@@ -2988,6 +2988,17 @@
   "current_execution_focus": {
     "status": "SOURCE_QA_JOB_WORKFLOWS_COMBINED_CANDIDATE_RUNNING",
     "implementation_items_active": 0,
+    "exact_reviewed_patch_recovery": {
+      "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
+      "requirement": "EG-19 decision-aware source reviews and TODO-34 bounded staged evidence",
+      "observed_gap": "A staged review identifies the patch hash and Git entries but offers no saved patch. Rereading Git after another edit or restaging can show different bytes from those submitted to the gates.",
+      "implementation": ["crates/engram_server/src/handlers/review_tools.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Opt in to keep the exact bounded submitted patch, follow its immutable MCP read after restaging, and verify the recovered bytes against the review's digest. Preserve ordinary review output and findings when omitted.",
+      "case_directory": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/review-staged-patch-recovery-20261120",
+      "baseline": {"path": "baseline/receipt.json", "sha256": "ce0ceba8e843bdfe89cf2e093662013f2d3fed6760fdd79136f7c1a947539f54"},
+      "candidate_verifier": {"path": "verify.py", "sha256": "38fe2c278b195678426cc65a42878568a6a747bc844a19513cf32e4621a04071"},
+      "evidence": "Staged MCP reported a digest for an owned VB patch with independent staged and working edits, but returned no retained patch. Source captures the bounded original bytes in the existing snapshot family when requested and exposes a separate action. Syntax and whitespace checks passed. The fixture closed and its data was removed. Runtime acceptance remains pending and the running candidate predates this change."
+    },
     "source_qa_job_workflows_candidate": {
       "status": "FROZEN_COMBINED_RELEASE_CANDIDATE_RUNNING",
       "source_commit": "5dd6977a3c7c424112713439100b172303790a50",

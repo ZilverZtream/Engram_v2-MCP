@@ -107,7 +107,8 @@ impl Engram {
         let indexed_project_dir = PathBuf::from(rec.directory.clone());
         let start = std::time::Instant::now();
         let root = indexed_project_dir.clone();
-        let (req, project_dir, review_source, diff_blake3, parsed, head_before, source_before, index_before) =
+        let capture_patch = req.retain_reviewed_patch.then(|| self.state.cfg.data_dir.clone());
+        let (req, project_dir, review_source, diff_blake3, reviewed_patch, parsed, head_before, source_before, index_before) =
             tokio::task::spawn_blocking(move || {
                 let (project_dir, review_source) =
                     resolve_review_directory(&root, req.working_directory.as_deref())
@@ -129,10 +130,13 @@ impl Engram {
                 );
                 let diff_blake3 = (!diff_text.trim().is_empty())
                     .then(|| blake3::hash(diff_text.as_bytes()).to_hex().to_string());
+                let reviewed_patch = capture_patch.as_deref().zip(diff_blake3.as_deref()).map(|(data, digest)| {
+                    capture_reviewed_patch(data, &req.project_id, &diff_text, digest, budget)
+                });
                 drop(diff_text);
                 let source = source_snapshot(&project_dir, &parsed);
                 let index = staged_index.as_ref().map(|index| staged_entries(index, &parsed));
-                Ok::<_, McpError>((req, project_dir, review_source, diff_blake3, parsed, head, source, index))
+                Ok::<_, McpError>((req, project_dir, review_source, diff_blake3, reviewed_patch, parsed, head, source, index))
             })
             .await
             .map_err(|error| McpError::internal_error(error.to_string(), None))??;
@@ -366,6 +370,9 @@ impl Engram {
             .map_err(|error| McpError::internal_error(error.to_string(), None))?;
         payload["prior_review_context"] = prior_review_context.clone();
         payload["instruction_maintenance_context"] = instruction_maintenance_context.clone();
+        if let Some(patch) = &reviewed_patch {
+            payload["reviewed_patch"] = patch.clone();
+        }
         finding_context::annotate(&mut payload);
         let source_qualification = if changed_during_review || snapshot_unavailable {
             Some("source or staging snapshot changed or unavailable")
@@ -399,6 +406,9 @@ impl Engram {
                 render_markdown(&findings, files_analysed, gates_run, elapsed_ms, &outcomes)
             };
             report.push_str(&scope_note);
+            if let Some(patch) = &reviewed_patch {
+                report.push_str(&format!("\n\n## Submitted patch recovery\n\n{patch}\n"));
+            }
             if let Some(reason) = source_qualification {
                 report = report.replacen(
                     "GREEN — no concerns within reported static gate coverage",
@@ -460,6 +470,34 @@ impl Engram {
         };
 
         response_delivery::finish(&req, &self.state.cfg.data_dir, body, &payload)
+    }
+}
+
+fn capture_reviewed_patch(
+    data: &std::path::Path,
+    project: &str,
+    patch: &str,
+    digest: &str,
+    budget: usize,
+) -> serde_json::Value {
+    use super::planning_tools::change_set_delivery as snapshots;
+    use serde_json::json;
+
+    match snapshots::save_review(data, project, patch) {
+        Ok(id) => json!({
+            "status": "captured",
+            "original_format": "unified_diff",
+            "response_id": id,
+            "diff_blake3": digest,
+            "original_bytes": patch.len(),
+            "next_call": snapshots::review_continuation(project, &id, 0, budget),
+            "interpretation": "Exact patch submitted to the review. Recovery does not reread Git or rerun the gates.",
+        }),
+        Err(error) => json!({
+            "status": "unavailable",
+            "diff_blake3": digest,
+            "reason": error.message,
+        }),
     }
 }
 

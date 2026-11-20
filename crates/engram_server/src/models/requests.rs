@@ -4854,6 +4854,10 @@ pub struct PreCommitReviewRequest {
     /// Default: `"staged"`.
     #[serde(default = "default_diff_source")]
     pub diff: String,
+    /// Save the exact submitted unified patch for immutable response recovery.
+    /// Off by default. This captures the original bytes, including context lines.
+    #[serde(default)]
+    pub retain_reviewed_patch: bool,
     /// Literal Git paths or directory prefixes relative to the worktree root.
     /// Applies to staged, unstaged, working_tree and head reviews. Empty reviews all paths.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
