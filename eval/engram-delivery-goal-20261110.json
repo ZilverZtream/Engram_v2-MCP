@@ -2973,6 +2973,17 @@
   "current_execution_focus": {
     "status": "VERIFIED_METHOD_EDIT_CONTEXT_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "edit_session_spaced_dossier_paths": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "source_commit": "c39927e7fd80b72547085d3075fedb509599694a",
+      "requirement": "EG-02 complete exact change-set recovery and TODO-29 edit-session reconciliation for LegacyValidation SQL",
+      "observed_gap": "Installed complete_edit_session turns two backtick-quoted tracked LegacyValidation SQL files under db-legacy_validation.sql/dbo/Stored Procedures into incorrect Procedures/... suffixes, losing the canonical candidate identities.",
+      "implementation": ["crates/engram_server/src/handlers/planning_tools.rs", "docs/TOOL_CONTRACT.md"],
+      "acceptance": "Both backtick-quoted Markdown and JSON/double-quoted dossier paths with spaces retain the full path. With one of the tracked SQL paths in the edited set, only its sibling remains untreated. Existing bare paths and deduplication remain.",
+      "baseline": {"path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/limited-recovery-guidance-20261120/edit-session-spaced-dossier-baseline/receipt.json", "sha256": "20da1f21e4b3239099c198a6b5ce66543a3b293212dc425a130b1a3d96b4c87e"},
+      "focused_receipt": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/edit-dossier-spaced-focused-20261120.json",
+      "verification": "Installed MCP reproduced loss of the full identities from two exact Git paths. The compiled production parser and reconciliation kept both paths in Markdown/JSON token forms and left just the actual sibling when one was edited. Existing tests retain bare path and deduplication behavior. Packaged workflow verification is pending."
+    },
     "edit_session_complete_dossier_reconciliation": {
       "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
       "source_commit": "b1c6a637ad5416b70be3aeb21c55d470a318cfba",
@@ -4837,6 +4848,12 @@
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "source_commit": "b1c6a637ad5416b70be3aeb21c55d470a318cfba",
       "acceptance_contract": "Complete a disposable edit lifecycle with the 42 independently sourced LegacyValidation path references under a reply budget that defers the report. Verify all untouched paths and section labels in the recovered original, exact BLAKE3, and refusal to close the same lifecycle twice. No actual application source edits."
+    },
+    {
+      "original_requirement_id": "EG-02/TODO-29 spaced SQL reconciliation",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "c39927e7fd80b72547085d3075fedb509599694a",
+      "acceptance_contract": "Complete the owned lifecycle with actual spaced LegacyValidation SQL candidates in Markdown quotes and JSON strings. Confirm the edited path is recognized exactly and the untouched sibling remains with its complete identity in the recovered original."
     }
   ],
   "source_refresh_browser_download_delivered_batch": [
