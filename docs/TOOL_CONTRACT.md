@@ -599,6 +599,10 @@ omitted authored guidance and linked documents with a recorded fingerprint.
 Follow the file excerpts through EOF for the full text. Historical matrices
 continue to withhold current policy.
 
+`plan_user_story` uses the same actions for omitted guidance bound to the
+observed concept candidates. Recheck guide applicability for the final edit
+paths.
+
 ## Intelligence Amplification (Phase 37)
 - `analyze_full_project_migration` — enhanced with `use_llm=false` parameter. When `use_llm=true` and an LLM backend is configured, deterministic business logic summaries are upgraded with LLM-powered step-by-step explanations as an async post-processing pass, validated against static analysis for confidence scoring (High/Medium/Low)
 

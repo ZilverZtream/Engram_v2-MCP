@@ -6038,7 +6038,8 @@ impl Engram {
             crate::services::project_policy::resolve(&project_root, &policy_paths, &[])
         })
         .await
-        .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        .map_err(|error| McpError::internal_error(error.to_string(), None))?
+        .with_source_recovery(&req.project_id);
         policy.notes.push("Guidance is selected for observed concept candidate files, not an approved edit scope. Recheck applicability against the actual planned paths; exemplars do not establish required edits.".into());
         if !policy_scope_complete {
             policy.coverage = "incomplete".into();
