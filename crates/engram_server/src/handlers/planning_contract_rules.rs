@@ -472,6 +472,44 @@ rules:
     }
 
     #[test]
+    fn a_cochange_lead_requires_a_task_scoped_rule() {
+        let temp = tempfile::tempdir().unwrap();
+        let data = temp.path().join("data");
+        let project = temp.path().join("project");
+        std::fs::create_dir_all(project.join(".engram")).unwrap();
+        std::fs::write(
+            project.join(".engram/planning-contract-rules.yaml"),
+            r#"
+version: 1
+rules:
+  - id: import-naming
+    title: Import naming
+    requirement: Preserve import naming conventions.
+    path_any: [import/]
+  - id: export-compatibility
+    title: Export compatibility
+    requirement: Verify that imports can read the selected rows.
+    story_any: [selected rows]
+    path_any: [import/]
+"#,
+        ).unwrap();
+        let lead = "Import/Import.aspx.vb".to_string();
+        let paths = ["Export/Export.aspx.vb".to_string(), lead.clone()];
+        let history_leads = BTreeSet::from([lead.clone()]);
+        let (rules, _, promoted) = load_matching_planning_rules(
+            &data, &project, "Rename export button", &paths, None, &history_leads,
+        );
+        assert!(rules.is_empty());
+        assert!(promoted.is_empty());
+
+        let (rules, _, promoted) = load_matching_planning_rules(
+            &data, &project, "Export selected rows", &paths, None, &history_leads,
+        );
+        assert_eq!(rules.len(), 1);
+        assert_eq!(promoted.get(&lead).map(String::as_str), Some("RULE-EXPORT-COMPATIBILITY"));
+    }
+
+    #[test]
     fn historical_cutoff_excludes_undated_and_future_rules() {
         let temp = tempfile::tempdir().unwrap();
         let data = temp.path().join("data");

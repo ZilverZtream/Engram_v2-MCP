@@ -12003,6 +12003,7 @@ impl Engram {
             }
             let mut files: Vec<serde_json::Value> = visible_rows
                 .iter()
+                .filter(|row| full_detail || !history_leads.contains(&row.path))
                 .filter(|row| !reconciled_detail || row.set == "primary")
                 .take(file_cap)
                 .map(|r| {
