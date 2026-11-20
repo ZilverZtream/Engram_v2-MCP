@@ -2973,6 +2973,16 @@
   "current_execution_focus": {
     "status": "DOSSIER_WEBFORMS_HISTORY_RELEASE_INSTALLED_AND_MCP_VERIFIED",
     "implementation_items_active": 0,
+    "feature_dossier_exact_source_scope": {
+      "status": "SOURCE_COMPLETE_FOCUSED_CHECK_PASSED_AWAITING_PACKAGED_MCP",
+      "requirement": "TODO-32 usable pre-edit source dossier for an agent working on known LegacyValidation WebForms files",
+      "observed_gap": "Existing source_files prioritizes known paths but unconditionally reruns change-set retrieval and pattern discovery, then expands authored WebForms composition. The retained LegacyValidation dossier timings were roughly 54–60 seconds after batching. The installed schema rejects exact-only selection.",
+      "implementation": ["crates/engram_server/src/handlers/feature_plan_tools.rs", "crates/engram_server/src/services/feature_plan.rs", "crates/engram_server/src/models/requests.rs", "crates/engram_server/src/tools.rs"],
+      "acceptance": "Opt-in exact-source dossier runs only caller-selected source and policy acquisition with existing revision/hash guards, plus explicit schema reads if requested. It reports skipped discovery, preserves missing-source recovery, and keeps normal generated and discovery modes available.",
+      "source_commit": "6e070bc964bbf0532606371838bfe3cdc4f23f6d",
+      "verification": "Installed MCP rejected source_files_only. Two focused checks of actual request validation and candidate selection passed. Explicit order, deduplication and the missing-path identity survived; the default still retained example and ranked candidates. Inspection confirmed source-only skips the change-set, pattern and registered-component calls. Added an owned handler regression case for actual scoped guidance and known registered child exclusion. Packaged MCP and elapsed time remain pending; no release build or full suite ran.",
+      "retention": "Keep the numeric receipt and focused reproducer under current-task-check/exact-source-dossier-20261120 through packaged acceptance. Owned compiler scratch was removed."
+    },
     "scoped_source_workflows_release": {
       "status": "INSTALLED_AND_PUBLIC_MCP_VERIFIED",
       "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-source-workflows-20261120",
@@ -4297,7 +4307,14 @@
       "acceptance_contract": "Index an owned VB/WebForms and TypeScript or SQL fixture, advance one file's revision, and verify MCP exact-file freshness matches inherited bytes and detects an equal-size disk edit. Compare live LegacyValidation selected physical revision to exact-file integrity and raw disk hash to independent source."
     }
   ],
-  "next_source_batch_pending": [],
+  "next_source_batch_pending": [
+    {
+      "original_requirement_id": "TODO-32",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "6e070bc964bbf0532606371838bfe3cdc4f23f6d",
+      "acceptance_contract": "Through MCP with dossier_only and source_files_only enabled, request exact LegacyValidation WebForms paths and one missing path. Verify source fingerprints, scoped authored guidance, skipped ranking and pattern/composition discovery, no generation requests, and explicit omitted-path recovery. Retain regular discovery behavior and report actual elapsed time for the scoped mode."
+    }
+  ],
   "dossier_webforms_history_source_batch_20261120": [
     {
       "original_requirement_id": "TODO-32",
