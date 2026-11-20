@@ -2698,6 +2698,14 @@
       "TODO-28"
     ],
     "implementation_items_active": 0,
+    "single_tool_delivery_schema_lookup": {
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "requirement": "TODO-4 common response delivery and TODO-52 hot MCP path cost",
+      "observed_gap": "Each dispatch cloned the entire registered tool list before checking the one request's delivery schema. The underlying rmcp router already exposes that exact definition by name.",
+      "implementation": ["crates/engram_server/src/tools.rs"],
+      "acceptance": "Use the normal public MCP read and mutation entry points for owned/shared budgets and immutable recovery, and verify the registered schema and unknown-tool behavior. Existing targeted delivery verifiers cover both handler-owned and shared response families.",
+      "evidence": "The installed dependency exposes the same definition from ToolRouter.map that list_all clones. Dispatch now passes a one-definition borrowed slice to both existing delivery selectors. Syntax and whitespace checks passed. Performance and packaged MCP remain unmeasured."
+    },
     "queued_source_job_poll_action": {
       "status": "SOURCE_COMPLETE_BASELINE_MCP_REPRODUCED_AWAITING_COMBINED_VALIDATION",
       "requirement": "TODO-37 pollable indexing and EG-18 callable workflow dependencies",

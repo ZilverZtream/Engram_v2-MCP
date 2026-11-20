@@ -1825,10 +1825,12 @@ impl ServerHandler for Engram {
         // — logging it here is what turns "the review 400s somewhere" into
         // "grep_project on <x> returned N bytes". One line per call, cheap.
         let tool_name = request.name.to_string();
-        let registry = self.tool_router.list_all();
-        let shared_delivery = match crate::retained_results::prepare(&mut request, &registry)? {
+        let definition = self.tool_router.map.get(tool_name.as_str())
+            .map(|route| std::slice::from_ref(&route.attr))
+            .unwrap_or_default();
+        let shared_delivery = match crate::retained_results::prepare(&mut request, definition)? {
             Some(delivery) => Some(delivery),
-            None => crate::read_report_delivery::prepare(&mut request, &registry)?,
+            None => crate::read_report_delivery::prepare(&mut request, definition)?,
         };
         if let Some(delivery) = &shared_delivery {
             if let Some(recovered) = delivery.recover(&self.state.cfg.data_dir)? {
