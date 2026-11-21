@@ -327,7 +327,11 @@ impl Candidates {
             }
         }
         if self.writes
-            && is_endpoint(path, owner)
+            && (is_endpoint(path, owner)
+                || self
+                    .main_noun
+                    .as_ref()
+                    .is_some_and(|noun| leaf.contains(noun)))
             && lexical > 0
             && mutator(name.rsplit(['.', ':']).next().unwrap_or(name))
         {
@@ -765,6 +769,17 @@ impl Candidates {
                     }
                 }
             }
+            // One concrete editor control can appear in several handlers. Boost only the
+            // best lifecycle match per criterion so that a sibling does not crowd out another action.
+            let mut best_controls = std::collections::BTreeMap::new();
+            for (id, (score, label, ..)) in &controls {
+                let entry = best_controls
+                    .entry(label.clone())
+                    .or_insert((Reverse(*score), id.clone()));
+                *entry = std::cmp::min(entry.clone(), (Reverse(*score), id.clone()));
+            }
+            let winners: BTreeSet<_> = best_controls.into_values().map(|(_, id)| id).collect();
+            controls.retain(|id, _| winners.contains(id));
             for (id, (score, ..)) in &controls {
                 pool.entry(id.clone())
                     .and_modify(|s| *s = (*s).max(*score))
@@ -957,12 +972,47 @@ impl Candidates {
                     if !self.subject.is_empty() && (!subject_local || !main_noun_present) {
                         rank = rank.saturating_sub(125);
                     }
-                    if excluded_owner
+                    if self.excluded.iter().any(|term| {
+                        term.len() >= 5
+                            && !self.title.contains(term)
+                            && owner_words
+                                .iter()
+                                .any(|w| w.len() > term.len() && w.starts_with(term))
+                    }) || excluded_owner
                         && owner_words.intersection(&excluded_only).count()
                             > owner_words.intersection(&c.terms).count()
                     {
                         rank = rank.saturating_sub(120);
                     }
+                }
+                if !prose_issue
+                    && self.subject.len() >= 2
+                    && mutation
+                    && self
+                        .main_noun
+                        .as_ref()
+                        .is_some_and(|w| leaf_words.contains(w))
+                    && leaf_words.intersection(&c.terms).any(|w| mutator(w))
+                    && lines.iter().any(|(_, line)| {
+                        durable_write(line) && self.subject.is_subset(&terms(line))
+                    })
+                {
+                    // A named command writing the titled subject is stronger than a page reading the same state.
+                    rank += 180;
+                }
+                if !prose_issue
+                    && pinned.is_none()
+                    && self.writes
+                    && !self.title.contains("undo")
+                    && !c.terms.contains("undo")
+                    && source
+                        .files
+                        .get(node.file_path.as_str())
+                        .and_then(|v| v.as_ref())
+                        .and_then(|file| file.get(node.start_line.saturating_sub(1) as usize))
+                        .is_some_and(|line| terms(line).contains("undo"))
+                {
+                    rank = rank.saturating_sub(125);
                 }
                 if c.terms.contains("page")
                     && (path.contains(".aspx.")
@@ -1050,7 +1100,10 @@ impl Candidates {
         let mut chosen = Vec::new();
         let mut used = BTreeSet::new();
         // Retain the best evidenced write owner per requested operation before filling supporting sites.
-        for (_, id, criterion, line, text) in owners.into_iter().flatten() {
+        for (operation, owner) in self.operations.iter().zip(owners) {
+            let Some((_, id, criterion, line, text)) = owner else {
+                continue;
+            };
             if let Some(i) = sites
                 .iter()
                 .position(|s| s.1.node_id == id && s.2 == criterion)
@@ -1060,6 +1113,22 @@ impl Candidates {
                 site.3.insert(0, (line, text));
                 site.3.truncate(3);
                 sites.retain(|s| s.1.node_id != id);
+                // For a proven write operation a second client wrapper adds no distinct
+                // implementation evidence. Keep UI-specific criteria eligible.
+                if !is_script(site.1.file_path.as_str()) {
+                    sites.retain(|other| {
+                        !is_script(other.1.file_path.as_str())
+                            || !operation.is_subset(&terms(
+                                other.1.name.rsplit('.').next().unwrap_or(&other.1.name),
+                            ))
+                            || self.criteria.iter().any(|c| {
+                                c.label == other.2
+                                    && ["client", "browser", "button", "dialog", "ui"]
+                                        .iter()
+                                        .any(|t| c.terms.contains(*t))
+                            })
+                    });
+                }
                 used.insert(site.2.clone());
                 chosen.push(site);
             }
@@ -1214,7 +1283,12 @@ fn operation_owner(
             && ["update", "change", "replace", "convert", "rename"]
                 .iter()
                 .any(|w| method.contains(*w));
-        let strength = 10 * operation.intersection(method).count()
+        let subject_identifier = line
+            .split(|c: char| !c.is_alphanumeric() && c != '_')
+            .filter(|token| token.len() >= 4)
+            .any(|token| operation.is_subset(&terms(token)));
+        let strength = 28 * usize::from(subject_identifier)
+            + 10 * operation.intersection(method).count()
             + 12 * usize::from(changes_existing)
             + 6 * usize::from(replaced_value && assignment)
             + 4 * usize::from(durable_write(line))
