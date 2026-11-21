@@ -114,6 +114,23 @@ fn paired(policy: &str, bad: &str, good: &str, checks: &mut BTreeSet<Check>) {
         let line = line.split("//").next().unwrap_or(line);
         let t = tokens(line, vb);
         for shape in expressions(&t) {
+            // A negative example can use an otherwise harmless operation as
+            // part of an assignment, condition or argument. Keep that context
+            // unless both examples call the same operation with different
+            // arguments, or the example is the call itself.
+            let statement = t.strip_suffix(&[";".to_owned()]).unwrap_or(&t);
+            let standalone = statement.len() == shape.0.len() && shape.matches(statement, vb);
+            let mut operation = Vec::new();
+            for part in &shape.0 {
+                operation.push(part.clone());
+                if matches!(part,Part::Exact(s) if s=="(") {
+                    break;
+                }
+            }
+            if !standalone && !Shape(operation).matches(&good_tokens, vb) {
+                continue;
+            }
+
             if complex || shape.matches(&good_tokens, vb) {
                 continue;
             }
@@ -553,6 +570,18 @@ mod tests {
             )));
             assert!(!matches(&format!("note = \"Clock.{found}(payload)\";")));
         }
+    }
+    #[test]
+    fn an_embedded_call_retains_its_assignment_context() {
+        let policy = "Convert typed values explicitly. Bad: record.Payload = src.Format() Good: record.Payload = src.Data [typescript]";
+        let rules = compile(policy);
+        let matches = |source: &str| {
+            rules
+                .iter()
+                .any(|c| c.shape.matches(&tokens(source, false), false))
+        };
+        assert!(matches("record.Payload = src.Format()"));
+        assert!(!matches("labels.push(id.Format())"));
     }
     #[test]
     fn conditional_prose_does_not_ban_a_method_globally() {

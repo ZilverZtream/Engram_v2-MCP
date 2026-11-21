@@ -157,6 +157,7 @@ pub(in super::super) fn audit(
     let mut derived = 0;
     let mut observed = 0;
     let mut guides = 0;
+    let mut matched_prose = 0;
     let inputs: Vec<_> = files.iter().map(Input::new).collect();
     let mut matched = BTreeMap::new();
     let mut run = |checks: &BTreeSet<Check>,
@@ -227,7 +228,7 @@ pub(in super::super) fn audit(
                 },
             );
             "example check"
-        } else if (BAD
+        } else if BAD
             .find(body)
             .and_then(|b| GOOD.find_at(body, b.end()).map(|g| (b, g)))
             .is_some_and(|(b, g)| {
@@ -236,12 +237,14 @@ pub(in super::super) fn audit(
                     &body[b.end()..g.start()],
                     &body[g.end()..],
                 )
-            }))
-            || builtin.iter().any(|f| f.source.contains(&id))
+            })
         {
             observed += 1;
             "built-in check evidenced"
         } else {
+            if builtin.iter().any(|f| f.source.contains(&id)) {
+                matched_prose += 1;
+            }
             "manual: no derived check"
         };
         inventory.push(format!("{class} | {id} | {path} | {title}"));
@@ -302,7 +305,7 @@ pub(in super::super) fn audit(
         }
     }
     report.summary = format!(
-        "## Rule coverage\n{total} indexed documents: {derived} have executable example checks; {observed} additional sources matched a built-in check on their contrasting examples or this diff; {} have no identified executable coverage here. Partial patterns do not verify an entire rule. {guides} additional checks from checkout guidance.\nInventory: pre_push_audit(project_id=\"{project}\", coverage_offset=0) lists every ID and coverage status.\n\n",
+        "## Rule coverage\n{total} indexed documents: {derived} have executable example checks; {observed} additional documents reproduce a built-in check on their contrasting examples; {} require manual review. Of these, {matched_prose} also supplied evidence for a built-in finding on this diff. Patterns cover the demonstrated condition only. {guides} additional checks from checkout guidance.\nInventory: pre_push_audit(project_id=\"{project}\", coverage_offset=0) lists every ID and coverage status.\n\n",
         total - derived - observed
     );
     if !matched.is_empty() {
