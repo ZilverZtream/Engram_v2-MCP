@@ -85,7 +85,7 @@ fn normal_update_repairs_legacy_script_receivers_without_source_edits_or_losing_
         }
         for path in [GROUP, "src/empty.jsx"] {
             let current = app.state.graph.get_node(&pid, &format!("file:{path}"))?.unwrap();
-            ensure!(current.metadata.as_ref().unwrap()["script_call_contract"] == 1);
+            ensure!(current.metadata.as_ref().unwrap()["script_call_contract"] == engram_index::source_contract::SCRIPT_CALL_CONTRACT);
         }
         let freshness = app.handle_get_index_freshness(serde_json::from_value(json!({
             "project_id":pid,"check_disk":false

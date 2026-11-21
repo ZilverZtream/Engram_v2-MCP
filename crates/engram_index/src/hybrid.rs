@@ -3698,13 +3698,20 @@ impl HybridSearchEngine {
         q: &HybridQuery,
         accept: &mut dyn FnMut(&str, &str) -> bool,
     ) -> anyhow::Result<Vec<HybridHit>> {
-        self.lexical_search_matching_impl(q, Some(accept))
+        self.lexical_search_matching_impl(q, Some(&mut |_, id, text| accept(id, text)))
+    }
+
+    /// Count only eligible indexed paths toward the ranked lexical result limit.
+    pub fn lexical_search_paths(
+        &self, q: &HybridQuery, accept: &dyn Fn(&str) -> bool,
+    ) -> anyhow::Result<Vec<HybridHit>> {
+        self.lexical_search_matching_impl(q, Some(&mut |path, _, _| accept(path)))
     }
 
     fn lexical_search_matching_impl(
         &self,
         q: &HybridQuery,
-        mut accept: Option<&mut dyn FnMut(&str, &str) -> bool>,
+        mut accept: Option<&mut dyn FnMut(&str, &str, &str) -> bool>,
     ) -> anyhow::Result<Vec<HybridHit>> {
         if q.top_k == 0 {
             return Ok(Vec::new());
@@ -3894,7 +3901,7 @@ impl HybridSearchEngine {
                     .unwrap_or("");
                 if accept
                     .as_mut()
-                    .is_some_and(|predicate| !predicate(&doc_id_str, content))
+                    .is_some_and(|predicate| !predicate(path_str, &doc_id_str, content))
                 {
                     continue;
                 }

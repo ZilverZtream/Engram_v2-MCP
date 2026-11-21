@@ -223,7 +223,7 @@ pub(super) fn collect(
             date_before: None,
             use_mmr: false,
         };
-        if let Ok(hits) = engine.lexical_search_matching(&query, &mut |path, _| production(path)) {
+        if let Ok(hits) = engine.lexical_search_paths(&query, &production) {
             for hit in hits {
                 let path = hit.path.as_str();
                 if production(path)
