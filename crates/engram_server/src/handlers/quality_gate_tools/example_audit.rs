@@ -1,5 +1,6 @@
 //! Compile bounded, inspectable checks from the project's own policy examples.
 mod catalog;
+mod structural;
 mod syntax;
 pub(super) use catalog::audit;
 

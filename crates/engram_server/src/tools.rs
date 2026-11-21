@@ -987,7 +987,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Pre-commit review — runs Engram's full registered gate set (19 graph-backed \
+        description = "Pre-commit review — mode=fast omits blast_radius, antipattern, product_intent, temporal and immune. Clients with an older schema can pass those five names to skip_gates. quick=true controls background progress. By default runs Engram's full registered gate set (19 graph-backed \
                        gates unless you pass `skip_gates`: immune, repo-rule, blast-radius, style, \
                        temporal, state, audit, anti-pattern, new-file, test-coverage, secret-leakage, \
                        guard-parity, unwired, product-intent, sync-contract, co-added-family, \
