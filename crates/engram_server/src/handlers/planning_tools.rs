@@ -4362,7 +4362,7 @@ fn guard_level_for(checks: &str) -> Option<String> {
         return None;
     }
     static RE_OBJ_FAMILY: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
-        regex::Regex::new(r"(?i)^(?:check_\w*id|checkaccess\w*|checkprojectaccess|hasaccessto\w*|isownerof\w*|canaccess\w*)$")
+        regex::Regex::new(r"(?i)^(?:check_\w*id|checkaccess(?:to|for)\w+|checkprojectaccess|hasaccessto\w*|isownerof\w*|canaccess\w*)$")
             .expect("RE_OBJ_FAMILY")
     });
     let object = checks
@@ -4732,13 +4732,18 @@ pub(crate) fn own_checks_all_conditional(body: &str, checks: &str) -> bool {
         .min()
         .unwrap_or(0);
     let mut branch_depth = 0usize;
+    let mut scopes: Vec<(&str, usize)> = Vec::new();
     for l in lines.iter().skip(1) {
         let lower = l.to_ascii_lowercase();
         let statement = lower.trim();
+        if let Some((end, _)) = scopes.last() {
+            if statement == *end {
+                scopes.pop();
+            }
+        }
         if statement.starts_with("end if")
             || statement.starts_with("end select")
             || statement.starts_with("end while")
-            || statement.starts_with("end try")
             || statement == "next"
             || statement.starts_with("next ")
             || statement == "loop"
@@ -4747,7 +4752,15 @@ pub(crate) fn own_checks_all_conditional(body: &str, checks: &str) -> bool {
             branch_depth = branch_depth.saturating_sub(1);
         }
         let indent = l.len() - l.trim_start().len();
-        if branch_depth == 0 && indent <= top {
+        if statement.starts_with("catch") || statement == "finally" {
+            if let Some((_, allowed)) = scopes.last_mut() {
+                *allowed = 0;
+            }
+        }
+        let direct = scopes.last().map_or(indent <= top, |(_, parent)| {
+            *parent > 0 && indent >= *parent
+        });
+        if branch_depth == 0 && direct {
             for call in &calls {
                 if let Some(found) = call.find(&lower) {
                     let prefix = &lower[..found.start()];
@@ -4779,9 +4792,17 @@ pub(crate) fn own_checks_all_conditional(body: &str, checks: &str) -> bool {
             || statement == "do"
             || statement.starts_with("do while ")
             || statement.starts_with("do until ")
-            || statement == "try"
         {
             branch_depth += 1;
+        } else if direct && (statement.starts_with("using ") || statement == "try") {
+            scopes.push((
+                if statement == "try" {
+                    "end try"
+                } else {
+                    "end using"
+                },
+                indent + 1,
+            ));
         }
     }
     // No unconditional invocation corroborated, including stale metadata
@@ -4794,7 +4815,7 @@ pub(crate) fn own_checks_all_conditional(body: &str, checks: &str) -> bool {
 pub(crate) fn has_object_level_guard(body: &str) -> bool {
     static RE_OBJ: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
         regex::Regex::new(
-            r"(?i)\b(?:check_pr_id|check_\w+_id|CheckAccess\w*|CheckProjectAccess|HasAccessTo\w*|IsOwnerOf\w*|CanAccess\w*)\s*\(",
+            r"(?i)\b(?:check_pr_id|check_\w+_id|CheckAccess(?:To|For)\w+|CheckProjectAccess|HasAccessTo\w*|IsOwnerOf\w*|CanAccess\w*)\s*\(",
         )
         .expect("RE_OBJ")
     });
@@ -5074,9 +5095,12 @@ pub(crate) fn build_guards_report(
                     )
                 })
                 .map(|lines| lines.join("\n"));
-            if body
-                .as_deref()
-                .is_none_or(|b| own_checks_all_conditional(b, helper_name))
+            let qualified = helper.name.rsplit_once('.').and_then(|(owner, leaf)| {
+                let receiver=owner.rsplit('.').next()?;
+                Some(format!("{receiver}.{leaf}"))
+            });
+            let call_name=qualified.as_deref().filter(|q| body.as_ref().is_some_and(|b|b.to_lowercase().contains(&q.to_lowercase()))).unwrap_or(helper_name);
+            if body.as_deref().is_none_or(|b| own_checks_all_conditional(b, call_name))
                 || helper_body.as_deref().is_none_or(|b| {
                     own_checks_all_conditional(b, node_meta_str(helper, "permission_checks"))
                 })
@@ -6713,7 +6737,7 @@ impl Engram {
             out.push_str("No verified implementation site in the bounded candidate set.\n");
         }
         for (i, site) in sites.iter().enumerate() {
-            out.push_str(&format!("{}. {} — {}\n", i + 1, site.label, site.name));
+            out.push_str(&format!("{}. {} — {} [indexed working checkout]\n", i + 1, site.label, site.name));
             for line in &site.lines {
                 out.push_str(&format!("   - {line}\n"));
             }

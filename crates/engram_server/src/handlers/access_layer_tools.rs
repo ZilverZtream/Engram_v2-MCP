@@ -35,6 +35,8 @@ mod method_info_delivery;
 
 #[path = "method_callee_evidence.rs"]
 mod method_callee_evidence;
+#[path="method_observations.rs"]
+mod method_observations;
 
 /// Resolve application-relative directives from hosting evidence, never a
 /// repository-specific folder name. Nested web.config files can configure a
@@ -4563,31 +4565,24 @@ impl Engram {
             );
             validate_held_method_revision(&graph, &project_id, &ev.node, membership.as_ref())?;
             let consumer_call_paths = consumer_call_paths(&graph, &project_id, &ev.node.node_id, max_callers);
-            let mut observations: Vec<String> = ev.full_body.as_deref().unwrap_or("").lines().enumerate().filter_map(|(i,line)| {
-                    let text = line.trim();
-                    let lower = text.to_ascii_lowercase();
-                    let important = lower.starts_with("if ") || lower.starts_with("if(") ||
-                        ["submit", "commit", "delete", "insert", "update", "save", "transaction", "rollback", "executecommand", ".writetoserver", ".executenonquery"]
-                            .iter().any(|term| lower.contains(term));
-                    (important && !text.starts_with(['\'', '/'])).then(|| format!("L{} {}", ev.node.start_line as usize+i, text.chars().take(340).collect::<String>()))
-                }).take(30).collect();
+            let mut observations = method_observations::Observations::new(ev.full_body.as_deref().unwrap_or(""),ev.node.start_line as usize);
             let mut sources = std::collections::HashMap::new();
-            for target in &ev.method_info.callee_evidence.targets {
-                let source = sources.entry(&target.file_path).or_insert_with(|| {
-                    crate::planner_source::read(&graph, &project_id, Path::new(&project_dir), &target.file_path).ok()
+            let mut targets: Vec<_> = ev.method_info.callee_evidence.targets.iter().map(|t|
+                (t.fqn.clone(),t.file_path.clone(),t.line_start,t.line_end)).collect();
+            let known=targets.iter().map(|(name,_,_,_)|name.to_lowercase()).collect();
+            targets.extend(observations.qualified_targets(&graph,&project_id,&known).into_iter().map(|n|
+                (n.name,n.file_path.as_str().to_owned(),n.start_line,n.end_line)));
+            targets.sort();targets.dedup();
+            for (fqn,file_path,line_start,line_end) in &targets {
+                let source = sources.entry(file_path).or_insert_with(|| {
+                    crate::planner_source::read(&graph, &project_id, Path::new(&project_dir), file_path).ok()
                 });
                 let Some(source) = source else { continue };
-                let start = target.line_start.saturating_sub(1) as usize;
-                for (offset, line) in source.lines().skip(start).take((target.line_end as usize).saturating_sub(start)).enumerate() {
-                    let statement = line.trim();
-                    let lower = statement.to_ascii_lowercase();
-                    if lower.starts_with(['\'', '/']) { continue; }
-                    if [".submitchanges(", ".savechanges(", ".commit(", ".writetoserver", ".executenonquery"].iter().any(|term| lower.contains(term)) {
-                        observations.push(format!("Callee {} at {}:{}: {}",target.fqn,target.file_path,start+offset+1,statement));
-                        break;
-                    }
-                }
+                let start=line_start.saturating_sub(1) as usize;
+                let span=source.lines().skip(start).take((*line_end as usize).saturating_sub(start)).collect::<Vec<_>>();
+                observations.callee(fqn,file_path,start+1,&span);
             }
+            let observations=observations.finish();
             Ok::<MethodEditContextResult, String>(MethodEditContextResult {
                 ordered_source_observations: observations,
                 consumer_call_paths,

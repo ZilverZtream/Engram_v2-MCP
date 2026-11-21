@@ -53,6 +53,9 @@ struct Criterion {
 pub(super) struct Candidates {
     title: BTreeSet<String>,
     criteria: Vec<Criterion>,
+    narrative: String,
+    writes: bool,
+    server: BTreeSet<(Reverse<usize>, String)>,
     selected: BTreeSet<(Reverse<usize>, String)>,
     owner: String,
     owner_terms: BTreeSet<String>,
@@ -128,7 +131,28 @@ impl Candidates {
                 ),
             });
         }
+        let narrative = super::planning_scope(scope);
+        let action_terms = terms(&narrative.to_lowercase());
+        let writes = [
+            "write",
+            "delete",
+            "save",
+            "insert",
+            "update",
+            "creation",
+            "split",
+            "move",
+            "persist",
+            "copy",
+            "deletion",
+            "replacement",
+        ]
+        .iter()
+        .any(|t| action_terms.contains(*t));
         Self {
+            narrative,
+            writes,
+            server: BTreeSet::new(),
             title,
             criteria,
             selected: BTreeSet::new(),
@@ -166,9 +190,7 @@ impl Candidates {
             .iter()
             .filter(|t| leaf.contains(*t) || self.owner_terms.contains(*t))
             .count();
-        if title_hits == 0 {
-            return;
-        }
+
         let lexical = self
             .criteria
             .iter()
@@ -176,6 +198,22 @@ impl Candidates {
             .max()
             .unwrap_or(0);
         let in_leaf = self.title.intersection(&leaf).count();
+        if self.writes
+            && is_endpoint(path, owner)
+            && lexical > 0
+            && mutator(name.rsplit(['.', ':']).next().unwrap_or(name))
+        {
+            self.server.insert((
+                Reverse(4 * title_hits + 3 * in_leaf + 3 * lexical),
+                id.into(),
+            ));
+            if self.server.len() > 16 {
+                self.server.pop_last();
+            }
+        }
+        if title_hits == 0 {
+            return;
+        }
         if (title_hits < 2 && in_leaf == 0) || (in_leaf + lexical == 0) {
             return;
         }
@@ -193,44 +231,327 @@ impl Candidates {
             root,
             files: HashMap::new(),
         };
+        let mut pool: HashMap<String, usize> = HashMap::new();
+        for (Reverse(score), id) in self.selected.iter().chain(&self.server) {
+            let old = pool.entry(id.clone()).or_default();
+            *old = (*old).max(*score);
+        }
+        let mut pins = HashMap::new();
+        static IDENT: LazyLock<regex::Regex> =
+            LazyLock::new(|| regex::Regex::new(r"\b[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\b").unwrap());
+        let mut seen = BTreeSet::new();
+        for m in IDENT.find_iter(&self.narrative) {
+            let name = m.as_str();
+            if !(name.contains('.')
+                || name
+                    .as_bytes()
+                    .windows(2)
+                    .any(|p| p[0].is_ascii_lowercase() && p[1].is_ascii_uppercase()))
+                || !seen.insert(name.to_lowercase())
+            {
+                continue;
+            }
+            if seen.len() > 48 {
+                break;
+            }
+            if let Some(n) = unique_method(graph, project, name) {
+                pool.insert(n.node_id.clone(), 50);
+                pins.insert(n.node_id.clone(), name.to_owned());
+                // An unnamed caller in a story (e.g. a page consuming the lookup)
+                // is admissible only with a call edge and story/path agreement.
+                if let Ok(callers) = graph.find_incoming_edges_with_kind(
+                    project,
+                    Some(EdgeKind::Calls),
+                    &n.node_id,
+                    32,
+                ) {
+                    for (id, _, _) in callers {
+                        if let Ok(Some(caller)) = graph.get_node(project, &id) {
+                            let file = caller
+                                .file_path
+                                .as_str()
+                                .rsplit('/')
+                                .next()
+                                .unwrap_or("")
+                                .to_lowercase();
+                            let stem = file.split('.').next().unwrap_or("");
+                            if self
+                                .narrative
+                                .split_whitespace()
+                                .map(|w| {
+                                    w.trim_matches(|c: char| !c.is_alphanumeric())
+                                        .replace('-', "")
+                                        .to_lowercase()
+                                })
+                                .any(|w| w.len() >= 6 && stem.contains(&w))
+                            {
+                                pool.entry(id).or_insert(85);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // A referenced change may name a method that is absent on the indexed
+        // revision. Look in uniquely resolved owner files for its distinctive
+        // member words, and cite the actual enclosing declaration.
+        for mention in seen.iter().filter(|m| m.contains('.')).take(16) {
+            let Some((owner, leaf)) = mention.rsplit_once('.') else {
+                continue;
+            };
+            if pins.values().any(|name| name.eq_ignore_ascii_case(mention)) {
+                continue;
+            }
+            let Some(spelling) = IDENT
+                .find_iter(&self.narrative)
+                .find(|m| m.as_str().eq_ignore_ascii_case(mention))
+            else {
+                continue;
+            };
+            let parts =
+                split_symmetric_name_tokens(spelling.as_str().rsplit('.').next().unwrap_or(leaf));
+            if parts.len() < 2 {
+                continue;
+            }
+            let needle = parts
+                .iter()
+                .skip(1)
+                .cloned()
+                .collect::<String>()
+                .to_lowercase();
+            if needle.len() < 6 {
+                continue;
+            }
+            let Ok(owners) = graph.query_nodes_by_symbol_name(project, owner, None, 3) else {
+                continue;
+            };
+            let classes: Vec<_> = owners
+                .iter()
+                .filter(|n| matches!(n.node_type.as_str(), "class" | "struct" | "module"))
+                .collect();
+            let [owner] = classes.as_slice() else {
+                continue;
+            };
+            if let Ok(methods) =
+                graph.query_nodes_in_scope(project, Some("function"), owner.file_path.as_str(), 128)
+            {
+                for n in methods {
+                    if source.lines(&n).is_some_and(|lines| {
+                        lines
+                            .iter()
+                            .any(|(_, s)| s.to_lowercase().contains(&needle))
+                    }) {
+                        pool.entry(n.node_id)
+                            .and_modify(|s| *s = (*s).max(92))
+                            .or_insert(92);
+                    }
+                }
+            }
+        }
+        let mut generated = BTreeSet::new();
+        let mut tsconfigs = BTreeSet::new();
+        for id in pool.keys() {
+            if let Ok(Some(n)) = graph.get_node(project, id) {
+                let path = n.file_path.as_str();
+                if path.ends_with(".ts") || path.ends_with(".tsx") {
+                    for parent in Path::new(path).ancestors().skip(1) {
+                        let cfg = parent.join("tsconfig.json");
+                        let file = cfg.to_string_lossy().replace('\\', "/");
+                        if !tsconfigs.insert(file.clone()) {
+                            continue;
+                        }
+                        if let Ok(text) = crate::planner_source::read(graph, project, root, &file) {
+                            static OUTPUT: LazyLock<regex::Regex> = LazyLock::new(|| {
+                                regex::Regex::new(r#""outFile"\s*:\s*"([^"]+)""#).unwrap()
+                            });
+                            if let Some(cap) = OUTPUT.captures(&text) {
+                                if let Ok(actual) = root.join(parent).join(&cap[1]).canonicalize() {
+                                    generated.insert(actual);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // Resolve transport literals in the short-listed client handlers before
+        // comparing the handler with the source that actually performs the work.
+        let mut routed = Vec::new();
+        if self.writes {
+            static DEST: LazyLock<regex::Regex> = LazyLock::new(|| {
+                regex::Regex::new(r#"(?i)\b(?:ajax|post|put|patch|delete|fetch|request)\s*\(\s*["']([^"']{2,160})["']"#).unwrap()
+            });
+            for (id, score) in &pool {
+                let Ok(Some(n)) = graph.get_node(project, id) else {
+                    continue;
+                };
+                if !is_script(n.file_path.as_str()) {
+                    continue;
+                }
+                for (_, line) in source.lines(&n).unwrap_or_default() {
+                    if let Some(cap) = DEST.captures(&line) {
+                        let name = cap[1]
+                            .trim_end_matches('/')
+                            .rsplit('/')
+                            .next()
+                            .unwrap_or("");
+                        if let Some(target) = unique_method(graph, project, name) {
+                            if !is_script(target.file_path.as_str()) {
+                                routed.push((target.node_id, *score + 14));
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for (id, score) in routed {
+            let old = pool.entry(id).or_default();
+            *old = (*old).max(score);
+        }
+        if self.writes {
+            let files: BTreeSet<_> = pool
+                .iter()
+                .filter_map(|(id, _)| {
+                    let n = graph.get_node(project, id).ok()??;
+                    (is_endpoint(n.file_path.as_str(), &n.name) && !is_script(n.file_path.as_str()))
+                        .then(|| n.file_path.as_str().to_owned())
+                })
+                .collect();
+            for file in files.iter().take(6) {
+                let Ok(nodes) = graph.query_nodes_in_scope(project, Some("function"), file, 160)
+                else {
+                    continue;
+                };
+                for n in nodes {
+                    let leaf = n.name.rsplit('.').next().unwrap_or(&n.name);
+                    if !mutator(leaf) {
+                        continue;
+                    }
+                    let words = terms(leaf);
+                    let hits = self
+                        .criteria
+                        .iter()
+                        .map(|c| c.terms.intersection(&words).count())
+                        .max()
+                        .unwrap_or(0);
+                    if hits > 0 {
+                        pool.entry(n.node_id).or_insert(12 + hits * 5);
+                    }
+                }
+            }
+        }
         let mut sites = Vec::new();
-        for (Reverse(lexical), id) in &self.selected {
+        for (id, lexical) in &pool {
             let Ok(Some(node)) = graph.get_node(project, id) else {
                 continue;
             };
+            if node.file_path.as_str().ends_with(".js")
+                && root
+                    .join(node.file_path.as_str())
+                    .canonicalize()
+                    .is_ok_and(|p| generated.contains(&p))
+            {
+                continue;
+            }
             let Some(lines) = source.lines(&node) else {
                 continue;
             };
-            let (mut best, mut criterion, mut observations) = (0, String::new(), Vec::new());
+            let leaf_words = terms(node.name.rsplit(['.', ':']).next().unwrap_or(&node.name));
+            let title_matches = self.title.intersection(&leaf_words).count();
+            let path = node.file_path.as_str().to_lowercase();
+            let pinned = pins.get(id);
+            let mutation = lines.iter().any(|(_, text)| durable_write(text));
             for c in &self.criteria {
                 let mut scored = Vec::new();
-                for (line, text) in &lines {
-                    let weight = line_score(text, &c.terms, &self.title);
+                for (n, text) in &lines {
+                    let weight = line_score(text, &c.terms, &self.title)
+                        + if self.writes && durable_write(text) {
+                            16
+                        } else {
+                            0
+                        };
                     if weight > 0 {
-                        scored.push((Reverse(weight), *line, text));
+                        scored.push((Reverse(weight), *n, text));
                     }
                 }
                 scored.sort();
-                let quality = scored.first().map_or(0, |r| r.0.0);
-                if quality > best {
-                    best = quality;
-                    criterion = c.label.clone();
-                    observations = scored
-                        .into_iter()
-                        .take(3)
-                        .map(|(_, n, s)| (n, s.to_string()))
-                        .collect();
+                if scored.is_empty() && pinned.is_none() {
+                    continue;
                 }
+                let quality = scored.first().map_or(0, |r| r.0.0);
+                let mut rank = *lexical
+                    + quality
+                    + title_matches * 10
+                    + leaf_words.intersection(&c.terms).count() * 5;
+                if c.terms.contains("page")
+                    && (path.contains(".aspx.")
+                        || path.contains(".cshtml")
+                        || path.contains(".razor"))
+                {
+                    rank += 15;
+                }
+                if leaf_words.contains("bulk")
+                    && !c.terms.contains("bulk")
+                    && !self.title.contains("bulk")
+                {
+                    rank = rank.saturating_sub(35);
+                }
+                if (leaf_words.contains("delete") || leaf_words.contains("remove"))
+                    && !c.terms.contains("delete")
+                    && !c.terms.contains("deletion")
+                    && !c.terms.contains("remove")
+                {
+                    rank = rank.saturating_sub(28);
+                }
+
+                if self.writes && mutation {
+                    rank += 32;
+                }
+                if self.writes && is_endpoint(node.file_path.as_str(), &node.name) && mutation {
+                    rank += 12;
+                }
+                if let Some(name) = pinned {
+                    rank += 180;
+                    if terms(name).intersection(&c.terms).count() >= 2 {
+                        rank += 18;
+                    }
+                }
+                let mut rows: Vec<_> = scored
+                    .into_iter()
+                    .take(3)
+                    .map(|(_, n, s)| (n, s.to_string()))
+                    .collect();
+                if rows.is_empty() {
+                    rows.push((
+                        node.start_line as usize,
+                        format!("Indexed declaration {}", node.name),
+                    ));
+                }
+                sites.push((Reverse(rank), node.clone(), c.label.clone(), rows));
             }
-            if observations.is_empty() {
-                continue;
-            }
-            sites.push((Reverse(*lexical + best), node, criterion, observations));
         }
-        sites.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.node_id.cmp(&b.1.node_id)));
-        sites
+        sites.sort_by(|a, b| {
+            a.0.cmp(&b.0)
+                .then(a.1.node_id.cmp(&b.1.node_id))
+                .then(a.2.cmp(&b.2))
+        });
+        let mut chosen = Vec::new();
+        let mut used = BTreeSet::new();
+        // Spread comparable matches across criteria. A weak incidental match
+        // cannot displace a much stronger source witness solely for diversity.
+        while chosen.len() < 3 && !sites.is_empty() {
+            let best = sites[0].0.0;
+            let idx = sites
+                .iter()
+                .position(|s| s.0.0 + 12 >= best && !used.contains(&s.2))
+                .unwrap_or(0);
+            let site = sites.remove(idx);
+            sites.retain(|s| s.1.node_id != site.1.node_id);
+            used.insert(site.2.clone());
+            chosen.push(site);
+        }
+        chosen
             .into_iter()
-            .take(3)
             .map(|(_, node, label, lines)| {
                 let path = node.file_path.as_str().to_owned();
                 let mut evidence: Vec<_> = lines
@@ -260,6 +581,80 @@ pub(super) struct Site {
     pub paths: Vec<String>,
 }
 
+fn unique_method(graph: &GraphStore, project: &str, name: &str) -> Option<Node> {
+    if name.len() < 3 {
+        return None;
+    }
+    let hits = graph
+        .query_nodes_by_symbol_name(project, name, None, 12)
+        .ok()?;
+    if hits.len() >= 12 {
+        return None;
+    }
+    let mut methods = hits.into_iter().filter(|n| n.node_type == "function");
+    let first = methods.next()?;
+    methods.next().is_none().then_some(first)
+}
+fn is_script(path: &str) -> bool {
+    [".js", ".ts", ".jsx", ".tsx"]
+        .iter()
+        .any(|ext| path.ends_with(ext))
+}
+fn is_endpoint(path: &str, owner: &str) -> bool {
+    let path = path.to_lowercase();
+    let owner = owner.to_lowercase();
+    path.split(['/', '.', '-', '_']).any(|s| {
+        matches!(
+            s,
+            "api" | "controller" | "controllers" | "service" | "services"
+        )
+    }) || owner
+        .split(['.', ':'])
+        .any(|s| s == "api" || s.ends_with("controller"))
+}
+fn mutator(name: &str) -> bool {
+    super::split_symmetric_name_tokens(name).iter().any(|s| {
+        matches!(
+            s.as_str(),
+            "add"
+                | "create"
+                | "insert"
+                | "update"
+                | "save"
+                | "write"
+                | "replace"
+                | "delete"
+                | "rename"
+                | "move"
+                | "split"
+                | "copy"
+                | "remove"
+        )
+    })
+}
+fn durable_write(text: &str) -> bool {
+    let lower = text.to_ascii_lowercase();
+    [
+        ".submitchanges(",
+        ".savechanges(",
+        ".insertallonsubmit(",
+        ".insertonsubmit(",
+        ".deleteonsubmit(",
+        ".deleteallonsubmit(",
+        ".executecommand(",
+        ".executenonquery(",
+        ".writetoserver(",
+        ".setvalue(",
+        ".deletevalue(",
+        ".updaterow(",
+        ".create(",
+        ".commit(",
+        "insert into ",
+        "delete from ",
+    ]
+    .iter()
+    .any(|s| lower.contains(s))
+}
 static CALL: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"(?i)\b([a-z_][a-z0-9_]*)\s*\(").unwrap());
 fn write_call(text: &str) -> Option<String> {
@@ -318,7 +713,7 @@ impl Source<'_> {
             })
             .as_ref()?;
         let start = node.start_line.checked_sub(1)? as usize;
-        let end = (node.end_line as usize).min(start + 240);
+        let end = (node.end_line as usize).min(start + 640);
         // Omit declarations, comments and terminators from source witnesses.
         Some(
             file.get(start + 1..end)?
