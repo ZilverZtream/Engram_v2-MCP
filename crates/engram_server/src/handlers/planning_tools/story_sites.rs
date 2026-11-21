@@ -21,7 +21,7 @@ fn term(word: &str) -> String {
         _ => canonical_story_name_term(word),
     }
 }
-fn terms(text: &str) -> BTreeSet<String> {
+pub(super) fn terms(text: &str) -> BTreeSet<String> {
     split_symmetric_name_tokens(text)
         .into_iter()
         .filter(|w| {
@@ -51,6 +51,7 @@ struct Criterion {
     terms: BTreeSet<String>,
 }
 pub(super) struct Candidates {
+    pub(super) source_evidence: HashMap<String, super::story_sources::Witness>,
     pub(super) history: super::story_history::Evidence,
     title: BTreeSet<String>,
     criteria: Vec<Criterion>,
@@ -180,6 +181,7 @@ impl Candidates {
         }
         Self {
             history: Default::default(),
+            source_evidence: HashMap::new(),
             invoked_names,
             invoked: BTreeSet::new(),
             narrative,
@@ -613,6 +615,10 @@ impl Candidates {
                 call_evidence.entry(id).or_insert(route);
             }
         }
+        for (id, witness) in &self.source_evidence {
+            let score = pool.entry(id.clone()).or_default();
+            *score = (*score).max(witness.score);
+        }
         let mut sites = Vec::new();
         for (id, lexical) in &pool {
             let Ok(Some(node)) = graph.get_node(project, id) else {
@@ -626,8 +632,11 @@ impl Candidates {
             {
                 continue;
             }
-            let Some(mut lines) = source.lines(&node) else {
-                continue;
+            let witness = self.source_evidence.get(id);
+            let mut lines = match source.lines(&node) {
+                Some(lines) => lines,
+                None if witness.is_some() => Vec::new(),
+                None => continue,
             };
             let invoked = self.invoked_names.contains_key(
                 &node
@@ -672,7 +681,7 @@ impl Candidates {
                 {
                     scored.push((Reverse(1), *line, text));
                 }
-                if scored.is_empty() && pinned.is_none() && !self.history.methods.contains_key(id) {
+                if scored.is_empty() && witness.is_none() && pinned.is_none() && !self.history.methods.contains_key(id) {
                     continue;
                 }
                 let quality = scored.first().map_or(0, |r| r.0.0);
@@ -737,6 +746,11 @@ impl Candidates {
                     rows.insert(0, (w.line, w.text.clone()));
                     rows.truncate(3);
                 }
+                if let Some(w) = witness {
+                    rows.retain(|(line, _)| *line != w.line);
+                    rows.insert(0, (w.line, w.text.clone()));
+                    rows.truncate(3);
+                }
                 if rows.is_empty() {
                     rows.push((
                         node.start_line as usize,
@@ -786,6 +800,9 @@ impl Candidates {
                         "story terms in a previously changed file"
                     };
                     evidence.push(format!("History ({basis}): {}", w.change));
+                }
+                if let Some(w) = self.source_evidence.get(&node.node_id) {
+                    evidence.push(format!("Location evidence: {}", w.reason));
                 }
                 if let Some(route) = call_evidence.get(&node.node_id) {
                     evidence.push(format!("Indexed call path: {route}"));

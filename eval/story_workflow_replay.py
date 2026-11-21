@@ -81,7 +81,13 @@ def ranked_sites(plan, root):
                                                                   and snippet in lines[n-1])))
         declaration = re.search(r"(?m)^   - Declaration: (.+?):(\d+) \(use this start line", block)
         start = int(declaration[2]) if declaration and citations and declaration[1] == citations[0]["path"] else None
-        rows.append(dict(name=title[1], citations=citations, callee_paths=callee_paths, declaration_line=start))
+        doc_line = None
+        if "Location evidence: The story quotes this declaration's documentation." in block and start and citations:
+            quote = citations[0]
+            if quote["verified"] and quote["line"] < start:
+                doc_line = quote["line"]
+        rows.append(dict(name=title[1], citations=citations, callee_paths=callee_paths,
+                         declaration_line=start, documentation_line=doc_line))
     return rows[:3]
 
 
@@ -215,7 +221,7 @@ def score(repo, parent, fix, scope, observations):
                     parent, fix, "--", path).decode(errors="replace")
         ranges[path] = [(int(n), int(count or 1)) for n, count in
                         re.findall(r"(?m)^@@ -(\d+)(?:,(\d+))? \+", patch)]
-    file_hits, method_hits = [], []
+    file_hits, method_hits, documentation_hits = [], [], []
     for site in observations["sites"]:
         if not site["citations"]:
             continue
@@ -223,6 +229,9 @@ def score(repo, parent, fix, scope, observations):
         if path not in ranges:
             continue
         file_hits.append(path)
+        doc_line = site.get("documentation_line")
+        if doc_line and any(n <= doc_line < n + count for n, count in ranges[path]):
+            documentation_hits.append(site["name"])
         if "indexed_span" in site:
             lo, hi = site["indexed_span"]
             # Pure insertions are between parent lines. At either boundary
@@ -230,7 +239,7 @@ def score(repo, parent, fix, scope, observations):
             if any((n <= hi and n+k-1 >= lo) if k else lo <= n < hi for n, k in ranges[path]):
                 method_hits.append(site["name"])
     return dict(changed_paths=files, other_changed_paths=[p for p in all_paths if p not in ranges],
-                ranked_file_hits=file_hits, ranked_method_hits=method_hits,
+                ranked_file_hits=file_hits, ranked_method_hits=method_hits, ranked_documentation_line_hits=documentation_hits,
                 search_file_hits=list(dict.fromkeys(p for p in observations["search_paths"] if p in ranges)),
                 named_route_file_hits=[p for p in observations["named_routes"]["paths"] if p in ranges],
                 ranked_callee_file_hits=sorted({p for site in observations["sites"] for p in site["callee_paths"] if p in ranges}),

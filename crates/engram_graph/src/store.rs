@@ -1882,6 +1882,25 @@ impl GraphStore {
         )
     }
 
+    /// Seek the same canonical function identities as visit_symbol_names, scoped to one file.
+    pub fn functions_for_source_lines(&self, project: &str, path: &str) -> anyhow::Result<Vec<Node>> {
+        let prefix = format!("{project}\0sym:function:{path}:");
+        let tx = self.db.begin_read()?;
+        let nodes = tx.open_table(NODES)?;
+        let mut functions = Vec::new();
+        for entry in nodes.range(prefix.as_str()..)? {
+            let (key, value) = entry?;
+            if !key.value().starts_with(&prefix) {
+                break;
+            }
+            let node: Node = bincode::deserialize(value.value())?;
+            if node.file_path.as_str() == path {
+                functions.push(node);
+            }
+        }
+        Ok(functions)
+    }
+
     /// Exact file identity, applied before the cap so sibling paths cannot
     /// crowd out the requested file's nodes.
     pub fn query_nodes_in_file(

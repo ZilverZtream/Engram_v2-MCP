@@ -14,6 +14,8 @@
 
 mod page_guards;
 mod story_sites;
+#[path = "planning_tools/story_sources.rs"]
+mod story_sources;
 #[path = "planning_tools/story_history.rs"]
 mod story_history;
 use crate::handlers::validate_project_id;
@@ -6705,8 +6707,15 @@ impl Engram {
         let project = req.project_id.clone();
         let override_terms = req.concepts.clone().filter(|c| !c.is_empty());
         let cited_prs = story_history::resolve_cited_prs(&root, &raw).await;
+        let source_index = if let Ok(runtime) = self.ensure_project_runtime(&project).await {
+            self.pin_active_source_generation(&project, &runtime.search).await.ok()
+                .map(|(generation, snapshot)| (runtime.search.clone(), generation, snapshot))
+        } else { None };
         let (concepts, sites, history_summary) = tokio::task::spawn_blocking(move || {
             let mut sites = story_sites::Candidates::new(&raw);
+            if let Some((search, generation, _snapshot)) = source_index {
+                sites.source_evidence = story_sources::collect(&graph, &search, &root, &project, generation, &raw);
+            }
             sites.history = story_history::collect(&graph, &project, &root, &raw, &cited_prs);
             let history_summary = sites.history.summary();
             if let Some(mut concepts) = override_terms {
