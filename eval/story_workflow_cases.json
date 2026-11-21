@@ -26,5 +26,19 @@
     "fix": "210e15b6647bd0b8d0c8502973822201949a2642",
     "scope": "Dapper",
     "story_sha256": "1384e91cd903756619f2a978648207e228e120dfce190bef9e1e89ddc14e81e8"
+  },
+  {
+    "repository": "DapperLib/Dapper",
+    "issue": 1169,
+    "fix": "2789188e870f27687c741d9779968d324e07eaaf",
+    "scope": "Dapper",
+    "story_sha256": "a060976a9d0acc54524a7410a8afdf7676dba43f8cc832bd444250235a890294"
+  },
+  {
+    "repository": "DapperLib/Dapper",
+    "issue": 2117,
+    "fix": "a00716926c10eccfd8c02bc3ce810c65430a8e41",
+    "scope": "Dapper",
+    "story_sha256": "ee74867ece51eb6cc5bd1a1b2c486752596f51d79e4c85f697281656dcf23c0d"
   }
 ]

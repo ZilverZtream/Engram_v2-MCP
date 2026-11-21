@@ -61,6 +61,7 @@ def run(args):
                 observations = receipt["observations"]
                 row = dict(case=case, version=label, ranked_file=bool(score["ranked_file_hits"]),
                            ranked_method=bool(score["ranked_method_hits"]),
+                           ranked_callee_file=bool(score["ranked_callee_file_hits"]),
                            named_route_file=bool(score["named_route_file_hits"]),
                            search_file=bool(score["search_file_hits"]),
                            sites=len(observations["sites"]),

@@ -49,19 +49,23 @@ def ranked_sites(plan, root):
         title = re.match(r"\d+\. .*? — (.+?)(?: \[indexed working checkout\])?\s*$", block.split("\n")[0])
         if not title:
             continue
-        citations = []
+        citations, callee_paths = [], []
         for path, number, quoted in re.findall(r"(?m)^   - (.+?):(\d+)  (.+)$", block):
-            if "(indexed callee " in quoted or "(same-file candidate " in quoted:
-                continue
             file = (root / path).resolve()
             if not file.is_relative_to(root) or not file.is_file():
+                continue
+            if "(indexed callee " in quoted:
+                if path not in callee_paths:
+                    callee_paths.append(path)
+                continue
+            if "(same-file candidate " in quoted:
                 continue
             lines = file.read_text(encoding="utf-8-sig", errors="replace").splitlines()
             n = int(number)
             snippet = quoted.removesuffix("…").strip()
             citations.append(dict(path=path, line=n, verified=bool(snippet and 0 < n <= len(lines)
                                                                   and snippet in lines[n-1])))
-        rows.append(dict(name=title[1], citations=citations))
+        rows.append(dict(name=title[1], citations=citations, callee_paths=callee_paths))
     return rows[:3]
 
 
@@ -207,6 +211,7 @@ def score(repo, parent, fix, scope, observations):
                 ranked_file_hits=file_hits, ranked_method_hits=method_hits,
                 search_file_hits=list(dict.fromkeys(p for p in observations["search_paths"] if p in ranges)),
                 named_route_file_hits=[p for p in observations["named_routes"]["paths"] if p in ranges],
+                ranked_callee_file_hits=sorted({p for site in observations["sites"] for p in site["callee_paths"] if p in ranges}),
                 call_edge_file_hits=sorted({p for site in observations["sites"]
                                             for p in site.get("call_edge_files", []) if p in ranges}))
 
