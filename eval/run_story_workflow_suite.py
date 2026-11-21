@@ -37,7 +37,7 @@ def public_case(entry, workspace):
     story.write_bytes(text.encode())
     repo = workspace / "history.git"
     subprocess.run(["git", "init", "--quiet", "--bare", str(repo)], check=True)
-    subprocess.run(["git", "-C", str(repo), "fetch", "--quiet", "--no-tags", "--depth=2",
+    subprocess.run(["git", "-C", str(repo), "fetch", "--quiet", "--no-tags", "--depth=513",
                     f"https://github.com/{repository}.git", entry["fix"]], check=True)
     return repo, story
 

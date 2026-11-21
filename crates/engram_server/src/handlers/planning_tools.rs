@@ -14,6 +14,8 @@
 
 mod page_guards;
 mod story_sites;
+#[path = "planning_tools/story_history.rs"]
+mod story_history;
 use crate::handlers::validate_project_id;
 use crate::handlers::planning_contract_rules::{
     load_matching_planning_rules, PlanningContractRuleMatch,
@@ -6702,8 +6704,11 @@ impl Engram {
         let graph = self.state.graph.clone();
         let project = req.project_id.clone();
         let override_terms = req.concepts.clone().filter(|c| !c.is_empty());
-        let (concepts, sites) = tokio::task::spawn_blocking(move || {
+        let remote_oids = story_history::resolve_cited_prs(&root, &raw).await;
+        let (concepts, sites, history_summary) = tokio::task::spawn_blocking(move || {
             let mut sites = story_sites::Candidates::new(&raw);
+            sites.history = story_history::collect(&graph, &project, &root, &raw, &remote_oids);
+            let history_summary = sites.history.summary();
             if let Some(mut concepts) = override_terms {
                 concepts.truncate(3);
                 for concept in &concepts {
@@ -6713,16 +6718,17 @@ impl Engram {
                         }
                     }
                 }
-                return Ok((concepts, sites.rank(&graph, &project, &root)));
+                return Ok((concepts, sites.rank(&graph, &project, &root), history_summary));
             }
-            grounded_planning_concepts(
+            let (concepts, ranked) = grounded_planning_concepts(
                 &graph,
                 &project,
                 &story_for_concepts(&planning_scope(&raw)),
                 coordinated_story_subjects(&raw),
                 &mut sites,
                 &root,
-            )
+            )?;
+            Ok::<_, anyhow::Error>((concepts, ranked, history_summary))
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
@@ -6744,6 +6750,7 @@ impl Engram {
             }
             policy_paths.extend(site.paths.iter().cloned());
         }
+        out.push_str(&history_summary);
         out.push_str("Selected source observations from the indexed working checkout; verify behavior and criterion coverage before editing.\n");
         let runtime = self.ensure_project_runtime(&req.project_id).await?;
         let (generation, guard) = self

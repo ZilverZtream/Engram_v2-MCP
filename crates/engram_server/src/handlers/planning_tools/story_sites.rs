@@ -51,6 +51,7 @@ struct Criterion {
     terms: BTreeSet<String>,
 }
 pub(super) struct Candidates {
+    pub(super) history: super::story_history::Evidence,
     title: BTreeSet<String>,
     criteria: Vec<Criterion>,
     narrative: String,
@@ -151,6 +152,7 @@ impl Candidates {
         .iter()
         .any(|t| action_terms.contains(*t));
         Self {
+            history: Default::default(),
             narrative,
             writes,
             transport: BTreeSet::new(),
@@ -244,6 +246,14 @@ impl Candidates {
         for (Reverse(score), id) in self.selected.iter().chain(&self.server) {
             let old = pool.entry(id.clone()).or_default();
             *old = (*old).max(*score);
+        }
+        for (id, prior) in &self.history.methods {
+            // Preserve explicit source and transport anchors. File co-occurrence
+            // alone carries less weight than a surviving line from a patch.
+            let weight = prior.score * (if self.writes { 2 } else { 4 }) / 5;
+            pool.entry(id.clone())
+                .and_modify(|s| *s = (*s).max(weight))
+                .or_insert(weight);
         }
         let mut pins = HashMap::new();
         static IDENT: LazyLock<regex::Regex> =
@@ -515,6 +525,9 @@ impl Candidates {
                         } else {
                             0
                         };
+                    let weight = weight
+                        + usize::from(self.history.methods.get(id).is_some_and(|w| w.line == *n))
+                            * 8;
                     if weight > 0 {
                         scored.push((Reverse(weight), *n, text));
                     }
@@ -572,6 +585,11 @@ impl Candidates {
                     .take(3)
                     .map(|(_, n, s)| (n, s.to_string()))
                     .collect();
+                if let Some(w) = self.history.methods.get(id) {
+                    rows.retain(|(line, _)| *line != w.line);
+                    rows.insert(0, (w.line, w.text.clone()));
+                    rows.truncate(3);
+                }
                 if rows.is_empty() {
                     rows.push((
                         node.start_line as usize,
@@ -609,6 +627,14 @@ impl Candidates {
                     .iter()
                     .map(|(n, s)| format!("{path}:{n}  {s}"))
                     .collect();
+                if let Some(w) = self.history.methods.get(&node.node_id) {
+                    let basis = if w.patch_match {
+                        "added line still present"
+                    } else {
+                        "story terms in a previously changed file"
+                    };
+                    evidence.push(format!("History ({basis}): {}", w.change));
+                }
                 let mut paths = vec![path];
                 // Only follow a write actually shown in the selected source. A thin
                 // wrapper may delegate once more before touching persistent storage.

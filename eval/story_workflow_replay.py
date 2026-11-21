@@ -29,6 +29,14 @@ def snapshot(repo, parent, root):
     with tarfile.open(archive) as tar:
         tar.extractall(root, members=(m for m in tar if m.isfile() or m.isdir()), filter="data")
     archive.unlink()
+    # Fetch only ancestors of the pre-fix commit into an independent object
+    # database. No alternates, remote-tracking refs, tags or oracle remote.
+    git(root, "init", "--quiet", "--initial-branch=replay")
+    git(root, "fetch", "--quiet", "--no-tags", "--no-write-fetch-head", "--depth=512",
+        "--update-shallow", repo.as_uri(), parent + ":refs/heads/history")
+    git(root, "update-ref", "HEAD", parent)
+    git(root, "read-tree", parent)
+
 
 
 def first_page(reply):
@@ -232,6 +240,10 @@ def run(args):
         root = owned / "source"
         root.mkdir()
         snapshot(repo, parent, root)
+        if subprocess.run(["git", "-C", str(root), "cat-file", "-e", fix + "^{commit}"],
+                          stderr=subprocess.DEVNULL).returncode == 0:
+            raise RuntimeError("Withheld fix present in replay Git database")
+        history_count = int(git(root, "rev-list", "--count", "HEAD"))
         config = owned / "config.yaml"
         config.write_text("allowed_roots: [" + json.dumps(str(root)) + "]\ndata_dir: " +
                           json.dumps(str(owned / "data")) +
@@ -244,7 +256,7 @@ def run(args):
                 client.close()
     with binary.open("rb") as stream:
         binary_hash = hashlib.file_digest(stream, "sha256").hexdigest()
-    receipt = dict(fix=fix, parent=parent, scope=args.scope, binary_sha256=binary_hash,
+    receipt = dict(fix=fix, parent=parent, reachable_history_commits=history_count, scope=args.scope, binary_sha256=binary_hash,
                    story_sha256=hashlib.sha256(story.encode()).hexdigest(), observations=evidence,
                    score=score(repo, parent, fix, args.scope, evidence))
     with output.open("x", encoding="utf8") as stream:
