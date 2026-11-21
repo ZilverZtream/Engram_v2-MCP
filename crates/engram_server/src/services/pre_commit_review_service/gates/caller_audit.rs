@@ -144,6 +144,9 @@ impl Sites {
             .methods
             .iter()
             .find(|m| m.file == df.path && (m.start..=m.end).contains(&line))?;
+        if let Some(at) = target.audits.iter().find(|at| **at >= line) {
+            return Some(format!("{}:{line} -> audit at {}:{at}", df.path, df.path));
+        }
         let mut frontier = vec![(target, format!("{}:{}", df.path, line))];
         for _ in 0..2 {
             let mut next = Vec::new();

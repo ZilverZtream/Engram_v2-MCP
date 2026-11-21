@@ -22,6 +22,27 @@ fn matches_entry(path: &str, pattern: &str) -> bool {
     crate::utils::files::pattern_match(path, p)
 }
 
+fn parse_config(text: &str) -> Option<serde_json::Value> {
+    static TOKENS: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#""(?:\\.|[^"\\])*"|//[^\n]*|(?s:/\*.*?\*/)"#).unwrap());
+    static COMMAS: LazyLock<Regex> =
+        LazyLock::new(|| Regex::new(r#""(?:\\.|[^"\\])*"|,\s*([}\]])"#).unwrap());
+    let clean = TOKENS.replace_all(
+        text.trim_start_matches('\u{feff}'),
+        |m: &regex::Captures| {
+            if m[0].starts_with('/') {
+                " ".to_owned()
+            } else {
+                m[0].to_owned()
+            }
+        },
+    );
+    let clean = COMMAS.replace_all(&clean, |m: &regex::Captures| {
+        m.get(1).unwrap_or(m.get(0).unwrap()).as_str().to_owned()
+    });
+    serde_json::from_str(&clean).ok()
+}
+
 fn build_outputs(
     root: &Path,
     current: &[String],
@@ -69,7 +90,7 @@ fn build_outputs(
         else {
             continue;
         };
-        let Ok(config) = serde_json::from_str::<serde_json::Value>(&text) else {
+        let Some(config) = parse_config(&text) else {
             continue;
         };
         let Some(output) = config["compilerOptions"]["outFile"].as_str() else {

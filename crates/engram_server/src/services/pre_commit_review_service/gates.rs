@@ -1354,7 +1354,7 @@ impl Gate for AuditGate {
                 });
                 if !covered.is_empty() {
                     findings.push(ReviewFinding::new(Severity::Info,"audit",df.path.clone(),
-                        "Caller-side audit evidence for database mutation",
+                        "Audit write observed on a source path for this mutation",
                         "A reviewed caller reaches an audit write after calling the mutation method. This source path does not establish coverage of other callers or branches.",
                         "Keep the observed caller-side audit and verify any additional entry points.")
                         .with_lines(covered).with_evidence(witnesses.into_iter().collect()));
@@ -1367,7 +1367,7 @@ impl Gate for AuditGate {
             }
             let audit_call = Regex::new(&format!(r"(?i)\b{}\s*\(", regex::escape(&audit_short))).expect("escaped audit name");
             let has_audit = audit_call.is_match(&review_executable_text(&df.added_content, is_vb_path(&df.path), true));
-            if has_audit {
+            if has_audit && !is_vb_path(&df.path) {
                 continue;
             }
 

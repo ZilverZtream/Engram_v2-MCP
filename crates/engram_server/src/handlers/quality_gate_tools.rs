@@ -9,7 +9,6 @@
 use crate::handlers::validate_project_id;
 use crate::tools::Engram;
 use engram_core::safe_join;
-use engram_index::HybridQuery;
 use engram_index::quality_gates::{
     QualityRule, QualitySource, batch_findings, distill_prompt, parse_distilled_rules,
     parse_quality_source_checked, MARKDOWN_CONTEXT_PREFIX,
