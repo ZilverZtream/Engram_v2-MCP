@@ -104,7 +104,7 @@ fn identifiers(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
-fn call_arguments(story: &str) -> HashMap<String, BTreeSet<String>> {
+pub(super) fn call_arguments(story: &str) -> HashMap<String, BTreeSet<String>> {
     static CALL: LazyLock<regex::Regex> = LazyLock::new(|| {
         regex::Regex::new(r"\b([A-Za-z_]\w*)\s*(?:<[^<>\n]{1,100}>)?\s*\(").unwrap()
     });
@@ -137,7 +137,7 @@ fn call_arguments(story: &str) -> HashMap<String, BTreeSet<String>> {
     calls
 }
 
-fn support_path(path: &str) -> bool {
+pub(super) fn support_path(path: &str) -> bool {
     is_test_path(path)
         || path.split('/').any(|p| {
             matches!(
@@ -157,6 +157,7 @@ fn support_path(path: &str) -> bool {
 pub(super) struct Evidence {
     pub methods: HashMap<String, Witness>,
     pub changes: Vec<String>,
+    references: Vec<String>,
     pub coverage: String,
 }
 #[derive(Clone)]
@@ -413,6 +414,52 @@ pub(super) fn collect(
     for c in &changes {
         ev.changes.push(format!("{:.10} {}", c.oid, c.title));
     }
+    // A story may explicitly cite work on a different branch. Report that
+    // comparison separately; its line numbers and review state do not describe HEAD.
+    static CITED_SHA: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"(?i)\b[0-9a-f]{40}\b").unwrap());
+    let current_story = story.split("## Edit history").next().unwrap_or(story);
+    let explicit: BTreeSet<_> = CITED_SHA
+        .find_iter(current_story)
+        .take(3)
+        .filter_map(|m| Oid::from_str(m.as_str()).ok())
+        .chain(fetched.iter().map(|p| p.oid))
+        .collect();
+    for oid in explicit {
+        if oid == head || repo.graph_descendant_of(head, oid).unwrap_or(false) {
+            continue;
+        }
+        if let Ok(commit) = repo.find_commit(oid) {
+            let mut paths = Vec::new();
+            if let (Ok(parent), Ok(tree)) = (commit.parent(0).and_then(|p| p.tree()), commit.tree())
+                && let Ok(diff) = repo.diff_tree_to_tree(Some(&parent), Some(&tree), None)
+            {
+                for d in diff.deltas() {
+                    if let Some(path) = d.new_file().path().and_then(Path::to_str)
+                        && !support_path(path)
+                        && root.join(path).is_file()
+                    {
+                        paths.push(path.to_owned());
+                    }
+                    if paths.len() >= 3 {
+                        break;
+                    }
+                }
+            }
+            let description = commit
+                .summary()
+                .unwrap_or("")
+                .chars()
+                .take(150)
+                .collect::<String>();
+            ev.references.push(format!("Explicit comparison {:.10} ({description}), outside checkout ancestry. First-parent patch paths present in checkout: {}.",oid,paths.join(", ")));
+        } else if let Some(pr) = fetched.iter().find(|p| p.oid == oid) {
+            ev.references.push(format!(
+                "Fetched merged PR #{}: {} ({:.10}); patch unavailable in local Git.",
+                pr.id, pr.title, pr.oid
+            ));
+        }
+    }
     let files = patches(&repo, &changes);
     if files.is_empty() {
         return ev;
@@ -453,17 +500,34 @@ pub(super) fn collect(
                 *frequency.entry(s).or_insert(0usize) += 1;
             }
         }
-        let mut cursor = 0usize;
+        // Sibling start lines alone cannot locate statements that resume in
+        // an outer function after an inner callback has ended.
+        let mut funcs: Vec<_> = funcs
+            .into_iter()
+            .filter_map(|(start, id, name)| {
+                let node = graph.get_node(project, &id).ok()??;
+                Some((start, id, name, node.end_line as usize))
+            })
+            .collect();
+        funcs.sort_by_key(|f| (f.0, std::cmp::Reverse(f.3)));
+        let mut next = 0;
+        let mut active = Vec::<usize>::new();
         let mut patch_support = HashMap::<usize, usize>::new();
         let mut named_args = HashMap::<usize, usize>::new();
         for (index, line) in source.lines().enumerate() {
             let at = index + 1;
-            while cursor + 1 < funcs.len() && funcs[cursor + 1].0 <= at {
-                cursor += 1;
+            while active.last().is_some_and(|&i| funcs[i].3 < at) {
+                active.pop();
             }
-            if at < funcs[cursor].0 {
+            while next < funcs.len() && funcs[next].0 <= at {
+                if funcs[next].3 >= at {
+                    active.push(next);
+                }
+                next += 1;
+            }
+            let Some(&cursor) = active.last() else {
                 continue;
-            }
+            };
             let text = line.trim();
             if !(6..=360).contains(&text.len()) || text.starts_with(['/', '*', '\'', '#']) {
                 continue;
@@ -524,7 +588,7 @@ pub(super) fn collect(
             );
         }
         for (pos, w) in best {
-            let (_, id, name) = &funcs[pos];
+            let (_, id, name, _) = &funcs[pos];
             let leaf = words(name.rsplit(['.', ':']).next().unwrap_or(name));
             let mut witness = w;
             let short = name
@@ -534,7 +598,8 @@ pub(super) fn collect(
                 .to_ascii_lowercase();
             let landed = patch_support.get(&pos).copied().unwrap_or(0);
             let subject = leaf.intersection(&title).count().min(4);
-            witness.score += subject * 14
+            witness.score += words(&path).intersection(&title).count().min(3) * 10
+                + subject * 14
                 + usize::from(subject >= 2) * 22
                 + named_args.get(&pos).copied().unwrap_or(0).min(4) * 16
                 + landed.min(5) * 7;
@@ -569,6 +634,9 @@ impl Evidence {
         let mut text = format!("\n## Earlier changes\n{}\n", self.coverage);
         for change in self.changes.iter().take(3) {
             text.push_str(&format!("- {change}\n"));
+        }
+        for reference in &self.references {
+            text.push_str(&format!("- {reference}\\n"));
         }
         text
     }

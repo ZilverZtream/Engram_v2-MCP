@@ -138,5 +138,47 @@
     "fix": "d2128cc4ffd411eed7111e6a3c561948330e4f6f",
     "scope": "lib",
     "story_sha256": "37afeca269fe9274aabefc117e6c7489d5665f18808ff3e0f3b9016e7ea19746"
+  },
+  {
+    "repository": "tj/commander.js",
+    "issue": 2614,
+    "fix": "a9f06ddfe1a97c932579370a1b4e727f7fa511a7",
+    "scope": "",
+    "story_sha256": "d1ee09607c61974ecd4587a67f06a4c60357b679afe3950b375b9cdf9ff325b9"
+  },
+  {
+    "repository": "tj/commander.js",
+    "issue": 2169,
+    "fix": "f7b84757065d6dda0a128f80405e4d8dc218edd7",
+    "scope": "",
+    "story_sha256": "534247bb45fa846944eecc0b262c126c1aea54bf5d3b17cf9e699883050bcfa5"
+  },
+  {
+    "repository": "tj/commander.js",
+    "issue": 1274,
+    "fix": "a71d592ee222de4c23215cf29d479b1687e324c5",
+    "scope": "",
+    "story_sha256": "fe4633636e2885c82dd0059c68d8cdcd1f1270db834d1c8399d61a574c6bbcaf"
+  },
+  {
+    "repository": "caolan/async",
+    "issue": 1653,
+    "fix": "6919fa0258599bf354224ffb17f9d4ff11e0dc49",
+    "scope": "",
+    "story_sha256": "7d81e3424a8b889a4632e01f4fd4a2840157afa8b03dcd651b00cc50b514b7fe"
+  },
+  {
+    "repository": "caolan/async",
+    "issue": 1704,
+    "fix": "8141ac011ee1c73c0e4f1eacfdc43a29a7b61b41",
+    "scope": "",
+    "story_sha256": "6092d376fa2cb8a4e335a6890f56a104d99d6d728d6e15d80567d9f95f6f96bb"
+  },
+  {
+    "repository": "caolan/async",
+    "issue": 1688,
+    "fix": "16d3c56722456bb890ec086aa8602783a2ed3fea",
+    "scope": "",
+    "story_sha256": "47438e86bad363387fa2647d564781887f2bd2178f0b3fcbe45aa8d7020b69da"
   }
 ]

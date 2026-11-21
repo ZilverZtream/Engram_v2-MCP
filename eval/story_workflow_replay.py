@@ -199,7 +199,12 @@ def score(repo, parent, fix, scope, observations):
     prefix = scope.strip("/")
     files = git(repo, "diff", "--no-renames", "--name-only", "-z", parent, fix, "--").decode().split("\0")
     all_paths = [p for p in files if p]
-    files = [p for p in all_paths if (not prefix or p == prefix or p.startswith(prefix + "/"))]
+    # For root-scoped projects, a changed example/test alone cannot earn
+    # implementation credit. An explicit source scope remains caller-defined.
+    auxiliary = re.compile(r"(?:^|/)(?:tests?|__tests__|examples?|docs?|benchmarks?)(?:/|$)|[.](?:test|spec)[.]", re.I)
+    files = [p for p in all_paths if (p == prefix or p.startswith(prefix + "/"))] if prefix else [
+        p for p in all_paths if not auxiliary.search(p)
+    ]
     ranges = {}
     for path in files:
         patch = git(repo, "diff", "--no-ext-diff", "--no-textconv", "--no-renames", "-U0",

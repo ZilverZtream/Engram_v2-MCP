@@ -55,6 +55,8 @@ pub(super) struct Candidates {
     title: BTreeSet<String>,
     criteria: Vec<Criterion>,
     narrative: String,
+    invoked_names: HashMap<String, usize>,
+    invoked: BTreeSet<(Reverse<usize>, String)>,
     writes: bool,
     transport: BTreeSet<(Reverse<usize>, String)>,
     server: BTreeSet<(Reverse<usize>, String)>,
@@ -151,8 +153,35 @@ impl Candidates {
         ]
         .iter()
         .any(|t| action_terms.contains(*t));
+        let mut invoked_names = HashMap::new();
+        if criteria.iter().all(|c| c.label == "Story") {
+            let prose = scope.split("```").next().unwrap_or(scope);
+            let normalized = |s: &str| -> BTreeSet<String> {
+                s.split(|c: char| !c.is_alphanumeric() && c != '_')
+                    .filter(|s| s.len() >= 3)
+                    .map(|s| call_stem(&s.to_lowercase()).to_owned())
+                    .collect()
+            };
+            let heading = normalized(heading);
+            let prose = normalized(prose);
+            for (name, args) in super::story_history::call_arguments(scope) {
+                let stem = call_stem(&name);
+                let score = if heading.contains(stem) {
+                    174
+                } else if prose.contains(stem) {
+                    112
+                } else {
+                    0
+                };
+                if score > 0 {
+                    invoked_names.insert(name, score + args.len().min(3) * 5);
+                }
+            }
+        }
         Self {
             history: Default::default(),
+            invoked_names,
+            invoked: BTreeSet::new(),
             narrative,
             writes,
             transport: BTreeSet::new(),
@@ -170,6 +199,20 @@ impl Candidates {
     pub(super) fn consider(&mut self, name: &str, id: &str, path: &str, words: &[String]) {
         if words.is_empty() {
             return;
+        }
+        let leaf = name
+            .rsplit(['.', ':'])
+            .next()
+            .unwrap_or(name)
+            .to_ascii_lowercase();
+        if let Some(&score) = self.invoked_names.get(&leaf)
+            && !super::story_history::support_path(path)
+            && !engram_core::is_declaration_path(path)
+        {
+            self.invoked.insert((Reverse(score), id.to_owned()));
+            if self.invoked.len() > 32 {
+                self.invoked.pop_last();
+            }
         }
         let owner = name
             .rsplit_once(['.', ':'])
@@ -243,7 +286,12 @@ impl Candidates {
             files: HashMap::new(),
         };
         let mut pool: HashMap<String, usize> = HashMap::new();
-        for (Reverse(score), id) in self.selected.iter().chain(&self.server) {
+        for (Reverse(score), id) in self
+            .selected
+            .iter()
+            .chain(&self.server)
+            .chain(&self.invoked)
+        {
             let old = pool.entry(id.clone()).or_default();
             *old = (*old).max(*score);
         }
@@ -578,9 +626,24 @@ impl Candidates {
             {
                 continue;
             }
-            let Some(lines) = source.lines(&node) else {
+            let Some(mut lines) = source.lines(&node) else {
                 continue;
             };
+            let invoked = self.invoked_names.contains_key(
+                &node
+                    .name
+                    .rsplit(['.', ':'])
+                    .next()
+                    .unwrap_or(&node.name)
+                    .to_ascii_lowercase(),
+            );
+            if invoked
+                && lines.is_empty()
+                && let Some(Some(file)) = source.files.get(node.file_path.as_str())
+                && let Some(line) = file.get(node.start_line.saturating_sub(1) as usize)
+            {
+                lines.push((node.start_line as usize, line.trim().to_owned()));
+            }
             let leaf_words = terms(node.name.rsplit(['.', ':']).next().unwrap_or(&node.name));
             let title_matches = self.title.intersection(&leaf_words).count();
             let path = node.file_path.as_str().to_lowercase();
@@ -603,7 +666,13 @@ impl Candidates {
                     }
                 }
                 scored.sort();
-                if scored.is_empty() && pinned.is_none() {
+                if scored.is_empty()
+                    && invoked
+                    && let Some((line, text)) = lines.first()
+                {
+                    scored.push((Reverse(1), *line, text));
+                }
+                if scored.is_empty() && pinned.is_none() && !self.history.methods.contains_key(id) {
                     continue;
                 }
                 let quality = scored.first().map_or(0, |r| r.0.0);
@@ -772,6 +841,20 @@ pub(super) struct Site {
     pub paths: Vec<String>,
 }
 
+fn call_stem(word: &str) -> &str {
+    for suffix in ["ing", "ed", "es", "s"] {
+        if let Some(stem) = word.strip_suffix(suffix)
+            && stem.len() >= 3
+        {
+            return stem;
+        }
+    }
+    if word.len() > 4 {
+        word.strip_suffix('e').unwrap_or(word)
+    } else {
+        word
+    }
+}
 fn is_script(path: &str) -> bool {
     [".js", ".ts", ".jsx", ".tsx"]
         .iter()
