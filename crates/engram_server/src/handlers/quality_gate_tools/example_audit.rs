@@ -127,7 +127,28 @@ fn paired(policy: &str, bad: &str, good: &str, checks: &mut BTreeSet<Check>) {
                     break;
                 }
             }
-            if !standalone && !Shape(operation).matches(&good_tokens, vb) {
+            // If the positive example changes only the call, its unchanged
+            // surroundings are evidence that the operation itself is the contrast.
+            let replaced = statement
+                .windows(shape.0.len())
+                .position(|w| shape.matches(w, vb))
+                .is_some_and(|at| {
+                    let prefix = &statement[..at];
+                    let suffix = &statement[at + shape.0.len()..];
+                    good.lines().flat_map(|line| line.split(';')).any(|line| {
+                        let g = tokens(TAGS.replace(line.trim(), "").trim(), vb);
+                        let Some(inner) = g
+                            .strip_prefix(prefix)
+                            .and_then(|rest| rest.strip_suffix(suffix))
+                        else {
+                            return false;
+                        };
+                        expressions(inner).iter().any(|candidate| {
+                            candidate.0.len() == inner.len() && candidate.matches(inner, vb)
+                        })
+                    })
+                });
+            if !standalone && !replaced && !Shape(operation).matches(&good_tokens, vb) {
                 continue;
             }
 
@@ -582,6 +603,23 @@ mod tests {
         };
         assert!(matches("record.Payload = src.Format()"));
         assert!(!matches("labels.push(id.Format())"));
+    }
+    #[test]
+    fn a_replacement_call_preserves_nested_argument_support() {
+        let rules = compile(
+            "Use the supported formatter. Bad: SELECT LegacyForm(item) FROM staging; Good: SELECT LocalForm(item) FROM staging; [sql]",
+        );
+        let matches = |src: &str| {
+            rules
+                .iter()
+                .any(|c| c.shape.matches(&tokens(src, false), false))
+        };
+        assert!(matches(
+            "SELECT LegacyForm(Trim(display_name)) FROM ledger;"
+        ));
+        assert!(!matches(
+            "SELECT LocalForm(Trim(display_name)) FROM ledger;"
+        ));
     }
     #[test]
     fn conditional_prose_does_not_ban_a_method_globally() {
