@@ -4582,7 +4582,23 @@ impl Engram {
                 let span=source.lines().skip(start).take((*line_end as usize).saturating_sub(start)).collect::<Vec<_>>();
                 observations.callee(fqn,file_path,start+1,&span);
             }
-            let observations=observations.finish();
+            let mut observations=observations.finish();
+            let base = super::planning_tools::story_citations::with_base(&graph, &project_id, Path::new(&project_dir), |note| {
+                for row in &mut observations {
+                    let mut offsets=Vec::new();
+                    for path in sources.keys() {
+                        let prefix=format!("{path}:");
+                        for (i,_) in row.match_indices(&prefix) {
+                            let at=i+prefix.len();
+                            let digits=row[at..].bytes().take_while(u8::is_ascii_digit).count();
+                            if let Ok(line)=row[at..at+digits].parse() { offsets.push((at+digits,note(path,line))); }
+                        }
+                    }
+                    offsets.sort();offsets.dedup();
+                    for (i,suffix) in offsets.into_iter().rev() { row.insert_str(i,&suffix); }
+                }
+            });
+            if let Some(base)=base {observations.push(base);}
             Ok::<MethodEditContextResult, String>(MethodEditContextResult {
                 ordered_source_observations: observations,
                 consumer_call_paths,

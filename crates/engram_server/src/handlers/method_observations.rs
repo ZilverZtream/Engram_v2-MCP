@@ -27,14 +27,7 @@ impl<'a> Observations<'a> {
         static DB_PARAMETER: LazyLock<Regex> = LazyLock::new(|| Regex::new(
             r"(?ix)^(?:(?:optional|byval|byref|ref|in|out)\s+)*(?: (?P<vb>\w+)\s+as\s+(?:[\w.]*\.)?\w*(?:datacontext|dbcontext)\b | (?:[\w.]*\.)?\w*(?:datacontext|dbcontext)\b\??\s+(?P<cs>\w+)\b )"
         ).unwrap());
-        let mut declaration = String::new();
-        for line in body.lines().take(16) {
-            declaration.push_str(line.trim().trim_end_matches(" _"));
-            declaration.push(' ');
-            if !declaration.contains('(') || declaration.matches('(').count() <= declaration.matches(')').count() {
-                break;
-            }
-        }
+        let declaration = declaration_text(body.lines());
         for parameter in arguments(&declaration) {
             if let Some(m) = DB_PARAMETER.captures(&parameter) {
                 let name = m.name("vb").or_else(|| m.name("cs")).unwrap().as_str();
@@ -95,7 +88,7 @@ impl<'a> Observations<'a> {
             .collect()
     }
     pub(super) fn callee(&mut self, name: &str, path: &str, start: usize, span: &[&str]) {
-        let Some((decl, rest)) = span.split_first() else {
+        let Some((_, rest)) = span.split_first() else {
             return;
         };
         let leaf = name.rsplit(['.', ':']).next().unwrap_or(name);
@@ -146,7 +139,8 @@ impl<'a> Observations<'a> {
             .find(|(_, s)| code(s) && s.to_lowercase().contains(".dispose("))
             .map(|(i, _)| self.start + i);
         let caller_allocates = self.body.iter().any(|s| code(s) && ALLOC.is_match(s));
-        let parameter = arguments(decl).iter().enumerate().find_map(|(i, p)| {
+        let declaration = declaration_text(span.iter().copied());
+        let parameter = arguments(&declaration).iter().enumerate().find_map(|(i, p)| {
             let lower = p.to_lowercase();
             let (left, ty) = lower.split_once(" as ")?;
             ty.split([' ', '='])
@@ -180,7 +174,8 @@ impl<'a> Observations<'a> {
                     continue;
                 }
             }
-            let args = arguments(&line[hit.start()..]);
+            let invocation = declaration_text(std::iter::once(&line[hit.start()..]).chain(self.body.iter().skip(offset + 1).copied()));
+            let args = arguments(&invocation);
             let actual = parameter.as_ref().and_then(|(i, p)| {
                 args.iter()
                     .find_map(|arg| {
@@ -272,6 +267,17 @@ impl<'a> Observations<'a> {
             .map(|((n, s), _)| format!("L{n} {s}"))
             .collect()
     }
+}
+fn declaration_text<'a>(lines: impl Iterator<Item=&'a str>) -> String {
+        let mut declaration = String::new();
+        for line in lines.take(32) {
+            declaration.push_str(line.trim().trim_end_matches(" _"));
+            declaration.push(' ');
+            if !declaration.contains('(') || declaration.matches('(').count() <= declaration.matches(')').count() {
+                break;
+            }
+        }
+    declaration
 }
 /// Positional arguments through the end of this source line, with nested calls and strings.
 fn arguments(s: &str) -> Vec<String> {

@@ -31,6 +31,46 @@ pub(super) fn annotate(
     root: &Path,
     sites: &mut [Site],
 ) -> Option<String> {
+    with_base(graph, project, root, |note| {
+    // Normal rows begin with the indexed path, including the declaration and followed callees.
+    // Route witnesses additionally contain registration and return locations inside the explanation.
+    static ROUTE_LOCATION: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"(?: matches |; )([^;\r\n]+?):([0-9]+)(?: \(| returns )").unwrap()
+    });
+    for site in sites {
+        for row in &mut site.lines {
+            if row.starts_with("Location evidence:") {
+                let notes: Vec<_> = ROUTE_LOCATION
+                    .captures_iter(row)
+                    .filter_map(|m| {
+                        let pos = m.get(2)?;
+                        let suffix = note(&m[1], pos.as_str().parse().ok()?);
+                        Some((pos.end(), suffix))
+                    })
+                    .collect();
+                for (i, s) in notes.into_iter().rev() {
+                    row.insert_str(i, &s)
+                }
+                continue;
+            }
+            let location = row.strip_prefix("Declaration: ").unwrap_or(row);
+            if let Some((path, n)) = site.paths.iter().find_map(|path| {
+                let tail = location.strip_prefix(path.as_str())?.strip_prefix(':')?;
+                let digits = tail.split(|c: char| !c.is_ascii_digit()).next()?;
+                Some((path, digits.parse().ok()?))
+            }) {
+                row.push_str(&note(path, n));
+            }
+        }
+    }
+    })
+}
+
+/// Map observations from the indexed checkout to equal lines in the fetched base.
+pub(in crate::handlers) fn with_base(
+    graph: &GraphStore, project: &str, root: &Path,
+    apply: impl FnOnce(&mut dyn FnMut(&str, usize) -> String),
+) -> Option<String> {
     let repo = Repository::discover(root).ok()?;
     let (name, oid) = GitWalker::approved_history_target(&repo)?;
     let tree = repo.find_commit(oid).ok()?.tree().ok()?;
@@ -66,37 +106,7 @@ pub(super) fn annotate(
             None => " [base line unverified]".into(),
         }
     };
-    // Normal rows begin with the indexed path, including the declaration and followed callees.
-    // Route witnesses additionally contain registration and return locations inside the explanation.
-    static ROUTE_LOCATION: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
-        regex::Regex::new(r"(?: matches |; )([^;\r\n]+?):([0-9]+)(?: \(| returns )").unwrap()
-    });
-    for site in sites {
-        for row in &mut site.lines {
-            if row.starts_with("Location evidence:") {
-                let notes: Vec<_> = ROUTE_LOCATION
-                    .captures_iter(row)
-                    .filter_map(|m| {
-                        let pos = m.get(2)?;
-                        let suffix = note(&m[1], pos.as_str().parse().ok()?);
-                        Some((pos.end(), suffix))
-                    })
-                    .collect();
-                for (i, s) in notes.into_iter().rev() {
-                    row.insert_str(i, &s)
-                }
-                continue;
-            }
-            let location = row.strip_prefix("Declaration: ").unwrap_or(row);
-            if let Some((path, n)) = site.paths.iter().find_map(|path| {
-                let tail = location.strip_prefix(path.as_str())?.strip_prefix(':')?;
-                let digits = tail.split(|c: char| !c.is_ascii_digit()).next()?;
-                Some((path, digits.parse().ok()?))
-            }) {
-                row.push_str(&note(path, n));
-            }
-        }
-    }
+    apply(&mut note);
     Some(format!(
         "Source base: {name}@{oid} (locally fetched). Checkout lines match the base unless annotated."
     ))

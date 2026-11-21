@@ -20,6 +20,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use crate::services::quality_source::{self, SourceReceipt};
 
+mod diff_checks;
+
 const QG_NAMESPACE: &str = "quality_gate";
 
 /// A single hunk can inherit the path supplied alongside it.
@@ -29,6 +31,20 @@ fn audit_diff(code: &str, path: Option<&str>) -> Vec<crate::services::pre_commit
         let mut files = parse_unified_diff(&format!("diff --git a/input b/input\n{code}"));
         if let Some(file) = files.first_mut() { file.path = path.to_owned(); }
         return files;
+    }
+    if code.starts_with("--- ") {
+        let mut expanded=String::new();
+        let mut lines=code.lines().peekable();
+        while let Some(line)=lines.next() {
+            if let Some(old)=line.strip_prefix("--- ") && let Some(new)=lines.peek().and_then(|s|s.strip_prefix("+++ ")) {
+                let name=if new=="/dev/null" {old} else {new};
+                let name=name.split('\t').next().unwrap_or(name);
+                let name=name.strip_prefix("b/").or_else(||name.strip_prefix("a/")).unwrap_or(name);
+                expanded.push_str(&format!("diff --git a/{name} b/{name}\n"));
+            }
+            expanded.push_str(line);expanded.push('\n');
+        }
+        return parse_unified_diff(&expanded);
     }
     parse_unified_diff(code)
 }
@@ -466,9 +482,7 @@ impl Engram {
         }
         let query = sampled.query;
         let cancel = tokio_util::sync::CancellationToken::new();
-        let retrieved = crate::services::rule_retrieval::search(
-                &ps.search,
-                &HybridQuery {
+        let rule_query = HybridQuery {
                     project_id: req.project_id.clone(),
                     namespace: QG_NAMESPACE.to_string(),
                     generation: gen_,
@@ -483,15 +497,16 @@ impl Engram {
                     date_after: None,
                     date_before: None,
                     use_mmr: true,
-                },
-                &cancel,
-            )
+                };
+        let mut verifier = quality_source::SourceVerifier::new(&self.state, &req.project_id, std::path::Path::new(&ps.info.directory));
+        let findings = diff_checks::review(&diff, &ps.search, &rule_query, &mut verifier);
+        let retrieved = crate::services::rule_retrieval::search(&ps.search, &rule_query, &cancel)
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         sampling.push_str(retrieved.note);
         let hits = retrieved.hits;
 
-        if hits.is_empty() {
+        if hits.is_empty() && findings.is_empty() {
             let mut msg = format!(
                 "{sampling}Pre-push audit: no quality-gate rules matched this change — {rules_total} rule(s) \
                  exist in the `{QG_NAMESPACE}` namespace and were searched (top_k {top_k}); 0 checked \
@@ -514,6 +529,11 @@ impl Engram {
         let mut out = String::from(
             "# Pre-push audit — verify the change against these known quality-gate rules\n\n",
         );
+        if !findings.is_empty() {
+            out.push_str("## Findings on added lines\n");
+            for finding in findings { out.push_str(&finding); out.push('\n'); }
+            out.push('\n');
+        }
         // Link exact API names in the retrieved prose to added lines.
         static MEMBER_CALL: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(||
             regex::Regex::new(r"\.\s*([A-Za-z_]\w{2,})\s*\(").unwrap());
@@ -560,9 +580,7 @@ impl Engram {
         }
         let mut scoped = Vec::new();
         let mut general = Vec::new();
-        let mut verifier = quality_source::SourceVerifier::new(
-            &self.state, &req.project_id, std::path::Path::new(&ps.info.directory),
-        );
+
         for (index, h) in hits.iter().enumerate() {
             let p = h.path.as_str().to_ascii_lowercase();
             let status = match ps.search.get_doc_by_doc_id(&req.project_id, QG_NAMESPACE, gen_, &h.doc_id) {

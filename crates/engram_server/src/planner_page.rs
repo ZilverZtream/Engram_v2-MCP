@@ -114,6 +114,7 @@ pub(crate) fn evidence(tool: &str, body: &str) -> String {
             }
             selected.join("\n## ")
         }
+        "pre_push_audit" => body.lines().take_while(|line| !line.starts_with("Retrieval sampling")).collect::<Vec<_>>().join("\n"),
         "plan_user_story" => body
             .lines()
             .skip_while(|line| !line.starts_with("concepts:"))

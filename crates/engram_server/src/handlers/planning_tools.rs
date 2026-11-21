@@ -14,7 +14,8 @@
 
 mod page_guards;
 mod story_sites;
-mod story_citations;
+pub(super) mod story_citations;
+mod edit_counterparts;
 #[path = "planning_tools/story_sources.rs"]
 mod story_sources;
 #[path = "planning_tools/story_routes.rs"]
@@ -13944,7 +13945,7 @@ impl Engram {
         let rule_files = edited.clone();
         let max_partners = req.max_partners.clamp(1, 20);
 
-        let (partners, states, unwired, unresolved, mut coverage) = tokio::task::spawn_blocking(move || {
+        let (counterparts, partners, states, unwired, unresolved, mut coverage) = tokio::task::spawn_blocking(move || {
             let mut coverage = EditCompletenessCoverage::default();
             let real_case: HashMap<String, String> = match graph.list_file_node_metadata(&pid) {
                 Ok(files) => files.into_iter().map(|(file, _)| {
@@ -13963,6 +13964,7 @@ impl Engram {
                 .flat_map(|(requested, resolved)| [edit_path_key(requested), edit_path_key(resolved)])
                 .collect();
             let covered = |file: &str| edited_set.contains(&edit_path_key(file));
+            let counterparts = edit_counterparts::collect(&project_dir, &resolved_edits, &current_files, &edited_set);
             let mut raw = Vec::new();
             for (file, resolved) in &resolved_edits {
                 let mut neighbors = match graph.neighbors(&pid, EdgeKind::TemporalCoupling, &format!("file:{resolved}"), 501) {
@@ -14088,7 +14090,17 @@ impl Engram {
             let mut functions: Vec<_> = nodes.iter().filter(|node| node.node_type == "function" && covered(node.file_path.as_str())).take(501).collect();
             coverage.cap(&mut functions, 500, "edited-function caller checks");
             let mut unwired = Vec::new();
+            let mut declarations = HashMap::new();
             for node in functions {
+                let signature = node.metadata.as_ref().and_then(|m|m.get("signature")).and_then(|s|s.as_str()).unwrap_or("");
+                let path=node.file_path.as_str();
+                let indexed_declaration = declarations.entry(path.to_owned()).or_insert_with(|| {
+                    crate::planner_source::read(&graph,&pid,&project_dir,path).ok()
+                        .map(|body|body.lines().map(str::to_owned).collect::<Vec<_>>())
+                }).as_ref().and_then(|lines|lines.get(node.start_line.saturating_sub(1) as usize));
+                let signature = indexed_declaration.map_or(signature, String::as_str).to_ascii_lowercase();
+                if signature.split_whitespace().any(|w| matches!(w, "property" | "get" | "set"))
+                    || node.name.rsplit('.').next().is_some_and(|n| n.starts_with("get_") || n.starts_with("set_")) { continue; }
                 let kind = full_mig::classify_method_kind_pub(&node.name, &node_meta_csv(node, "effects"), &node.metadata).to_string();
                 let has_handles = !node_meta_csv(node, "handles_clause").is_empty();
                 // Only zero vs nonzero is needed: extra callers cannot change
@@ -14102,14 +14114,20 @@ impl Engram {
                 }
             }
             coverage.cap(&mut unwired, 10, "zero-indexed-caller display");
-            (partners, states, unwired, unresolved, coverage)
+            (counterparts, partners, states, unwired, unresolved, coverage)
         }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?;
 
         let mut out = String::from("# Edit completeness check\n");
+        if !counterparts.is_empty() {
+            out.push_str("\n## Build and resource counterparts\n");
+            for (source, path, reason) in &counterparts {
+                out.push_str(&format!("- `{path}` - {reason} for `{source}`\n"));
+            }
+        }
         if !unresolved.is_empty() {
             out.push_str(&format!("\n{} of your edited files were NOT found in the index ({}). Findings may be incomplete; check spelling and update_project for new files.\n", unresolved.len(), unresolved.iter().take(5).cloned().collect::<Vec<_>>().join(", ")));
         }
-        if partners.is_empty() && states.is_empty() && unwired.is_empty() {
+        if counterparts.is_empty() && partners.is_empty() && states.is_empty() && unwired.is_empty() {
             if coverage.notes.is_empty() && unresolved.is_empty() {
                 out.push_str("\nNo strong co-change or shared-state links point outside your edit set within the examined indexed evidence. Co-change needs ingested git history (index_git_history); absent history is no data to check, not confirmed complete. Confirm sibling completeness with grep_project or working-tree grep.\n");
             } else {
@@ -14146,7 +14164,21 @@ impl Engram {
         let mut seen = HashSet::new();
         for file in &rule_files {
             for rule in &rules {
-                if crate::utils::files::pattern_match(file, &rule.file_pattern) && seen.insert(rule.rule_id.clone()) { applicable.push(rule.rule_text.clone()); }
+                if matches!(rule.file_pattern.as_str(), "*" | "**" | "**/*") {
+                    let prose=rule.rule_text.trim();
+                    if prose.starts_with(['"', '{', '[']) && !prose.starts_with("[Code Style]") { continue; }
+                    let lower=prose.to_ascii_lowercase();
+                    let extension=std::path::Path::new(file).extension().and_then(|e|e.to_str()).unwrap_or("").to_ascii_lowercase();
+                    let terms: &[&str]=match extension.as_str() {
+                        "ts"|"tsx"|"js"|"jsx"=>&["typescript","javascript","preventdefault", "splice(", "console.log","ajax","compiled bundle"],
+                        "vb"=>&["vb.net","vbnet","datacontext","submitchanges","end if","is nothing"],
+                        "sql"=>&["sql","sql server","table schema"], _=>&[]
+                    };
+                    if !terms.iter().any(|term|lower.contains(term)) { continue; }
+                }
+                if crate::utils::files::pattern_match(file, &rule.file_pattern) && seen.insert(rule.rule_id.clone()) {
+                    applicable.push(rule.rule_text.clone());
+                }
             }
         }
         if !applicable.is_empty() {

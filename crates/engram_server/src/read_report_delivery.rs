@@ -657,7 +657,7 @@ impl Report {
         } else {
             None
         };
-        let preview_body = if matches!(self.tool, "find_symbol_references" | "plan_user_story" | "get_method_edit_context") {
+        let preview_body = if matches!(self.tool, "pre_push_audit" | "find_symbol_references" | "plan_user_story" | "get_method_edit_context") {
             original.content.first().and_then(|p| p.as_text()).map(|v| v.text.clone())
         } else { None };
         let original = if self.json_envelope {
