@@ -12,6 +12,12 @@ struct Method {
     end: usize,
     calls: Vec<(usize, String)>,
     audits: Vec<usize>,
+    blocks: Vec<usize>,
+}
+impl Method {
+    fn same_block(&self, first: usize, later: usize) -> bool {
+        self.blocks.get(first - self.start) == self.blocks.get(later - self.start)
+    }
 }
 pub(super) struct Sites {
     methods: Vec<Method>,
@@ -107,8 +113,29 @@ impl Sites {
             for (start, end, name) in function_spans(&text, true) {
                 let mut calls = Vec::new();
                 let mut audits = Vec::new();
+                // Keep evidence on the calling branch. A log in the failure
+                // arm of a null check does not witness a successful mutation.
+                let mut stack = vec![start];
+                let mut blocks = vec![start];
                 for (i, line) in lines.iter().enumerate().take(end).skip(start) {
                     let masked = review_executable_text(line, true, true);
+                    let lower = masked.trim().to_ascii_lowercase();
+                    let first = lower.split_whitespace().next().unwrap_or("");
+                    let end_block = matches!(
+                        lower.as_str(),
+                        "end if" | "end try" | "end while" | "end using" | "end select"
+                    ) || matches!(first, "next" | "loop");
+                    let sibling = matches!(first, "else" | "elseif" | "catch" | "finally");
+                    if (end_block || sibling) && stack.len() > 1 {
+                        stack.pop();
+                    }
+                    let opens = (first == "if" && lower.ends_with(" then"))
+                        || matches!(first, "for" | "do" | "while" | "try" | "using" | "select");
+                    if opens || sibling {
+                        stack.push(i + 1);
+                    }
+                    blocks.push(*stack.last().unwrap());
+
                     for m in CALL.captures_iter(&masked) {
                         let target = m[1].to_ascii_lowercase();
                         if target == audit || LOG.is_match(&target) {
@@ -125,6 +152,7 @@ impl Sites {
                     end,
                     calls,
                     audits,
+                    blocks,
                 });
             }
             source.insert(file, lines);
@@ -144,7 +172,11 @@ impl Sites {
             .methods
             .iter()
             .find(|m| m.file == df.path && (m.start..=m.end).contains(&line))?;
-        if let Some(at) = target.audits.iter().find(|at| **at >= line) {
+        if let Some(at) = target
+            .audits
+            .iter()
+            .find(|at| **at >= line && target.same_block(line, **at))
+        {
             return Some(format!("{}:{line} -> audit at {}:{at}", df.path, df.path));
         }
         let mut frontier = vec![(target, format!("{}:{}", df.path, line))];
@@ -160,10 +192,18 @@ impl Sites {
                         continue;
                     };
                     let path = format!("{chain} <- {}:{at}", caller.file);
-                    if let Some(log) = caller.audits.iter().find(|n| *n > at) {
+                    if let Some(log) = caller
+                        .audits
+                        .iter()
+                        .find(|n| *n > at && caller.same_block(*at, **n))
+                    {
                         return Some(format!("{path} -> audit at {}:{log}", caller.file));
                     }
-                    for (at, name) in caller.calls.iter().filter(|(n, _)| n > at) {
+                    for (at, name) in caller
+                        .calls
+                        .iter()
+                        .filter(|(n, _)| n > at && caller.same_block(*at, *n))
+                    {
                         if let Some(helper) = self
                             .methods
                             .iter()
