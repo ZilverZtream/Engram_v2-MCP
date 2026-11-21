@@ -55,6 +55,7 @@ pub(super) struct Candidates {
     criteria: Vec<Criterion>,
     narrative: String,
     writes: bool,
+    transport: BTreeSet<(Reverse<usize>, String)>,
     server: BTreeSet<(Reverse<usize>, String)>,
     selected: BTreeSet<(Reverse<usize>, String)>,
     owner: String,
@@ -152,6 +153,7 @@ impl Candidates {
         Self {
             narrative,
             writes,
+            transport: BTreeSet::new(),
             server: BTreeSet::new(),
             title,
             criteria,
@@ -198,6 +200,13 @@ impl Candidates {
             .max()
             .unwrap_or(0);
         let in_leaf = self.title.intersection(&leaf).count();
+        if self.writes && is_script(path) && in_leaf > 0 && lexical >= 2 {
+            self.transport
+                .insert((Reverse(4 * in_leaf + 5 * lexical), id.to_owned()));
+            if self.transport.len() > 16 {
+                self.transport.pop_last();
+            }
+        }
         if self.writes
             && is_endpoint(path, owner)
             && lexical > 0
@@ -254,39 +263,41 @@ impl Candidates {
             if seen.len() > 48 {
                 break;
             }
-            if let Some(n) = unique_method(graph, project, name) {
-                pool.insert(n.node_id.clone(), 50);
-                pins.insert(n.node_id.clone(), name.to_owned());
-                // An unnamed caller in a story (e.g. a page consuming the lookup)
-                // is admissible only with a call edge and story/path agreement.
-                if let Ok(callers) = graph.find_incoming_edges_with_kind(
-                    project,
-                    Some(EdgeKind::Calls),
-                    &n.node_id,
-                    32,
-                ) {
-                    for (id, _, _) in callers {
-                        if let Ok(Some(caller)) = graph.get_node(project, &id) {
-                            let file = caller
-                                .file_path
-                                .as_str()
-                                .rsplit('/')
-                                .next()
-                                .unwrap_or("")
-                                .to_lowercase();
-                            let stem = file.split('.').next().unwrap_or("");
-                            if self
-                                .narrative
-                                .split_whitespace()
-                                .map(|w| {
-                                    w.trim_matches(|c: char| !c.is_alphanumeric())
-                                        .replace('-', "")
-                                        .to_lowercase()
-                                })
-                                .any(|w| w.len() >= 6 && stem.contains(&w))
-                            {
-                                pool.entry(id).or_insert(85);
-                            }
+        }
+        let resolved = graph
+            .unique_named_functions(project, seen.iter().map(String::as_str))
+            .unwrap_or_default();
+        for (name, n) in resolved {
+            pool.insert(n.node_id.clone(), 50);
+            pins.insert(n.node_id.clone(), name.to_owned());
+            // An unnamed caller in a story (e.g. a page consuming the lookup)
+            // is admissible only with a call edge and story/path agreement.
+            if let Ok(callers) =
+                graph.find_incoming_edges_with_kind(project, Some(EdgeKind::Calls), &n.node_id, 32)
+            {
+                for (id, _, _) in callers {
+                    if let Ok(Some(caller)) = graph.get_node(project, &id) {
+                        let file = caller
+                            .file_path
+                            .as_str()
+                            .rsplit('/')
+                            .next()
+                            .unwrap_or("")
+                            .to_lowercase();
+                        let stem = file.split('.').next().unwrap_or("");
+                        if self
+                            .narrative
+                            .split_whitespace()
+                            .map(|w| {
+                                w.trim_matches(|c: char| !c.is_alphanumeric())
+                                    .replace('-', "")
+                                    .to_lowercase()
+                            })
+                            .any(|w| w.len() >= 6 && stem.contains(&w))
+                        {
+                            pool.entry(id)
+                                .and_modify(|s| *s = (*s).max(150))
+                                .or_insert(150);
                         }
                     }
                 }
@@ -381,7 +392,15 @@ impl Candidates {
             static DEST: LazyLock<regex::Regex> = LazyLock::new(|| {
                 regex::Regex::new(r#"(?i)\b(?:ajax|post|put|patch|delete|fetch|request)\s*\(\s*["']([^"']{2,160})["']"#).unwrap()
             });
-            for (id, score) in &pool {
+            let mut scripts = pool.clone();
+            for (Reverse(score), id) in &self.transport {
+                scripts
+                    .entry(id.clone())
+                    .and_modify(|s| *s = (*s).max(*score))
+                    .or_insert(*score);
+            }
+            let mut routes = std::collections::BTreeMap::<String, usize>::new();
+            for (id, score) in &scripts {
                 let Ok(Some(n)) = graph.get_node(project, id) else {
                     continue;
                 };
@@ -395,15 +414,34 @@ impl Candidates {
                             .rsplit('/')
                             .next()
                             .unwrap_or("");
-                        if let Some(target) = unique_method(graph, project, name) {
-                            if !is_script(target.file_path.as_str()) {
-                                routed.push((target.node_id, *score + 14));
-                            }
+                        if !name.is_empty() {
+                            routes
+                                .entry(name.to_ascii_lowercase())
+                                .and_modify(|s| *s = (*s).max(*score))
+                                .or_insert(*score);
                         }
                     }
                 }
             }
+            let targets = graph
+                .unique_named_functions(project, routes.keys().map(String::as_str))
+                .unwrap_or_default();
+            for (name, target) in targets {
+                if !is_script(target.file_path.as_str()) {
+                    routed.push((target.node_id, routes[&name] + 60));
+                }
+            }
         }
+        let routed_files: BTreeSet<_> = routed
+            .iter()
+            .filter_map(|(id, _)| {
+                graph
+                    .get_node(project, id)
+                    .ok()
+                    .flatten()
+                    .map(|n| n.file_path.as_str().to_owned())
+            })
+            .collect();
         for (id, score) in routed {
             let old = pool.entry(id).or_default();
             *old = (*old).max(score);
@@ -417,7 +455,11 @@ impl Candidates {
                         .then(|| n.file_path.as_str().to_owned())
                 })
                 .collect();
-            for file in files.iter().take(6) {
+            for file in routed_files
+                .iter()
+                .chain(files.difference(&routed_files))
+                .take(6)
+            {
                 let Ok(nodes) = graph.query_nodes_in_scope(project, Some("function"), file, 160)
                 else {
                     continue;
@@ -435,7 +477,10 @@ impl Candidates {
                         .max()
                         .unwrap_or(0);
                     if hits > 0 {
-                        pool.entry(n.node_id).or_insert(12 + hits * 5);
+                        let score = 12 + hits * 5 + usize::from(routed_files.contains(file)) * 26;
+                        pool.entry(n.node_id)
+                            .and_modify(|s| *s = (*s).max(score))
+                            .or_insert(score);
                     }
                 }
             }
@@ -504,6 +549,12 @@ impl Candidates {
                     rank = rank.saturating_sub(28);
                 }
 
+                if crate::services::pre_commit_review_service::is_test_path(&path)
+                    && !self.title.contains("test")
+                    && pinned.is_none()
+                {
+                    rank = rank.saturating_sub(45);
+                }
                 if self.writes && mutation {
                     rank += 32;
                 }
@@ -561,6 +612,30 @@ impl Candidates {
                 let mut paths = vec![path];
                 // Only follow a write actually shown in the selected source. A thin
                 // wrapper may delegate once more before touching persistent storage.
+                if !self.writes {
+                    // The entry point may delegate the behavior to another file.
+                    // Surface navigable, indexed callees independently of ranking credit.
+                    if let Ok(edges) = graph.neighbors(project, EdgeKind::Calls, &node.node_id, 32)
+                    {
+                        for (id, _) in edges {
+                            let Ok(Some(target)) = graph.get_node(project, &id) else {
+                                continue;
+                            };
+                            let file = target.file_path.as_str();
+                            if target.node_type != "function" || paths.iter().any(|p| p == file) {
+                                continue;
+                            }
+                            paths.push(file.to_owned());
+                            evidence.push(format!(
+                                "{file}:{}  {} (indexed callee of {}; inspect implementation)",
+                                target.start_line, target.name, node.name
+                            ));
+                            if paths.len() == 4 {
+                                break;
+                            }
+                        }
+                    }
+                }
                 if let Some(call) = lines.iter().find_map(|(_, s)| write_call(s)) {
                     source.follow_write(&node, &call, 2, &mut evidence, &mut paths);
                 }
@@ -581,20 +656,6 @@ pub(super) struct Site {
     pub paths: Vec<String>,
 }
 
-fn unique_method(graph: &GraphStore, project: &str, name: &str) -> Option<Node> {
-    if name.len() < 3 {
-        return None;
-    }
-    let hits = graph
-        .query_nodes_by_symbol_name(project, name, None, 12)
-        .ok()?;
-    if hits.len() >= 12 {
-        return None;
-    }
-    let mut methods = hits.into_iter().filter(|n| n.node_type == "function");
-    let first = methods.next()?;
-    methods.next().is_none().then_some(first)
-}
 fn is_script(path: &str) -> bool {
     [".js", ".ts", ".jsx", ".tsx"]
         .iter()

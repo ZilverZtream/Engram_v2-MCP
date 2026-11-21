@@ -423,6 +423,52 @@ enum NodePathMatch {
 }
 
 impl GraphStore {
+    /// Resolve a bounded batch of exact or owner-qualified function suffixes.
+    /// Ambiguous suffixes are omitted. Inspect symbol keys once for the whole request.
+    pub fn unique_named_functions<'a>(
+        &self,
+        project: &str,
+        names: impl Iterator<Item = &'a str>,
+    ) -> anyhow::Result<std::collections::BTreeMap<String, Node>> {
+        use std::collections::BTreeMap;
+        let mut matches: BTreeMap<String, bool> = names
+            .take(96)
+            .map(|name| (name.to_ascii_lowercase(), false))
+            .collect();
+        if matches.is_empty() {
+            return Ok(BTreeMap::new());
+        }
+        let mut ids = BTreeMap::<String, String>::new();
+        self.visit_symbol_names(project, |kind, _, name, id, _| {
+            if kind != "function" {
+                return;
+            }
+            let lower = name.to_ascii_lowercase();
+            let mut suffix = lower.as_str();
+            loop {
+                if let Some(state) = matches.get_mut(suffix) {
+                    if !*state {
+                        ids.insert(suffix.to_owned(), id.to_owned());
+                        *state = true;
+                    } else {
+                        ids.remove(suffix);
+                    }
+                }
+                let Some((_, tail)) = suffix.split_once(['.', ':']) else {
+                    break;
+                };
+                suffix = tail.trim_start_matches(':');
+            }
+        })?;
+        let mut result = BTreeMap::new();
+        for (name, id) in ids {
+            if let Some(node) = self.get_node(project, &id)? {
+                result.insert(name, node);
+            }
+        }
+        Ok(result)
+    }
+
     pub fn open(db_path: &Path) -> anyhow::Result<Self> {
         if let Some(parent) = db_path.parent() {
             std::fs::create_dir_all(parent)?;

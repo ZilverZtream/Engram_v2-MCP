@@ -65,24 +65,11 @@ impl<'a> Observations<'a> {
                 names.insert(name);
             }
         }
-        let mut out = Vec::new();
-        for name in names.into_iter().take(96) {
-            if let Ok(matches) = graph.query_nodes_by_symbol_name(project, &name, None, 3) {
-                let mut functions = matches.into_iter().filter(|n| {
-                    n.node_type == "function"
-                        && (n.name.eq_ignore_ascii_case(&name)
-                            || n.name
-                                .to_lowercase()
-                                .ends_with(&format!(".{}", name.to_lowercase())))
-                });
-                if let Some(node) = functions.next()
-                    && functions.next().is_none()
-                {
-                    out.push(node);
-                }
-            }
-        }
-        out
+        graph
+            .unique_named_functions(project, names.iter().map(String::as_str))
+            .unwrap_or_default()
+            .into_values()
+            .collect()
     }
     pub(super) fn callee(&mut self, name: &str, path: &str, start: usize, span: &[&str]) {
         let Some((decl, rest)) = span.split_first() else {

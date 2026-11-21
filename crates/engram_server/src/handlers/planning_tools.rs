@@ -6386,7 +6386,8 @@ fn planning_scope(story: &str) -> String {
                         tail.trim_start_matches('#').starts_with(|c: char| c.is_ascii_digit())
                     }));
             let other_owner = lower.contains(" owns ") && !lower.starts_with("this item owns ") && !lower.starts_with("this story owns ");
-            if handed_off || other_owner || [
+            if lower.trim_start().starts_with("do not change ")
+                || lower.contains(". do not change ") || handed_off || other_owner || [
                 "separately covers",
                 "out of scope",
                 "separate story",
