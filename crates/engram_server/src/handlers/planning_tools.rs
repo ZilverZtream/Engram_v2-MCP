@@ -13,6 +13,7 @@
 //!   imitate better than they invent.
 
 mod page_guards;
+mod story_sites;
 use crate::handlers::validate_project_id;
 use crate::handlers::planning_contract_rules::{
     load_matching_planning_rules, PlanningContractRuleMatch,
@@ -1071,7 +1072,7 @@ impl Engram {
     async fn concept_footprint_with_nodes(
         &self,
         req: GetConceptFootprintRequest,
-        snapshot: Option<NodeSnapshot>,
+        snapshot: Option<(u64, NodeSnapshot)>,
     ) -> Result<FootprintEvidence, McpError> {
         validate_project_id(&req.project_id)?;
         if req.concept.trim().len() < 2 {
@@ -1111,8 +1112,8 @@ impl Engram {
                 literal_cap: LITERAL_CAP,
                 ..Default::default()
             };
-            let nodes = match snapshot {
-                Some(nodes) => {
+            let nodes = match snapshot.filter(|(generation,_)| *generation==gen_) {
+                Some((_,nodes)) => {
                     cov.node_scan = "complete".into();
                     nodes
                 }
@@ -4923,36 +4924,7 @@ pub(crate) fn build_guards_report(
         report.page_policy_evidence = page_guards::evidence(graph, pid, root, &scoped);
     }
 
-    // House patterns from the project-wide scan.
-    let mut house: HashMap<String, usize> = HashMap::new();
-    let mut roles_seen: HashMap<String, usize> = HashMap::new();
-    let mut settings_tables: Vec<(String, String)> = Vec::new();
-    for n in &all_nodes {
-        if n.node_type == "function" {
-            let checks = node_meta_str(n, "permission_checks");
-            if !checks.is_empty() {
-                for g in checks.split(';').filter(|g| !g.is_empty()) {
-                    *house.entry(g.to_string()).or_default() += 1;
-                }
-                for r in node_meta_str(n, "guard_roles")
-                    .split(';')
-                    .filter(|r| !r.is_empty())
-                {
-                    *roles_seen.entry(r.to_string()).or_default() += 1;
-                }
-            }
-        } else if n.node_type == "app_setting" {
-            report.app_settings_defined += 1;
-        } else if n.node_type == "db_table" && is_settings_table_name(&n.name) {
-            settings_tables.push((n.node_id.clone(), n.name.clone()));
-        }
-    }
-    let mut hs: Vec<(String, usize)> = house.into_iter().collect();
-    hs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
-    report.house_patterns = hs;
-    let mut rs: Vec<(String, usize)> = roles_seen.into_iter().collect();
-    rs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
-    report.roles_seen = rs;
+    populate_guard_overview(graph, pid, &all_nodes, &mut report, &mut cov);
 
     // Verdict per scoped function (A1 + A3), client-input rule (A2).
     let mut file_lines: HashMap<String, Option<Vec<String>>> = HashMap::new();
@@ -5293,6 +5265,48 @@ pub(crate) fn build_guards_report(
     sr.sort_by(|a, b| a.0.cmp(&b.0));
     report.settings_read = sr;
 
+    report.coverage = cov;
+    report
+}
+
+fn populate_guard_overview(
+    graph: &engram_graph::GraphStore,
+    pid: &str,
+    all_nodes: &[engram_graph::Node],
+    report: &mut GuardsReport,
+    cov: &mut GuardsCoverage,
+) {
+    // House patterns from the project-wide scan.
+    let mut house: HashMap<String, usize> = HashMap::new();
+    let mut roles_seen: HashMap<String, usize> = HashMap::new();
+    let mut settings_tables: Vec<(String, String)> = Vec::new();
+    for n in all_nodes {
+        if n.node_type == "function" {
+            let checks = node_meta_str(n, "permission_checks");
+            if !checks.is_empty() {
+                for g in checks.split(';').filter(|g| !g.is_empty()) {
+                    *house.entry(g.to_string()).or_default() += 1;
+                }
+                for r in node_meta_str(n, "guard_roles")
+                    .split(';')
+                    .filter(|r| !r.is_empty())
+                {
+                    *roles_seen.entry(r.to_string()).or_default() += 1;
+                }
+            }
+        } else if n.node_type == "app_setting" {
+            report.app_settings_defined += 1;
+        } else if n.node_type == "db_table" && is_settings_table_name(&n.name) {
+            settings_tables.push((n.node_id.clone(), n.name.clone()));
+        }
+    }
+    let mut hs: Vec<(String, usize)> = house.into_iter().collect();
+    hs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    report.house_patterns = hs;
+    let mut rs: Vec<(String, usize)> = roles_seen.into_iter().collect();
+    rs.sort_by(|a, b| b.1.cmp(&a.1).then(a.0.cmp(&b.0)));
+    report.roles_seen = rs;
+
     if settings_tables.len() > GUARD_SETTINGS_TABLE_CAP {
         cov.caps.push(format!(
             "settings tables: {} found, consumers counted for the first {GUARD_SETTINGS_TABLE_CAP}",
@@ -5322,8 +5336,6 @@ pub(crate) fn build_guards_report(
             )),
         }
     }
-    report.coverage = cov;
-    report
 }
 
 fn push_list(out: &mut String, items: &[String], render: impl Fn(&String) -> String) {
@@ -5335,6 +5347,44 @@ fn push_list(out: &mut String, items: &[String], render: impl Fn(&String) -> Str
             "  … and {} more (full list: output_json=true)\n",
             items.len() - GUARD_LIST_CAP
         ));
+    }
+}
+
+fn render_guard_overview(r: &GuardsReport, out: &mut String) {
+    if !r.settings_tables.is_empty() {
+        out.push_str("\n## Settings-shaped tables (config stored in the DB)\n");
+        for (table, count) in &r.settings_tables {
+            out.push_str(&format!(
+                "- {table} — {count} code/SP consumer edge(s); changes to settings semantics ripple here\n"
+            ));
+        }
+    }
+    if r.house_patterns.is_empty() {
+        out.push_str(
+            "\n## House auth patterns\nNo guard calls detected anywhere — either the project predates \
+             this extraction (re-run update_project) or authorization is enforced purely via web.config \
+             (see map_auth_config).\n",
+        );
+    } else {
+        out.push_str("\n## House auth patterns (project-wide guard helpers)\n");
+        for (g, c) in r.house_patterns.iter().take(GUARD_HOUSE_CAP) {
+            out.push_str(&format!("- {g} ({c} function(s))\n"));
+        }
+        if r.house_patterns.len() > GUARD_HOUSE_CAP {
+            out.push_str(&format!(
+                "  … and {} more\n",
+                r.house_patterns.len() - GUARD_HOUSE_CAP
+            ));
+        }
+        if !r.roles_seen.is_empty() {
+            let names: Vec<String> = r
+                .roles_seen
+                .iter()
+                .take(GUARD_ROLES_CAP)
+                .map(|(role, c)| format!("{role} ({c})"))
+                .collect();
+            out.push_str(&format!("roles referenced: {}\n", names.join(", ")));
+        }
     }
 }
 
@@ -5458,41 +5508,7 @@ pub(crate) fn render_guards_markdown(r: &GuardsReport) -> String {
             .collect();
         push_list(&mut out, &items, |s| s.clone());
     }
-    if !r.settings_tables.is_empty() {
-        out.push_str("\n## Settings-shaped tables (config stored in the DB)\n");
-        for (table, count) in &r.settings_tables {
-            out.push_str(&format!(
-                "- {table} — {count} code/SP consumer edge(s); changes to settings semantics ripple here\n"
-            ));
-        }
-    }
-    if r.house_patterns.is_empty() {
-        out.push_str(
-            "\n## House auth patterns\nNo guard calls detected anywhere — either the project predates \
-             this extraction (re-run update_project) or authorization is enforced purely via web.config \
-             (see map_auth_config).\n",
-        );
-    } else {
-        out.push_str("\n## House auth patterns (project-wide guard helpers)\n");
-        for (g, c) in r.house_patterns.iter().take(GUARD_HOUSE_CAP) {
-            out.push_str(&format!("- {g} ({c} function(s))\n"));
-        }
-        if r.house_patterns.len() > GUARD_HOUSE_CAP {
-            out.push_str(&format!(
-                "  … and {} more\n",
-                r.house_patterns.len() - GUARD_HOUSE_CAP
-            ));
-        }
-        if !r.roles_seen.is_empty() {
-            let names: Vec<String> = r
-                .roles_seen
-                .iter()
-                .take(GUARD_ROLES_CAP)
-                .map(|(role, c)| format!("{role} ({c})"))
-                .collect();
-            out.push_str(&format!("roles referenced: {}\n", names.join(", ")));
-        }
-    }
+    render_guard_overview(r, &mut out);
     let c = &r.coverage;
     out.push_str("\n## Coverage\n");
     out.push_str(&format!(
@@ -6417,7 +6433,9 @@ fn grounded_planning_concepts(
     project: &str,
     story: &str,
     subjects: Vec<String>,
-) -> anyhow::Result<Vec<String>> {
+    sites: &mut story_sites::Candidates,
+    root: &std::path::Path,
+) -> anyhow::Result<(Vec<String>, Vec<story_sites::Site>)> {
     let mut candidates = Vec::new();
     let mut seen = HashSet::new();
     for word in story.split(|c: char| !(c.is_alphanumeric() || c == '_')) {
@@ -6447,36 +6465,17 @@ fn grounded_planning_concepts(
             }
         }
     }
-    // A descriptive title can name an indexed entity using expanded words
-    // while source uses common abbreviations. Rank a declaration only when
-    // all three title terms occur at identifier boundaries.
-    fn subject_alias(word: &str) -> &str {
-        match word {
-            "synchronization" | "synchronisation" | "synchronize" => "sync",
-            "settings" | "setup" | "configuration" | "config" => "setting",
-            word => word,
-        }
-    }
-    let subject_terms: Vec<_> = subjects.iter().map(|s| s.split_whitespace().map(subject_alias).collect::<Vec<_>>())
-        .filter(|terms| terms.len() == 3).collect();
-    let mut named_subject: Option<(usize, String)> = None;
     let mut exact = graph.matched_schema_names(project, &seen)?;
     let mut frequency = std::collections::HashMap::<String, usize>::new();
-    graph.visit_symbol_names(project, |_, _, name, _, _| {
+    graph.visit_symbol_names(project, |kind, path, name, id, _| {
         let leaf = name.rsplit(['.', ':']).next().unwrap_or(name);
         let key = leaf.to_lowercase();
         if seen.contains(&key) {
             exact.insert(key);
         }
         let words = name_tokens(leaf);
-        if !subject_terms.is_empty() && words.len() >= 3 && subject_terms.iter().any(|terms| {
-            terms.iter().all(|term| words.iter().any(|word| subject_alias(word) == *term ||
-                (term.len() >= 3 && word.starts_with(*term) && leaf.contains(&term.to_ascii_uppercase()))))
-        }) {
-            let candidate = (words.len(), leaf.to_owned());
-            if named_subject.as_ref().is_none_or(|best| &candidate < best) {
-                named_subject = Some(candidate);
-            }
+        if kind == "function" && !engram_core::is_declaration_path(path) {
+            sites.consider(name, id, path, &words);
         }
         for pair in words.windows(2) {
             let left = canonical_story_name_term(&pair[0]);
@@ -6537,14 +6536,30 @@ fn grounded_planning_concepts(
             .then(a.1.cmp(&b.1))
     });
     let mut concepts = subjects;
-    if let Some((_, declaration)) = named_subject {
-        concepts.push(declaration);
+    let evidence = sites.rank(graph, project, root);
+    // Only promote a declaration for a single descriptive subject. Coordinated
+    // subjects keep their independent topics; all verified sites appear below.
+    if concepts.len() == 1 && concepts[0].split_whitespace().count() >= 3 {
+        if let Some(site) = evidence.first() {
+            concepts.push(
+                site.name
+                    .rsplit(['.', ':'])
+                    .next()
+                    .unwrap_or(&site.name)
+                    .to_owned(),
+            );
+        }
     }
     for (_, _, name) in ranked {
-        if concepts.len() >= 3 { break; }
+        if concepts.len() >= 3 {
+            break;
+        }
         // A phrase already covered by a more specific title subject adds no new topic.
         let phrase = format!(" {name} ");
-        if !concepts.iter().any(|existing| format!(" {existing} ").contains(&phrase)) {
+        if !concepts
+            .iter()
+            .any(|existing| format!(" {existing} ").contains(&phrase))
+        {
             concepts.push(name);
         }
     }
@@ -6553,7 +6568,7 @@ fn grounded_planning_concepts(
             concepts.push(word);
         }
     }
-    Ok(concepts)
+    Ok((concepts, evidence))
 }
 
 pub(crate) fn extract_story_concepts(story: &str) -> Vec<String> {
@@ -6655,42 +6670,98 @@ impl Engram {
         if req.story.trim().is_empty() {
             return Err(McpError::invalid_params("story must not be empty", None));
         }
-        let concepts: Vec<String> = match &req.concepts {
-            Some(c) if !c.is_empty() => c.iter().take(3).cloned().collect(),
-            _ => {
-                let subjects = coordinated_story_subjects(&req.story);
-                let story = story_for_concepts(&planning_scope(&req.story));
-                let graph = self.state.graph.clone();
-                let project = req.project_id.clone();
-                tokio::task::spawn_blocking(move || grounded_planning_concepts(&graph, &project, &story, subjects))
-                    .await.map_err(|e| McpError::internal_error(e.to_string(), None))?
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
-            },
-        };
+        let project_root =
+            std::path::PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
+        let root = project_root.clone();
+        let raw = req.story.clone();
+        let graph = self.state.graph.clone();
+        let project = req.project_id.clone();
+        let override_terms = req.concepts.clone().filter(|c| !c.is_empty());
+        let (concepts, sites) = tokio::task::spawn_blocking(move || {
+            let mut sites = story_sites::Candidates::new(&raw);
+            if let Some(mut concepts) = override_terms {
+                concepts.truncate(3);
+                for concept in &concepts {
+                    for node in graph.query_nodes_by_symbol_name(&project, concept, None, 12)? {
+                        if node.node_type == "function" {
+                            sites.include(&node.node_id);
+                        }
+                    }
+                }
+                return Ok((concepts, sites.rank(&graph, &project, &root)));
+            }
+            grounded_planning_concepts(
+                &graph,
+                &project,
+                &story_for_concepts(&planning_scope(&raw)),
+                coordinated_story_subjects(&raw),
+                &mut sites,
+                &root,
+            )
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e: anyhow::Error| McpError::internal_error(e.to_string(), None))?;
 
-        let mut out = format!("# Implementation brief\n\nstory: {}\n", req.story.trim());
-        out.push_str(&format!("concepts: {}\n", concepts.join(", ")));
-
+        let mut out = format!(
+            "# Implementation brief\n\nconcepts: {}\n",
+            concepts.join(", ")
+        );
         let mut policy_paths = BTreeSet::new();
+        out.push_str("\n## Ranked implementation sites\n");
+        if sites.is_empty() {
+            out.push_str("No verified implementation site in the bounded candidate set.\n");
+        }
+        for (i, site) in sites.iter().enumerate() {
+            out.push_str(&format!("{}. {} — {}\n", i + 1, site.label, site.name));
+            for line in &site.lines {
+                out.push_str(&format!("   - {line}\n"));
+            }
+            policy_paths.extend(site.paths.iter().cloned());
+        }
+        out.push_str("Selected source observations from the indexed working checkout; verify behavior and criterion coverage before editing.\n");
+        let runtime = self.ensure_project_runtime(&req.project_id).await?;
+        let (generation, guard) = self
+            .pin_active_source_generation(&req.project_id, &runtime.search)
+            .await?;
+        let graph = self.state.graph.clone();
+        let project = req.project_id.clone();
+        let snapshot = tokio::task::spawn_blocking(move || {
+            let _guard = guard;
+            graph
+                .query_nodes(&project, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
+                .map(std::sync::Arc::new)
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let mut policy_scope_complete = true;
 
         // Per-concept footprint (trimmed to keep the brief readable). One
         // failing concept must not kill the whole brief — degrade per-concept.
-        for concept in &concepts {
-            let sub = self
-                .concept_footprint(crate::models::GetConceptFootprintRequest {
+        let footprints = futures::future::join_all(concepts.iter().map(|concept| {
+            self.concept_footprint_with_nodes(
+                crate::models::GetConceptFootprintRequest {
                     project_id: req.project_id.clone(),
                     concept: concept.clone(),
                     max_per_group: 5,
-                    max_tokens:None, response_id:None, response_offset:0, output_json:false,
-                })
-                .await;
+                    max_tokens: None,
+                    response_id: None,
+                    response_offset: 0,
+                    output_json: false,
+                },
+                Some((generation, snapshot.clone())),
+            )
+        }))
+        .await;
+        for (concept, sub) in concepts.iter().zip(footprints) {
             match sub {
                 Ok(footprint) => {
-                    policy_scope_complete &= footprint.source_paths_complete
-                        && !footprint.source_paths.is_empty();
+                    policy_scope_complete &=
+                        footprint.source_paths_complete && !footprint.source_paths.is_empty();
                     policy_paths.extend(footprint.source_paths);
-                    let trimmed = bounded_planning_excerpt(&footprint.text, 30, "get_concept_footprint");
+                    let trimmed =
+                        bounded_planning_excerpt(&footprint.text, 30, "get_concept_footprint");
                     out.push_str(&format!("\n{trimmed}\n"));
                 }
                 Err(e) => {
@@ -6705,9 +6776,6 @@ impl Engram {
 
         // Reuse typed footprint identities, including paths outside the rendered
         // excerpt. Exemplars and global settings are not proposed edit targets.
-        let project_root = std::path::PathBuf::from(
-            self.ensure_project_record(&req.project_id).await?.directory,
-        );
         policy_scope_complete &= !policy_paths.is_empty();
         let policy_paths = policy_paths.into_iter().collect::<Vec<_>>();
         let mut policy = tokio::task::spawn_blocking(move || {
@@ -6723,9 +6791,20 @@ impl Engram {
         }
         // Keep complete authored documents and recovery instructions outside
         // the line-limited analysis excerpts.
-        if policy.sources.iter().map(|s| s.content.len()).sum::<usize>() > 2048 {
-            out.push_str(&format!("\nApplicable repository guidance: {}\n", policy.planning_index(&req.project_id)));
-        } else { out.push_str(&policy.render_markdown()); }
+        if policy
+            .sources
+            .iter()
+            .map(|s| s.content.len())
+            .sum::<usize>()
+            > 2048
+        {
+            out.push_str(&format!(
+                "\nApplicable repository guidance: {}\n",
+                policy.planning_index(&req.project_id)
+            ));
+        } else {
+            out.push_str(&policy.render_markdown());
+        }
 
         // Pattern exemplars for the story's action.
         let sub = self
@@ -6734,7 +6813,9 @@ impl Engram {
                 pattern_query: concepts.join(" "),
                 max_examples: 2,
                 output_json: false,
-                max_tokens:None, response_id:None, response_offset:0,
+                max_tokens: None,
+                response_id: None,
+                response_offset: 0,
             })
             .await?;
         if let Some(text) = sub.content.first().and_then(|c| c.as_text()) {
@@ -6742,39 +6823,29 @@ impl Engram {
             out.push_str(&format!("\n{trimmed}\n"));
         }
 
-        // Guards & settings overview (house patterns + settings tables).
-        let sub = self
-            .handle_map_guards_and_settings(crate::models::MapGuardsAndSettingsRequest {
-                project_id: req.project_id.clone(),
-                scope: None,
-                output_json: false,
-            })
-            .await?;
-        if let Some(text) = sub.content.first().and_then(|c| c.as_text()) {
-            let mut lines: Vec<&str> = Vec::new();
-            let mut keep = false;
-            for l in text.text.lines() {
-                if l.starts_with("## House auth patterns")
-                    || l.starts_with("## Settings-shaped tables")
-                {
-                    keep = true;
-                }
-                if l.starts_with("next:") || l.starts_with("---") {
-                    keep = false;
-                }
-                if keep {
-                    lines.push(l);
-                }
-                if lines.len() > 25 {
-                    break;
-                }
+        // The brief displays project-wide patterns, so compute precisely those
+        // aggregates from the same snapshot rather than auditing every handler.
+        let graph = self.state.graph.clone();
+        let project = req.project_id.clone();
+        let overview = tokio::task::spawn_blocking(move || {
+            let mut report = GuardsReport::default();
+            let mut cov = GuardsCoverage::default();
+            populate_guard_overview(&graph, &project, &snapshot, &mut report, &mut cov);
+            let mut text = String::new();
+            render_guard_overview(&report, &mut text);
+            if snapshot.len() >= crate::handlers::NODE_SCAN_LIMIT {
+                text.push_str("\nProject node scan capped; overview may omit evidence.\n");
             }
-            if !lines.is_empty() {
-                out.push_str(&format!("\n{}\n", lines.join("\n")));
+            for failure in cov.failures {
+                text.push_str(&format!("- {failure}\n"));
             }
-            out.push_str("\nINCOMPLETE: guard/settings overview is a selected excerpt; call map_guards_and_settings for all sections, coverage caveats and source provenance.\n");
-        }
-
+            text
+        })
+        .await
+        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        out.push_str(&overview);
+        out.push_str("\nINCOMPLETE: selected guard/settings overview. Use map_guards_and_settings for scoped handler analysis and coverage.\n");
+        out.push_str(&format!("\nOriginal story:\n{}\n", req.story.trim()));
         out.push_str(STORY_CHECKLIST);
         out.push_str(
             "\nnext: get_change_set(story=<this story>) for the RANKED FILE LIST \
@@ -10979,7 +11050,7 @@ impl Engram {
                 concept: c.clone(),
                 max_per_group: 12,
                 max_tokens:None, response_id:None, response_offset:0, output_json:false,
-            }, Some(snapshot.clone()))
+            }, Some((gen_now,snapshot.clone())))
         }))
         .await;
         let mut broad_terms: Vec<String> = Vec::new();
