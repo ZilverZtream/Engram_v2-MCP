@@ -1803,6 +1803,15 @@ fn select_method_node(
     if !exact.is_empty() {
         candidates = exact;
     }
+    if let Some(l) = line {
+        candidates.retain(|n| n.start_line == l);
+        if candidates.is_empty() {
+            return Err(format!(
+                "No declaration of '{method_name}' starts at line {l} in '{file_path}'. \
+                 Omit `line` to see the candidates."
+            ));
+        }
+    }
     // Same-name methods in DIFFERENT classes: describing the wrong one
     // poisons the edit that follows. The class is derived from the node, not
     // read from the (search-)namespace, which is identical across classes.
@@ -1825,15 +1834,6 @@ fn select_method_node(
             ));
         }
         return Err(msg);
-    }
-    if let Some(l) = line {
-        candidates.retain(|n| n.start_line == l);
-        if candidates.is_empty() {
-            return Err(format!(
-                "No declaration of '{method_name}' starts at line {l} in '{file_path}'. \
-                 Omit `line` to see the candidates."
-            ));
-        }
     }
     // Same-class overloads (distinct spans): a verdict for the wrong overload
     // is worse than no verdict.

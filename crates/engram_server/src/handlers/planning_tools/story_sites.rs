@@ -656,6 +656,11 @@ impl Candidates {
             let leaf_words = terms(node.name.rsplit(['.', ':']).next().unwrap_or(&node.name));
             let title_matches = self.title.intersection(&leaf_words).count();
             let path = node.file_path.as_str().to_lowercase();
+            let type_story = ["typing", "typed", "typescript", "signature", "declaration"]
+                .iter().any(|word| self.title.contains(*word)) || self.title.contains("type");
+            if engram_core::is_declaration_path(&path) && !type_story {
+                continue;
+            }
             let pinned = pins.get(id);
             let mutation = lines.iter().any(|(_, text)| durable_write(text));
             for c in &self.criteria {
@@ -675,6 +680,15 @@ impl Candidates {
                     }
                 }
                 scored.sort();
+                // A one-word domain operation may appear only in the declaration.
+                // Its indexed start line still gives the agent a navigable implementation.
+                if scored.is_empty() && prose_issue && leaf_words.len() == 1
+                    && leaf_words.iter().all(|w| self.title.contains(w) && super::story_token(w).is_some())
+                    && let Some(Some(file)) = source.files.get(node.file_path.as_str())
+                    && let Some(text) = file.get(node.start_line.saturating_sub(1) as usize)
+                {
+                    scored.push((Reverse(12), node.start_line as usize, text));
+                }
                 if scored.is_empty()
                     && invoked
                     && let Some((line, text)) = lines.first()

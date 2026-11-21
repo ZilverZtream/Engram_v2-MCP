@@ -199,7 +199,10 @@ pub(super) fn collect(
         }
     }
     let all_terms: BTreeSet<_> = queries.iter().flatten().cloned().collect();
-    let operations: BTreeSet<_> = all_terms
+    let operations: BTreeSet<_> = terms(title)
+        .into_iter()
+        .chain(description.into_iter().flat_map(terms))
+        .collect::<BTreeSet<_>>()
         .iter()
         .flat_map(|s| operation_words(s).iter().copied())
         .collect();
@@ -220,7 +223,7 @@ pub(super) fn collect(
             date_before: None,
             use_mmr: false,
         };
-        if let Ok(hits) = engine.lexical_search(&query) {
+        if let Ok(hits) = engine.lexical_search_matching(&query, &mut |path, _| production(path)) {
             for hit in hits {
                 let path = hit.path.as_str();
                 if production(path)
@@ -320,7 +323,8 @@ pub(super) fn collect(
                 let words = terms(text);
                 let heading_hits = subjects.intersection(&words).count();
                 let common = all_terms.intersection(&words).count();
-                if common == 0 {
+                let operation = operations.iter().any(|s| words.contains(*s));
+                if common == 0 && !operation {
                     continue;
                 }
                 let Some(n) = owner(&methods, line) else {
@@ -331,7 +335,6 @@ pub(super) fn collect(
                     .iter()
                     .filter(|s| method_terms.contains(*s) || path_terms.contains(*s))
                     .count();
-                let operation = operations.iter().any(|s| words.contains(*s));
                 if (heading_hits == 0 && context == 0)
                     || (common < 2 && !(operation && context > 0))
                 {

@@ -263,6 +263,9 @@ const TS_QUERY_SRC: &str = r#"
         (function_declaration name: (identifier) @name) @func
         (function_signature name: (identifier) @name) @func
         (method_definition name: (property_identifier) @name) @func
+        (assignment_expression
+            left: (member_expression property: (property_identifier) @name)
+            right: [(function_expression) (arrow_function)]) @func
         (method_signature name: (property_identifier) @name) @func
         (variable_declarator
             name: (identifier) @name
@@ -293,6 +296,10 @@ const TS_NS_QUERY_SRC: &str = r#"
         (function_declaration name: (identifier) @method)
         (function_signature name: (identifier) @method)
         (method_definition name: (property_identifier) @method)
+        (assignment_expression
+            left: (member_expression property: (property_identifier) @method)
+            right: [(function_expression) (arrow_function)])
+
         (method_signature name: (property_identifier) @method)
         (variable_declarator
             name: (identifier) @method
@@ -454,6 +461,9 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         r#"
         (function_declaration name: (identifier) @name) @func
         (method_definition name: (property_identifier) @name) @func
+        (assignment_expression
+            left: (member_expression property: (property_identifier) @name)
+            right: [(function_expression) (arrow_function)]) @func
         (variable_declarator
             name: (identifier) @name
             value: (arrow_function)) @func
@@ -573,6 +583,10 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         (class_declaration name: (identifier) @class)
         (function_declaration name: (identifier) @method)
         (method_definition name: (property_identifier) @method)
+        (assignment_expression
+            left: (member_expression property: (property_identifier) @method)
+            right: [(function_expression) (arrow_function)])
+
         (variable_declarator
             name: (identifier) @method
             value: (arrow_function))
@@ -830,7 +844,18 @@ impl SymbolExtractor {
                             .join(".");
                         let current_class =
                             class_stack.last().map(|(_, c)| c.as_str()).unwrap_or("");
-                        let fqn = if current_class.is_empty() {
+                        // Assigned functions carry their receiver in the declaration itself.
+                        let assigned_owner = cap.node.parent()
+                            .filter(|member| member.kind() == "member_expression"
+                                && member.parent().is_some_and(|p| p.kind() == "assignment_expression"))
+                            .and_then(|member| member.child_by_field_name("object"))
+                            .map(|object| &content[object.byte_range()])
+                            .filter(|owner| owner.split('.').all(|part| !part.is_empty()
+                                && part.chars().all(|c| c.is_alphanumeric() || matches!(c, '_' | '$'))));
+                        let fqn = if let Some(owner) = assigned_owner {
+                            let owner = owner.strip_suffix(".prototype").unwrap_or(owner);
+                            format!("{owner}.{short}")
+                        } else if current_class.is_empty() {
                             if namespace.is_empty() {
                                 short.clone()
                             } else {
