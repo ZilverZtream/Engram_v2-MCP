@@ -6510,6 +6510,9 @@ fn grounded_planning_concepts(
             exact.insert(key);
         }
         let words = name_tokens(leaf);
+        if matches!(kind, "class" | "struct" | "module") {
+            sites.consider_type(leaf);
+        }
         if kind == "function" && !engram_core::is_declaration_path(path) {
             sites.consider(name, id, path, &words);
         }

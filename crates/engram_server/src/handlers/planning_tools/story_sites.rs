@@ -1,4 +1,5 @@
 //! Select implementation evidence while the planner already visits symbol names.
+mod effects;
 use super::{canonical_story_name_term, name_tokens, split_symmetric_name_tokens};
 use engram_graph::{EdgeKind, GraphStore, Node};
 use std::{
@@ -55,6 +56,7 @@ struct Criterion {
     label: String,
     named_symbols: BTreeSet<String>,
     routes: BTreeSet<String>,
+    requires_effect: bool,
     terms: BTreeSet<String>,
 }
 pub(super) struct Candidates {
@@ -76,6 +78,10 @@ pub(super) struct Candidates {
     selected: BTreeSet<(Reverse<usize>, String)>,
     owner: String,
     owner_terms: BTreeSet<String>,
+    effect_candidates: BTreeSet<(Reverse<usize>, String)>,
+    entity_types: BTreeSet<String>,
+    authored_identifiers: BTreeSet<String>,
+    entity_phrases: BTreeSet<String>,
 }
 impl Candidates {
     pub(super) fn new(scope: &str) -> Self {
@@ -135,6 +141,7 @@ impl Candidates {
                         .map(|(_, p)| p)
                         .collect(),
                     named_symbols: criterion_symbols(&super::planning_scope(body)),
+                    requires_effect: effects::requires_effect(&words),
                     terms: words,
                 });
             }
@@ -145,6 +152,7 @@ impl Candidates {
         if criteria.is_empty() {
             criteria.push(Criterion {
                 label: "Story".into(),
+                requires_effect: false,
                 named_symbols: BTreeSet::new(),
                 routes: BTreeSet::new(),
                 terms: terms(
@@ -233,7 +241,25 @@ impl Candidates {
         } else {
             Vec::new()
         };
+        let mut entity_phrases = BTreeSet::new();
+        if writes && criteria.len() > 1 {
+            let words: Vec<_> = split_symmetric_name_tokens(heading)
+                .into_iter()
+                .map(|w| term(&w))
+                .collect();
+            for n in 2..=3 {
+                entity_phrases.extend(words.windows(n).map(|pair| pair.join(" ")));
+            }
+        }
         Self {
+            authored_identifiers: narrative
+                .split(|c: char| !c.is_alphanumeric() && c != '_')
+                .filter(|s| s.chars().skip(1).any(char::is_uppercase) || s.contains('_'))
+                .map(str::to_owned)
+                .collect(),
+            entity_phrases,
+            effect_candidates: BTreeSet::new(),
+            entity_types: BTreeSet::new(),
             operation_candidates: vec![BTreeSet::new(); operations.len()],
             operations,
             main_noun,
@@ -252,6 +278,22 @@ impl Candidates {
             selected: BTreeSet::new(),
             owner: String::new(),
             owner_terms: BTreeSet::new(),
+        }
+    }
+    pub(super) fn consider_type(&mut self, name: &str) {
+        if self.entity_phrases.is_empty() {
+            return;
+        }
+        let leaf = name.rsplit(['.', ':']).next().unwrap_or(name);
+        let parts: Vec<_> = split_symmetric_name_tokens(leaf)
+            .into_iter()
+            .map(|w| term(&w))
+            .collect();
+        if (2..=3).contains(&parts.len())
+            && (self.entity_phrases.contains(&parts.join(" "))
+                || self.authored_identifiers.contains(leaf))
+        {
+            self.entity_types.insert(leaf.to_ascii_lowercase());
         }
     }
     pub(super) fn include(&mut self, id: &str) {
@@ -319,6 +361,29 @@ impl Candidates {
                 }
             }
         }
+        // Admit possible effect owners even when the enclosing class was not named in the story.
+        // Body evidence determines whether the replacement or repair really occurs here.
+        if self.writes
+            && self.criteria.len() > 1
+            && !is_script(path)
+            && self.criteria.iter().any(|c| {
+                (c.terms.contains("replacement")
+                    && leaf
+                        .iter()
+                        .any(|w| matches!(w.as_str(), "replace" | "change" | "convert"))
+                    || c.terms.contains("repair")
+                        && leaf
+                            .iter()
+                            .any(|w| matches!(w.as_str(), "repair" | "fix" | "correct")))
+                    && leaf.intersection(&c.terms).next().is_some()
+            })
+        {
+            self.effect_candidates
+                .insert((Reverse(lexical * 6 + in_leaf * 3), id.to_owned()));
+            if self.effect_candidates.len() > 24 {
+                self.effect_candidates.pop_last();
+            }
+        }
         if self.writes && is_script(path) && in_leaf > 0 && lexical >= 2 {
             self.transport
                 .insert((Reverse(4 * in_leaf + 5 * lexical), id.to_owned()));
@@ -369,6 +434,7 @@ impl Candidates {
             .iter()
             .chain(&self.server)
             .chain(&self.invoked)
+            .chain(&self.effect_candidates)
             .chain(self.operation_candidates.iter().flatten())
         {
             let old = pool.entry(id.clone()).or_default();
@@ -505,6 +571,7 @@ impl Candidates {
                 }
             }
         }
+        let domain = effects::Domain::from_types(graph, project, &self.entity_types, &mut pool);
         let mut generated = BTreeSet::new();
         let mut tsconfigs = BTreeSet::new();
         for id in pool.keys() {
@@ -787,6 +854,7 @@ impl Candidates {
             }
         }
         let mut sites = Vec::new();
+        let mut evidenced_criteria = BTreeSet::new();
         let mut owners =
             vec![None::<(usize, String, String, usize, String)>; self.operations.len()];
         for (id, lexical) in &pool {
@@ -834,6 +902,11 @@ impl Candidates {
             }
             let pinned = pins.get(id);
             let mutation = lines.iter().any(|(_, text)| durable_write(text));
+            let in_domain = domain.matches(graph, project, &node, &lines);
+            let verified_effect = !self.criteria.iter().any(|c| c.requires_effect)
+                || mutation
+                || effects::guard(&lines)
+                || source.callee_effect(&node, &lines);
             let named: BTreeSet<_> = self
                 .criteria
                 .iter()
@@ -919,6 +992,12 @@ impl Candidates {
                     continue;
                 }
                 if !named.is_empty() && !named.contains(&c.label) {
+                    continue;
+                }
+                if c.requires_effect
+                    && !verified_effect
+                    && witness.is_none_or(|w| w.route.is_none())
+                {
                     continue;
                 }
                 let mut scored = Vec::new();
@@ -1014,6 +1093,23 @@ impl Candidates {
                 {
                     rank = rank.saturating_sub(125);
                 }
+                let workflow = effects::workflow(&lines, &leaf_words, &c.terms, mutation);
+                if !prose_issue
+                    && !domain.types.is_empty()
+                    && named.is_empty()
+                    && pinned.is_none()
+                    && !in_domain
+                    && controls.get(id).is_none()
+                    && witness.is_none_or(|w| w.route.is_none())
+                {
+                    rank = rank.saturating_sub(175);
+                }
+                if let Some((weight, _, _)) = &workflow {
+                    if domain.types.is_empty() || in_domain {
+                        rank += weight;
+                        evidenced_criteria.insert((id.clone(), c.label.clone()));
+                    }
+                }
                 if c.terms.contains("page")
                     && (path.contains(".aspx.")
                         || path.contains(".cshtml")
@@ -1074,6 +1170,13 @@ impl Candidates {
                 if let Some(w) = witness {
                     rows.retain(|(line, _)| *line != w.line);
                     rows.insert(0, (w.line, w.text.clone()));
+                    rows.truncate(3);
+                }
+                if let Some((_, line, text)) = workflow
+                    && (domain.types.is_empty() || in_domain)
+                {
+                    rows.retain(|(n, _)| *n != line);
+                    rows.insert(0, (line, text));
                     rows.truncate(3);
                 }
                 if let Some((_, label, line, text)) = controls.get(id)
@@ -1139,7 +1242,21 @@ impl Candidates {
             let best = sites[0].0.0;
             let idx = sites
                 .iter()
-                .position(|s| s.0.0 + 12 >= best && !used.contains(&s.2))
+                .position(|s| {
+                    let margin = if used.contains(&sites[0].2)
+                        && evidenced_criteria.contains(&(s.1.node_id.clone(), s.2.clone()))
+                        && !pins.contains_key(&sites[0].1.node_id)
+                        && self
+                            .source_evidence
+                            .get(&sites[0].1.node_id)
+                            .is_none_or(|w| w.route.is_none())
+                    {
+                        80
+                    } else {
+                        12
+                    };
+                    s.0.0 + margin >= best && !used.contains(&s.2)
+                })
                 .unwrap_or(0);
             let site = sites.remove(idx);
             sites.retain(|s| {
@@ -1351,6 +1468,10 @@ fn mutator(name: &str) -> bool {
                 | "replace"
                 | "delete"
                 | "rename"
+                | "change"
+                | "convert"
+                | "repair"
+                | "fix"
                 | "move"
                 | "split"
                 | "copy"
@@ -1452,6 +1573,35 @@ impl Source<'_> {
                 })
                 .collect(),
         )
+    }
+    fn callee_effect(&mut self, node: &Node, lines: &[(usize, String)]) -> bool {
+        let Some(edges) = self
+            .graph
+            .neighbors(self.project, EdgeKind::Calls, &node.node_id, 64)
+            .ok()
+        else {
+            return false;
+        };
+        let calls: BTreeSet<_> = lines
+            .iter()
+            .flat_map(|(_, line)| CALL.captures_iter(line).map(|c| c[1].to_ascii_lowercase()))
+            .collect();
+        edges.into_iter().any(|(id, _)| {
+            let Some(target) = self.graph.get_node(self.project, &id).ok().flatten() else {
+                return false;
+            };
+            let leaf = target
+                .name
+                .rsplit(['.', ':'])
+                .next()
+                .unwrap_or(&target.name);
+            target.node_type == "function"
+                && target.node_id != node.node_id
+                && calls.contains(&leaf.to_ascii_lowercase())
+                && self.lines(&target).is_some_and(|body| {
+                    body.iter().any(|(_, l)| durable_write(l)) || effects::guard(&body)
+                })
+        })
     }
     fn follow_write(
         &mut self,
