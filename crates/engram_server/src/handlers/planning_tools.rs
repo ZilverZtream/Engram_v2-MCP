@@ -6704,10 +6704,10 @@ impl Engram {
         let graph = self.state.graph.clone();
         let project = req.project_id.clone();
         let override_terms = req.concepts.clone().filter(|c| !c.is_empty());
-        let remote_oids = story_history::resolve_cited_prs(&root, &raw).await;
+        let cited_prs = story_history::resolve_cited_prs(&root, &raw).await;
         let (concepts, sites, history_summary) = tokio::task::spawn_blocking(move || {
             let mut sites = story_sites::Candidates::new(&raw);
-            sites.history = story_history::collect(&graph, &project, &root, &raw, &remote_oids);
+            sites.history = story_history::collect(&graph, &project, &root, &raw, &cited_prs);
             let history_summary = sites.history.summary();
             if let Some(mut concepts) = override_terms {
                 concepts.truncate(3);

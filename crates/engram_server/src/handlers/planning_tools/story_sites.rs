@@ -247,10 +247,19 @@ impl Candidates {
             let old = pool.entry(id.clone()).or_default();
             *old = (*old).max(*score);
         }
+        let prose_issue = self.criteria.iter().all(|c| c.label == "Story");
         for (id, prior) in &self.history.methods {
             // Preserve explicit source and transport anchors. File co-occurrence
             // alone carries less weight than a surviving line from a patch.
-            let weight = prior.score * (if self.writes { 2 } else { 4 }) / 5;
+            let weight = prior.score
+                * (if prose_issue {
+                    5
+                } else if self.writes {
+                    2
+                } else {
+                    4
+                })
+                / 5;
             pool.entry(id.clone())
                 .and_modify(|s| *s = (*s).max(weight))
                 .or_insert(weight);
@@ -495,6 +504,67 @@ impl Candidates {
                 }
             }
         }
+        let mut call_evidence = HashMap::new();
+        if prose_issue && !self.history.methods.is_empty() {
+            let mut seeds: Vec<_> = pool
+                .iter()
+                .filter(|(id, _)| pins.contains_key(*id) || self.history.methods.contains_key(*id))
+                .map(|(id, score)| (Reverse(*score), id.clone()))
+                .collect();
+            seeds.sort();
+            seeds.truncate(6);
+            let mut best_edges = BTreeSet::new();
+            for (_, id) in seeds {
+                let Ok(Some(seed)) = graph.get_node(project, &id) else {
+                    continue;
+                };
+                let incoming = graph
+                    .find_incoming_edges_with_kind(project, Some(EdgeKind::Calls), &id, 48)
+                    .unwrap_or_default();
+                let outgoing = graph
+                    .neighbors(project, EdgeKind::Calls, &id, 32)
+                    .unwrap_or_default();
+                for (other, is_caller) in incoming
+                    .into_iter()
+                    .map(|(id, _, _)| (id, true))
+                    .chain(outgoing.into_iter().map(|(id, _)| (id, false)))
+                {
+                    if other == id || !other.starts_with("sym:function:") {
+                        continue;
+                    }
+                    let Ok(Some(n)) = graph.get_node(project, &other) else {
+                        continue;
+                    };
+                    if crate::services::pre_commit_review_service::is_test_path(
+                        n.file_path.as_str(),
+                    ) {
+                        continue;
+                    }
+                    let leaf = terms(n.name.rsplit(['.', ':']).next().unwrap_or(&n.name));
+                    let title_matches = leaf.intersection(&self.title).count();
+                    let prior = self.history.methods.get(&other);
+                    if title_matches == 0 && prior.is_none() {
+                        continue;
+                    }
+                    let score = 62
+                        + title_matches.min(4) * 24
+                        + usize::from(title_matches >= 2) * 28
+                        + prior.map_or(0, |w| w.score / 3);
+                    let route = if is_caller {
+                        format!("{} calls {}", n.name, seed.name)
+                    } else {
+                        format!("{} calls {}", seed.name, n.name)
+                    };
+                    best_edges.insert((Reverse(score), other, route));
+                }
+            }
+            for (Reverse(score), id, route) in best_edges.into_iter().take(12) {
+                pool.entry(id.clone())
+                    .and_modify(|s| *s = (*s).max(score))
+                    .or_insert(score);
+                call_evidence.entry(id).or_insert(route);
+            }
+        }
         let mut sites = Vec::new();
         for (id, lexical) in &pool {
             let Ok(Some(node)) = graph.get_node(project, id) else {
@@ -575,7 +645,15 @@ impl Candidates {
                     rank += 12;
                 }
                 if let Some(name) = pinned {
-                    rank += 180;
+                    let subject = terms(name);
+                    let in_title = subject.intersection(&self.title).count();
+                    rank += if !prose_issue || in_title >= 2 {
+                        180
+                    } else if in_title == 1 {
+                        65
+                    } else {
+                        28
+                    };
                     if terms(name).intersection(&c.terms).count() >= 2 {
                         rank += 18;
                     }
@@ -615,7 +693,12 @@ impl Candidates {
                 .position(|s| s.0.0 + 12 >= best && !used.contains(&s.2))
                 .unwrap_or(0);
             let site = sites.remove(idx);
-            sites.retain(|s| s.1.node_id != site.1.node_id);
+            sites.retain(|s| {
+                s.1.node_id != site.1.node_id
+                    && !(prose_issue
+                        && s.1.file_path == site.1.file_path
+                        && s.1.name == site.1.name)
+            });
             used.insert(site.2.clone());
             chosen.push(site);
         }
@@ -635,6 +718,13 @@ impl Candidates {
                     };
                     evidence.push(format!("History ({basis}): {}", w.change));
                 }
+                if let Some(route) = call_evidence.get(&node.node_id) {
+                    evidence.push(format!("Indexed call path: {route}"));
+                }
+                evidence.push(format!(
+                    "Declaration: {path}:{} (use this start line for edit context)",
+                    node.start_line
+                ));
                 let mut paths = vec![path];
                 // Only follow a write actually shown in the selected source. A thin
                 // wrapper may delegate once more before touching persistent storage.

@@ -40,5 +40,103 @@
     "fix": "a00716926c10eccfd8c02bc3ce810c65430a8e41",
     "scope": "Dapper",
     "story_sha256": "ee74867ece51eb6cc5bd1a1b2c486752596f51d79e4c85f697281656dcf23c0d"
+  },
+  {
+    "repository": "iamkun/dayjs",
+    "issue": 262,
+    "fix": "969acedc94461dca2b1d9313299a2c9db4aed7a9",
+    "scope": "src",
+    "story_sha256": "9ed11739d2e30d5d6588bc4a7d3ffaf64d3058538e1f24a4e77170f8bbc143f9"
+  },
+  {
+    "repository": "iamkun/dayjs",
+    "issue": 105,
+    "fix": "a13bd7b0f93dbdefac40924095b2b7257e20a2c0",
+    "scope": "src",
+    "story_sha256": "59b2762f2f4ba53b4217b52102925c34e9f0c67a6fea0a7600e854b18f58e52b"
+  },
+  {
+    "repository": "date-fns/date-fns",
+    "issue": 4190,
+    "fix": "87635a887d79d5b112666750780e08c33d243b4f",
+    "scope": "src",
+    "story_sha256": "9791bb3c973363a837bca4da06b594b316c271900aa19140450823cc9c91b7fb"
+  },
+  {
+    "repository": "date-fns/date-fns",
+    "issue": 1391,
+    "fix": "d36d2ebde2f36d5accce37c0a6d8bce9d84e6eb1",
+    "scope": "src",
+    "story_sha256": "bef3b7ca644365aefec3e909afdb6b1c3ff7a1eaf1db1fe4ed8bfdfdefcfaa12"
+  },
+  {
+    "repository": "date-fns/date-fns",
+    "issue": 3614,
+    "fix": "9ac551ce5c4f87b298c75cc961f50f9019b3f38b",
+    "scope": "src",
+    "story_sha256": "45a171ba2a55ffcd9fa44f4d8490b55008a3fab48093872547e11d773f5388fd"
+  },
+  {
+    "repository": "axios/axios",
+    "issue": 6546,
+    "fix": "847d89b43654405d9a231e0b669832c2092b621f",
+    "scope": "lib",
+    "story_sha256": "9e900093b02b3c60a4d9ad3118a8ab5cd81b3c8a9fa633e50e7ac26e41a6ffb9"
+  },
+  {
+    "repository": "axios/axios",
+    "issue": 10808,
+    "fix": "5061879649bb59df593423b1bc782dff734fd13d",
+    "scope": "lib",
+    "story_sha256": "89c51acaef2e8d618e62fbf9ba6e8a0791476cad27a4cb569e48188435d39049"
+  },
+  {
+    "repository": "axios/axios",
+    "issue": 6935,
+    "fix": "cd0d44825fe1db7ab597bb139206d780ae94a8ce",
+    "scope": "lib",
+    "story_sha256": "f730e25b84f3dfe5383a65610561d313dddebed3cc2531733d79640fa904e025"
+  },
+  {
+    "repository": "axios/axios",
+    "issue": 7494,
+    "fix": "c918e85e91528da910836f0fa5c74ca3714daff1",
+    "scope": "lib",
+    "story_sha256": "ac046bb6903d0afa4e13ea3d84c3a16f571bc3660a71b39ef48070ae5b73bfb7"
+  },
+  {
+    "repository": "axios/axios",
+    "issue": 7224,
+    "fix": "bd3816bf9eaff677c3e278df9b03bcd302e9177b",
+    "scope": "lib",
+    "story_sha256": "04adc7b55a7a07c8b41ebc3b647d8d646a12d29c7193564af0ad592225f4ecef"
+  },
+  {
+    "repository": "yargs/yargs",
+    "issue": 2291,
+    "fix": "9aa24908ae4e857161d5084613a402f9dc4895a7",
+    "scope": "lib",
+    "story_sha256": "76b7f6fcce28c5c8c1422e399afb3c24fee54c7e857eef0f8505faef3771bc92"
+  },
+  {
+    "repository": "yargs/yargs",
+    "issue": 2142,
+    "fix": "e086dfad7ff11956b1e8779c00cf2351a4cc3b03",
+    "scope": "lib",
+    "story_sha256": "19e283e3f43b53fade739b2a76f31cb244c043664a78bcedbbaf82db6a2d4310"
+  },
+  {
+    "repository": "yargs/yargs",
+    "issue": 1912,
+    "fix": "395bb67749787d269cabe80ffc3133c2f6958aeb",
+    "scope": "lib",
+    "story_sha256": "6578bab17f67772e53cc181bdb758a0144299f97af0dc07911ad96097b60c371"
+  },
+  {
+    "repository": "yargs/yargs",
+    "issue": 1909,
+    "fix": "d2128cc4ffd411eed7111e6a3c561948330e4f6f",
+    "scope": "lib",
+    "story_sha256": "37afeca269fe9274aabefc117e6c7489d5665f18808ff3e0f3b9016e7ea19746"
   }
 ]

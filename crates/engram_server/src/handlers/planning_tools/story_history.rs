@@ -88,6 +88,71 @@ fn words(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
+// Keep intact API identifiers as well as their component words. Splitting
+// fromFormat into "from"/"format" loses the difference between a parser and a formatter.
+fn identifiers(text: &str) -> BTreeSet<String> {
+    text.split(|c: char| !c.is_alphanumeric() && c != '_')
+        .filter(|s| {
+            s.len() >= 4
+                && (s
+                    .as_bytes()
+                    .windows(2)
+                    .any(|p| p[0].is_ascii_lowercase() && p[1].is_ascii_uppercase())
+                    || s.contains('_'))
+        })
+        .map(str::to_ascii_lowercase)
+        .collect()
+}
+
+fn call_arguments(story: &str) -> HashMap<String, BTreeSet<String>> {
+    static CALL: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(r"\b([A-Za-z_]\w*)\s*(?:<[^<>\n]{1,100}>)?\s*\(").unwrap()
+    });
+    static LABEL: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"\b([A-Za-z_]\w*)\s*:(?:=|\s)").unwrap());
+    let mut calls = HashMap::<String, BTreeSet<String>>::new();
+    for c in CALL.captures_iter(story).take(96) {
+        let mut depth = 1;
+        let tail = &story[c.get(0).unwrap().end()..];
+        let mut end = 0;
+        for (i, ch) in tail.char_indices().take(800) {
+            match ch {
+                '(' => depth += 1,
+                ')' => depth -= 1,
+                _ => {}
+            }
+            if depth == 0 {
+                end = i;
+                break;
+            }
+        }
+        let labels = LABEL
+            .captures_iter(&tail[..end])
+            .map(|c| c[1].to_ascii_lowercase());
+        calls
+            .entry(c[1].to_ascii_lowercase())
+            .or_default()
+            .extend(labels);
+    }
+    calls
+}
+
+fn support_path(path: &str) -> bool {
+    is_test_path(path)
+        || path.split('/').any(|p| {
+            matches!(
+                p.to_ascii_lowercase().as_str(),
+                "bench"
+                    | "benchmarks"
+                    | "benchmark"
+                    | "docs"
+                    | "examples"
+                    | "samples"
+                    | "performance"
+            )
+        })
+}
+
 #[derive(Default)]
 pub(super) struct Evidence {
     pub methods: HashMap<String, Witness>,
@@ -102,11 +167,18 @@ pub(super) struct Witness {
     pub change: String,
     pub patch_match: bool,
 }
+pub(super) struct FetchedPr {
+    id: u64,
+    oid: Oid,
+    title: String,
+    description: String,
+}
 struct Change {
     oid: Oid,
     title: String,
     words: BTreeSet<String>,
     title_words: BTreeSet<String>,
+    identifiers: BTreeSet<String>,
     cited: bool,
 }
 #[derive(Default)]
@@ -143,6 +215,7 @@ fn change(commit: &git2::Commit, cited: bool) -> Change {
     Change {
         oid: commit.id(),
         title_words: words(&title),
+        identifiers: identifiers(&message),
         words: words(&message),
         title,
         cited,
@@ -154,7 +227,7 @@ fn select(
     repo: &Repository,
     head: Oid,
     story: &str,
-    fetched: &[Oid],
+    fetched: &[FetchedPr],
 ) -> anyhow::Result<(usize, Vec<Change>)> {
     let prs = cited_prs(story);
     let mut walk = repo.revwalk()?;
@@ -178,7 +251,7 @@ fn select(
     let count = docs.len();
     static SHA: LazyLock<regex::Regex> =
         LazyLock::new(|| regex::Regex::new(r"(?i)\b[0-9a-f]{40}\b").unwrap());
-    for oid in fetched.iter().copied().chain(
+    for oid in fetched.iter().map(|pr| pr.oid).chain(
         SHA.find_iter(story)
             .take(3)
             .filter_map(|s| Oid::from_str(s.as_str()).ok()),
@@ -193,6 +266,14 @@ fn select(
             docs.push(change(&commit, true));
         }
     }
+    for pr in fetched {
+        if let Some(d) = docs.iter_mut().find(|d| d.oid == pr.oid) {
+            d.title_words.extend(words(&pr.title));
+            d.words.extend(words(&pr.description));
+            d.identifiers.extend(identifiers(&pr.description));
+            d.title = format!("merged PR #{}: {}", pr.id, pr.title);
+        }
+    }
     let scoped = planning_scope(story);
     let query = words(&scoped.chars().take(6000).collect::<String>());
     let title = words(scoped.lines().next().unwrap_or(""));
@@ -202,6 +283,8 @@ fn select(
             *frequency.entry(w.clone()).or_insert(0usize) += 1;
         }
     }
+    let headline_ids = identifiers(scoped.lines().next().unwrap_or(""));
+    let story_ids = identifiers(&scoped);
     let mut ranked = Vec::new();
     for d in docs {
         let hits: Vec<_> = d.words.intersection(&query).collect();
@@ -220,6 +303,9 @@ fn select(
                     * (1 + usize::from(d.title_words.contains(*w)))
             })
             .sum::<usize>();
+        let score = score
+            + headline_ids.intersection(&d.identifiers).count().min(3) * 75
+            + story_ids.intersection(&d.identifiers).count().min(5) * 12;
         ranked.push((std::cmp::Reverse((d.cited, score)), d));
     }
     ranked.sort_by_key(|row| row.0);
@@ -248,7 +334,7 @@ fn patches(repo: &Repository, changes: &[Change]) -> BTreeMap<String, FileEviden
             let Some(path) = delta.new_file().path().and_then(Path::to_str) else {
                 continue;
             };
-            if is_test_path(path)
+            if support_path(path)
                 || engram_core::is_declaration_path(path)
                 || delta.new_file().id().is_zero()
             {
@@ -304,7 +390,7 @@ pub(super) fn collect(
     project: &str,
     root: &Path,
     story: &str,
-    fetched: &[Oid],
+    fetched: &[FetchedPr],
 ) -> Evidence {
     let mut ev = Evidence::default();
     let Ok(repo) = Repository::open(root) else {
@@ -335,6 +421,8 @@ pub(super) fn collect(
     let query = words(&scoped.chars().take(6000).collect::<String>());
     let title = words(scoped.lines().next().unwrap_or(""));
     // Discover functions across the selected files in a single graph pass.
+    let calls = call_arguments(&scoped);
+    let story_ids = identifiers(&scoped);
     let mut starts = BTreeMap::<String, Vec<(usize, String, String)>>::new();
     if graph
         .visit_symbol_names(project, |kind, path, name, id, line| {
@@ -366,6 +454,8 @@ pub(super) fn collect(
             }
         }
         let mut cursor = 0usize;
+        let mut patch_support = HashMap::<usize, usize>::new();
+        let mut named_args = HashMap::<usize, usize>::new();
         for (index, line) in source.lines().enumerate() {
             let at = index + 1;
             while cursor + 1 < funcs.len() && funcs[cursor + 1].0 <= at {
@@ -382,15 +472,43 @@ pub(super) fn collect(
                 .statements
                 .get(text)
                 .filter(|_| frequency.get(text) == Some(&1));
+            if prior.is_some() {
+                *patch_support.entry(cursor).or_default() += 1;
+            }
+            let leaf = funcs[cursor]
+                .2
+                .rsplit(['.', ':'])
+                .next()
+                .unwrap_or("")
+                .to_ascii_lowercase();
+            if index + 1 <= funcs[cursor].0 + 4
+                && let Some(args) = calls.get(&leaf)
+            {
+                let tokens: BTreeSet<_> = text
+                    .split(|c: char| !c.is_alphanumeric() && c != '_')
+                    .map(str::to_ascii_lowercase)
+                    .collect();
+                let matches = tokens.intersection(args).count();
+                named_args
+                    .entry(cursor)
+                    .and_modify(|n| *n = (*n).max(matches))
+                    .or_insert(matches);
+            }
             let tokens = words(text);
             let overlap = tokens.intersection(&query).count().min(7);
             let subject = tokens.intersection(&title).count().min(4);
-            if overlap == 0 || (prior.is_none() && (overlap < 2 || subject == 0)) {
+            let exact = identifiers(text);
+            let concrete = exact.intersection(&story_ids).count().min(4);
+            if overlap == 0 || (prior.is_none() && (overlap < 2 || subject == 0) && concrete == 0) {
                 continue;
             }
             let rank = prior.copied().unwrap_or(file.first);
-            let score =
-                16 + (5 - rank) * 3 + overlap * 5 + subject * 8 + usize::from(prior.is_some()) * 34;
+            let score = 16
+                + (5 - rank) * 3
+                + overlap * 4
+                + subject * 6
+                + concrete * 9
+                + usize::from(prior.is_some()) * 28;
             if best.get(&cursor).is_some_and(|w| w.score >= score) {
                 continue;
             }
@@ -409,7 +527,29 @@ pub(super) fn collect(
             let (_, id, name) = &funcs[pos];
             let leaf = words(name.rsplit(['.', ':']).next().unwrap_or(name));
             let mut witness = w;
-            witness.score += leaf.intersection(&title).count().min(3) * 10;
+            let short = name
+                .rsplit(['.', ':'])
+                .next()
+                .unwrap_or(name)
+                .to_ascii_lowercase();
+            let landed = patch_support.get(&pos).copied().unwrap_or(0);
+            let subject = leaf.intersection(&title).count().min(4);
+            witness.score += subject * 14
+                + usize::from(subject >= 2) * 22
+                + named_args.get(&pos).copied().unwrap_or(0).min(4) * 16
+                + landed.min(5) * 7;
+            // A prior fix can name a method as the cause or as a caller, even
+            // when the retained changed statement sits elsewhere in that file.
+            if let Some((rank, _)) = changes
+                .iter()
+                .enumerate()
+                .find(|(_, c)| c.identifiers.contains(&short))
+            {
+                witness.score += (5 - rank) * 6;
+            }
+            if !witness.patch_match && landed == 0 && subject < 2 && !calls.contains_key(&short) {
+                witness.score = witness.score.saturating_sub(28);
+            }
             nominees.push((id.clone(), witness));
         }
     }
@@ -463,7 +603,7 @@ fn provider_endpoint(remote: &str, id: u64) -> Option<(reqwest::Url, bool)> {
         _=>None,
     }
 }
-pub(super) async fn resolve_cited_prs(root: &Path, story: &str) -> Vec<Oid> {
+pub(super) async fn resolve_cited_prs(root: &Path, story: &str) -> Vec<FetchedPr> {
     let ids = cited_prs(story);
     if ids.is_empty() {
         return Vec::new();
@@ -505,7 +645,24 @@ pub(super) async fn resolve_cited_prs(root: &Path, story: &str) -> Vec<Oid> {
             } else {
                 return None;
             };
-            Oid::from_str(sha).ok()
+            Some(FetchedPr {
+                id,
+                oid: Oid::from_str(sha).ok()?,
+                title: data["title"]
+                    .as_str()?
+                    .split_whitespace()
+                    .collect::<Vec<_>>()
+                    .join(" ")
+                    .chars()
+                    .take(180)
+                    .collect(),
+                description: data[if ado { "description" } else { "body" }]
+                    .as_str()
+                    .unwrap_or("")
+                    .chars()
+                    .take(2000)
+                    .collect(),
+            })
         })
     }))
     .await

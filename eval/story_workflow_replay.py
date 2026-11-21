@@ -22,13 +22,15 @@ def git(repo, *args):
     return subprocess.check_output(["git", "-C", str(repo), *args])
 
 
-def snapshot(repo, parent, root):
+def snapshot(repo, parent, root, with_history):
     archive = root.parent / "snapshot.tar"
     with archive.open("wb") as stream:
         subprocess.run(["git", "-C", str(repo), "archive", parent], stdout=stream, check=True)
     with tarfile.open(archive) as tar:
         tar.extractall(root, members=(m for m in tar if m.isfile() or m.isdir()), filter="data")
     archive.unlink()
+    if not with_history:
+        return
     # Fetch only ancestors of the pre-fix commit into an independent object
     # database. No alternates, remote-tracking refs, tags or oracle remote.
     git(root, "init", "--quiet", "--initial-branch=replay")
@@ -73,7 +75,9 @@ def ranked_sites(plan, root):
             snippet = quoted.removesuffix("…").strip()
             citations.append(dict(path=path, line=n, verified=bool(snippet and 0 < n <= len(lines)
                                                                   and snippet in lines[n-1])))
-        rows.append(dict(name=title[1], citations=citations, callee_paths=callee_paths))
+        declaration = re.search(r"(?m)^   - Declaration: (.+?):(\d+) \(use this start line", block)
+        start = int(declaration[2]) if declaration and citations and declaration[1] == citations[0]["path"] else None
+        rows.append(dict(name=title[1], citations=citations, callee_paths=callee_paths, declaration_line=start))
     return rows[:3]
 
 
@@ -183,7 +187,8 @@ def collect(client, root, story):
         site["reference_reply_chars"] = len(refs)
         context = call("get_method_edit_context", project_id=pid, file_path=path,
                        method_name=re.split(r"\.|::", name)[-1], include_full_body=False,
-                       max_callers=3, max_tokens=10000)
+                       max_callers=3, max_tokens=10000,
+                       **({"line": site["declaration_line"]} if site.get("declaration_line") else {}))
         assess_handoff(site, refs, context)
     named_routes = named_call_routes(story, root, call, pid)
     return dict(sites=sites, plan_section_delivered="## Ranked implementation sites" in first_page(plan),
@@ -239,11 +244,12 @@ def run(args):
         owned = Path(temp)
         root = owned / "source"
         root.mkdir()
-        snapshot(repo, parent, root)
-        if subprocess.run(["git", "-C", str(root), "cat-file", "-e", fix + "^{commit}"],
+        with_history = not getattr(args, "source_only", False)
+        snapshot(repo, parent, root, with_history)
+        if with_history and subprocess.run(["git", "-C", str(root), "cat-file", "-e", fix + "^{commit}"],
                           stderr=subprocess.DEVNULL).returncode == 0:
             raise RuntimeError("Withheld fix present in replay Git database")
-        history_count = int(git(root, "rev-list", "--count", "HEAD"))
+        history_count = int(git(root, "rev-list", "--count", "HEAD")) if with_history else 0
         config = owned / "config.yaml"
         config.write_text("allowed_roots: [" + json.dumps(str(root)) + "]\ndata_dir: " +
                           json.dumps(str(owned / "data")) +
@@ -269,4 +275,5 @@ if __name__ == "__main__":
         parser.add_argument("--" + arg, required=True, type=Path)
     parser.add_argument("--fix", required=True)
     parser.add_argument("--scope", default="")
+    parser.add_argument("--source-only", action="store_true", help="Withhold all Git history for an ablation")
     run(parser.parse_args())
