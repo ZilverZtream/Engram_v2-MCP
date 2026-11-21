@@ -3,11 +3,13 @@
 Run with --repo LOCAL_REPOSITORY --fix SHA --story-file ISSUE.txt --binary SERVER
 --output RECEIPT.json [--scope SOURCE_DIRECTORY]. Supply the original issue, without
 PR discussion or solution hints. Compare different binaries using the same inputs.
-A historical patch is one implementation. Overlap measures localization only.
+The indexed tree has its own Git database with pre-fix ancestors. --source-only
+removes that history. A historical patch is one implementation. Overlap measures localization only.
 """
 import argparse
 import hashlib
 import json
+import os
 from pathlib import Path
 import re
 import subprocess
@@ -34,6 +36,8 @@ def snapshot(repo, parent, root, with_history):
     # Fetch only ancestors of the pre-fix commit into an independent object
     # database. No alternates, remote-tracking refs, tags or oracle remote.
     git(root, "init", "--quiet", "--initial-branch=replay")
+    if os.name == "nt":
+        git(root, "config", "core.longpaths", "true")
     git(root, "fetch", "--quiet", "--no-tags", "--no-write-fetch-head", "--depth=512",
         "--update-shallow", repo.as_uri(), parent + ":refs/heads/history")
     git(root, "update-ref", "HEAD", parent)
@@ -245,7 +249,8 @@ def run(args):
     output.parent.mkdir(parents=True, exist_ok=True)
     if output.exists():
         raise FileExistsError(output)
-    with tempfile.TemporaryDirectory(dir=output.parent, prefix="story-replay-") as temp:
+    scratch = getattr(args, "scratch_root", output.parent)
+    with tempfile.TemporaryDirectory(dir=scratch, prefix="eg-") as temp:
         owned = Path(temp)
         root = owned / "source"
         root.mkdir()

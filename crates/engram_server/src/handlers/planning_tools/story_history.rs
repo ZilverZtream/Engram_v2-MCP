@@ -636,7 +636,7 @@ impl Evidence {
             text.push_str(&format!("- {change}\n"));
         }
         for reference in &self.references {
-            text.push_str(&format!("- {reference}\\n"));
+            text.push_str(&format!("- {reference}\n"));
         }
         text
     }
