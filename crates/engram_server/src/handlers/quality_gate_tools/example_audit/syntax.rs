@@ -60,12 +60,36 @@ pub(super) enum Part {
     Argument,
     Text,
     Assignment,
+    Local(usize),
 }
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(super) struct Shape(pub Vec<Part>);
 impl Shape {
     pub(super) fn literal(s: &[String]) -> Self {
         Self(s.iter().cloned().map(Part::Exact).collect())
+    }
+    /// Bind declared locals by identity. Preserve members, string constants,
+    /// API names and the distinction between two different variables.
+    pub(super) fn bind_locals(&mut self, src: &[String]) {
+        use std::collections::BTreeMap;
+        let mut slots = BTreeMap::new();
+        for (i, token) in src.iter().enumerate().skip(1) {
+            let previous = src[i - 1].to_ascii_lowercase();
+            let declared = matches!(previous.as_str(), "dim" | "let" | "var" | "const")
+                || (i >= 2 && previous == "each" && src[i - 2].eq_ignore_ascii_case("for"));
+            if declared && word(token) {
+                let next = slots.len();
+                slots.entry(token.as_str()).or_insert(next);
+            }
+        }
+        for (i, token) in src.iter().enumerate() {
+            if i > 0 && matches!(src[i - 1].as_str(), "." | "::") {
+                continue;
+            }
+            if let Some(slot) = slots.get(token.as_str()) {
+                self.0[i] = Part::Local(*slot)
+            }
+        }
     }
     pub(super) fn matches(&self, src: &[String], vb: bool) -> bool {
         self.matches_from(src, src.len(), vb)
@@ -75,6 +99,7 @@ impl Shape {
             return false;
         }
         (0..starts.min(src.len())).any(|start| {
+            let mut locals: Vec<Option<&str>> = Vec::new();
             let mut i = start;
             for part in &self.0 {
                 let Some(t) = src.get(i) else { return false };
@@ -110,6 +135,29 @@ impl Shape {
                     Part::Name => word(t),
                     Part::Text => {
                         quoted(t) && t.chars().any(|c| c.is_alphabetic()) && !t.contains("<%")
+                    }
+                    Part::Local(slot) => {
+                        if !word(t) {
+                            return false;
+                        }
+                        if locals.len() <= *slot {
+                            locals.resize(slot + 1, None)
+                        }
+                        let equal = |v: &str| {
+                            if vb {
+                                v.eq_ignore_ascii_case(t)
+                            } else {
+                                v == t
+                            }
+                        };
+                        if let Some(bound) = locals[*slot] {
+                            equal(bound)
+                        } else if locals.iter().flatten().any(|v| equal(v)) {
+                            false
+                        } else {
+                            locals[*slot] = Some(t);
+                            true
+                        }
                     }
                     Part::Assignment => matches!(t.as_str(), ":" | "="),
                     Part::Argument => unreachable!(),

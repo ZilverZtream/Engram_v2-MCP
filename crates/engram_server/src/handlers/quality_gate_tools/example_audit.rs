@@ -38,6 +38,7 @@ impl Check {
                     Part::Argument => "<argument>",
                     Part::Text => "<literal>",
                     Part::Assignment => "<assignment>",
+                    Part::Local(_) => "<local>",
                 })
                 .collect::<Vec<_>>()
                 .join(" ")
@@ -105,7 +106,8 @@ fn paired(policy: &str, bad: &str, good: &str, checks: &mut BTreeSet<Check>) {
         && !whole.windows(3).any(|w| w == [".", ".", "."])
         && !whole.iter().any(|s| s == "?")
     {
-        let shape = Shape::literal(&whole);
+        let mut shape = Shape::literal(&whole);
+        shape.bind_locals(&whole);
         if !shape.matches(&good_tokens, vb) {
             checks.insert(Check::new(shape));
         }
@@ -620,6 +622,19 @@ mod tests {
         assert!(!matches(
             "SELECT LocalForm(Trim(display_name)) FROM ledger;"
         ));
+    }
+    #[test]
+    fn declared_locals_can_be_renamed_but_must_keep_their_relationship() {
+        let rules = compile(
+            "Keep the results distinct. Bad: var buffer = read(); var buffer = flush(); Good: var first = read(); var last = flush(); [javascript]",
+        );
+        let matches = |src: &str| {
+            rules
+                .iter()
+                .any(|c| c.shape.matches(&tokens(src, false), false))
+        };
+        assert!(matches("var response = read(); var response = flush();"));
+        assert!(!matches("var response = read(); var receipt = flush();"));
     }
     #[test]
     fn conditional_prose_does_not_ban_a_method_globally() {
