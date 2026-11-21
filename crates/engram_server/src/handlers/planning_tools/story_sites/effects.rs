@@ -6,29 +6,44 @@ use engram_graph::{EdgeKind, GraphStore, Node};
 pub(super) struct Domain {
     pub types: BTreeSet<String>,
     tables: BTreeSet<String>,
+    activities: BTreeSet<String>,
 }
 
 impl Domain {
     pub fn from_types(
         graph: &GraphStore,
         project: &str,
-        types: &BTreeSet<String>,
+        types: &std::collections::BTreeMap<String, BTreeSet<String>>,
         pool: &mut HashMap<String, usize>,
     ) -> Self {
         let mut domain = Self::default();
         let mut table_counts = HashMap::<String, usize>::new();
-        for name in types.iter().take(12) {
-            let found = graph
-                .query_nodes_by_symbol_name(project, name, None, 16)
-                .unwrap_or_default();
-            let declarations: Vec<_> = found
-                .iter()
-                .filter(|n| matches!(n.node_type.as_str(), "class" | "struct" | "module"))
-                .collect();
-            let [owner] = declarations.as_slice() else {
+        for (name, ids) in types.iter().take(12) {
+            let mut ids = ids.iter();
+            let Some(id) = ids.next() else { continue };
+            if ids.next().is_some() {
+                continue;
+            }
+            let Some(owner) = graph.get_node(project, id).ok().flatten() else {
                 continue;
             };
-            domain.types.insert(name.clone());
+            domain.types.insert(name.to_ascii_lowercase());
+            domain
+                .activities
+                .extend(terms(name).into_iter().filter(|w| {
+                    matches!(
+                        w.as_str(),
+                        "import"
+                            | "export"
+                            | "transfer"
+                            | "sync"
+                            | "dispatch"
+                            | "upload"
+                            | "download"
+                            | "publish"
+                            | "migration"
+                    )
+                }));
             for method in graph
                 .functions_for_source_lines(project, owner.file_path.as_str())
                 .unwrap_or_default()
@@ -53,6 +68,17 @@ impl Domain {
                 .map(|(id, _)| id),
         );
         domain
+    }
+
+    pub fn competing_activity(&self, node: &Node) -> bool {
+        let owner = node.name.rsplit_once('.').map_or("", |(owner, _)| owner);
+        let file = std::path::Path::new(node.file_path.as_str())
+            .file_name()
+            .and_then(|p| p.to_str())
+            .unwrap_or("");
+        !self
+            .activities
+            .is_disjoint(&terms(&format!("{owner} {file}")))
     }
 
     pub fn matches(
@@ -131,7 +157,28 @@ pub(super) fn workflow(
     method: &BTreeSet<String>,
     criterion: &BTreeSet<String>,
     writes: bool,
+    execution_effect: bool,
 ) -> Option<(usize, usize, String)> {
+    if execution_effect
+        && criterion.contains("execution")
+        && ["delete", "deletion", "deletions"]
+            .iter()
+            .any(|w| criterion.contains(*w))
+    {
+        for (i, (number, text)) in lines.iter().enumerate() {
+            let lower = text.to_ascii_lowercase();
+            if [".deletebyid(", ".deleteonsubmit(", "delete from "]
+                .iter()
+                .any(|w| lower.contains(w))
+                && lines[i.saturating_sub(4)..i].iter().any(|(_, l)| {
+                    let s = l.to_ascii_lowercase();
+                    (s.contains("if ") || s.contains("case ")) && s.contains("delete")
+                })
+            {
+                return Some((280, *number, text.clone()));
+            }
+        }
+    }
     if !writes {
         return None;
     }
@@ -149,7 +196,7 @@ pub(super) fn workflow(
                 s.contains("begintransaction(") || s.contains("begin_transaction(")
             })
             .unwrap_or(commit.saturating_sub(12));
-        for (line, text) in &lines[start..commit] {
+        for (offset, (line, text)) in lines[start..commit].iter().enumerate() {
             let words = terms(text);
             let requested = [
                 "move", "transfer", "copy", "merge", "publish", "archive", "delete",
@@ -157,7 +204,10 @@ pub(super) fn workflow(
             .iter()
             .any(|op| criterion.contains(*op) && words.contains(*op));
             if requested
-                && words.intersection(criterion).count() >= 2
+                && (words.intersection(criterion).count() >= 2
+                    || lines[(start + offset).saturating_sub(2)..start + offset]
+                        .iter()
+                        .any(|(_, l)| terms(l).intersection(criterion).count() >= 2))
                 && text.contains('(')
                 && !text.trim_start().to_lowercase().starts_with("if ")
             {
@@ -189,11 +239,16 @@ pub(super) fn workflow(
             .iter()
             .any(|w| method.contains(*w))
         && method.intersection(criterion).count() >= 2
-        && let Some((line, text)) = lines
-            .iter()
-            .find(|(_, l)| l.contains(" = ") && terms(l).intersection(criterion).count() >= 2)
+        && let Some((line, text)) = lines.iter().find(|(_, l)| {
+            let Some((property, _)) = l.split_once(" = ") else {
+                return false;
+            };
+            property.contains('.')
+                && !property.contains(char::is_whitespace)
+                && terms(property).intersection(criterion).count() >= 2
+        })
     {
-        return Some((175, *line, text.clone()));
+        return Some((300, *line, text.clone()));
     }
     None
 }

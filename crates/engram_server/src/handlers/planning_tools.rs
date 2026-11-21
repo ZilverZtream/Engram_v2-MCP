@@ -1396,12 +1396,16 @@ impl Engram {
                 // FreshnessMode::Off does not invoke grep's lazy fingerprint
                 // callback. Validate extraction compatibility eagerly instead
                 // of reporting complete coverage from an unevaluated guard.
-                let stats = crate::handlers::grep_tools::indexed_file_stats_for_generation(
-                    &graph, &root, &pid, gen_, source_chunk_target,
+                let observed = crate::handlers::grep_tools::source_file_stats(
+                    &graph, &root, &pid, gen_, source_chunk_target, true,
                 )?;
+                let stats = observed.files;
                 let admitted: HashSet<_> = stats.iter().filter(|f| f.file_hash.is_some())
                     .map(|f| f.rel_path.replace('\\', "/")).collect();
                 let unavailable = stats.iter().filter(|f| f.file_hash.is_none()).count();
+                if unavailable > 0 && admitted.is_empty() && let Some(reason) = &observed.parser_error {
+                    anyhow::bail!("could not verify indexed VB source: {reason}; retry the footprint after parser access is restored");
+                }
                 anyhow::ensure!(unavailable == 0 || !admitted.is_empty(),
                     "source extraction settings or fingerprints are unavailable; run update_project before treating literal coverage as complete");
                 let result = engram_index::grep::grep(&engine, &root, &gq, || Ok(Vec::new()))?;
@@ -1415,6 +1419,9 @@ impl Engram {
                 let omissions = (unavailable > 0).then(|| {
                     let examples = stats.iter().filter(|f| f.file_hash.is_none()).take(3)
                         .map(|f| f.rel_path.as_str()).collect::<Vec<_>>().join(", ");
+                    if let Some(reason) = &observed.parser_error {
+                        return format!("source verification unavailable for {unavailable} indexed file(s) ({examples}); VB parser check: {reason}; retry the footprint after parser access is restored");
+                    }
                     format!("{unavailable} indexed file(s) lack compatible extraction fingerprints ({examples}){}",
                         if capped { "; match limit also reached" } else { "" })
                 });
@@ -6511,7 +6518,7 @@ fn grounded_planning_concepts(
         }
         let words = name_tokens(leaf);
         if matches!(kind, "class" | "struct" | "module") {
-            sites.consider_type(leaf);
+            sites.consider_type(leaf, id);
         }
         if kind == "function" && !engram_core::is_declaration_path(path) {
             sites.consider(name, id, path, &words);

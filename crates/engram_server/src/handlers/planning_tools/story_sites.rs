@@ -79,7 +79,7 @@ pub(super) struct Candidates {
     owner: String,
     owner_terms: BTreeSet<String>,
     effect_candidates: BTreeSet<(Reverse<usize>, String)>,
-    entity_types: BTreeSet<String>,
+    entity_types: std::collections::BTreeMap<String, BTreeSet<String>>,
     authored_identifiers: BTreeSet<String>,
     entity_phrases: BTreeSet<String>,
 }
@@ -132,7 +132,22 @@ impl Candidates {
                 }
                 _ => continue,
             };
-            let words = terms(&super::planning_scope(body));
+            let affirmative = super::planning_scope(body);
+            let first = affirmative.split(';').next().unwrap_or("").to_lowercase();
+            if [
+                "keeps its existing policy",
+                "remains the separate",
+                "separately owns",
+            ]
+            .iter()
+            .any(|s| first.contains(s))
+                && !["before ", "refuse", "require", "validate", "check "]
+                    .iter()
+                    .any(|s| first.contains(s))
+            {
+                continue;
+            }
+            let words = terms(&affirmative);
             if !words.is_empty() {
                 criteria.push(Criterion {
                     label,
@@ -259,7 +274,7 @@ impl Candidates {
                 .collect(),
             entity_phrases,
             effect_candidates: BTreeSet::new(),
-            entity_types: BTreeSet::new(),
+            entity_types: Default::default(),
             operation_candidates: vec![BTreeSet::new(); operations.len()],
             operations,
             main_noun,
@@ -280,7 +295,7 @@ impl Candidates {
             owner_terms: BTreeSet::new(),
         }
     }
-    pub(super) fn consider_type(&mut self, name: &str) {
+    pub(super) fn consider_type(&mut self, name: &str, id: &str) {
         if self.entity_phrases.is_empty() {
             return;
         }
@@ -293,7 +308,10 @@ impl Candidates {
             && (self.entity_phrases.contains(&parts.join(" "))
                 || self.authored_identifiers.contains(leaf))
         {
-            self.entity_types.insert(leaf.to_ascii_lowercase());
+            self.entity_types
+                .entry(leaf.to_owned())
+                .or_default()
+                .insert(id.to_owned());
         }
     }
     pub(super) fn include(&mut self, id: &str) {
@@ -1093,7 +1111,13 @@ impl Candidates {
                 {
                     rank = rank.saturating_sub(125);
                 }
-                let workflow = effects::workflow(&lines, &leaf_words, &c.terms, mutation);
+                let workflow = effects::workflow(
+                    &lines,
+                    &leaf_words,
+                    &c.terms,
+                    mutation,
+                    verified_effect && c.requires_effect,
+                );
                 if !prose_issue
                     && !domain.types.is_empty()
                     && named.is_empty()
@@ -1102,10 +1126,15 @@ impl Candidates {
                     && controls.get(id).is_none()
                     && witness.is_none_or(|w| w.route.is_none())
                 {
-                    rank = rank.saturating_sub(175);
+                    if domain.competing_activity(&node) {
+                        continue;
+                    }
+                    if !self.operations.is_empty() || self.main_noun.is_some() {
+                        rank = rank.saturating_sub(90);
+                    }
                 }
                 if let Some((weight, _, _)) = &workflow {
-                    if domain.types.is_empty() || in_domain {
+                    if domain.types.is_empty() || in_domain || !domain.competing_activity(&node) {
                         rank += weight;
                         evidenced_criteria.insert((id.clone(), c.label.clone()));
                     }
@@ -1173,7 +1202,7 @@ impl Candidates {
                     rows.truncate(3);
                 }
                 if let Some((_, line, text)) = workflow
-                    && (domain.types.is_empty() || in_domain)
+                    && (domain.types.is_empty() || in_domain || !domain.competing_activity(&node))
                 {
                     rows.retain(|(n, _)| *n != line);
                     rows.insert(0, (line, text));

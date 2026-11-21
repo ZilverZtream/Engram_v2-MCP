@@ -35,16 +35,41 @@ pub(crate) fn indexed_file_stats_for_generation(
     active_generation: u64,
     source_chunk_target: usize,
 ) -> anyhow::Result<Vec<engram_index::grep::IndexedFileStat>> {
+    Ok(source_file_stats(graph, root, project_id, active_generation, source_chunk_target, false)?.files)
+}
+
+pub(crate) struct SourceFileStats {
+    pub files: Vec<engram_index::grep::IndexedFileStat>,
+    pub parser_error: Option<String>,
+}
+
+/// A literal-only request can share a busy parser by briefly waiting for the
+/// same project identity check used at index admission. Do not infer format
+/// incompatibility when that identity could not be observed.
+pub(crate) fn source_file_stats(
+    graph: &engram_graph::GraphStore,
+    root: &std::path::Path,
+    project_id: &str,
+    active_generation: u64,
+    source_chunk_target: usize,
+    wait_for_parser: bool,
+) -> anyhow::Result<SourceFileStats> {
     let files = graph.list_file_node_metadata_with_generation(project_id)?;
     let configured = engram_index::SourceExtractionExpectation::for_project(
         root, source_chunk_target, std::iter::empty::<&str>(),
     )?;
     let vb_expected = files.iter().any(|(path, _, _)|
         engram_index::vb_extractor::requires_parser_provenance(path.as_str()))
-        .then(|| engram_index::SourceExtractionExpectation::for_project(
-            root, source_chunk_target, files.iter().map(|(path, _, _)| path.as_str()),
-        ));
-    Ok(files
+        .then(|| {
+            let paths = files.iter().map(|(path, _, _)| path.as_str());
+            if wait_for_parser {
+                engram_index::SourceExtractionExpectation::for_project_write(root, source_chunk_target, paths)
+            } else {
+                engram_index::SourceExtractionExpectation::for_project(root, source_chunk_target, paths)
+            }
+        });
+    let parser_error = vb_expected.as_ref().and_then(|v| v.as_ref().err()).map(ToString::to_string);
+    let files = files
         .into_iter()
         .map(|(rel_path, meta, generation)| {
             let get = |key: &str| {
@@ -75,7 +100,8 @@ pub(crate) fn indexed_file_stats_for_generation(
                 file_hash,
             }
         })
-        .collect())
+        .collect();
+    Ok(SourceFileStats { files, parser_error })
 }
 
 /// Overlay current source files, suppressing obsolete indexed matches even when
