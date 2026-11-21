@@ -183,37 +183,8 @@ pub(super) fn workflow(
         return None;
     }
     let has = |words: &[&str]| words.iter().any(|w| criterion.contains(*w));
-    // A named command inside a committed batch identifies the execution site even
-    // when its enclosing method is named for the pipeline rather than the command.
-    if let Some(commit) = lines
-        .iter()
-        .rposition(|(_, l)| l.to_ascii_lowercase().contains(".commit("))
-    {
-        let start = lines[..commit]
-            .iter()
-            .rposition(|(_, l)| {
-                let s = l.to_ascii_lowercase();
-                s.contains("begintransaction(") || s.contains("begin_transaction(")
-            })
-            .unwrap_or(commit.saturating_sub(12));
-        for (offset, (line, text)) in lines[start..commit].iter().enumerate() {
-            let words = terms(text);
-            let requested = [
-                "move", "transfer", "copy", "merge", "publish", "archive", "delete",
-            ]
-            .iter()
-            .any(|op| criterion.contains(*op) && words.contains(*op));
-            if requested
-                && (words.intersection(criterion).count() >= 2
-                    || lines[(start + offset).saturating_sub(2)..start + offset]
-                        .iter()
-                        .any(|(_, l)| terms(l).intersection(criterion).count() >= 2))
-                && text.contains('(')
-                && !text.trim_start().to_lowercase().starts_with("if ")
-            {
-                return Some((230, *line, text.clone()));
-            }
-        }
+    if let Some((line, text)) = transaction_step(lines, criterion) {
+        return Some((230, line, text.to_owned()));
     }
     if has(&["replacement", "replace", "replacing"])
         && has(&["deleting", "delete", "deletion"])
@@ -251,4 +222,86 @@ pub(super) fn workflow(
         return Some((300, *line, text.clone()));
     }
     None
+}
+
+fn transaction_step<'a>(
+    lines: &'a [(usize, String)],
+    criterion: &BTreeSet<String>,
+) -> Option<(usize, &'a str)> {
+    // A named command inside a committed batch identifies the execution site even
+    // when its enclosing method is named for the pipeline rather than the command.
+    if let Some(commit) = lines
+        .iter()
+        .rposition(|(_, l)| l.to_ascii_lowercase().contains(".commit("))
+    {
+        let start = lines[..commit]
+            .iter()
+            .rposition(|(_, l)| {
+                let s = l.to_ascii_lowercase();
+                s.contains("begintransaction(") || s.contains("begin_transaction(")
+            })
+            .unwrap_or(commit.saturating_sub(12));
+        for (offset, (line, text)) in lines[start..commit].iter().enumerate() {
+            let words = terms(text);
+            let requested = [
+                "move", "transfer", "copy", "merge", "publish", "archive", "delete",
+            ]
+            .iter()
+            .any(|op| criterion.contains(*op) && words.contains(*op));
+            if requested
+                && (words.intersection(criterion).count() >= 2
+                    || lines[(start + offset).saturating_sub(2)..start + offset]
+                        .iter()
+                        .any(|(_, l)| terms(l).intersection(criterion).count() >= 2))
+                && text.contains('(')
+                && !text.trim_start().to_lowercase().starts_with("if ")
+            {
+                return Some((*line, text.as_str()));
+            }
+        }
+    }
+    None
+}
+
+/// Attribute a selected edit owner using the operation it performs. Coverage of other
+/// criteria influences which sites are selected, but does not change the meaning of a call.
+pub(super) fn attribution<'a>(
+    lines: &'a [(usize, String)],
+    criterion: &BTreeSet<String>,
+) -> Option<(usize, usize, &'a str)> {
+    let mut best = transaction_step(lines, criterion).map(|(line, text)| {
+        let context = terms(text).intersection(criterion).count();
+        let execution = ["before", "execution", "recheck", "validate"]
+            .iter()
+            .any(|w| criterion.contains(*w));
+        (20 + 3 * context + 12 * usize::from(execution), line, text)
+    });
+    for (line, text) in lines {
+        if !text.contains(',') || !super::durable_write(text) {
+            continue;
+        }
+        let Some((_, args)) = text.split_once('(') else {
+            continue;
+        };
+        // Count distinct named payload arguments, excluding expressions and literals.
+        let fields: BTreeSet<_> = args
+            .split([',', ')'])
+            .map(str::trim)
+            .filter(|v| {
+                v.len() >= 3
+                    && v.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
+                    && !["true", "false", "null", "nothing", "none"]
+                        .contains(&v.to_ascii_lowercase().as_str())
+            })
+            .map(|v| super::term(&v.to_ascii_lowercase()))
+            .filter(|v| criterion.contains(v))
+            .collect();
+        if fields.len() >= 3 {
+            let evidence = (40 + fields.len(), *line, text.as_str());
+            if best.as_ref().is_none_or(|b| evidence.0 > b.0) {
+                best = Some(evidence);
+            }
+        }
+    }
+    best
 }

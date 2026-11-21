@@ -71,6 +71,11 @@ impl GitWalker {
     /// in-flight dialog implementation surfaced as "how similar approved
     /// work was done".
     pub fn approved_history_root(repo: &Repository) -> Option<Oid> {
+        Self::approved_history_target(repo).map(|(_, oid)| oid)
+    }
+
+    /// Resolve the tracking reference and commit together for revision-bound source citations.
+    pub fn approved_history_target(repo: &Repository) -> Option<(String, Oid)> {
         for name in [
             "refs/remotes/origin/HEAD",
             "refs/remotes/origin/master",
@@ -80,7 +85,7 @@ impl GitWalker {
                 && let Ok(resolved) = r.resolve()
                 && let Some(oid) = resolved.target()
             {
-                return Some(oid);
+                return Some((resolved.name()?.strip_prefix("refs/remotes/")?.to_owned(), oid));
             }
         }
         None

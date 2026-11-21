@@ -14,6 +14,7 @@
 
 mod page_guards;
 mod story_sites;
+mod story_citations;
 #[path = "planning_tools/story_sources.rs"]
 mod story_sources;
 #[path = "planning_tools/story_routes.rs"]
@@ -6738,14 +6739,14 @@ impl Engram {
             self.pin_active_source_generation(&project, &runtime.search).await.ok()
                 .map(|(generation, snapshot)| (runtime.search.clone(), generation, snapshot))
         } else { None };
-        let (concepts, sites, history_summary) = tokio::task::spawn_blocking(move || {
+        let (concepts, sites, history_summary, base) = tokio::task::spawn_blocking(move || {
             let mut sites = story_sites::Candidates::new(&raw);
             if let Some((search, generation, _snapshot)) = source_index {
                 sites.source_evidence = story_sources::collect(&graph, &search, &root, &project, generation, &raw);
             }
             sites.history = story_history::collect(&graph, &project, &root, &raw, &cited_prs);
             let history_summary = sites.history.summary();
-            if let Some(mut concepts) = override_terms {
+            let (concepts, mut ranked) = if let Some(mut concepts) = override_terms {
                 concepts.truncate(3);
                 for concept in &concepts {
                     for node in graph.query_nodes_by_symbol_name(&project, concept, None, 12)? {
@@ -6754,17 +6755,19 @@ impl Engram {
                         }
                     }
                 }
-                return Ok((concepts, sites.rank(&graph, &project, &root), history_summary));
-            }
-            let (concepts, ranked) = grounded_planning_concepts(
-                &graph,
-                &project,
-                &story_for_concepts(&planning_scope(&raw)),
-                coordinated_story_subjects(&raw),
-                &mut sites,
-                &root,
-            )?;
-            Ok::<_, anyhow::Error>((concepts, ranked, history_summary))
+                (concepts, sites.rank(&graph, &project, &root))
+            } else {
+                grounded_planning_concepts(
+                    &graph,
+                    &project,
+                    &story_for_concepts(&planning_scope(&raw)),
+                    coordinated_story_subjects(&raw),
+                    &mut sites,
+                    &root,
+                )?
+            };
+            let base = story_citations::annotate(&graph, &project, &root, &mut ranked);
+            Ok::<_, anyhow::Error>((concepts, ranked, history_summary, base))
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
@@ -6776,6 +6779,10 @@ impl Engram {
         );
         let mut policy_paths = BTreeSet::new();
         out.push_str("\n## Ranked implementation sites\n");
+        if let Some(base) = base {
+            out.push_str(&base);
+            out.push('\n');
+        }
         if sites.is_empty() {
             out.push_str("No verified implementation site in the bounded candidate set.\n");
         }

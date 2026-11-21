@@ -1233,6 +1233,7 @@ impl Candidates {
         let mut chosen = Vec::new();
         let mut used = BTreeSet::new();
         // Retain the best evidenced write owner per requested operation before filling supporting sites.
+        let mut operation_ids = BTreeSet::new();
         for (operation, owner) in self.operations.iter().zip(owners) {
             let Some((_, id, criterion, line, text)) = owner else {
                 continue;
@@ -1241,6 +1242,7 @@ impl Candidates {
                 .iter()
                 .position(|s| s.1.node_id == id && s.2 == criterion)
             {
+                operation_ids.insert(id.clone());
                 let mut site = sites.remove(i);
                 site.3.retain(|(n, _)| *n != line);
                 site.3.insert(0, (line, text));
@@ -1297,6 +1299,40 @@ impl Candidates {
             });
             used.insert(site.2.clone());
             chosen.push(site);
+        }
+        for (_, node, label, rows) in &mut chosen {
+            if self.criteria.len() < 2
+                || operation_ids.contains(&node.node_id)
+                || controls.contains_key(&node.node_id)
+                || self.criteria.iter().any(|c| c.names(&node.name))
+                || self
+                    .source_evidence
+                    .get(&node.node_id)
+                    .is_some_and(|w| w.route.is_some())
+            {
+                continue;
+            }
+            let Some(lines) = source.lines(node) else {
+                continue;
+            };
+            let mut alternatives: Vec<_> = self
+                .criteria
+                .iter()
+                .filter_map(|c| {
+                    let (weight, line, text) = effects::attribution(&lines, &c.terms)?;
+                    Some((Reverse(weight), &c.label, line, text))
+                })
+                .collect();
+            alternatives.sort();
+            if let Some(&(weight, correct, line, text)) = alternatives.first()
+                && alternatives.get(1).is_none_or(|other| other.0 != weight)
+                && label != correct
+            {
+                label.clone_from(correct);
+                rows.retain(|(n, _)| *n != line);
+                rows.insert(0, (line, text.to_string()));
+                rows.truncate(3);
+            }
         }
         chosen
             .into_iter()
