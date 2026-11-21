@@ -15,7 +15,8 @@ use std::{
 pub(super) struct Witness {
     pub line: usize,
     pub text: String,
-    pub reason: &'static str,
+    pub reason: String,
+    pub route: Option<String>,
     pub score: usize,
 }
 
@@ -280,8 +281,18 @@ pub(super) fn collect(
                     .checked_sub(1)
                     .and_then(|n| lines.get(n as usize))
             {
-                stack.entry(i).or_default().push((n.clone(),Witness {line:n.start_line as usize,text:line.trim().into(),
-                    reason:"Stack frame matched by project path and method name in indexed source.",score:420}));
+                stack.entry(i).or_default().push((
+                    n.clone(),
+                    Witness {
+                        line: n.start_line as usize,
+                        text: line.trim().into(),
+                        route: None,
+                        reason:
+                            "Stack frame matched by project path and method name in indexed source."
+                                .into(),
+                        score: 420,
+                    },
+                ));
             }
         }
         for (line, quote) in hits.quotes {
@@ -304,11 +315,13 @@ pub(super) fn collect(
                         line,
                         text: text.into(),
                         score: 430,
+                        route: None,
                         reason: if doc.is_some() {
                             "The story quotes this declaration's documentation."
                         } else {
                             "The story quotes this statement in the indexed implementation."
-                        },
+                        }
+                        .into(),
                     },
                 );
             }
@@ -352,7 +365,10 @@ pub(super) fn collect(
                         line,
                         text: text.into(),
                         score,
-                        reason: "Story terms matched this source line in the enclosing declaration.",
+                        reason:
+                            "Story terms matched this source line in the enclosing declaration."
+                                .into(),
+                        route: None,
                     },
                 );
             }
@@ -364,5 +380,6 @@ pub(super) fn collect(
     {
         prefer(&mut out, &n, w);
     }
+    super::story_routes::extend(&mut out, graph, engine, project, root, generation, &scope);
     out
 }

@@ -45,7 +45,7 @@ fn word(token: &Token, value: &str) -> bool {
     !token.string && token.text.eq_ignore_ascii_case(value)
 }
 
-pub(super) fn routes(source: &Source<'_>, path: &str) -> Vec<Route> {
+pub(crate) fn routes(source: &Source<'_>, path: &str) -> Vec<Route> {
     if !source.path.to_ascii_lowercase().ends_with(".vb") {
         return Vec::new();
     }
@@ -63,7 +63,17 @@ pub(super) fn routes(source: &Source<'_>, path: &str) -> Vec<Route> {
         };
         let mut name = None;
         let mut template = None;
+        let mut optional = Vec::new();
         for (position, part) in parts.iter().enumerate() {
+            let named_defaults = part.first().is_some_and(|t| word(t, "defaults"));
+            if named_defaults || position == 2 {
+                for field in part.windows(6) {
+                    if word(&field[0], ".") && word(&field[2], "=")
+                        && word(&field[3], "RouteParameter") && word(&field[4], ".") && word(&field[5], "Optional") {
+                        optional.push(field[1].text.to_ascii_lowercase());
+                    }
+                }
+            }
             let (key, value) = match *part {
                 [value] if value.string => (
                     if position == 0 {
@@ -95,7 +105,14 @@ pub(super) fn routes(source: &Source<'_>, path: &str) -> Vec<Route> {
         let (Some(name), Some(template)) = (name, template) else {
             continue;
         };
-        let Some(parameters) = routing::parameters(&template, path) else {
+        let mut effective = template.trim_end_matches('/');
+        while effective.split('/').count() > path.trim_matches('/').split('/').count() {
+            let Some((prefix, last)) = effective.rsplit_once('/') else {break};
+            let Some(key) = last.strip_prefix('{').and_then(|s| s.strip_suffix('}')) else {break};
+            if !optional.contains(&key.to_ascii_lowercase()) {break;}
+            effective = prefix;
+        }
+        let Some(parameters) = routing::parameters(effective, path) else {
             continue;
         };
         let Some(controller) = parameters
@@ -136,7 +153,7 @@ pub(super) fn routes(source: &Source<'_>, path: &str) -> Vec<Route> {
     result
 }
 
-pub(super) fn method_selected(
+pub(crate) fn method_selected(
     body: &str,
     preceding: &str,
     verb: Option<&str>,

@@ -10,6 +10,11 @@ use std::{
 
 fn term(word: &str) -> String {
     match word {
+        "maximum" => "max".into(),
+        "minimum" => "min".into(),
+        "opening" | "opened" => "open".into(),
+        "editing" => "edit".into(),
+        "enabled" | "enabling" => "enable".into(),
         "configuration" | "config" | "setup" | "settings" => "setting".into(),
         "synchronization" | "synchronisation" | "synchronize" => "sync".into(),
         "saving" | "saved" => "save".into(),
@@ -48,6 +53,8 @@ pub(super) fn terms(text: &str) -> BTreeSet<String> {
 
 struct Criterion {
     label: String,
+    named_symbols: BTreeSet<String>,
+    routes: BTreeSet<String>,
     terms: BTreeSet<String>,
 }
 pub(super) struct Candidates {
@@ -55,6 +62,11 @@ pub(super) struct Candidates {
     pub(super) history: super::story_history::Evidence,
     title: BTreeSet<String>,
     criteria: Vec<Criterion>,
+    operations: Vec<BTreeSet<String>>,
+    subject: BTreeSet<String>,
+    main_noun: Option<String>,
+    operation_candidates: Vec<BTreeSet<(Reverse<usize>, String)>>,
+    excluded: BTreeSet<String>,
     narrative: String,
     invoked_names: HashMap<String, usize>,
     invoked: BTreeSet<(Reverse<usize>, String)>,
@@ -118,6 +130,11 @@ impl Candidates {
             if !words.is_empty() {
                 criteria.push(Criterion {
                     label,
+                    routes: super::story_routes::mentions(body)
+                        .into_iter()
+                        .map(|(_, p)| p)
+                        .collect(),
+                    named_symbols: criterion_symbols(&super::planning_scope(body)),
                     terms: words,
                 });
             }
@@ -128,6 +145,8 @@ impl Candidates {
         if criteria.is_empty() {
             criteria.push(Criterion {
                 label: "Story".into(),
+                named_symbols: BTreeSet::new(),
+                routes: BTreeSet::new(),
                 terms: terms(
                     &super::planning_scope(scope)
                         .chars()
@@ -179,7 +198,47 @@ impl Candidates {
                 }
             }
         }
+        let subjects = super::coordinated_story_subjects(scope);
+        let main_noun = (subjects.len() == 1)
+            .then(|| subjects[0].split_whitespace().last())
+            .flatten()
+            .filter(|s| !matches!(*s, "action" | "change" | "update"))
+            .map(term);
+        let subject = subjects.iter().flat_map(|s| terms(s)).collect();
+        let excluded = scope
+            .lines()
+            .take_while(|l| !l.to_lowercase().starts_with("## comments"))
+            .flat_map(|line| line.split([';', '.']))
+            .filter(|line| {
+                let lower = line.to_lowercase();
+                [
+                    "separately covers",
+                    "is not expanded",
+                    "keeps its existing",
+                    "out of scope",
+                    "separately owns",
+                    "belongs to the separate",
+                ]
+                .iter()
+                .any(|s| lower.contains(s))
+            })
+            .flat_map(terms)
+            .collect();
+        let operations = if writes && subjects.len() >= 2 && criteria.len() >= 2 {
+            subjects
+                .iter()
+                .map(|s| terms(s))
+                .filter(|s| s.len() >= 2)
+                .collect()
+        } else {
+            Vec::new()
+        };
         Self {
+            operation_candidates: vec![BTreeSet::new(); operations.len()],
+            operations,
+            main_noun,
+            subject,
+            excluded,
             history: Default::default(),
             source_evidence: HashMap::new(),
             invoked_names,
@@ -247,6 +306,19 @@ impl Candidates {
             .max()
             .unwrap_or(0);
         let in_leaf = self.title.intersection(&leaf).count();
+        if mutator(name.rsplit(['.', ':']).next().unwrap_or(name)) {
+            for (action, candidates) in self.operations.iter().zip(&mut self.operation_candidates) {
+                let hits = action.intersection(&leaf).count();
+                if hits > 0 && !super::story_history::support_path(path) {
+                    let priority =
+                        hits * 8 + usize::from(is_endpoint(path, owner)) * 5 + title_hits;
+                    candidates.insert((Reverse(priority), id.to_owned()));
+                    if candidates.len() > 16 {
+                        candidates.pop_last();
+                    }
+                }
+            }
+        }
         if self.writes && is_script(path) && in_leaf > 0 && lexical >= 2 {
             self.transport
                 .insert((Reverse(4 * in_leaf + 5 * lexical), id.to_owned()));
@@ -293,6 +365,7 @@ impl Candidates {
             .iter()
             .chain(&self.server)
             .chain(&self.invoked)
+            .chain(self.operation_candidates.iter().flatten())
         {
             let old = pool.entry(id.clone()).or_default();
             *old = (*old).max(*score);
@@ -529,8 +602,7 @@ impl Candidates {
                 .chain(files.difference(&routed_files))
                 .take(6)
             {
-                let Ok(nodes) = graph.query_nodes_in_scope(project, Some("function"), file, 160)
-                else {
+                let Ok(nodes) = graph.functions_for_source_lines(project, file) else {
                     continue;
                 };
                 for n in nodes {
@@ -619,7 +691,89 @@ impl Candidates {
             let score = pool.entry(id.clone()).or_default();
             *score = (*score).max(witness.score);
         }
+        let mut controls = HashMap::new();
+        if self.criteria.iter().any(|c| c.terms.contains("control")) {
+            let mut editor_files = std::collections::BTreeMap::<String, BTreeSet<String>>::new();
+            for id in pool.keys() {
+                let Ok(Some(n)) = graph.get_node(project, id) else {
+                    continue;
+                };
+                let words = terms(n.name.rsplit('.').next().unwrap_or(&n.name));
+                for action in ["save", "cancel"] {
+                    if words.contains(action)
+                        && self.criteria.iter().any(|c| c.terms.contains(action))
+                    {
+                        editor_files
+                            .entry(n.file_path.as_str().into())
+                            .or_default()
+                            .insert(action.into());
+                    }
+                }
+            }
+            for (file, _) in editor_files
+                .into_iter()
+                .filter(|(_, actions)| actions.len() >= 2)
+                .take(3)
+            {
+                for node in graph
+                    .functions_for_source_lines(project, &file)
+                    .unwrap_or_default()
+                {
+                    let leaf = terms(node.name.rsplit('.').next().unwrap_or(&node.name));
+                    let Some(lines) = source.lines(&node) else {
+                        continue;
+                    };
+                    for criterion in self.criteria.iter().filter(|c| c.terms.contains("control")) {
+                        let distinctive: BTreeSet<_> = criterion
+                            .terms
+                            .iter()
+                            .filter(|word| {
+                                !self.title.contains(*word)
+                                    && ![
+                                        "control", "enable", "change", "value", "existing", "open",
+                                        "save", "edit",
+                                    ]
+                                    .contains(&word.as_str())
+                            })
+                            .cloned()
+                            .collect();
+                        for (line, text) in &lines {
+                            let Some((control, _)) = text.trim().split_once('.') else {
+                                continue;
+                            };
+                            if !control.chars().all(|c| c.is_alphanumeric() || c == '_') {
+                                continue;
+                            }
+                            let words = terms(control);
+                            let hits = words.intersection(&distinctive).count();
+                            if hits < 2 {
+                                continue;
+                            }
+                            let init = criterion.terms.contains("open")
+                                && ["edit", "load", "open"].iter().any(|w| leaf.contains(*w));
+                            let rank = 160 + hits * 12 + usize::from(init) * 80;
+                            let entry = controls.entry(node.node_id.clone()).or_insert((
+                                0,
+                                String::new(),
+                                0,
+                                String::new(),
+                            ));
+                            if rank > entry.0 {
+                                *entry = (rank, criterion.label.clone(), *line, text.clone());
+                            }
+                        }
+                    }
+                }
+            }
+            for (id, (score, ..)) in &controls {
+                pool.entry(id.clone())
+                    .and_modify(|s| *s = (*s).max(*score))
+                    .or_insert(*score);
+            }
+        }
         let mut sites = Vec::new();
+        let mut owners =
+            vec![None::<(usize, String, String, usize, String)>; self.operations.len()];
         for (id, lexical) in &pool {
             let Ok(Some(node)) = graph.get_node(project, id) else {
                 continue;
@@ -657,13 +811,101 @@ impl Candidates {
             let title_matches = self.title.intersection(&leaf_words).count();
             let path = node.file_path.as_str().to_lowercase();
             let type_story = ["typing", "typed", "typescript", "signature", "declaration"]
-                .iter().any(|word| self.title.contains(*word)) || self.title.contains("type");
+                .iter()
+                .any(|word| self.title.contains(*word))
+                || self.title.contains("type");
             if engram_core::is_declaration_path(&path) && !type_story {
                 continue;
             }
             let pinned = pins.get(id);
             let mutation = lines.iter().any(|(_, text)| durable_write(text));
+            let named: BTreeSet<_> = self
+                .criteria
+                .iter()
+                .filter(|c| c.names(&node.name))
+                .map(|c| &c.label)
+                .collect();
+            if mutation && !self.operations.is_empty() {
+                for (index, operation) in self.operations.iter().enumerate() {
+                    let Some(criterion) = self
+                        .criteria
+                        .iter()
+                        .filter(|c| operation.is_subset(&c.terms))
+                        .min_by_key(|c| {
+                            self.operations
+                                .iter()
+                                .filter(|op| op.is_subset(&c.terms))
+                                .count()
+                        })
+                    else {
+                        continue;
+                    };
+                    let Some((strength, number, excerpt)) =
+                        operation_owner(operation, &criterion.terms, &leaf_words, &lines)
+                    else {
+                        continue;
+                    };
+                    if (leaf_words.contains("bulk") || leaf_words.contains("batch"))
+                        && !criterion.terms.contains("bulk")
+                        && !criterion.terms.contains("batch")
+                    {
+                        continue;
+                    }
+                    let strength = strength
+                        + usize::from(is_endpoint(&path, &node.name))
+                            * (4 + usize::from(criterion.terms.contains("manual")) * 18);
+                    if owners[index].as_ref().is_none_or(|(best, best_id, ..)| {
+                        strength > *best || (strength == *best && id < best_id)
+                    }) {
+                        owners[index] = Some((
+                            strength,
+                            id.clone(),
+                            criterion.label.clone(),
+                            number,
+                            excerpt,
+                        ));
+                    }
+                }
+            }
+            let owner_words = terms(&format!("{} {}", node.name, path));
+            let mut subject_hits = self
+                .subject
+                .intersection(&owner_words)
+                .cloned()
+                .collect::<BTreeSet<_>>();
+            if !self.subject.is_empty() && subject_hits.len() < self.subject.len() {
+                for (_, line) in &lines {
+                    subject_hits.extend(self.subject.intersection(&terms(line)).cloned());
+                    if subject_hits.len() == self.subject.len() {
+                        break;
+                    }
+                }
+            }
+            let subject_local = !subject_hits.is_empty();
+            let main_noun_present = self
+                .main_noun
+                .as_ref()
+                .is_none_or(|word| subject_hits.contains(word));
+            let excluded_only: BTreeSet<_> =
+                self.excluded.difference(&self.title).cloned().collect();
+            let excluded_owner = !excluded_only.is_disjoint(&owner_words);
             for c in &self.criteria {
+                if let Some(route) = witness.and_then(|w| w.route.as_ref())
+                    && self.criteria.iter().any(|c| c.routes.contains(route))
+                    && !c.routes.contains(route)
+                {
+                    continue;
+                }
+                if controls
+                    .get(id)
+                    .is_some_and(|(_, label, ..)| label != &c.label)
+                    && named.is_empty()
+                {
+                    continue;
+                }
+                if !named.is_empty() && !named.contains(&c.label) {
+                    continue;
+                }
                 let mut scored = Vec::new();
                 for (n, text) in &lines {
                     let weight = line_score(text, &c.terms, &self.title)
@@ -682,8 +924,12 @@ impl Candidates {
                 scored.sort();
                 // A one-word domain operation may appear only in the declaration.
                 // Its indexed start line still gives the agent a navigable implementation.
-                if scored.is_empty() && prose_issue && leaf_words.len() == 1
-                    && leaf_words.iter().all(|w| self.title.contains(w) && super::story_token(w).is_some())
+                if scored.is_empty()
+                    && prose_issue
+                    && leaf_words.len() == 1
+                    && leaf_words
+                        .iter()
+                        .all(|w| self.title.contains(w) && super::story_token(w).is_some())
                     && let Some(Some(file)) = source.files.get(node.file_path.as_str())
                     && let Some(text) = file.get(node.start_line.saturating_sub(1) as usize)
                 {
@@ -695,7 +941,11 @@ impl Candidates {
                 {
                     scored.push((Reverse(1), *line, text));
                 }
-                if scored.is_empty() && witness.is_none() && pinned.is_none() && !self.history.methods.contains_key(id) {
+                if scored.is_empty()
+                    && witness.is_none()
+                    && pinned.is_none()
+                    && !self.history.methods.contains_key(id)
+                {
                     continue;
                 }
                 let quality = scored.first().map_or(0, |r| r.0.0);
@@ -703,6 +953,17 @@ impl Candidates {
                     + quality
                     + title_matches * 10
                     + leaf_words.intersection(&c.terms).count() * 5;
+                if !prose_issue && named.is_empty() && witness.is_none_or(|w| w.route.is_none()) {
+                    if !self.subject.is_empty() && (!subject_local || !main_noun_present) {
+                        rank = rank.saturating_sub(125);
+                    }
+                    if excluded_owner
+                        && owner_words.intersection(&excluded_only).count()
+                            > owner_words.intersection(&c.terms).count()
+                    {
+                        rank = rank.saturating_sub(120);
+                    }
+                }
                 if c.terms.contains("page")
                     && (path.contains(".aspx.")
                         || path.contains(".cshtml")
@@ -765,6 +1026,13 @@ impl Candidates {
                     rows.insert(0, (w.line, w.text.clone()));
                     rows.truncate(3);
                 }
+                if let Some((_, label, line, text)) = controls.get(id)
+                    && label == &c.label
+                {
+                    rows.retain(|(n, _)| n != line);
+                    rows.insert(0, (*line, text.clone()));
+                    rows.truncate(3);
+                }
                 if rows.is_empty() {
                     rows.push((
                         node.start_line as usize,
@@ -781,6 +1049,21 @@ impl Candidates {
         });
         let mut chosen = Vec::new();
         let mut used = BTreeSet::new();
+        // Retain the best evidenced write owner per requested operation before filling supporting sites.
+        for (_, id, criterion, line, text) in owners.into_iter().flatten() {
+            if let Some(i) = sites
+                .iter()
+                .position(|s| s.1.node_id == id && s.2 == criterion)
+            {
+                let mut site = sites.remove(i);
+                site.3.retain(|(n, _)| *n != line);
+                site.3.insert(0, (line, text));
+                site.3.truncate(3);
+                sites.retain(|s| s.1.node_id != id);
+                used.insert(site.2.clone());
+                chosen.push(site);
+            }
+        }
         // Spread comparable matches across criteria. A weak incidental match
         // cannot displace a much stronger source witness solely for diversity.
         while chosen.len() < 3 && !sites.is_empty() {
@@ -865,6 +1148,84 @@ impl Candidates {
             .collect()
     }
 }
+fn criterion_symbols(text: &str) -> BTreeSet<String> {
+    static NAME: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"[A-Za-z_]\w*(?:(?:\.|::)[A-Za-z_]\w*)*").unwrap());
+    NAME.find_iter(text)
+        .filter_map(|m| {
+            let word = m.as_str();
+            let marked = text[..m.start()].ends_with('\x60') && text[m.end()..].starts_with('\x60');
+            let explicit = marked
+                || text[m.end()..].trim_start().starts_with('(')
+                || word.contains(['.', '_', ':'])
+                || word
+                    .as_bytes()
+                    .windows(2)
+                    .any(|p| p[0].is_ascii_lowercase() && p[1].is_ascii_uppercase());
+            explicit.then(|| word.to_lowercase().replace("::", "."))
+        })
+        .collect()
+}
+
+impl Criterion {
+    fn names(&self, qualified: &str) -> bool {
+        let name = qualified.to_lowercase().replace("::", ".");
+        let mut suffix = name.as_str();
+        loop {
+            if self.named_symbols.contains(suffix) {
+                return true;
+            }
+            let Some((_, next)) = suffix.split_once('.') else {
+                return false;
+            };
+            suffix = next;
+        }
+    }
+}
+
+fn operation_owner(
+    operation: &BTreeSet<String>,
+    criterion: &BTreeSet<String>,
+    method: &BTreeSet<String>,
+    lines: &[(usize, String)],
+) -> Option<(usize, usize, String)> {
+    // Two subject terms on one executable line distinguish an owner from a file-wide co-occurrence.
+    // A mutation in the enclosing method is required by the caller. Prefer assignments carrying the
+    // subject or the old/new values over incidental mentions in a generic write method.
+    let mut best = None;
+    for (number, line) in lines {
+        let words = terms(line);
+        let changes_value = ["update", "replace", "convert", "rename", "change"]
+            .iter()
+            .any(|w| method.contains(*w));
+        if words.is_disjoint(operation)
+            || !operation.iter().all(|w| {
+                words.contains(w) || method.contains(w) || (w == "change" && changes_value)
+            })
+        {
+            continue;
+        }
+        let replaced_value = words.contains("old") || words.contains("new");
+        let assignment =
+            line.contains(" = ") && !line.trim_start().to_lowercase().starts_with("if ");
+        let changes_existing = ["change", "replacement", "replace"]
+            .iter()
+            .any(|w| criterion.contains(*w))
+            && ["update", "change", "replace", "convert", "rename"]
+                .iter()
+                .any(|w| method.contains(*w));
+        let strength = 10 * operation.intersection(method).count()
+            + 12 * usize::from(changes_existing)
+            + 6 * usize::from(replaced_value && assignment)
+            + 4 * usize::from(durable_write(line))
+            + 2 * usize::from(assignment);
+        if best.as_ref().is_none_or(|(score, _, _)| strength > *score) {
+            best = Some((strength, *number, line.clone()));
+        }
+    }
+    best
+}
+
 pub(super) struct Site {
     pub name: String,
     pub label: String,

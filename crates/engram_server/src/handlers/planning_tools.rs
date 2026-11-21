@@ -16,6 +16,8 @@ mod page_guards;
 mod story_sites;
 #[path = "planning_tools/story_sources.rs"]
 mod story_sources;
+#[path = "planning_tools/story_routes.rs"]
+mod story_routes;
 #[path = "planning_tools/story_history.rs"]
 mod story_history;
 use crate::handlers::validate_project_id;
@@ -1362,7 +1364,7 @@ impl Engram {
             .await
             .map(|r| r.directory)
             .unwrap_or_default();
-        let (literal_files, literal_matches, literal_err): (Vec<String>, usize, Option<String>) = {
+        let (literal_files, literal_matches, literal_omissions, literal_err) = {
             let engine = ps.search.clone();
             let graph = self.state.graph.clone();
             let source_chunk_target = self.state.cfg.max_chunks_per_file;
@@ -1394,35 +1396,32 @@ impl Engram {
                 // FreshnessMode::Off does not invoke grep's lazy fingerprint
                 // callback. Validate extraction compatibility eagerly instead
                 // of reporting complete coverage from an unevaluated guard.
-                let compatible = crate::handlers::grep_tools::indexed_file_stats_for_generation(
+                let stats = crate::handlers::grep_tools::indexed_file_stats_for_generation(
                     &graph, &root, &pid, gen_, source_chunk_target,
-                ).and_then(|stats| {
-                    anyhow::ensure!(stats.iter().all(|stat| stat.file_hash.is_some()),
-                        "source extraction settings or fingerprints are unavailable; run update_project before treating literal coverage as complete");
-                    Ok(())
+                )?;
+                let admitted: HashSet<_> = stats.iter().filter(|f| f.file_hash.is_some())
+                    .map(|f| f.rel_path.replace('\\', "/")).collect();
+                let unavailable = stats.iter().filter(|f| f.file_hash.is_none()).count();
+                anyhow::ensure!(unavailable == 0 || !admitted.is_empty(),
+                    "source extraction settings or fingerprints are unavailable; run update_project before treating literal coverage as complete");
+                let result = engram_index::grep::grep(&engine, &root, &gq, || Ok(Vec::new()))?;
+                let capped = result.matches.len() >= LITERAL_CAP;
+                let mut files: Vec<_> = result.matches.into_iter()
+                    .map(|m| m.file_path.replace('\\', "/"))
+                    .filter(|path| admitted.contains(path)).collect();
+                let count = files.len();
+                files.sort();
+                files.dedup();
+                let omissions = (unavailable > 0).then(|| {
+                    let examples = stats.iter().filter(|f| f.file_hash.is_none()).take(3)
+                        .map(|f| f.rel_path.as_str()).collect::<Vec<_>>().join(", ");
+                    format!("{unavailable} indexed file(s) lack compatible extraction fingerprints ({examples}){}",
+                        if capped { "; match limit also reached" } else { "" })
                 });
-                if let Err(error) = compatible {
-                    return (Vec::new(), 0, Some(error.to_string()));
-                }
-                match engram_index::grep::grep(&engine, &root, &gq, || {
-                    Ok(Vec::new())
-                }) {
-                    Ok(r) => {
-                        let n = r.matches.len();
-                        let mut files: Vec<String> = r
-                            .matches
-                            .iter()
-                            .map(|m| m.file_path.replace('\\', "/"))
-                            .collect();
-                        files.sort();
-                        files.dedup();
-                        (files, n, None)
-                    }
-                    Err(e) => (Vec::new(), 0, Some(e.to_string())),
-                }
-            })
-            .await
-            .unwrap_or_else(|e| (Vec::new(), 0, Some(format!("literal task failed: {e}"))))
+                Ok::<_, anyhow::Error>((files, count, omissions))
+            }).await.map_err(anyhow::Error::from).and_then(|r| r)
+                .map_or_else(|err| (Vec::new(), 0, None, Some(err.to_string())),
+                    |(files,count,omissions)| (files,count,omissions,None))
         };
         cov.literal_matches = literal_matches;
         cov.literal_files = literal_files.len();
@@ -1430,6 +1429,10 @@ impl Engram {
             Some(e) => {
                 cov.failures.push(format!("literal pass failed: {e}"));
                 "failed".into()
+            }
+            None if literal_omissions.is_some() => {
+                cov.failures.push(format!("literal coverage partial: {}", literal_omissions.unwrap()));
+                "partial".into()
             }
             None => footprint_literal_status(literal_matches, LITERAL_CAP).into(),
         };
@@ -5817,6 +5820,10 @@ const STORY_STOPWORDS: &[&str] = &[
     "are",
     "be",
     "able",
+    "without",
+    "within",
+    "whether",
+    "otherwise",
     "would",
     "like",
     "want",
@@ -6580,6 +6587,16 @@ fn grounded_planning_concepts(
         }
     }
     for (_, _, name) in ranked {
+        // Preserve the receiver supplied by the author when it resolves to a ranked declaration.
+        let name = evidence.iter().find_map(|site| {
+            let leaf = site.name.rsplit(['.', ':']).next()?;
+            if !leaf.eq_ignore_ascii_case(&name) { return None; }
+            story.split(|c: char| !(c.is_alphanumeric() || matches!(c, '_' | '.' | ':')))
+                .map(|s| s.trim_matches(['.', ':']))
+                .find(|word| word.contains('.') && (site.name.eq_ignore_ascii_case(word)
+                    || site.name.to_lowercase().ends_with(&format!(".{}", word.to_lowercase()))))
+                .map(str::to_owned)
+        }).unwrap_or(name);
         if concepts.len() >= 3 {
             break;
         }
