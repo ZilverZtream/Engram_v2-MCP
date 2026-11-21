@@ -35,7 +35,9 @@ impl Check {
                 .map(|v| match v {
                     Part::Exact(t) => t.as_str(),
                     Part::Name => "<name>",
+                    Part::Argument => "<argument>",
                     Part::Text => "<literal>",
+                    Part::Assignment => "<assignment>",
                 })
                 .collect::<Vec<_>>()
                 .join(" ")
@@ -172,13 +174,11 @@ fn paired(policy: &str, bad: &str, good: &str, checks: &mut BTreeSet<Check>) {
             Regex::new(r#"(?i)([a-z_$][\w$]*)\s*[:=]\s*["'][^"'<>]*[a-z][^"'<>]*["']"#).unwrap()
         });
         for p in PROPERTY.captures_iter(bad) {
-            for sep in [":", "="] {
-                checks.insert(Check::new(Shape(vec![
-                    Part::Exact(p[1].to_owned()),
-                    Part::Exact(sep.into()),
-                    Part::Text,
-                ])));
-            }
+            checks.insert(Check::new(Shape(vec![
+                Part::Exact(p[1].to_owned()),
+                Part::Assignment,
+                Part::Text,
+            ])));
         }
     }
     // Parenthesized calls followed by a member observed only in the bad example.
@@ -337,42 +337,76 @@ fn compile(text: &str) -> BTreeSet<Check> {
         }
         directives(line, &mut checks);
     }
+    if let Some(b) = BAD.find(text)
+        && let Some(g) = GOOD.find_at(text, b.end())
+    {
+        let bad = text[b.end()..g.start()]
+            .trim()
+            .trim_end_matches('\u{2014}')
+            .trim_end();
+        let good = &text[g.end()..];
+        static ALTERNATE: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"(?i);\s+or\s+(?:in [a-z0-9 ]+:\s*)?").unwrap());
+        let bad = ALTERNATE.replace_all(bad, "\n");
+        let good = ALTERNATE.replace_all(good, "\n");
+        let rows = |s: &str| {
+            s.lines()
+                .enumerate()
+                .map(|(n, l)| (n + 1, l.to_owned()))
+                .collect::<Vec<_>>()
+        };
+        let bad_rows = rows(&bad);
+        let good_rows = rows(&good);
+        let lower = text.to_lowercase();
+        let vb = lower.contains("vbnet") || bad.contains("For Each") || bad.contains("Dim ");
+        let js = lower.contains("javascript") || lower.contains("typescript") || !vb;
+        let grammars = [("example.vb", vb), ("example.ts", js)]
+            .into_iter()
+            .filter(|(_, enabled)| *enabled)
+            .map(|(path, _)| {
+                (
+                    Input::from_lines(path, &bad_rows),
+                    Input::from_lines(path, &good_rows),
+                )
+            })
+            .collect::<Vec<_>>();
+        checks.retain(|c| {
+            grammars.iter().any(|(bad, _)| !bad.hits(c).is_empty())
+                && grammars.iter().all(|(_, good)| good.hits(c).is_empty())
+        });
+    }
     checks
 }
 
 struct Input<'a> {
-    file: &'a DiffFile,
+    path: &'a str,
     vb: bool,
     lines: Vec<(usize, Vec<String>, usize, usize)>,
 }
 impl<'a> Input<'a> {
     fn new(file: &'a DiffFile) -> Self {
-        let vb = file.path.to_lowercase().ends_with(".vb");
+        Self::from_lines(&file.path, &file.added_lines)
+    }
+    fn from_lines(path: &'a str, rows: &[(usize, String)]) -> Self {
+        let vb = path.to_lowercase().ends_with(".vb");
         let mut lines = Vec::new();
         let mut depth = 0usize;
         let mut group = 0usize;
         let mut previous = 0;
         let mut block_comment = false;
-        for (no, source) in &file.added_lines {
+        for (no, source) in rows {
             if *no != previous + 1 {
                 depth = 0;
                 group += 1;
                 block_comment = false
             }
             previous = *no;
-            let mut src = source.as_str();
-            if block_comment {
-                if let Some((_, rest)) = src.split_once("*/") {
-                    src = rest;
-                    block_comment = false
-                } else {
-                    continue;
-                }
-            }
-            let t = tokens(src, vb);
-            if !vb && src.trim_start().starts_with("/*") && !src.contains("*/") {
-                block_comment = true
-            }
+            let t = syntax::source_tokens(
+                source,
+                vb,
+                path.rsplit('.').next().unwrap_or(""),
+                &mut block_comment,
+            );
             let first = t.first().map(String::as_str).unwrap_or("");
             if matches!(first, "next" | "loop" | "wend")
                 || (first == "end" && t.get(1).is_some_and(|s| s == "while"))
@@ -392,7 +426,7 @@ impl<'a> Input<'a> {
             }
             lines.push((*no, t, depth, group));
         }
-        Self { file, vb, lines }
+        Self { path, vb, lines }
     }
     fn hits(&self, c: &Check) -> Vec<usize> {
         self.lines
@@ -408,7 +442,7 @@ impl<'a> Input<'a> {
                 });
                 let hit = if let Some(key) = special.and_then(|s| s.strip_prefix("@keyword:")) {
                     matches!(
-                        self.file.path.rsplit('.').next(),
+                        self.path.rsplit('.').next(),
                         Some("js" | "ts" | "tsx" | "jsx" | "mjs" | "mts")
                     ) && t.first().is_some_and(|s| s == key)
                         && t.get(1).is_some_and(|s| s != "(" && s != ".")
@@ -474,7 +508,7 @@ impl<'a> Input<'a> {
                             );
                             previous = *next;
                         }
-                        c.shape.matches(&span, self.vb)
+                        c.shape.matches_from(&span, t.len(), self.vb)
                     } else {
                         false
                     }

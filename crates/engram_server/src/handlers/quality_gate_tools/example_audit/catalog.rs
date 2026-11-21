@@ -166,7 +166,7 @@ pub(in super::super) fn audit(
                    title: &str,
                    status: &str| {
         for input in &inputs {
-            let path = &input.file.path;
+            let path = input.path;
             if !applies(tags, path)
                 || scope.is_some_and(|p| !crate::utils::files::pattern_match(path, p))
             {
@@ -178,7 +178,7 @@ pub(in super::super) fn audit(
                     let row = format!(
                         "- {path}:{n} [source pattern] {pattern}. {title}. Source: {src} ({status})"
                     );
-                    let key = (path.clone(), n, pattern);
+                    let key = (path.to_owned(), n, pattern);
                     if status == "working checkout" {
                         matched.insert(key, row);
                     } else {

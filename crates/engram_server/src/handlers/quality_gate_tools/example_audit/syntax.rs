@@ -7,11 +7,34 @@ static LEX: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 pub(super) fn tokens(s: &str, vb: bool) -> Vec<String> {
+    source_tokens(s, vb, "", &mut false)
+}
+pub(super) fn source_tokens<'a>(
+    mut s: &'a str,
+    vb: bool,
+    extension: &str,
+    block: &mut bool,
+) -> Vec<String> {
+    if *block {
+        let Some((_, tail)) = s.split_once("*/") else {
+            return Vec::new();
+        };
+        s = tail;
+        *block = false;
+    }
     let mut out = Vec::new();
     for m in LEX.find_iter(s) {
         let t = m.as_str();
         if vb && t.starts_with('\'') {
             break;
+        }
+        if t == "#" && matches!(extension, "py" | "sh" | "rb" | "yaml" | "yml")
+            || matches!(extension, "sql" | "lua") && s[m.start()..].starts_with("--")
+        {
+            break;
+        }
+        if t.starts_with("/*") && !t.ends_with("*/") {
+            *block = true
         }
         if t.starts_with("//") || t.starts_with("/*") {
             continue;
@@ -34,7 +57,9 @@ fn quoted(s: &str) -> bool {
 pub(super) enum Part {
     Exact(String),
     Name,
+    Argument,
     Text,
+    Assignment,
 }
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(super) struct Shape(pub Vec<Part>);
@@ -43,23 +68,58 @@ impl Shape {
         Self(s.iter().cloned().map(Part::Exact).collect())
     }
     pub(super) fn matches(&self, src: &[String], vb: bool) -> bool {
-        !self.0.is_empty()
-            && src.windows(self.0.len()).any(|w| {
-                w.iter().zip(&self.0).all(|(actual, p)| match p {
-                    Part::Exact(t) if vb && !quoted(t) => actual.eq_ignore_ascii_case(t),
-                    Part::Exact(t) if quoted(t) && quoted(actual) => {
-                        t.get(1..t.len().saturating_sub(1))
-                            == actual.get(1..actual.len().saturating_sub(1))
+        self.matches_from(src, src.len(), vb)
+    }
+    pub(super) fn matches_from(&self, src: &[String], starts: usize, vb: bool) -> bool {
+        if self.0.is_empty() {
+            return false;
+        }
+        (0..starts.min(src.len())).any(|start| {
+            let mut i = start;
+            for part in &self.0 {
+                let Some(t) = src.get(i) else { return false };
+                if *part == Part::Argument {
+                    let first = i;
+                    let mut depth = 0;
+                    while let Some(v) = src.get(i) {
+                        if (depth == 0 && matches!(v.as_str(), "," | ")" | ";")) || i - first >= 100
+                        {
+                            break;
+                        }
+                        if matches!(v.as_str(), "(" | "[" | "{") {
+                            depth += 1
+                        } else if matches!(v.as_str(), ")" | "]" | "}") {
+                            if depth == 0 {
+                                break;
+                            }
+                            depth -= 1
+                        }
+                        i += 1;
                     }
-                    Part::Exact(t) => actual == t,
-                    Part::Name => word(actual),
+                    if first == i || depth != 0 {
+                        return false;
+                    }
+                    continue;
+                }
+                if !match part {
+                    Part::Exact(p) if vb && !quoted(p) => p.eq_ignore_ascii_case(t),
+                    Part::Exact(p) if quoted(p) && quoted(t) => {
+                        p.get(1..p.len().saturating_sub(1)) == t.get(1..t.len().saturating_sub(1))
+                    }
+                    Part::Exact(p) => p == t,
+                    Part::Name => word(t),
                     Part::Text => {
-                        quoted(actual)
-                            && actual.chars().any(|c| c.is_alphabetic())
-                            && !actual.contains("<%")
+                        quoted(t) && t.chars().any(|c| c.is_alphabetic()) && !t.contains("<%")
                     }
-                })
-            })
+                    Part::Assignment => matches!(t.as_str(), ":" | "="),
+                    Part::Argument => unreachable!(),
+                } {
+                    return false;
+                }
+                i += 1;
+            }
+            true
+        })
     }
 }
 
@@ -128,7 +188,7 @@ pub(super) fn expressions(s: &[String]) -> Vec<Shape> {
                     .iter()
                     .any(|v| s[k].eq_ignore_ascii_case(v))
             {
-                p.0[k - start] = Part::Name
+                p.0[k - start] = Part::Argument
             }
         }
         out.push(p)
