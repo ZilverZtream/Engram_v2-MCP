@@ -13994,20 +13994,37 @@ impl Engram {
             }
             raw.sort_by(|a, b| b.2.cmp(&a.2).then(a.1.cmp(&b.1)));
             let hub_degree = std::env::var("ENGRAM_HUB_DEGREE").ok().and_then(|v| v.parse::<usize>().ok()).unwrap_or(800);
-            let mut seen_partners = HashSet::new();
+            let mut seen_edges = HashSet::new();
+            let mut hub_cache = HashMap::new();
+            let mut by_edit: BTreeMap<String, Vec<_>> = BTreeMap::new();
             let mut partners = Vec::new();
             for (edited, partner, weight, historical) in raw {
-                if !seen_partners.insert(partner.to_lowercase()) { continue; }
-                let degree = match graph.neighbors(&pid, EdgeKind::TemporalCoupling, &format!("file:{historical}"), 2001) {
-                    Ok(mut neighbors) => {
-                        coverage.cap(&mut neighbors, 2000, &format!("hub-degree lookup for {historical}"));
-                        Some(neighbors.len())
-                    },
-                    Err(error) => { coverage.note(format!("hub-degree lookup for {historical} failed: {error}; candidate retained")); None },
-                };
-                if degree.is_none_or(|degree| degree < hub_degree) { partners.push((edited, partner, weight)); }
+                // Planning uses a single pool of historical seeds. An edit review
+                // owes each changed file its own allowance and source attribution.
+                let anchor = if snapshot.is_some() { "" } else { edited.as_str() };
+                if !seen_edges.insert((anchor.to_owned(), partner.to_lowercase())) { continue; }
+                let hub = *hub_cache.entry(historical.clone()).or_insert_with(|| {
+                    match graph.neighbors(&pid, EdgeKind::TemporalCoupling, &format!("file:{historical}"), 2001) {
+                        Ok(mut neighbors) => {
+                            coverage.cap(&mut neighbors, 2000, &format!("hub-degree lookup for {historical}"));
+                            neighbors.len() >= hub_degree
+                        }
+                        Err(error) => {
+                            coverage.note(format!("hub-degree lookup for {historical} failed: {error}; candidate retained"));
+                            false
+                        }
+                    }
+                });
+                if !hub {
+                    by_edit.entry(anchor.to_owned()).or_default().push((edited, partner, weight));
+                }
             }
-            coverage.cap(&mut partners, max_partners, "co-change candidate display");
+            for (anchor, mut rows) in by_edit {
+                let label = if anchor.is_empty() { "co-change candidate display".into() }
+                    else { format!("co-change candidate display for {anchor}") };
+                coverage.cap(&mut rows, max_partners, &label);
+                partners.extend(rows);
+            }
 
             let nodes: NodeSnapshot = match snapshot {
                 Some(shared) if shared.len() < crate::handlers::NODE_SCAN_LIMIT => {

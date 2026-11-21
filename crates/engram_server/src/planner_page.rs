@@ -94,9 +94,9 @@ pub(crate) fn evidence(tool: &str, body: &str) -> String {
             let sections: Vec<_> = body.split("\n## ").flat_map(|s| s.split("\n# ")).collect();
             for title in [
                 "Method:",
+                "Ordered source observations",
                 "Called By",
                 "Database Tables",
-                "Ordered source observations",
                 "Consumer call paths",
                 "Calls",
                 "Full Source",

@@ -39,24 +39,44 @@ pub(super) fn finish(
     budget: usize,
 ) -> Result<String, McpError> {
     let original = if output_json {
-        serde_json::to_string(
+        std::borrow::Cow::Owned(serde_json::to_string(
             &json!({"schema_version":1,"advisory":true,"summary":summary,"report_markdown":body}),
-        )
-        .map_err(|error| McpError::internal_error(error.to_string(), None))?
+        ).map_err(|error| McpError::internal_error(error.to_string(), None))?)
     } else {
-        body
+        std::borrow::Cow::Borrowed(body.as_str())
     };
     if original.len() <= budget {
-        return Ok(original);
+        return Ok(original.into_owned());
     }
     let id = blake3::hash(original.as_bytes()).to_hex().to_string();
-    let manifest = json!({"summary":super::edit_session_maintenance::compact_summary(&summary),"advisory":true,"report_content":"DEFERRED_NOT_SUPPLIED",
+    let mut manifest = json!({"summary":super::edit_session_maintenance::compact_summary(&summary),"advisory":true,"report_content":"DEFERRED_NOT_SUPPLIED",
         "response_delivery":{"status":"DEFERRED_EDIT_WORKFLOW","complete":false,"response_id":id,
             "original_bytes":original.len(),"original_format":if output_json {"json"} else {"markdown"},
             "response_budget_bytes":budget,"estimate":"ceil(UTF-8 reply-text bytes/4); not provider tokens or transport envelope bytes",
             "instruction":"Recover the complete immutable report before acting on its findings, coverage, policy or freshness. Recovery does not rerun analysis, open a session or complete it again. Lifecycle metadata is not approval or current-source certification.",
             "retention":"At most24hours or32newer snapshots for this project/tool",
             "next_call":snapshots::edit_report_continuation(kind,project,&id,0,budget)}});
+    if matches!(kind, EditReport::Completeness) {
+        let mut preview = String::new();
+        manifest["report_content"] = json!("PARTIAL_FIRST_PAGE");
+        manifest["first_page"] = json!("");
+        let wrapper = if output_json { 0 } else { "# Edit workflow: deferred report\n\n```json\n\n```\n".len() };
+        let mut remaining = budget.saturating_sub(manifest.to_string().len() + wrapper).min(8192);
+        for line in body.split_inclusive('\n').take(48) {
+            if line.starts_with("## House conventions") || line.starts_with("## Coverage") { break; }
+            // JSON string quotes are already included in the empty field.
+            let bytes = json!(line).to_string().len() - 2;
+            if bytes > remaining { break; }
+            preview.push_str(line);
+            remaining -= bytes;
+        }
+        if preview.is_empty() {
+            manifest.as_object_mut().unwrap().remove("first_page");
+            manifest["report_content"] = json!("DEFERRED_NOT_SUPPLIED");
+        } else {
+            manifest["first_page"] = json!(preview);
+        }
+    }
     let encoded = serde_json::to_string(&manifest)
         .map_err(|error| McpError::internal_error(error.to_string(), None))?;
     let reply = if output_json {
@@ -177,7 +197,8 @@ mod tests {
             .unwrap();
             assert!(reply.len() <= 2048);
             let packet = manifest(&reply, output_json);
-            assert_eq!(packet["report_content"], "DEFERRED_NOT_SUPPLIED");
+            assert_eq!(packet["report_content"], "PARTIAL_FIRST_PAGE");
+            assert!(packet["first_page"].as_str().unwrap().contains("INCOMPLETE coverage"));
             let id = packet["response_delivery"]["response_id"].as_str().unwrap();
             assert!(
                 recover(

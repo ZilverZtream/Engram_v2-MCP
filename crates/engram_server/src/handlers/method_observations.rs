@@ -23,6 +23,29 @@ pub(super) struct Observations<'a> {
 impl<'a> Observations<'a> {
     pub(super) fn new(body: &'a str, start: usize) -> Self {
         let mut rows = BTreeMap::new();
+        // A database context type in the declaration establishes this boundary.
+        static DB_PARAMETER: LazyLock<Regex> = LazyLock::new(|| Regex::new(
+            r"(?ix)^(?:(?:optional|byval|byref|ref|in|out)\s+)*(?: (?P<vb>\w+)\s+as\s+(?:[\w.]*\.)?\w*(?:datacontext|dbcontext)\b | (?:[\w.]*\.)?\w*(?:datacontext|dbcontext)\b\??\s+(?P<cs>\w+)\b )"
+        ).unwrap());
+        let mut declaration = String::new();
+        for line in body.lines().take(16) {
+            declaration.push_str(line.trim().trim_end_matches(" _"));
+            declaration.push(' ');
+            if !declaration.contains('(') || declaration.matches('(').count() <= declaration.matches(')').count() {
+                break;
+            }
+        }
+        for parameter in arguments(&declaration) {
+            if let Some(m) = DB_PARAMETER.captures(&parameter) {
+                let name = m.name("vb").or_else(|| m.name("cs")).unwrap().as_str();
+                let boundary = if parameter.contains('=') || parameter.to_ascii_lowercase().starts_with("optional ") {
+                    "When supplied by the caller, preserve its commit boundary."
+                } else {
+                    "The caller supplies this parameter. Preserve its commit boundary."
+                };
+                rows.insert((start, format!("Database context parameter {name}: {boundary} Declaration: {}", short(&parameter))), 7);
+            }
+        }
         for (i, l) in body.lines().enumerate().skip(1).filter(|(_, l)| code(l)) {
             let lower = l.trim().to_lowercase();
             let priority = if WRITE.is_match(l) || ALLOC.is_match(l) || lower.contains(".dispose(")

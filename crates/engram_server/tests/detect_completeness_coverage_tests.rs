@@ -87,6 +87,25 @@ async fn detect(server: &Engram, files: Vec<String>) -> String {
 }
 
 #[tokio::test]
+async fn batch_keeps_each_changed_files_strongest_partner() {
+    let (_tmp, state, server) = fixture();
+    let names = ["Orders.vb", "Orders.sql", "Customers.vb", "Customers.sql"];
+    let nodes: Vec<_> = names.iter().map(|name| node(&format!("file:{name}"), "file", name)).collect();
+    state.graph.upsert_nodes(PID, &nodes).unwrap();
+    state.graph.upsert_edges(PID, &[
+        edge("file:Orders.vb", "file:Orders.sql", EdgeKind::TemporalCoupling),
+        edge("file:Customers.vb", "file:Customers.sql", EdgeKind::TemporalCoupling),
+    ]).unwrap();
+    let request = serde_json::from_value(json!({
+        "project_id":PID, "edited_files":["Orders.vb","Customers.vb"], "max_partners":1
+    })).unwrap();
+    let reply = server.handle_detect_incomplete_changes(request).await.unwrap();
+    let text = &reply.content[0].as_text().unwrap().text;
+    assert!(text.contains("`Orders.sql` (25 co-changes with `Orders.vb`)"));
+    assert!(text.contains("`Customers.sql` (25 co-changes with `Customers.vb`)"));
+}
+
+#[tokio::test]
 async fn root_and_nested_same_basename_are_distinct_current_files() {
     let (_tmp, state, server) = fixture();
     state

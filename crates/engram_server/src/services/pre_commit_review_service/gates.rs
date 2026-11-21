@@ -4814,6 +4814,70 @@ fn severity_for_priority(priority: i32) -> Severity {
     }
 }
 
+pub(crate) fn check_added_lines(df: &DiffFile, checked: &[(&RepoRule, RuleCheck)]) -> Vec<ReviewFinding> {
+    let mut findings = Vec::new();
+    for (rule, check) in checked {
+        if !path_pattern_matches(&rule.file_pattern, &df.path) {
+            continue;
+        }
+        let prose = rule.rule_text.split("[check:").next().unwrap_or("").trim();
+        if let Some(forbid) = &check.forbid {
+            let hits: Vec<usize> = df
+                .added_lines
+                .iter()
+                .filter(|(_, l)| forbid.is_match(l))
+                .map(|(n, _)| *n)
+                .collect();
+            if !hits.is_empty() {
+                let mut f = ReviewFinding::new(
+                    severity_for_priority(rule.priority),
+                    "repo_rules",
+                    df.path.clone(),
+                    format!("Repo rule violated: {}", rule.rule_id),
+                    format!(
+                        "{prose} — added line(s) {:?} match the rule's forbid pattern.",
+                        hits
+                    ),
+                    format!("Rewrite the added line(s) so the rule holds: {prose}"),
+                );
+                f.lines = hits;
+                findings.push(f);
+            }
+        }
+        if let Some(require) = &check.require {
+            let triggered: Vec<usize> = match &check.when {
+                Some(w) => df
+                    .added_lines
+                    .iter()
+                    .filter(|(_, l)| w.is_match(l))
+                    .map(|(n, _)| *n)
+                    .collect(),
+                None => df.added_lines.iter().map(|(n, _)| *n).collect(),
+            };
+            if triggered.is_empty() {
+                continue;
+            }
+            let satisfied = df.added_lines.iter().any(|(_, l)| require.is_match(l));
+            if !satisfied {
+                let mut f = ReviewFinding::new(
+                    severity_for_priority(rule.priority),
+                    "repo_rules",
+                    df.path.clone(),
+                    format!("Repo rule unmet: {}", rule.rule_id),
+                    format!(
+                        "{prose} — the added code triggers the rule at line(s) {:?} but never matches its required pattern.",
+                        triggered
+                    ),
+                    format!("Add what the rule requires: {prose}"),
+                );
+                f.lines = triggered;
+                findings.push(f);
+            }
+        }
+    }
+    findings
+}
+
 impl Gate for RepoRuleGate {
     fn name(&self) -> &'static str {
         "repo_rules"
@@ -4864,65 +4928,7 @@ impl Gate for RepoRuleGate {
                     ]),
                 );
             }
-            for (rule, check) in &checked {
-                if !path_pattern_matches(&rule.file_pattern, &df.path) {
-                    continue;
-                }
-                let prose = rule.rule_text.split("[check:").next().unwrap_or("").trim();
-                if let Some(forbid) = &check.forbid {
-                    let hits: Vec<usize> = df
-                        .added_lines
-                        .iter()
-                        .filter(|(_, l)| forbid.is_match(l))
-                        .map(|(n, _)| *n)
-                        .collect();
-                    if !hits.is_empty() {
-                        let mut f = ReviewFinding::new(
-                            severity_for_priority(rule.priority),
-                            "repo_rules",
-                            df.path.clone(),
-                            format!("Repo rule violated: {}", rule.rule_id),
-                            format!(
-                                "{prose} — added line(s) {:?} match the rule's forbid pattern.",
-                                hits
-                            ),
-                            format!("Rewrite the added line(s) so the rule holds: {prose}"),
-                        );
-                        f.lines = hits;
-                        findings.push(f);
-                    }
-                }
-                if let Some(require) = &check.require {
-                    let triggered: Vec<usize> = match &check.when {
-                        Some(w) => df
-                            .added_lines
-                            .iter()
-                            .filter(|(_, l)| w.is_match(l))
-                            .map(|(n, _)| *n)
-                            .collect(),
-                        None => df.added_lines.iter().map(|(n, _)| *n).collect(),
-                    };
-                    if triggered.is_empty() {
-                        continue;
-                    }
-                    let satisfied = df.added_lines.iter().any(|(_, l)| require.is_match(l));
-                    if !satisfied {
-                        let mut f = ReviewFinding::new(
-                            severity_for_priority(rule.priority),
-                            "repo_rules",
-                            df.path.clone(),
-                            format!("Repo rule unmet: {}", rule.rule_id),
-                            format!(
-                                "{prose} — the added code triggers the rule at line(s) {:?} but never matches its required pattern.",
-                                triggered
-                            ),
-                            format!("Add what the rule requires: {prose}"),
-                        );
-                        f.lines = triggered;
-                        findings.push(f);
-                    }
-                }
-            }
+            findings.extend(check_added_lines(df, &checked));
         }
         Ok(findings)
     }

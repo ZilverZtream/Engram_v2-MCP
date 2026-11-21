@@ -22,6 +22,17 @@ use crate::services::quality_source::{self, SourceReceipt};
 
 const QG_NAMESPACE: &str = "quality_gate";
 
+/// A single hunk can inherit the path supplied alongside it.
+fn audit_diff(code: &str, path: Option<&str>) -> Vec<crate::services::pre_commit_review_service::DiffFile> {
+    use crate::services::pre_commit_review_service::parse_unified_diff;
+    if code.starts_with("@@ ") && let Some(path) = path {
+        let mut files = parse_unified_diff(&format!("diff --git a/input b/input\n{code}"));
+        if let Some(file) = files.first_mut() { file.path = path.to_owned(); }
+        return files;
+    }
+    parse_unified_diff(code)
+}
+
 /// The import and lifecycle preflight share precisely the same promotion gate.
 pub(crate) const SOURCE_PROMOTION_LIMIT: usize = 20;
 pub(crate) fn source_promotion_candidate(rule: &QualityRule, source: QualitySource) -> bool {
@@ -403,9 +414,27 @@ impl Engram {
         let code = resolve_audit_input(&req, std::path::Path::new(&ps.info.directory))?;
         let retrieved = async {
         let mut input_binding = format!("Input: {} bytes, BLAKE3 {} ({}).\n",code.len(),blake3::hash(code.as_bytes()).to_hex(),if req.diff_file.is_some(){"project-relative file"}else{"inline"});
-        let audit_paths = req.file_path.as_deref().map(|path| [path]);
-        match quality_source::effective_repo_rules(&self.state, &req.project_id, audit_paths.as_ref().map(|paths| paths.as_slice())) {
-            Ok(effective) => for note in effective.notes { input_binding.push_str(&format!("{note}\n")); },
+        use crate::services::pre_commit_review_service::gates::{check_added_lines, parse_rule_check};
+        let diff = audit_diff(&code, req.file_path.as_deref());
+        let mut paths: Vec<&str> = diff.iter().map(|file| file.path.as_str()).collect();
+        if paths.is_empty() { paths.extend(req.file_path.as_deref()); }
+        match quality_source::effective_repo_rules(&self.state, &req.project_id, (!paths.is_empty()).then_some(paths.as_slice())) {
+            Ok(effective) => {
+                if !diff.is_empty() {
+                    let checked: Vec<_> = effective.rules.iter().filter_map(|r|
+                        parse_rule_check(&r.rule_text).map(|check| (r, check))).collect();
+                    let mut count = 0;
+                    for file in &diff {
+                        for finding in check_added_lines(file, &checked) {
+                            count += 1;
+                            input_binding.push_str(&format!("- {} at {} {:?}. {}\n",
+                                finding.title, finding.file_path, finding.lines, finding.suggestion));
+                        }
+                    }
+                    input_binding.push_str(&format!("Executable repository rules: {} available; {count} findings on added lines. Prose rules require source review.\n", checked.len()));
+                }
+                for note in effective.notes { input_binding.push_str(&format!("{note}\n")); }
+            }
             Err(error) => input_binding.push_str(&format!("INCOMPLETE policy coverage: {error}\n")),
         }
         if self.state.registry.get_meta(&req.project_id, quality_source::CORPUS_REVISION)
@@ -423,7 +452,7 @@ impl Engram {
             };
         if rules_total == 0 && count_failure.is_none() {
             return Ok(CallToolResult::success(vec![Content::text(format!(
-                "{input_binding}Retrieval sampling: NOT RUN (empty corpus).\nPre-push audit: INACTIVE - 0 quality-gate rules are ingested; NOTHING was checked. Configure reviewed sources with ingest_quality_gates and re-run; until then this provider supplies no rule evidence."
+                "{input_binding}Retrieval sampling: NOT RUN (empty corpus).\nPre-push audit: INACTIVE - 0 quality-gate rules are ingested; NOTHING was checked by this provider. Configure reviewed sources with ingest_quality_gates and re-run; until then this provider supplies no rule evidence."
             ))]));
         }
         let sampled = crate::utils::text::audit_code_query(&code);
@@ -485,6 +514,30 @@ impl Engram {
         let mut out = String::from(
             "# Pre-push audit — verify the change against these known quality-gate rules\n\n",
         );
+        // Link exact API names in the retrieved prose to added lines.
+        static MEMBER_CALL: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(||
+            regex::Regex::new(r"\.\s*([A-Za-z_]\w{2,})\s*\(").unwrap());
+        let mut anchors = Vec::new();
+        'files: for file in &diff {
+            for (line, source) in &file.added_lines {
+                for cap in MEMBER_CALL.captures_iter(source) {
+                    let name = &cap[1];
+                    let rule = hits.iter().position(|h| h.snippet.as_deref().is_some_and(|snippet|
+                        snippet.split(|c: char| !c.is_alphanumeric() && c != '_')
+                            .any(|word| word.eq_ignore_ascii_case(name))));
+                    if let Some(index) = rule {
+                        let row = format!("- {}:{}  {}() occurs in retrieved rule #{}\n", file.path, line, name, index + 1);
+                        if !anchors.contains(&row) { anchors.push(row); }
+                    }
+                    if anchors.len() == 8 { break 'files; }
+                }
+            }
+        }
+        if !anchors.is_empty() {
+            out.push_str("Added-line review locations (text matches, inspect applicability):\n");
+            for anchor in anchors { out.push_str(&anchor); }
+            out.push('\n');
+        }
         out.push_str(&sampling);
         out.push_str(
             "Each is a rule/finding the team has flagged before (coding rules, copilot-instructions, \
@@ -510,7 +563,7 @@ impl Engram {
         let mut verifier = quality_source::SourceVerifier::new(
             &self.state, &req.project_id, std::path::Path::new(&ps.info.directory),
         );
-        for h in &hits {
+        for (index, h) in hits.iter().enumerate() {
             let p = h.path.as_str().to_ascii_lowercase();
             let status = match ps.search.get_doc_by_doc_id(&req.project_id, QG_NAMESPACE, gen_, &h.doc_id) {
                 Ok(Some((_, _, content, _, _))) => verifier.document_status(&h.doc_id, &content),
@@ -520,10 +573,10 @@ impl Engram {
                 "Evidence status"
             } else { "INCOMPLETE policy coverage; advisory evidence only" };
             let line = format!(
-                "- [{}] Search excerpt (not the full rule): {}\n  {coverage}: {status}\n  full_rule: get_chunk({})",
+                "- [{}] Search excerpt (not the full rule): {}\n  {coverage}: {status}\n  full_rule: get_chunk({}) (rule #{})",
                 h.path.as_str(),
                 h.snippet.as_deref().unwrap_or("").trim(),
-                serde_json::json!({"project_id":req.project_id,"doc_id":h.doc_id,"namespace":QG_NAMESPACE})
+                serde_json::json!({"project_id":req.project_id,"doc_id":h.doc_id,"namespace":QG_NAMESPACE}), index + 1
             );
             if scope.as_ref().is_some_and(|s| p.contains(s.as_str())) {
                 scoped.push(line);
