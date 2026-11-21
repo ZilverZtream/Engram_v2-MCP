@@ -159,7 +159,7 @@ impl Sites {
         }
         Self { methods, source }
     }
-    pub(super) fn witness(&self, df: &DiffFile, line: usize) -> Option<String> {
+    pub(super) fn witness(&self, df: &DiffFile, line: usize) -> Option<Vec<String>> {
         let current = self.source.get(&df.path)?.get(line.checked_sub(1)?)?;
         if !df
             .added_lines
@@ -177,8 +177,12 @@ impl Sites {
             .iter()
             .find(|at| **at >= line && target.same_block(line, **at))
         {
-            return Some(format!("{}:{line} -> audit at {}:{at}", df.path, df.path));
+            return Some(vec![format!(
+                "{}:{line} -> audit at {}:{at}",
+                df.path, df.path
+            )]);
         }
+        let mut paths = BTreeSet::new();
         let mut frontier = vec![(target, format!("{}:{}", df.path, line))];
         for _ in 0..2 {
             let mut next = Vec::new();
@@ -197,7 +201,8 @@ impl Sites {
                         .iter()
                         .find(|n| *n > at && caller.same_block(*at, **n))
                     {
-                        return Some(format!("{path} -> audit at {}:{log}", caller.file));
+                        paths.insert(format!("{path} -> audit at {}:{log}", caller.file));
+                        continue;
                     }
                     for (at, name) in caller
                         .calls
@@ -209,14 +214,20 @@ impl Sites {
                             .iter()
                             .find(|m| !m.audits.is_empty() && calls_target(caller, name, m))
                         {
-                            return Some(format!(
+                            paths.insert(format!(
                                 "{path} -> {}:{at} -> audit at {}:{}",
                                 caller.file, helper.file, helper.audits[0]
                             ));
+                            break;
                         }
                     }
-                    next.push((caller, path));
+                    if paths.is_empty() && next.len() < 64 {
+                        next.push((caller, path));
+                    }
                 }
+            }
+            if !paths.is_empty() {
+                return Some(paths.into_iter().take(8).collect());
             }
             frontier = next;
         }

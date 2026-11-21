@@ -1349,7 +1349,7 @@ impl Gate for AuditGate {
                 let mut witnesses=BTreeSet::new();
                 mutations.retain(|(line,_)| {
                     if let Some(witness)=call_sites.witness(df,*line) {
-                        covered.push(*line);witnesses.insert(witness);false
+                        covered.push(*line);witnesses.extend(witness);false
                     } else {true}
                 });
                 if !covered.is_empty() {
