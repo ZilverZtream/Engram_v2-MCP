@@ -28,7 +28,7 @@ pub(super) fn finish(req: &PreCommitReviewRequest, data: &Path, body: String, re
     let coverage = &report["coverage"];
     let count = |key: &str| coverage[key].as_array().map(Vec::len);
     let mut manifest = json!({
-        "verdict":report["verdict"],"summary":report["summary"],"finding_ledger":ledger,
+        "verdict":report["verdict"],"summary":report["summary"],"finding_ledger":ledger,"mode":report["mode"],"file_observation_count":report["summary"]["file_observations"],
         "gate_status":report["gate_status"],
         "instruction_maintenance_context":super::maintenance_context::summary(&report["instruction_maintenance_context"]),
         "coverage":{

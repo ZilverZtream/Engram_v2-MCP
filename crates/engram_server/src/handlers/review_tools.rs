@@ -236,10 +236,16 @@ impl Engram {
         let (generation, source_view) = self.pin_active_source_generation(
             &req.project_id, &source_runtime.search).await?;
         let source_view = std::sync::Arc::new(source_view);
+        let mut skip_gates:std::collections::HashSet<_>=req.skip_gates.iter().cloned().collect();
+        match req.mode.as_deref().unwrap_or("full") {
+            "full"=>{},
+            "fast"=>skip_gates.extend(["blast_radius","antipattern","product_intent","temporal","immune"].map(str::to_owned)),
+            _=>return Err(McpError::invalid_params("mode must be full or fast",None)),
+        }
         let config = ReviewConfig {
             max_findings: req.max_findings.clamp(1, 200),
             min_severity,
-            skip_gates: req.skip_gates.iter().cloned().collect(),
+            skip_gates,
             output_json: req.output_json,
         };
 
@@ -397,6 +403,15 @@ impl Engram {
         if let Some(patch) = &reviewed_patch {
             payload["reviewed_patch"] = patch.clone();
         }
+        // File-wide similarities and historical associations carry no source
+        // location. Keep their severity and evidence available outside the line ledger.
+        let (line_rows,file_rows):(Vec<_>,Vec<_>)=payload["findings"].as_array().into_iter().flatten().cloned()
+            .partition(|f| f["lines"].as_array().is_some_and(|lines|!lines.is_empty()));
+        payload["summary"]["line_findings"]=line_rows.len().into();
+        payload["summary"]["file_observations"]=file_rows.len().into();
+        payload["findings"]=line_rows.into();
+        payload["file_observations"]=file_rows.into();
+        payload["mode"]=req.mode.as_deref().unwrap_or("full").into();
         finding_context::annotate(&mut payload);
         let source_qualification = if changed_during_review || snapshot_unavailable {
             Some("source or staging snapshot changed or unavailable")
@@ -417,6 +432,7 @@ impl Engram {
             serde_json::to_string_pretty(&payload)
                 .map_err(|e| McpError::internal_error(format!("json render: {e}"), None))?
         } else {
+            let (findings,file_observations):(Vec<_>,Vec<_>)=findings.into_iter().partition(|f|!f.lines.is_empty());
             let compact = req.detail_level.eq_ignore_ascii_case("compact");
             let mut report = if compact {
                 render_compact_markdown(
@@ -429,6 +445,13 @@ impl Engram {
             } else {
                 render_markdown(&findings, files_analysed, gates_run, elapsed_ms, &outcomes)
             };
+            if !file_observations.is_empty() && payload["verdict"]!="green" {
+                report=format!("Overall review verdict: {} (includes file-level observations).\n\n{report}",payload["verdict"].as_str().unwrap_or("unavailable"));
+            }
+            if !file_observations.is_empty() {
+                report.push_str("\n## File-level observations\n");
+                for f in file_observations {report.push_str(&format!("- {} [{}] {} - {}\n",f.file_path,f.gate,f.title,f.detail));}
+            }
             report.push_str(&scope_note);
             if let Some(patch) = &reviewed_patch {
                 report.push_str(&format!("\n\n## Submitted patch recovery\n\n{patch}\n"));

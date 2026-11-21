@@ -19,7 +19,7 @@ const INLINE: Check = Check {
         "if",
         "single-line|one-line|single line|one line|multi-line|multiline",
     ],
-    message: "A single-line If returns here. Expand it into an If block.",
+    message: "A single-line If exits here. Expand it into an If block.",
 };
 const RESOURCE: Check = Check {
     key: "vb.context-lifetime",
@@ -73,13 +73,56 @@ const UI: Check = Check {
     key: "ui.literal",
     query: "hardcoded user facing UI strings localization resources",
     terms: &["hardcod|hard-cod|literal", "localiz|resourc|translat"],
-    message: "An English string is passed directly to a UI text setter.",
+    message: "A literal display string is passed directly to a UI operation.",
 };
 const AJAX: Check = Check {
     key: "js.ajax-error",
     query: "ajax error callback failure handler",
     terms: &["ajax", "error|failure", "callback|handler"],
-    message: "The positional AJAX call supplies a success callback and omits the error callback.",
+    message: "This AJAX call has no observed failure handler.",
+};
+
+const MATERIALIZE: Check = Check {
+    key: "linq.filter-after-materialization",
+    query: "materialize whole table before filtering ToList Where database",
+    terms: &["materializ|tolist", "filter|where"],
+    message: "The predicate runs after materialization. Apply the filter to the query before reading the rows.",
+};
+const NOTHING: Check = Check {
+    key: "vb.nothing-comparison",
+    query: "Nothing reference equality Is Nothing value comparison VB",
+    terms: &["nothing", "reference|is nothing"],
+    message: "This reference is compared to Nothing by value. Use Is Nothing or IsNot Nothing.",
+};
+const RATIO: Check = Check {
+    key: "vb.integer-ratio",
+    query: "integer division ratio percentage Double Decimal operand truncation",
+    terms: &["division|divid", "ratio|percent|truncat"],
+    message: "Integer division truncates the ratio before scaling. Use floating-point or decimal division before rounding.",
+};
+const MODAL: Check = Check {
+    key: "ui.modal-body",
+    query: "modal-open document body modal dialog scroll lock lifecycle",
+    terms: &["modal", "modal-open"],
+    message: "The dialog is shown without an observed body modal-open update in this change. Verify the open lifecycle.",
+};
+const POPOVER: Check = Check {
+    key: "ui.dynamic-popover-html",
+    query: "popover html content untrusted escape sanitize XSS",
+    terms: &["popover|tooltip", "html", "escap|sanit|xss|untrusted|encod"],
+    message: "HTML mode inserts a composed value into popover content. Use text mode or explicitly encode the value.",
+};
+const TRANSPORT: Check = Check {
+    key: "js.raw-ajax",
+    query: "raw jQuery ajax wrapper api.ajax serviceajax requests",
+    terms: &["ajax", "wrapper|serviceajax|raw jquery|api.ajax"],
+    message: "This change uses the raw jQuery transport. Check the project's request wrapper.",
+};
+const RAW_ALERT: Check = Check {
+    key: "js.raw-alert",
+    query: "raw alert debug dialogs avoid alert()",
+    terms: &["alert", "raw|debug|avoid|never"],
+    message: "A raw browser alert was added.",
 };
 
 type Observation<'a> = (usize, &'a Check);
@@ -128,6 +171,44 @@ fn javascript(lines: &[(usize, String)], out: &mut Vec<Observation<'static>>) {
         if ["//", "/*", "*"].iter().any(|p| code.starts_with(p)) {
             continue;
         }
+        static SHOW: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r#"(?i)\b[\w.$]*(?:modal|dialog)[\w.$]*\.classList\.remove\(\s*["']hidden["']\s*\)"#).unwrap()
+        });
+        static ALERT: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"^(?:window\.)?alert\s*\(").unwrap());
+        static LITERAL_ARG: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r#"^\s*["'][A-Za-z][^"']*["']\s*\)"#).unwrap());
+        static HTML: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r#"(?i)\bhtml\s*:\s*true\b"#).unwrap());
+        static DYNAMIC: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r#"(?is)\bcontent\s*:\s*(?:["'][^"']*["']\s*\+\s*[\w$(]|[\w$.]+\s*\+\s*["']|\x60[^\x60]*\$\{)"#).unwrap()
+        });
+        if SHOW.is_match(code)
+            && !lines.iter().any(|(_, l)| {
+                l.contains("modal-open") && (l.contains(".add(") || l.contains(".addClass("))
+            })
+        {
+            out.push((*n, &MODAL));
+        }
+        if let Some(m) = ALERT.find(code) {
+            out.push((*n, &RAW_ALERT));
+            if LITERAL_ARG.is_match(&code[m.end()..]) {
+                out.push((*n, &UI));
+            }
+        }
+        if let Some((_, tail)) = code.split_once(".popover(") {
+            let text = std::iter::once(tail)
+                .chain(lines[i + 1..].iter().take(25).map(|(_, s)| s.as_str()))
+                .collect::<Vec<_>>()
+                .join("\n");
+            if let Some(args) = arguments(&text)
+                && let Some(opts) = args.first()
+                && HTML.is_match(opts)
+                && DYNAMIC.is_match(opts)
+            {
+                out.push((*n, &POPOVER));
+            }
+        }
         if BARE.is_match(code) {
             out.push((*n, &EVENT));
         }
@@ -147,6 +228,24 @@ fn javascript(lines: &[(usize, String)], out: &mut Vec<Observation<'static>>) {
             for (_, next) in lines.iter().skip(i + 1).take(18) {
                 call.push('\n');
                 call.push_str(next);
+            }
+            if code.contains("$.ajax(") || code.contains("jQuery.ajax(") {
+                out.push((*n, &TRANSPORT));
+                static ERROR_OPTION: LazyLock<Regex> =
+                    LazyLock::new(|| Regex::new(r#"(?:^|[,{\s])["']?error["']?\s*:"#).unwrap());
+                if let Some(args) = arguments(&call)
+                    && let Some(options) = args.iter().find(|a| a.starts_with('{'))
+                    && !ERROR_OPTION.is_match(options)
+                {
+                    // Only the continuation of this request can supply its failure handler.
+                    let chain = call.split_once(*options).map_or("", |(_, rest)| {
+                        rest.trim_start().trim_start_matches(')').trim_start()
+                    });
+                    let chain = chain.split(';').next().unwrap_or("");
+                    if !chain.contains(".fail(") && !chain.contains(".catch(") {
+                        out.push((*n, &AJAX));
+                    }
+                }
             }
             if arguments(&call).is_some_and(|args| {
                 args.len() == 4 && (args[3].contains("=>") || args[3].contains("function"))
@@ -180,7 +279,41 @@ fn vb(lines: &[(usize, String)], out: &mut Vec<Observation<'static>>) {
         .collect();
     for (i, (n, _)) in lines.iter().enumerate() {
         let s = code[i].as_str();
-        if s.starts_with("if ") && s.contains(" then return") {
+        static INLINE_EXIT: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"^if\b.+\bthen\s+(?:return\b|exit\s+(?:sub|function)\b)").unwrap()
+        });
+        static FILTER: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"\.(?:tolist|toarray)\s*\(\s*\)\s*\.\s*where\s*\(").unwrap()
+        });
+        static PERCENT: LazyLock<Regex> =
+            LazyLock::new(|| Regex::new(r"\\\s*[\w.]+\s*\)?\s*\*\s*(?:100|1000)\b").unwrap());
+        static VALUE_NULL: LazyLock<Regex> = LazyLock::new(|| {
+            Regex::new(r"\b(?:if|elseif|orelse|andalso)\s+\(?\s*(\w+)\s*(?:=|<>)\s*nothing\b")
+                .unwrap()
+        });
+        if FILTER.is_match(s) {
+            out.push((*n, &MATERIALIZE));
+        }
+        if PERCENT.is_match(s) {
+            out.push((*n, &RATIO));
+        }
+        if let Some(m) = VALUE_NULL.captures(s) {
+            let var = &m[1];
+            let binding = code[..i]
+                .iter()
+                .rev()
+                .take_while(|l| !l.starts_with("end function") && !l.starts_with("end sub"))
+                .find(|l| l.contains(&format!("dim {var} ")) || l.contains(&format!("{var} as ")));
+            if binding.is_some_and(|l| {
+                LOOKUP.is_match(l)
+                    || [" as string", " as object", " as new ", " = new "]
+                        .iter()
+                        .any(|ty| l.contains(ty))
+            }) {
+                out.push((*n, &NOTHING));
+            }
+        }
+        if INLINE_EXIT.is_match(s) {
             out.push((*n, &INLINE));
         }
         if let Some(m) = CTX.captures(s) {
@@ -194,7 +327,8 @@ fn vb(lines: &[(usize, String)], out: &mut Vec<Observation<'static>>) {
         if let Some(m) = LOOKUP.captures(s) {
             let name = &m[1];
             for (j, l) in code.iter().enumerate().skip(i + 1) {
-                if l.contains(&format!("{name} is nothing"))
+                if VALUE_NULL.captures(l).is_some_and(|m| &m[1] == name)
+                    || l.contains(&format!("{name} is nothing"))
                     || l.contains(&format!("{name} isnot nothing"))
                     || l.contains(&format!("{name}?."))
                     || l.starts_with("end function")
@@ -253,14 +387,57 @@ fn vb(lines: &[(usize, String)], out: &mut Vec<Observation<'static>>) {
         }
     }
 }
-pub(super) fn review(
+pub(crate) struct LineFinding {
+    pub path: String,
+    pub line: usize,
+    pub key: &'static str,
+    pub message: &'static str,
+    pub source: String,
+}
+impl LineFinding {
+    pub(super) fn render(&self) -> String {
+        format!(
+            "- {}:{} [{}] {} Rule source: {}",
+            self.path, self.line, self.key, self.message, self.source
+        )
+    }
+}
+pub(crate) fn query(project: &str, generation: u64, text: String, top_k: usize) -> HybridQuery {
+    HybridQuery {
+        project_id: project.to_owned(),
+        namespace: "quality_gate".to_owned(),
+        generation,
+        text,
+        top_k,
+        fts_mode: "loose".into(),
+        include_path_prefixes: None,
+        exclude_path_prefixes: None,
+        include_path_suffixes: None,
+        language_filters: None,
+        author_filter: None,
+        date_after: None,
+        date_before: None,
+        use_mmr: true,
+    }
+}
+
+pub(crate) fn review(
     files: &[DiffFile],
     engine: &HybridSearchEngine,
     query: &HybridQuery,
     verifier: &mut crate::services::quality_source::SourceVerifier<'_>,
-) -> Vec<String> {
+    root: &std::path::Path,
+) -> Vec<LineFinding> {
     let mut results = Vec::new();
     let mut rules = BTreeMap::new();
+    let guides: Vec<_> = ["CLAUDE.md", ".github/copilot-instructions.md", "AGENTS.md"]
+        .into_iter()
+        .filter_map(|p| {
+            engram_core::safe_read_to_string(root, p)
+                .ok()
+                .map(|text| (p, text))
+        })
+        .collect();
     for file in files {
         let ext = file
             .path
@@ -291,6 +468,33 @@ pub(super) fn review(
         found.dedup_by_key(|(n, check)| (*n, check.key));
         for (n, check) in found {
             let evidence = rules.entry(check.key).or_insert_with(|| {
+                let matches_policy = |text: &str| {
+                    check
+                        .terms
+                        .iter()
+                        .all(|group| group.split('|').any(|term| text.contains(term)))
+                };
+                for (path, text) in &guides {
+                    if let Some((i, line)) = text.lines().enumerate().find(|(_, l)| {
+                        let l = l.trim_start_matches([' ', '-']).to_ascii_lowercase();
+                        !l.starts_with('"')
+                            && matches_policy(&l)
+                            && match check.key {
+                                "vb.nothing-comparison" => {
+                                    l.contains("= nothing") && l.contains("reference")
+                                }
+                                "ui.modal-body" => l.contains("modal-open") && l.contains("hidden"),
+                                "js.raw-ajax" => l.contains("$.ajax") && l.contains("use"),
+                                _ => false,
+                            }
+                    }) {
+                        return Some(format!(
+                            "{path}:{} - {}",
+                            i + 1,
+                            line.trim().chars().take(230).collect::<String>()
+                        ));
+                    }
+                }
                 let mut targeted = query.clone();
                 targeted.text = check.query.into();
                 targeted.top_k = 20;
@@ -336,12 +540,47 @@ pub(super) fn review(
                     .map(|(_, (_, rule))| rule)
             });
             if let Some(source) = evidence {
-                results.push(format!(
-                    "- {}:{} [{}] {} Rule source: {}",
-                    file.path, n, check.key, check.message, source
-                ));
+                results.push(LineFinding {
+                    path: file.path.clone(),
+                    line: n,
+                    key: check.key,
+                    message: check.message,
+                    source: source.clone(),
+                });
             }
         }
     }
     results
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    fn lines(s: &str) -> Vec<(usize, String)> {
+        s.lines()
+            .enumerate()
+            .map(|(i, l)| (i + 1, l.into()))
+            .collect()
+    }
+    #[test]
+    fn clean_owned_context_and_null_check_do_not_raise_findings() {
+        let diff = lines(
+            "Public Shared Function UpdateRecord(id As Integer, Optional db As StoreDataContext = Nothing) As Boolean\nTry\nUsing ctx As New StoreDataContextEx.ReuseOrCreate(db)\nDim row = ctx.Db.Items.FirstOrDefault(Function(r) r.Id = id)\nIf row Is Nothing Then\nReturn False\nEnd If\nrow.Note = notes\nctx.SubmitWhenOwned()\nAuditLog.Create(id)\nReturn True\nEnd Using\nCatch ex As Exception\nLogError(ex)\nReturn False\nEnd Try\nEnd Function",
+        );
+        let mut out = Vec::new();
+        vb(&diff, &mut out);
+        assert!(out.is_empty());
+    }
+    #[test]
+    fn incorrect_guard_is_located_at_comparison() {
+        let mut out = Vec::new();
+        vb(
+            &lines(
+                "Dim record = rows.SingleOrDefault()\nIf record = Nothing Then Exit Sub\nrecord.Enabled = True",
+            ),
+            &mut out,
+        );
+        assert!(out.iter().any(|(n, c)| *n == 2 && c.key == NOTHING.key));
+        assert!(!out.iter().any(|(_, c)| c.key == NULL.key));
+    }
 }

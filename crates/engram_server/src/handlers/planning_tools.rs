@@ -14101,6 +14101,16 @@ impl Engram {
                 let signature = indexed_declaration.map_or(signature, String::as_str).to_ascii_lowercase();
                 if signature.split_whitespace().any(|w| matches!(w, "property" | "get" | "set"))
                     || node.name.rsplit('.').next().is_some_and(|n| n.starts_with("get_") || n.starts_with("set_")) { continue; }
+                if path.ends_with(".ts") || path.ends_with(".js") || path.ends_with(".tsx") {
+                    let name=node.name.rsplit('.').next().unwrap_or(&node.name);
+                    static HANDLER: std::sync::LazyLock<regex::Regex>=std::sync::LazyLock::new(||regex::Regex::new(r"(?i)\.on[a-z]+\s*=\s*(?:async\s*)?(?:function\b|\([^)]*\)\s*=>|[\w$]+\s*=>)").unwrap());
+                    if name.eq_ignore_ascii_case("constructor") || HANDLER.is_match(&signature) {continue;}
+                    if let Some(Some(lines))=declarations.get(path) {
+                        let member=format!(".{name}");
+                        if lines.iter().any(|line|line.split_once(&member).is_some_and(|(_,tail)|
+                            tail.trim_start().starts_with(['(', ';',',',')']))) {continue;}
+                    }
+                }
                 let kind = full_mig::classify_method_kind_pub(&node.name, &node_meta_csv(node, "effects"), &node.metadata).to_string();
                 let has_handles = !node_meta_csv(node, "handles_clause").is_empty();
                 // Only zero vs nonzero is needed: extra callers cannot change

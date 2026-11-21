@@ -4879,6 +4879,10 @@ pub struct PreCommitReviewRequest {
     /// `"style"`). Default `"style"` (include everything).
     #[serde(default = "default_min_severity")]
     pub min_severity: String,
+    /// Use fast for an interactive, line-oriented review that skips the impact
+    /// and semantic history searches. Full is the default. Skipped gates are listed.
+    #[serde(default)]
+    pub mode: Option<String>,
     /// Skip specific gates by name — e.g. `["temporal", "audit"]`. Gate
     /// names: `immune`, `blast_radius`, `style`, `temporal`, `state`,
     /// `audit`, `antipattern`, `new_file`, `test_coverage`,

@@ -14,6 +14,7 @@ use regex::Regex;
 use tokio_util::sync::CancellationToken;
 
 mod inherited_guards;
+mod caller_audit;
 
 use engram_core::registry::RepoRule;
 
@@ -1336,12 +1337,29 @@ impl Gate for AuditGate {
             .unwrap_or(&audit_name)
             .to_string();
 
+        let call_sites=caller_audit::Sites::from_review(ctx, &audit_name);
         let mut findings = Vec::new();
         for df in ctx.diff_files {
             if df.is_binary || matches!(df.change_type, ChangeType::Deleted) {
                 continue;
             }
-            let mutations = audit_mutations(df);
+            let mut mutations = audit_mutations(df);
+            if !mutations.is_empty() {
+                let mut covered=Vec::new();
+                let mut witnesses=BTreeSet::new();
+                mutations.retain(|(line,_)| {
+                    if let Some(witness)=call_sites.witness(df,*line) {
+                        covered.push(*line);witnesses.insert(witness);false
+                    } else {true}
+                });
+                if !covered.is_empty() {
+                    findings.push(ReviewFinding::new(Severity::Info,"audit",df.path.clone(),
+                        "Caller-side audit evidence for database mutation",
+                        "A reviewed caller reaches an audit write after calling the mutation method. This source path does not establish coverage of other callers or branches.",
+                        "Keep the observed caller-side audit and verify any additional entry points.")
+                        .with_lines(covered).with_evidence(witnesses.into_iter().collect()));
+                }
+            }
             let mutation_lines: Vec<usize> = mutations.iter().map(|(line, _)| *line).collect();
             let mutation_names: Vec<String> = mutations.into_iter().map(|(_, text)| text).collect();
             if mutation_lines.is_empty() {
@@ -4895,10 +4913,20 @@ impl Gate for RepoRuleGate {
             .iter()
             .filter_map(|r| parse_rule_check(&r.rule_text).map(|c| (r, c)))
             .collect();
-        if checked.is_empty() && configured.len() == 0 {
-            return Ok(Vec::new());
+        let mut findings=Vec::new();
+        if let Some(search)=ctx.state.projects.get(ctx.project_id).map(|p|p.search.clone()) {
+            use crate::handlers::quality_gate_tools::diff_checks;
+            let query=diff_checks::query(ctx.project_id,ctx.generation,String::new(),20);
+            let mut verifier=crate::services::quality_source::SourceVerifier::new(ctx.state,ctx.project_id,ctx.project_dir);
+            for hit in diff_checks::review(ctx.diff_files,&search,&query,&mut verifier,ctx.project_dir) {
+                // The audit gate owns mutation logging and examines caller evidence.
+                if hit.key=="vb.mutation-audit" {continue;}
+                findings.push(ReviewFinding::new(Severity::Warning,"repo_rules",hit.path,
+                    format!("{} at line {}",hit.key,hit.line),hit.message,hit.message)
+                    .with_lines(vec![hit.line]).with_evidence(vec![hit.source]));
+            }
         }
-        let mut findings = Vec::new();
+        if checked.is_empty() && configured.len()==0{return Ok(findings);}
         for df in ctx.diff_files {
             if df.is_binary || matches!(df.change_type, ChangeType::Deleted) {
                 continue;

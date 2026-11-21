@@ -1757,6 +1757,8 @@ fn aggregate_findings_with_omissions(
             .then_with(|| a.title.cmp(&b.title))
     });
 
+    // Within a severity level, concrete lines get the available slots first.
+    findings.sort_by_key(|f|(f.severity,f.lines.is_empty()));
     findings.truncate(max_findings);
     for finding in &findings {
         if let Some(count) = omitted_by_gate.get_mut(finding.gate) {

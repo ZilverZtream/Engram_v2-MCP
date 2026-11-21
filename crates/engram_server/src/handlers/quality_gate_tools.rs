@@ -20,7 +20,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use crate::services::quality_source::{self, SourceReceipt};
 
-mod diff_checks;
+pub(crate) mod diff_checks;
 
 const QG_NAMESPACE: &str = "quality_gate";
 
@@ -482,24 +482,9 @@ impl Engram {
         }
         let query = sampled.query;
         let cancel = tokio_util::sync::CancellationToken::new();
-        let rule_query = HybridQuery {
-                    project_id: req.project_id.clone(),
-                    namespace: QG_NAMESPACE.to_string(),
-                    generation: gen_,
-                    text: query,
-                    top_k,
-                    fts_mode: "loose".into(),
-                    include_path_prefixes: None,
-                    exclude_path_prefixes: None,
-                    include_path_suffixes: None,
-                    language_filters: None,
-                    author_filter: None,
-                    date_after: None,
-                    date_before: None,
-                    use_mmr: true,
-                };
+        let rule_query=diff_checks::query(&req.project_id,gen_,query,top_k);
         let mut verifier = quality_source::SourceVerifier::new(&self.state, &req.project_id, std::path::Path::new(&ps.info.directory));
-        let findings = diff_checks::review(&diff, &ps.search, &rule_query, &mut verifier);
+        let findings = diff_checks::review(&diff, &ps.search, &rule_query, &mut verifier, std::path::Path::new(&ps.info.directory));
         let retrieved = crate::services::rule_retrieval::search(&ps.search, &rule_query, &cancel)
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -531,7 +516,7 @@ impl Engram {
         );
         if !findings.is_empty() {
             out.push_str("## Findings on added lines\n");
-            for finding in findings { out.push_str(&finding); out.push('\n'); }
+            for finding in findings { out.push_str(&finding.render()); out.push('\n'); }
             out.push('\n');
         }
         // Link exact API names in the retrieved prose to added lines.
