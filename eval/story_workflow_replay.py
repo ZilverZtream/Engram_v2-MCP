@@ -222,6 +222,9 @@ def score(repo, parent, fix, scope, observations):
         ranges[path] = [(int(n), int(count or 1)) for n, count in
                         re.findall(r"(?m)^@@ -(\d+)(?:,(\d+))? \+", patch)]
     file_hits, method_hits, documentation_hits = [], [], []
+    # Keep file-level artifacts observable without crediting them as methods.
+    artifact_hits = {"markup": [], "configuration": []}
+
     for site in observations["sites"]:
         if not site["citations"]:
             continue
@@ -229,6 +232,15 @@ def score(repo, parent, fix, scope, observations):
         if path not in ranges:
             continue
         file_hits.append(path)
+        suffix = Path(path).suffix.lower()
+        artifact_kind = ("markup" if suffix in {".ascx", ".aspx", ".master", ".html", ".cshtml", ".vbhtml", ".razor"}
+                         else "configuration" if suffix in {".json", ".toml", ".yaml", ".yml", ".config", ".ini"}
+                         else None)
+        if artifact_kind and any(cite["verified"] and cite["path"] == path and
+                                 any(n <= cite["line"] < n + count for n, count in ranges[path])
+                                 for cite in site["citations"]):
+            if path not in artifact_hits[artifact_kind]:
+                artifact_hits[artifact_kind].append(path)
         doc_line = site.get("documentation_line")
         if doc_line and any(n <= doc_line < n + count for n, count in ranges[path]):
             documentation_hits.append(site["name"])
@@ -240,6 +252,7 @@ def score(repo, parent, fix, scope, observations):
                 method_hits.append(site["name"])
     return dict(changed_paths=files, other_changed_paths=[p for p in all_paths if p not in ranges],
                 ranked_file_hits=file_hits, ranked_method_hits=method_hits, ranked_documentation_line_hits=documentation_hits,
+                ranked_artifact_line_hits=artifact_hits,
                 search_file_hits=list(dict.fromkeys(p for p in observations["search_paths"] if p in ranges)),
                 named_route_file_hits=[p for p in observations["named_routes"]["paths"] if p in ranges],
                 ranked_callee_file_hits=sorted({p for site in observations["sites"] for p in site["callee_paths"] if p in ranges}),

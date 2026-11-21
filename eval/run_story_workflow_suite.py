@@ -21,7 +21,7 @@ from urllib.request import Request, urlopen
 import story_workflow_replay as replay
 
 
-def public_case(entry, workspace):
+def public_case(entry, workspace, title_only=False):
     repository = entry["repository"]
     if not re.fullmatch(r"[\w.-]+/[\w.-]+", repository) or not re.fullmatch(r"[a-f0-9]{40}", entry["fix"]):
         raise ValueError("Expected a GitHub repository and a full commit SHA")
@@ -36,7 +36,7 @@ def public_case(entry, workspace):
     if hashlib.sha256(text.encode()).hexdigest() != entry["story_sha256"]:
         raise ValueError(f"The original issue changed: {repository}#{issue}")
     story = workspace / "issue.txt"
-    story.write_bytes(text.encode())
+    story.write_bytes((data["title"].strip() if title_only else text).encode())
     repo = workspace / "history.git"
     subprocess.run(["git", "init", "--quiet", "--bare", str(repo)], check=True)
     if os.name == "nt":
@@ -52,7 +52,7 @@ def run(args):
     for entry in json.loads(args.cases.read_text(encoding="utf8")):
         # Keep Git pack paths independent of the length of the receipt directory name.
         with tempfile.TemporaryDirectory(dir=args.output.resolve().parent, prefix="eg-") as workspace:
-            repo, story = public_case(entry, Path(workspace))
+            repo, story = public_case(entry, Path(workspace), args.title_only)
             arms = [("baseline", args.baseline), ("candidate", args.candidate)]
             if getattr(args, "ablate_history", False):
                 arms.append(("candidate-source-only", args.candidate))
@@ -68,8 +68,11 @@ def run(args):
                 receipt = json.loads(output.read_text(encoding="utf8"))
                 score = receipt["score"]
                 observations = receipt["observations"]
-                row = dict(case=case, version=label, ranked_file=bool(score["ranked_file_hits"]),
+                row = dict(case=case, version=label, story_input="title" if args.title_only else "full", ranked_file=bool(score["ranked_file_hits"]),
                            ranked_method=bool(score["ranked_method_hits"]),
+                           ranked_documentation_line=bool(score["ranked_documentation_line_hits"]),
+                           ranked_markup_line=bool(score["ranked_artifact_line_hits"]["markup"]),
+                           ranked_configuration_line=bool(score["ranked_artifact_line_hits"]["configuration"]),
                            ranked_callee_file=bool(score["ranked_callee_file_hits"]),
                            named_route_file=bool(score["named_route_file_hits"]),
                            search_file=bool(score["search_file_hits"]),
@@ -84,6 +87,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--cases", type=Path, default=Path(__file__).parent / "story_workflow_cases.json")
     parser.add_argument("--baseline", type=Path)
+    parser.add_argument("--title-only", action="store_true", help="Withhold the issue body from both versions after checking its pinned hash")
     parser.add_argument("--ablate-history", action="store_true", help="Also score the candidate with all Git history withheld")
     parser.add_argument("--candidate", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)

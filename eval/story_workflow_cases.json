@@ -180,5 +180,103 @@
     "fix": "16d3c56722456bb890ec086aa8602783a2ed3fea",
     "scope": "",
     "story_sha256": "47438e86bad363387fa2647d564781887f2bd2178f0b3fcbe45aa8d7020b69da"
+  },
+  {
+    "repository": "moment/luxon",
+    "issue": 1634,
+    "fix": "f427515a38f6a671f8de663e6bcc040ed81f114e",
+    "scope": "src",
+    "story_sha256": "bb35f75c32a3e8e5babe6bffccb7be48e41deb9104b2eabff008e33f98bd80cb"
+  },
+  {
+    "repository": "moment/luxon",
+    "issue": 1068,
+    "fix": "9ae1ab928bab18dae0b1b788ab6aa870805860dc",
+    "scope": "src",
+    "story_sha256": "9aa61662fef6efd4bd2f887dfa44f99ef2121525a5902eac1f49b625ce920b34"
+  },
+  {
+    "repository": "DapperLib/Dapper",
+    "issue": 2179,
+    "fix": "9eccc1422e7127472777ca4fc2ae63806a8d15af",
+    "scope": "Dapper",
+    "story_sha256": "538cc43d39d0e36a0a2174291bd63040efe041b4d64e2a13f430c45f7ff4b527"
+  },
+  {
+    "repository": "DapperLib/Dapper",
+    "issue": 2231,
+    "fix": "db2670c515cf12b0e5ef17fbcc000399c975f651",
+    "scope": "Dapper",
+    "story_sha256": "1fb4d2058cfa2b605be9eddc9b35ecf20ba44c1d8453f6567957c30512d035b5"
+  },
+  {
+    "repository": "iamkun/dayjs",
+    "issue": 1118,
+    "fix": "82babd6688d7238fe1585895816fb2e8e0817c7d",
+    "scope": "src",
+    "story_sha256": "51e74642b5e49bcd264132343a5cd09336c408a15df4fa4572aa9e48d0128b6a"
+  },
+  {
+    "repository": "date-fns/date-fns",
+    "issue": 4193,
+    "fix": "d95aa8624d78f7d3dda01396533d671b6c1e74d8",
+    "scope": "src",
+    "story_sha256": "e81a3d1d598e9c47d904149cfce204c56ab7b4e9035806e80ef707e7ce14f9b9"
+  },
+  {
+    "repository": "date-fns/date-fns",
+    "issue": 3641,
+    "fix": "25f1bd6b7b3dabd3e025dbc53c6976200d9e0ea6",
+    "scope": "src",
+    "story_sha256": "99c0b521bc0da34e618a46a4653218a511c317d9e5a8590572634f934436f956"
+  },
+  {
+    "repository": "axios/axios",
+    "issue": 10815,
+    "fix": "5ad5fe0dc63fd9489c822bded5de657007ae6011",
+    "scope": "lib",
+    "story_sha256": "45c6f9e653219ba7eb37aaa097b4fa3c86d303d114c132c22f05676eba09aa82"
+  },
+  {
+    "repository": "axios/axios",
+    "issue": 10817,
+    "fix": "ac5c335b3b4bf00c024d8b6ede37fcbd7ebb7051",
+    "scope": "lib",
+    "story_sha256": "a68961c7005af7bb1d5f089504d003f3c3dce86a7197f4b81daf0bc92a58b9be"
+  },
+  {
+    "repository": "yargs/yargs",
+    "issue": 1871,
+    "fix": "3a3c98f867e06a6ec7609a60df5e5276c946d0b5",
+    "scope": "lib",
+    "story_sha256": "5edbfeb169ff3fbe3d63e18db6038f55569c8d80dc82a396b7d5816893d58130"
+  },
+  {
+    "repository": "yargs/yargs",
+    "issue": 1883,
+    "fix": "4b91c7602cd29cb6144894a3fd3457ece1b130a2",
+    "scope": "lib",
+    "story_sha256": "6717b10d4cd2d0d429949697a62878bc5626df20f1ea90eb33253b463f8ffece"
+  },
+  {
+    "repository": "tj/commander.js",
+    "issue": 843,
+    "fix": "ad347172ad2563824566a74de6fad16ff525ef07",
+    "scope": "",
+    "story_sha256": "34b6a1340c0ab5ed5ddd4854076560e1c4e6093458f6c33ab21c540d263118a9"
+  },
+  {
+    "repository": "tj/commander.js",
+    "issue": 560,
+    "fix": "d5ac7935e8816cd350c465b4bb96dd2ed8db543e",
+    "scope": "",
+    "story_sha256": "eb3d61ccc58c9d33c94a3d0b8759a5061f6d617b06585525541eb61f7c3f1d81"
+  },
+  {
+    "repository": "caolan/async",
+    "issue": 2007,
+    "fix": "13dfaf13f3fc809ba1c9c39d5e267ac6959cbf4a",
+    "scope": "",
+    "story_sha256": "f6401eaa8a28614aa50662f244bca46bd0fa40b928e9b107e1647d90a555beb0"
   }
 ]
