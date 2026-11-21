@@ -1,0 +1,30 @@
+[
+  {
+    "repository": "moment/luxon",
+    "issue": 1424,
+    "fix": "aeb7427a8d27f9737bf6d93f836296fe964471de",
+    "scope": "src",
+    "story_sha256": "591eef9afdb030516ad60f24316573e0e996ceee718f3636e6a93d02cbc84c96"
+  },
+  {
+    "repository": "moment/luxon",
+    "issue": 1625,
+    "fix": "aeb07e37399b3d5ecbbb11b484ea844a6caf50c0",
+    "scope": "src",
+    "story_sha256": "e67cf63a1a80145cc03fa026c42ecdce6ea331f865b059f33d919e3892361841"
+  },
+  {
+    "repository": "DapperLib/Dapper",
+    "issue": 243,
+    "fix": "a11a9b849ad4ee6d3a518775992da2b46196d4aa",
+    "scope": "Dapper",
+    "story_sha256": "e666dd3ec70a8143150a37973f35494b2138a6a4b94e53b40acc1ea46932b30d"
+  },
+  {
+    "repository": "DapperLib/Dapper",
+    "issue": 2240,
+    "fix": "210e15b6647bd0b8d0c8502973822201949a2642",
+    "scope": "Dapper",
+    "story_sha256": "1384e91cd903756619f2a978648207e228e120dfce190bef9e1e89ddc14e81e8"
+  }
+]
