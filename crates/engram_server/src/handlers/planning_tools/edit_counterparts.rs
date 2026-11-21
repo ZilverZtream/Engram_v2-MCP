@@ -164,14 +164,15 @@ fn build_outputs(
                 else {
                     return Vec::new();
                 };
+                let text = text.trim_start_matches('\u{feff}');
                 let Some(parent) = path.parent() else {
                     return Vec::new();
                 };
                 let mut dependencies: Vec<_> = REF
-                    .captures_iter(&text)
+                    .captures_iter(text)
                     .map(|m| parent.join(&m[1]))
                     .collect();
-                for m in IMPORT.captures_iter(&text) {
+                for m in IMPORT.captures_iter(text) {
                     let p = parent.join(&m[1]);
                     dependencies.extend(
                         [
@@ -208,6 +209,17 @@ pub(super) fn collect(
     let outputs = build_outputs(&root, current, edits);
     for (source, path) in edits {
         let lower = path.to_ascii_lowercase();
+        // The config and existing on-disk bundle establish the relationship.
+        // A large generated file may intentionally be absent from the code index.
+        for (_, output) in outputs.iter().filter(|(anchor, _)| anchor == source) {
+            if !edited.contains(&super::edit_path_key(output)) {
+                result.insert((
+                    source.clone(),
+                    output.clone(),
+                    "compiled output of an entry point referencing the edited source",
+                ));
+            }
+        }
         let mut add = |candidate: &str, reason| {
             let key = super::edit_path_key(candidate);
             if !edited.contains(&key)
@@ -216,12 +228,6 @@ pub(super) fn collect(
                 result.insert((source.clone(), (*actual).clone(), reason));
             }
         };
-        for (_, output) in outputs.iter().filter(|(anchor, _)| anchor == source) {
-            add(
-                output,
-                "compiled output of an entry point referencing the edited source",
-            );
-        }
         let page = lower
             .strip_suffix(".vb")
             .or_else(|| lower.strip_suffix(".cs"))
