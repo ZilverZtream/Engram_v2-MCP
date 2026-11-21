@@ -71,12 +71,13 @@ def run(args):
                 row = dict(case=case, version=label, story_input="title" if args.title_only else "full", ranked_file=bool(score["ranked_file_hits"]),
                            ranked_method=bool(score["ranked_method_hits"]),
                            ranked_documentation_line=bool(score["ranked_documentation_line_hits"]),
+                           ranked_documentation_block=bool(score["ranked_documentation_block_hits"]),
                            ranked_markup_line=bool(score["ranked_artifact_line_hits"]["markup"]),
                            ranked_configuration_line=bool(score["ranked_artifact_line_hits"]["configuration"]),
                            ranked_callee_file=bool(score["ranked_callee_file_hits"]),
                            named_route_file=bool(score["named_route_file_hits"]),
                            search_file=bool(score["search_file_hits"]),
-                           sites=len(observations["sites"]), history_commits=receipt["reachable_history_commits"],
+                           index_error=observations.get("index_error"), sites=len(observations["sites"]), history_commits=receipt["reachable_history_commits"],
                            tool_errors=sum("error" in call for call in observations["calls"]))
                 summary.append(row)
                 print(json.dumps(row), flush=True)

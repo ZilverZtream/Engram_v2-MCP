@@ -278,5 +278,54 @@
     "fix": "13dfaf13f3fc809ba1c9c39d5e267ac6959cbf4a",
     "scope": "",
     "story_sha256": "f6401eaa8a28614aa50662f244bca46bd0fa40b928e9b107e1647d90a555beb0"
+  },
+  {
+    "repository": "moment/luxon",
+    "issue": 1777,
+    "fix": "cb02c9b01abdcfe318a7eaa5ce56ed6f296ea048",
+    "scope": "src",
+    "story_sha256": "68a3e3ef1973aa100b60198d2a51766b2cc8f7ccdc459371886021eeffe9f9b7"
+  },
+  {
+    "repository": "DapperLib/Dapper",
+    "issue": 2072,
+    "fix": "6d48ef664acc7298c649e2d449d903b3360d5a90",
+    "scope": "Dapper",
+    "story_sha256": "b1a30cd21eaf0a5b011e6112252904274cf687d8e596c52dcb3b4cfe6f737f2d"
+  },
+  {
+    "repository": "date-fns/date-fns",
+    "issue": 2061,
+    "fix": "7a60173a3f3dfab82ae5bd237d29b040ee6d5f84",
+    "scope": "src",
+    "story_sha256": "64f6749006e60c750967376b536c46f8f2a704524885439cf37b42e50d6d8e5e"
+  },
+  {
+    "repository": "axios/axios",
+    "issue": 10807,
+    "fix": "f2b903fceaa0a02cefd77f6b4b123c679605aae9",
+    "scope": "lib",
+    "story_sha256": "b90d7c956068ebbcb47f818b6b9305cbac020d32ab934c172a445642b1335c2d"
+  },
+  {
+    "repository": "yargs/yargs",
+    "issue": 1042,
+    "fix": "ade29b864abecaa8c4f8dcc3493f5eb24fb73d84",
+    "scope": "lib",
+    "story_sha256": "6008bde8f0b243cb784d23b20783abb9ae75ed99c4dd8414af5af7d8cb0904c9"
+  },
+  {
+    "repository": "tj/commander.js",
+    "issue": 754,
+    "fix": "4c9b4b8ee608f6f3bdcaf3674cf26700f999722f",
+    "scope": "",
+    "story_sha256": "6c0ed8a81514146b499682e747b235874e0d3341a8c20d0218d7c0db690f5375"
+  },
+  {
+    "repository": "caolan/async",
+    "issue": 1659,
+    "fix": "6739c08497c7e5f2125abe6b8c34ba3f2fc242c1",
+    "scope": "",
+    "story_sha256": "14a8fbc77a633e010cc897aa6928cc905b0fd8e64be46590213fe373ca69db3c"
   }
 ]

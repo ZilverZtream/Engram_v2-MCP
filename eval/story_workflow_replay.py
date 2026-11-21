@@ -86,8 +86,19 @@ def ranked_sites(plan, root):
             quote = citations[0]
             if quote["verified"] and quote["line"] < start:
                 doc_line = quote["line"]
+        doc_span = None
+        if doc_line:
+            source = (root / citations[0]["path"]).read_text(encoding="utf-8-sig", errors="replace").splitlines()
+            lo = start
+            while lo > 1:
+                preceding = source[lo - 2].strip()
+                if preceding and not preceding.startswith(("/**", "*", "///", "'" * 3)):
+                    break
+                lo -= 1
+            if lo <= doc_line < start:
+                doc_span = [lo, start - 1]
         rows.append(dict(name=title[1], citations=citations, callee_paths=callee_paths,
-                         declaration_line=start, documentation_line=doc_line))
+                         declaration_line=start, documentation_line=doc_line, documentation_span=doc_span))
     return rows[:3]
 
 
@@ -180,7 +191,13 @@ def collect(client, root, story):
     client.rpc("initialize", dict(protocolVersion="2024-11-05", capabilities={},
                                   clientInfo=dict(name="story-workflow-replay", version="1")))
     client.rpc("notifications/initialized", {}, True)
-    client.tool("index_project", directory=str(root), project_type="general", project_name="replay", wait=True)
+    started = time.monotonic()
+    try:
+        client.tool("index_project", directory=str(root), project_type="general", project_name="replay", wait=True)
+    except RuntimeError as error:
+        return dict(index_error=str(error), sites=[], plan_section_delivered=False, search_paths=[],
+                    named_routes={"seeds": [], "paths": []},
+                    calls=[dict(tool="index_project", error=str(error), seconds=round(time.monotonic()-started, 3))])
     projects = client.tool("list_projects")
     pid, = set(re.findall(r"[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}", projects))
     plan = call("plan_user_story", project_id=pid, story=story, max_tokens=10000)
@@ -224,6 +241,7 @@ def score(repo, parent, fix, scope, observations):
     file_hits, method_hits, documentation_hits = [], [], []
     # Keep file-level artifacts observable without crediting them as methods.
     artifact_hits = {"markup": [], "configuration": []}
+    documentation_blocks = []
 
     for site in observations["sites"]:
         if not site["citations"]:
@@ -244,6 +262,11 @@ def score(repo, parent, fix, scope, observations):
         doc_line = site.get("documentation_line")
         if doc_line and any(n <= doc_line < n + count for n, count in ranges[path]):
             documentation_hits.append(site["name"])
+        if site.get("documentation_span"):
+            lo, hi = site["documentation_span"]
+            if any((count and n <= hi and n + count > lo) or (not count and lo <= n < hi)
+                   for n, count in ranges[path]):
+                documentation_blocks.append(site["name"])
         if "indexed_span" in site:
             lo, hi = site["indexed_span"]
             # Pure insertions are between parent lines. At either boundary
@@ -252,7 +275,7 @@ def score(repo, parent, fix, scope, observations):
                 method_hits.append(site["name"])
     return dict(changed_paths=files, other_changed_paths=[p for p in all_paths if p not in ranges],
                 ranked_file_hits=file_hits, ranked_method_hits=method_hits, ranked_documentation_line_hits=documentation_hits,
-                ranked_artifact_line_hits=artifact_hits,
+                ranked_artifact_line_hits=artifact_hits, ranked_documentation_block_hits=documentation_blocks,
                 search_file_hits=list(dict.fromkeys(p for p in observations["search_paths"] if p in ranges)),
                 named_route_file_hits=[p for p in observations["named_routes"]["paths"] if p in ranges],
                 ranked_callee_file_hits=sorted({p for site in observations["sites"] for p in site["callee_paths"] if p in ranges}),
