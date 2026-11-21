@@ -17,7 +17,7 @@ fn applies(tags: &str, path: &str) -> bool {
         .split(|c: char| !c.is_alphanumeric())
         .filter_map(|t| match t {
             "ts" | "typescript" => Some("ts"),
-            "javascript" | "js" | "jquery" => Some("js"),
+            "javascript" | "js" | "es5" | "es6" | "jquery" => Some("js"),
             "vbnet" | "vb" => Some("vb"),
             "csharp" => Some("cs"),
             "sql" => Some("sql"),
@@ -174,11 +174,16 @@ pub(in super::super) fn audit(
             }
             for c in checks {
                 for n in input.hits(c) {
-                    matched
-                        .entry((path.clone(), n, title.to_owned()))
-                        .or_insert_with(|| {
-                            format!("- {path}:{n} [source pattern] {title} — {src} ({status})")
-                        });
+                    let pattern = c.describe();
+                    let row = format!(
+                        "- {path}:{n} [source pattern] {pattern}. {title}. Source: {src} ({status})"
+                    );
+                    let key = (path.clone(), n, pattern);
+                    if status == "working checkout" {
+                        matched.insert(key, row);
+                    } else {
+                        matched.entry(key).or_insert(row);
+                    }
                 }
             }
         }

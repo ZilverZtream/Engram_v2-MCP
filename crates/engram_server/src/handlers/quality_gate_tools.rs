@@ -485,6 +485,9 @@ impl Engram {
                 "{input_binding}Retrieval sampling: NOT RUN (empty corpus).\nPre-push audit: INACTIVE - 0 quality-gate rules are ingested; NOTHING was checked by this provider. Configure reviewed sources with ingest_quality_gates and re-run; until then this provider supplies no rule evidence."
             ))]));
         }
+        if rules_total==0 && count_failure.is_none(){
+            input_binding.push_str("Quality-gate corpus: INACTIVE; NOTHING was checked against an indexed quality-gate document. Checkout guidance and registry checks are reported separately.\n");
+        }
         let sampled = crate::utils::text::audit_code_query(&code);
         let mut sampling = input_binding + &sampled.coverage();
         let mut verifier = quality_source::SourceVerifier::new(&self.state, &req.project_id, std::path::Path::new(&ps.info.directory));
@@ -510,7 +513,7 @@ impl Engram {
 
         // Rules scoped to the edited file rank first.
         let scope = req.file_path.as_deref().map(|f| {
-            f.replace('\', "/")
+            f.replace('\\', "/")
                 .rsplit('/')
                 .next()
                 .unwrap_or(f)

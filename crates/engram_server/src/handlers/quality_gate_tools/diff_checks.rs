@@ -49,7 +49,7 @@ const AUDIT: Check = Check {
     key: "vb.mutation-audit",
     query: "audit log user change update event logging mutation",
     terms: &["audit|event log|eventlog", "log"],
-    message: "This added method updates a property and commits without an observed audit call. Check caller-owned logging.",
+    message: "This added method mutates data and commits without an observed audit call. Check caller-owned logging.",
 };
 const EVENT: Check = Check {
     key: "js.event-invocation",
@@ -378,7 +378,7 @@ fn vb(lines: &[(usize, String)], out: &mut Vec<Observation<'static>>) {
             }
         }
         if method.iter().any(|l| l.contains(".submitchanges("))
-            && let Some(j) = method.iter().position(|l| SET.is_match(l))
+            && let Some(j) = method.iter().position(|l| SET.is_match(l) || [".insertonsubmit(", ".insertallonsubmit(", ".deleteonsubmit(", ".deleteallonsubmit("].iter().any(|op|l.contains(op)))
             && !method
                 .iter()
                 .any(|l| (l.contains("log") || l.contains("audit")) && l.contains('('))

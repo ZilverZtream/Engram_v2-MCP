@@ -27,6 +27,40 @@ struct Check {
     companion: Option<Shape>,
 }
 impl Check {
+    fn describe(&self) -> String {
+        let display = |shape: &Shape| {
+            shape
+                .0
+                .iter()
+                .map(|v| match v {
+                    Part::Exact(t) => t.as_str(),
+                    Part::Name => "<name>",
+                    Part::Text => "<literal>",
+                })
+                .collect::<Vec<_>>()
+                .join(" ")
+        };
+        let mut text = display(&self.shape);
+        if let Some(pair) = text.strip_prefix("@assignment:") {
+            text = format!("assignment {} ", pair.replace(":", " from member "));
+        }
+        if let Some(key) = text.strip_prefix("@keyword:") {
+            text = format!("module keyword {key}");
+        }
+        if let Some(name) = text.strip_prefix("@vb-start:") {
+            text = format!("{name} with a zero start position");
+        }
+        if self.in_loop {
+            text.push_str(" inside the added loop");
+        }
+        if let Some(companion) = &self.companion {
+            text.push_str(&format!(
+                " without visible companion {}",
+                display(companion)
+            ));
+        }
+        text.chars().take(180).collect()
+    }
     fn new(shape: Shape) -> Self {
         Self {
             shape,
@@ -53,11 +87,32 @@ fn paired(policy: &str, bad: &str, good: &str, checks: &mut BTreeSet<Check>) {
         || bad.contains("Dim ")
         || bad.contains("For Each");
     let good_tokens: Vec<_> = good.lines().flat_map(|s| tokens(s, vb)).collect();
+    let meaningful: Vec<_> = bad
+        .lines()
+        .map(|line| tokens(line, vb))
+        .filter(|t| !t.is_empty())
+        .collect();
+    let whole: Vec<_> = meaningful.iter().flatten().cloned().collect();
+    // Multi-statement contracts and non-call examples retain their surrounding
+    // syntax. Only compile a contrasting example with a concrete code anchor.
+    let complex = meaningful.len() > 1 || whole.iter().filter(|v| v.as_str() == ";").count() > 1;
+    if (6..=100).contains(&whole.len())
+        && whole
+            .iter()
+            .any(|s| matches!(s.as_str(), "." | "::" | "(" | "=>"))
+        && !whole.windows(3).any(|w| w == [".", ".", "."])
+        && !whole.iter().any(|s| s == "?")
+    {
+        let shape = Shape::literal(&whole);
+        if !shape.matches(&good_tokens, vb) {
+            checks.insert(Check::new(shape));
+        }
+    }
     for line in bad.lines() {
         let line = line.split("//").next().unwrap_or(line);
         let t = tokens(line, vb);
         for shape in expressions(&t) {
-            if shape.matches(&good_tokens, vb) {
+            if complex || shape.matches(&good_tokens, vb) {
                 continue;
             }
             // If the rule describes an omission, an isolated call is insufficient.
@@ -187,8 +242,19 @@ fn directives(text: &str, checks: &mut BTreeSet<Check>) {
     });
     for span in SPAN.captures_iter(subject) {
         let m = span.get(0).unwrap();
-        let prefix = subject[..m.start()].trim_end();
+        let prefix = &subject[..m.start()];
         if !simple && !DENY.is_match(prefix) {
+            continue;
+        }
+        let suffix = subject[m.end()..].trim_start().to_ascii_lowercase();
+        if !simple
+            && [
+                "on ", "from ", "before ", "after ", "if ", "when ", "unless ", "outside ",
+                "inside ", "in ", "without ", "only ", "for ", "to ",
+            ]
+            .iter()
+            .any(|condition| suffix.starts_with(condition))
+        {
             continue;
         }
         let label = &span[1];
@@ -331,7 +397,8 @@ impl<'a> Input<'a> {
     fn hits(&self, c: &Check) -> Vec<usize> {
         self.lines
             .iter()
-            .filter_map(|(line, t, depth, group)| {
+            .enumerate()
+            .filter_map(|(index, (line, t, depth, group))| {
                 if c.in_loop && *depth == 0 {
                     return None;
                 }
@@ -340,7 +407,10 @@ impl<'a> Input<'a> {
                     _ => None,
                 });
                 let hit = if let Some(key) = special.and_then(|s| s.strip_prefix("@keyword:")) {
-                    t.first().is_some_and(|s| s == key)
+                    matches!(
+                        self.file.path.rsplit('.').next(),
+                        Some("js" | "ts" | "tsx" | "jsx" | "mjs" | "mts")
+                    ) && t.first().is_some_and(|s| s == key)
                         && t.get(1).is_some_and(|s| s != "(" && s != ".")
                 } else if let Some(name) = special.and_then(|s| s.strip_prefix("@vb-start:")) {
                     self.vb
@@ -385,7 +455,29 @@ impl<'a> Input<'a> {
                                 .any(|w| w[0] == "." && w[1].eq_ignore_ascii_case(member))
                     })
                 } else {
-                    c.shape.matches(t, self.vb)
+                    // For a longer statement or expression continued on the next line, match
+                    // from this line into adjacent submitted lines only.
+                    if c.shape.matches(t, self.vb) {
+                        true
+                    } else if c.shape.0.len() > 1 && !t.is_empty() {
+                        let mut span = t.clone();
+                        let mut previous = *line;
+                        for (next, row, _, _) in self.lines[index + 1..].iter() {
+                            if *next != previous + 1 || span.len() >= t.len() + c.shape.0.len() - 1
+                            {
+                                break;
+                            }
+                            span.extend(
+                                row.iter()
+                                    .take(t.len() + c.shape.0.len() - 1 - span.len())
+                                    .cloned(),
+                            );
+                            previous = *next;
+                        }
+                        c.shape.matches(&span, self.vb)
+                    } else {
+                        false
+                    }
                 };
                 if !hit {
                     return None;
@@ -401,5 +493,36 @@ impl<'a> Input<'a> {
                 Some(*line)
             })
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn policy_changes_which_call_is_detected() {
+        let before = "Use the supported client. Bad: Clock.discard(job); Good: Clock.archive(job); [typescript]";
+        let after = "Use the supported client. Bad: Clock.archive(job); Good: Clock.discard(job); [typescript]";
+        for (policy, found, clean) in [
+            (before, "discard", "archive"),
+            (after, "archive", "discard"),
+        ] {
+            let patterns = compile(policy);
+            let matches = |source: &str| {
+                patterns
+                    .iter()
+                    .any(|c| c.shape.matches(&tokens(source, false), false))
+            };
+            assert!(matches(&format!("const value = Clock.{found}(payload);")));
+            assert!(!matches(&format!(
+                "Clock.{clean}(payload); // Clock.{found}(payload)"
+            )));
+            assert!(!matches(&format!("note = \"Clock.{found}(payload)\";")));
+        }
+    }
+    #[test]
+    fn conditional_prose_does_not_ban_a_method_globally() {
+        let text = "Never call `Persist()` on a borrowed session.";
+        assert!(compile(text).is_empty());
     }
 }
