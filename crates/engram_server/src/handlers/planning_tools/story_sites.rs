@@ -11,6 +11,7 @@ use std::{
 
 fn term(word: &str) -> String {
     match word {
+        "writing" | "written" | "writes" => "write".into(),
         "maximum" => "max".into(),
         "minimum" => "min".into(),
         "opening" | "opened" => "open".into(),
@@ -257,7 +258,7 @@ impl Candidates {
             Vec::new()
         };
         let mut entity_phrases = BTreeSet::new();
-        if writes && criteria.len() > 1 {
+        if criteria.len() > 1 && (writes || criteria.iter().any(|c| c.requires_effect)) {
             let words: Vec<_> = split_symmetric_name_tokens(heading)
                 .into_iter()
                 .map(|w| term(&w))
