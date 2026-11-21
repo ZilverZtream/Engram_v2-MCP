@@ -2420,6 +2420,21 @@ impl HybridSearchEngine {
         project_id: &str,
         namespace: &str,
     ) -> anyhow::Result<Vec<SearchDocSummary>> {
+        self.read_namespace(project_id, namespace, |get| SearchDocSummary {
+            namespace: get(self.fields.namespace), doc_id: get(self.fields.doc_id), path: get(self.fields.path),
+        })
+    }
+
+    /// Source-backed audit needs the complete rule corpus from a single reader snapshot.
+    pub fn quality_gate_documents(&self, project_id: &str) -> anyhow::Result<Vec<(String,String,String)>> {
+        self.read_namespace(project_id, "quality_gate", |get| (
+            get(self.fields.doc_id), get(self.fields.path), get(self.fields.content)
+        ))
+    }
+
+    fn read_namespace<T>(&self, project_id: &str, namespace: &str,
+        map: impl Fn(&dyn Fn(tantivy::schema::Field) -> String) -> T,
+    ) -> anyhow::Result<Vec<T>> {
         let reader = self.tantivy_index.reader()?;
         let searcher = reader.searcher();
         let query = BooleanQuery::new(vec![
@@ -2456,11 +2471,7 @@ impl HybridSearchEngine {
                         .unwrap_or("")
                         .to_string()
                 };
-                out.push(SearchDocSummary {
-                    namespace: get(self.fields.namespace),
-                    doc_id: get(self.fields.doc_id),
-                    path: get(self.fields.path),
-                });
+                out.push(map(&get));
             }
             offset = offset.saturating_add(page.len());
             if page.len() < PAGE_SIZE {

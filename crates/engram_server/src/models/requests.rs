@@ -1152,6 +1152,9 @@ fn default_distill_concurrency() -> usize {
 #[serde(deny_unknown_fields)]
 pub struct PrePushAuditRequest {
     pub project_id: String,
+    /// List indexed policy documents and their machine-check coverage, 25 at a time. No diff required.
+    #[serde(default)]
+    pub coverage_offset: Option<usize>,
     /// Optional instruction maintenance workflow. Returns complete, bounded
     /// authored guidance and Git-before/disk-after evidence; an agent submits
     /// grounded exact edits or no_change/conflict for stale-base/citation checks.

@@ -387,6 +387,18 @@ fn vb(lines: &[(usize, String)], out: &mut Vec<Observation<'static>>) {
         }
     }
 }
+/// Count a source as covered only when its policy terms and contrasting examples
+/// establish support for an existing checker.
+pub(super) fn example_support(policy: &str, bad: &str, good: &str) -> bool {
+    let run=|text:&str| {
+        let rows=text.lines().enumerate().map(|(i,s)|(i+1,s.to_owned())).collect::<Vec<_>>();
+        let mut result=Vec::new();
+        vb(&rows,&mut result);javascript(&rows,&mut result);result
+    };
+    let good=run(good);let policy=policy.to_lowercase();
+    run(bad).into_iter().any(|(_,check)| check.terms.iter().all(|terms|terms.split('|').any(|t|policy.contains(t)))
+        && !good.iter().any(|(_,other)|other.key==check.key))
+}
 pub(crate) struct LineFinding {
     pub path: String,
     pub line: usize,

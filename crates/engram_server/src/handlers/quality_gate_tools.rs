@@ -20,12 +20,18 @@ use std::time::Duration;
 use crate::services::quality_source::{self, SourceReceipt};
 
 pub(crate) mod diff_checks;
+mod example_audit;
 
 const QG_NAMESPACE: &str = "quality_gate";
 
 /// A single hunk can inherit the path supplied alongside it.
 fn audit_diff(code: &str, path: Option<&str>) -> Vec<crate::services::pre_commit_review_service::DiffFile> {
     use crate::services::pre_commit_review_service::parse_unified_diff;
+    if let Some(path) = path && !code.trim().is_empty() && !code.starts_with("diff --git ") && !code.starts_with("--- ") && !code.starts_with("@@ ") {
+        let prefixed = code.lines().filter(|l| !l.trim().is_empty()).all(|l| l.starts_with('+'));
+        let body = code.lines().map(|line| if prefixed { line.to_owned() } else { format!("+{line}") }).collect::<Vec<_>>().join("\n");
+        return audit_diff(&format!("@@ -0,0 +1,{} @@\n{body}",code.lines().count()), Some(path));
+    }
     if code.starts_with("@@ ") && let Some(path) = path {
         let mut files = parse_unified_diff(&format!("diff --git a/input b/input\n{code}"));
         if let Some(file) = files.first_mut() { file.path = path.to_owned(); }
@@ -399,7 +405,7 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         if let Some(maintenance) = req.instruction_maintenance.as_ref() {
-            if !req.code.is_empty() || req.diff_file.is_some() || req.diff_file_blake3.is_some() || req.file_path.is_some() {
+            if req.coverage_offset.is_some() || !req.code.is_empty() || req.diff_file.is_some() || req.diff_file_blake3.is_some() || req.file_path.is_some() {
                 return Err(McpError::invalid_params("Maintenance and retrieval inputs must not be mixed", None));
             }
             let record = self.ensure_project_record(&req.project_id).await?;
@@ -426,6 +432,15 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(report)]));
         }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
+        let root = std::path::Path::new(&ps.info.directory);
+        if let Some(offset)=req.coverage_offset {
+            if !req.code.is_empty() || req.diff_file.is_some() || req.diff_file_blake3.is_some() || req.file_path.is_some() {
+                return Err(McpError::invalid_params("Rule inventory takes only project_id and coverage_offset", None));
+            }
+            let mut verifier=quality_source::SourceVerifier::new(&self.state,&req.project_id,root);
+            let report=example_audit::audit(&ps.search,&req.project_id,&[],&mut verifier,root,&[],Some(offset));
+            return Ok(CallToolResult::success(vec![Content::text(report.summary+&report.inventory)]));
+        }
         let code = resolve_audit_input(&req, std::path::Path::new(&ps.info.directory))?;
         let retrieved = async {
         let mut input_binding = format!("Input: {} bytes, BLAKE3 {} ({}).\n",code.len(),blake3::hash(code.as_bytes()).to_hex(),if req.diff_file.is_some(){"project-relative file"}else{"inline"});
@@ -446,7 +461,7 @@ impl Engram {
                                 finding.title, finding.file_path, finding.lines, finding.suggestion));
                         }
                     }
-                    input_binding.push_str(&format!("Executable repository rules: {} available; {count} findings on added lines. Prose rules require source review.\n", checked.len()));
+                    input_binding.push_str(&format!("Explicit registry checks: {} applicable; {count} findings on added lines. Prose rules require source review.\n", checked.len()));
                 }
                 for note in effective.notes { input_binding.push_str(&format!("{note}\n")); }
             }
@@ -465,46 +480,37 @@ impl Engram {
                 Ok(m) => (m.get(QG_NAMESPACE).copied().unwrap_or(0), None),
                 Err(e) => (0, Some(format!("quality-gate rule count failed: {e}"))),
             };
-        if rules_total == 0 && count_failure.is_none() {
+        if rules_total == 0 && count_failure.is_none() && diff.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(format!(
                 "{input_binding}Retrieval sampling: NOT RUN (empty corpus).\nPre-push audit: INACTIVE - 0 quality-gate rules are ingested; NOTHING was checked by this provider. Configure reviewed sources with ingest_quality_gates and re-run; until then this provider supplies no rule evidence."
             ))]));
         }
         let sampled = crate::utils::text::audit_code_query(&code);
         let mut sampling = input_binding + &sampled.coverage();
+        let mut verifier = quality_source::SourceVerifier::new(&self.state, &req.project_id, std::path::Path::new(&ps.info.directory));
+
         if sampled.query.is_empty() {
+            let coverage=example_audit::audit(&ps.search,&req.project_id,&diff,&mut verifier,root,&[],None);
             let count = match &count_failure {
                 Some(failure) => format!("Rule count unavailable. FAILURE: {failure}"),
                 None => format!("Known quality-gate rule count: {rules_total}."),
             };
-            return Ok(CallToolResult::success(vec![Content::text(format!("{sampling}Retrieval NOT RUN: no usable identifier terms in bounded sample; no search run, no rules checked. {count}"))]));
+            return Ok(CallToolResult::success(vec![Content::text(format!("{}{}\n{sampling}Retrieval NOT RUN: no usable identifier terms in bounded sample. {count}",coverage.summary,coverage.matches))]));
         }
         let query = sampled.query;
         let cancel = tokio_util::sync::CancellationToken::new();
         let rule_query=diff_checks::query(&req.project_id,gen_,query,top_k);
-        let mut verifier = quality_source::SourceVerifier::new(&self.state, &req.project_id, std::path::Path::new(&ps.info.directory));
         let findings = diff_checks::review(&diff, &ps.search, &rule_query, &mut verifier, std::path::Path::new(&ps.info.directory));
+        let coverage=example_audit::audit(&ps.search,&req.project_id,&diff,&mut verifier,root,&findings,None);
         let retrieved = crate::services::rule_retrieval::search(&ps.search, &rule_query, &cancel)
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         sampling.push_str(retrieved.note);
         let hits = retrieved.hits;
 
-        if hits.is_empty() && findings.is_empty() {
-            let mut msg = format!(
-                "{sampling}Pre-push audit: no quality-gate rules matched this change — {rules_total} rule(s) \
-                 exist in the `{QG_NAMESPACE}` namespace and were searched (top_k {top_k}); 0 checked \
-                 against this code."
-            );
-            if let Some(f) = &count_failure {
-                msg.push_str(&format!("\nFAILURE: {f}"));
-            }
-            return Ok(CallToolResult::success(vec![Content::text(msg)]));
-        }
-
         // Rules scoped to the edited file rank first.
         let scope = req.file_path.as_deref().map(|f| {
-            f.replace('\\', "/")
+            f.replace('\', "/")
                 .rsplit('/')
                 .next()
                 .unwrap_or(f)
@@ -518,6 +524,8 @@ impl Engram {
             for finding in findings { out.push_str(&finding.render()); out.push('\n'); }
             out.push('\n');
         }
+        out.push_str(&coverage.summary);
+        out.push_str(&coverage.matches);
         // Link exact API names in the retrieved prose to added lines.
         static MEMBER_CALL: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(||
             regex::Regex::new(r"\.\s*([A-Za-z_]\w{2,})\s*\(").unwrap());
@@ -593,6 +601,7 @@ impl Engram {
         }
         out.push_str("## Other relevant rules\n");
         out.push_str(&general.join("\n"));
+        out.push_str(&coverage.inventory);
         Ok::<_, McpError>(CallToolResult::success(vec![Content::text(out)]))
         }.await?;
         let prior = self.pre_push_prior_context(
