@@ -1936,6 +1936,11 @@ impl GraphStore {
         for entry in nodes.range(prefix.as_str()..)? {
             let (key, value) = entry?;
             if !key.value().starts_with(&prefix) || matches.len() >= limit { break; }
+            // Control IDs end with their markup name. Skip unrelated controls
+            // before decoding their properties on a caption search.
+            if key_prefix == "control:" && let Some(pattern) = &pattern
+                && let Some((_, id)) = key.value().rsplit_once(':')
+                && !contains_case_insensitive(id, pattern) { continue; }
             let node: Node = bincode::deserialize(value.value())?;
             if path.is_none_or(|p| p == node.file_path.as_str())
                 && pattern.as_ref().is_none_or(|p| contains_case_insensitive(&node.name, p)) {

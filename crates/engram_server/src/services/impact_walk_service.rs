@@ -4032,14 +4032,40 @@ async fn collect_evidence(
         });
         if target_revision_admitted
             && let Some(path) = internal_file.as_deref().filter(|p| p.ends_with(".ts") || p.ends_with(".tsx"))
-            && let Some(files) = source.selected_file_revisions()
             && let Ok(root) = checkout.canonicalize()
         {
-            let inventory = files.keys().filter(|p| p.ends_with(".ts") || p.ends_with(".tsx") || p.ends_with(".json")).cloned().collect::<Vec<_>>();
+            let mut inventory = Vec::new();
+            let mut partial = false;
+            if let Some(files) = source.selected_file_revisions() {
+                inventory.extend(files.keys().filter(|p| p.ends_with(".ts") || p.ends_with(".tsx") || p.ends_with(".json")).cloned());
+            } else {
+                // Legacy published generations have no per-file map. Build
+                // evidence is explicitly about the current checkout in both modes.
+                for suffix in [".ts", ".tsx", ".json"] {
+                    let mut files = graph.indexed_paths_with_suffix(&project, suffix, 16_385)?;
+                    partial |= files.len() > 16_384;
+                    files.truncate(16_384);
+                    inventory.extend(files);
+                }
+            }
             let outputs = super::typescript_outputs::build_outputs(&root, &inventory, &[(path.to_owned(), path.to_owned())])
-                .into_iter().map(|(_, output)| output).collect::<BTreeSet<_>>();
+                .into_iter().map(|(_, output)| output).collect::<Vec<_>>();
             if !outputs.is_empty() {
-                value["build_outputs"] = json!({"files":outputs, "evidence":"Current checkout tsconfig outputs whose source closure includes this file. Outputs are separate from indexed callers."});
+                let expansion = crate::handlers::planning_tools::expand_asset_bundle_graph(&graph, &project, &outputs);
+                let mut hosts = Vec::new();
+                for host in expansion.files {
+                    let Some(file) = graph.get_node(&project, &format!("file:{}", host.path))? else { continue; };
+                    if admit_selected_source(&membership, &file, Some(&file))? != ImpactAdmission::Selected { continue; }
+                    let declaration = if let Some(id) = &host.bundle_id {
+                        graph.get_node(&project, id)?.filter(|n| !n.file_path.as_str().is_empty())
+                            .map(|n| format!("{}:{}", n.file_path, n.start_line))
+                    } else { None };
+                    hosts.push(json!({"path":host.path,"output":host.anchor_path,"bundle":host.bundle_id,"via":declaration,"relation":host.relation}));
+                }
+                value["build_outputs"] = json!({"files":outputs, "indexed_hosts":hosts,
+                    "inventory_truncated":partial, "hub_anchors_skipped":expansion.skipped_hub_anchors,
+                    "hub_bundles_skipped":expansion.skipped_hub_bundles,
+                    "evidence":"Current checkout tsconfig outputs and indexed bundle hosts. These are build and loading relationships, separate from callers."});
             }
         }
         value["target_revision_admitted"] = json!(target_revision_admitted);

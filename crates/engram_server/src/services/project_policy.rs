@@ -924,18 +924,20 @@ fn resolve_observing_candidate_reads<F: FnMut(&str, usize)>(
             .iter()
             .any(|reason| reason.contains("repository guidance"));
         let characters_total = content.chars().count();
-        if characters_total > budget.max_characters_per_source && !topics.is_empty() {
+        {
             let mut ranked = Vec::new();
             let mut heading = 0;
             let mut fenced = false;
+            let mut frontmatter = content.trim_start_matches('\u{feff}').starts_with("---");
             for (i, line) in content.lines().enumerate() {
                 let line = line.trim();
+                if frontmatter { if i > 0 && matches!(line, "---" | "...") { frontmatter = false; } continue; }
                 if line.starts_with("```") || line.starts_with("~~~") { fenced = !fenced; continue; }
                 if fenced { continue; }
                 let lower = line.to_ascii_lowercase();
                 let score = topics.iter().filter(|t| crate::utils::text::contains_word(&lower, t)).count();
                 if line.starts_with('#') { heading = score; continue; }
-                if heading + score > 0 && (16..=360).contains(&line.len())
+                if (16..=360).contains(&line.len())
                     && !line.starts_with(['|', '<']) && !line.contains("applyTo:") {
                     ranked.push((std::cmp::Reverse(heading + 2 * score), i + 1, line));
                 }
@@ -963,7 +965,7 @@ fn resolve_observing_candidate_reads<F: FnMut(&str, usize)>(
     let mut context = select_sources(context, applicable_sources, budget, |source| {
         read_selected_source(root, &source.path, &source.blake3)
     });
-    for omission in context.omissions.iter_mut().take(budget.max_sources) {
+    for omission in &mut context.omissions {
         omission.navigation_excerpts = excerpts.remove(&omission.path).unwrap_or_default();
     }
     context

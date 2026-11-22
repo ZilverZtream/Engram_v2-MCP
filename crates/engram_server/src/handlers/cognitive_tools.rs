@@ -2067,6 +2067,7 @@ impl Engram {
         let mut start_nodes = BTreeSet::new();
         let mut anchors = BTreeSet::new();
         let mut selectors = BTreeSet::new();
+        let mut caption_controls = BTreeSet::new();
         let mut files = HashSet::new();
         let normalize = |text: &str| text.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect::<String>();
         let attr = regex::Regex::new(r#"(?i)\b(id|class|title|aria-label|text)\s*=\s*["']([^"']+)["']"#).unwrap();
@@ -2075,7 +2076,7 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(),None))? {
             if normalize(&node.name).contains(&key) {
                 anchors.insert(format!("{}:{} control {}",node.file_path,node.start_line,node.name));
-                start_nodes.insert(node.node_id);
+                start_nodes.insert((node.node_id, node.file_path.to_string(), normalize(&node.name)));
             }
         }
         for hit in hits {
@@ -2093,6 +2094,9 @@ impl Engram {
                 let priority = if caption {0} else if text.to_lowercase().starts_with("<button") || text.to_lowercase().starts_with("<asp:linkbutton") {1} else {2};
                 for m in attrs {
                     if m[1].eq_ignore_ascii_case("id") && !m[2].contains(|c:char| !c.is_alphanumeric() && c!='_' && c!='-') {
+                        if caption {
+                            caption_controls.insert((hit.path.as_str().to_owned(), normalize(&m[2])));
+                        }
                         selectors.insert((priority,format!("#{}",&m[2])));
                     }
                     if m[1].eq_ignore_ascii_case("class") {
@@ -2108,7 +2112,11 @@ impl Engram {
         for site in anchors.iter().take(30) {let _ = writeln!(out,"- {site}");}
         let assignment = regex::Regex::new(r"^\s*(?:(?:const|let|var)\s+)?((?:this\.)?[\w$]+)(?:\s*:[^=;]+)?\s*=\s*[^=]").unwrap();
         let field_alias = regex::Regex::new(r"^\s*(this\.[\w$]+)\s*=\s*([\w$]+)\s*;?\s*$").unwrap();
-        for (_,selector) in selectors.iter().take(6) {
+        let mut listener_found = false;
+        let mut seen_selectors = BTreeSet::new();
+        let mut best_listener_priority = None;
+        for (priority,selector) in selectors.iter().filter(|(_,s)| seen_selectors.insert(s.clone())).take(6) {
+            if best_listener_priority.is_some_and(|best| *priority > best) { break; }
             let query = search(selector.clone(), &[".ts",".tsx",".js",".jsx"]);
             let hits = literal_candidates(query).await?;
             let mut seen = HashSet::new();
@@ -2136,6 +2144,8 @@ impl Engram {
                         let event = regex::Regex::new(&format!(r"^\s*{}\s*\.\s*(?:on\w+\s*=|addEventListener\s*\()",regex::escape(&receiver))).unwrap();
                         for (row,stmt) in lines.iter().enumerate().skip(scope.start_line.saturating_sub(1) as usize).take(scope.end_line.saturating_sub(scope.start_line) as usize+1)
                             .filter(|(_,stmt)|event.is_match(stmt)).take(5) {
+                            listener_found = true;
+                            best_listener_priority = Some(*priority);
                             let _=writeln!(out,"  Listener {}:{} {}",h.path,row+1,stmt.trim().chars().take(180).collect::<String>());
                             if let Some(next)=lines.get(row+1).filter(|_|stmt.trim_end().ends_with('{')){
                                 let _=writeln!(out,"  {}:{} {}",h.path,row+2,next.trim().chars().take(180).collect::<String>());
@@ -2145,6 +2155,12 @@ impl Engram {
 
                 }
             }
+        }
+        if listener_found {
+            // A similar control ID elsewhere is not a server-side continuation
+            // of a witnessed selector/listener. Only trace a control belonging
+            // to the caption element, or an exact requested control identity.
+            start_nodes.retain(|(_,path,name)| *name == key || caption_controls.contains(&(path.clone(),name.clone())));
         }
         if start_nodes.is_empty() {
             if anchors.is_empty() {out.push_str("No matching control or markup caption found within the searched scope.");}
@@ -2162,7 +2178,7 @@ impl Engram {
             engram_graph::EdgeKind::Calls,
         ];
 
-        for start_id in start_nodes {
+        for (start_id,_,_) in start_nodes {
             if paths_found >= req.sanitized_max_paths() {
                 break;
             }

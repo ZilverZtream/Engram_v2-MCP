@@ -175,21 +175,34 @@ fn stored_summary_recovery(pid: &str, doc_id: &str, content_hash: &str) -> Value
 }
 
 fn finding_excerpt(document: &str) -> (&'static str, &str) {
+    fn substantive(line: &str) -> bool {
+        let line = line.trim_start_matches([' ', '>', '#', '*', '-']).trim();
+        !line.is_empty() && !["Actionable comments posted", "Nitpick comments", "Prompt for all",
+            "Some comments are outside", "Comments outside", "Review details", "Inline comments:",
+            "Please verify", "?? CAUTION", "<details", "<summary", "</", "```"].iter()
+            .any(|prefix| line.starts_with(prefix))
+    }
     let mut lines = document.lines();
     let finding = lines.find(|line| line.starts_with("Finding by "))
         .and_then(|_| lines.find(|line| !line.trim().is_empty()))
         .or_else(|| document.lines().find_map(|line| line.strip_prefix("Finding: ")))
         .unwrap_or_default().trim();
-    if !finding.is_empty() && !finding.starts_with("Actionable comments posted:")
-        && !finding.starts_with("Nitpick comments") { return ("finding", finding); }
-    // Aggregated review exports often begin with counts and agent instructions.
-    // Prefer the actual recorded disposition or the first inline finding.
+    if substantive(finding) { return ("finding", finding); }
     let mut reasoning = document.lines().skip_while(|line| !line.starts_with("Reasoning"));
     if reasoning.next().is_some()
-        && let Some(decision) = reasoning.find(|line| !line.trim().is_empty()) {
-        return ("recorded_disposition", decision.trim());
+        && let Some(decision) = reasoning.map(str::trim).find(|line| substantive(line)) {
+        return ("recorded_disposition", decision);
     }
-    ("finding", finding.split_once("Inline comments:").map(|(_, body)| body.trim()).unwrap_or(finding))
+    // Flattened exports keep the comment envelope and the real inline finding
+    // on one line. Recover the source locator when it survived that conversion.
+    for marker in ["Inline comments:", "In @", "Around line "] {
+        if let Some((_, tail)) = finding.split_once(marker) {
+            let body = if marker == "Inline comments:" { tail.trim() }
+                else { &finding[finding.len() - tail.len() - marker.len()..] };
+            if substantive(body) { return ("finding", body); }
+        }
+    }
+    ("no_substantive_excerpt", "")
 }
 
 fn omitted_item(pid: &str, item: Value, reason: &str) -> Value {

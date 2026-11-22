@@ -297,7 +297,9 @@ impl Engram {
         let engine = &ps.search;
         let source_snapshot = &_source_snapshot;
         let request = &req;
-        let searches = futures::stream::iter(namespaces.clone().into_iter().map(|ns| {
+        let embedding = engram_index::hybrid::RequestEmbedding::default();
+        let shared_embedding = &embedding;
+        let mut searches = futures::stream::iter(namespaces.clone().into_iter().enumerate().map(|(order, ns)| {
             let mut delivery = semantic_delivery.namespace_attempt();
             let q = HybridQuery {
                 project_id: req.project_id.clone(),
@@ -320,7 +322,7 @@ impl Engram {
                     delivery
                         .query(ns.clone(), engine.semantic_quality(), async {
                             engine
-                                .search_ranked_prefix(
+                                .search_ranked_prefix_shared(
                                     &q,
                                     pagerank,
                                     &tokio_util::sync::CancellationToken::new(),
@@ -329,6 +331,7 @@ impl Engram {
                                     } else {
                                         per_ns_top_k
                                     },
+                                    Some(shared_embedding),
                                 )
                                 .await
                         })
@@ -361,10 +364,11 @@ impl Engram {
                         .map_err(|e| McpError::internal_error(e.to_string(), None))?
                         .map_err(|e| McpError::internal_error(e.to_string(), None))?
                 };
-                Ok::<_, McpError>((ns.clone(), ns_hits, delivery))
+                Ok::<_, McpError>((order, ns, ns_hits, delivery))
             }
-        })).buffered(3).try_collect::<Vec<_>>().await?;
-        for (namespace, hits, attempt) in searches {
+        })).buffer_unordered(4).try_collect::<Vec<_>>().await?;
+        searches.sort_by_key(|(order, ..)| *order);
+        for (_, namespace, hits, attempt) in searches {
             semantic_delivery.include(attempt);
             lists.push((namespace, hits));
         }

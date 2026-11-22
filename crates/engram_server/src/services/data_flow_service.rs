@@ -217,12 +217,17 @@ pub struct DataFlowTrace {
 /// Depth cap for the bounded follow: entry = depth 1, its callees depth 2,
 /// their callees depth 3. Deeper chains are reported as stops.
 pub const FOLLOW_DEPTH_CAP: usize = 3;
+// Model-backed reads can sit behind several application helpers. Limit the
+// total work across the reachable call graph instead of cutting off each
+// branch at the same small number of wrappers.
+const FOLLOW_NODE_CAP: usize = 512;
 /// Edges fetched per node (cap+1 semantics: `truncated` is a fact).
 pub const FOLLOW_EDGE_CAP: usize = 500;
 
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct FollowCoverage {
     pub depth_cap: usize,
+    pub node_cap: usize,
     pub edge_cap: usize,
     /// Callee nodes whose edges were expanded.
     pub followed: usize,
@@ -762,7 +767,8 @@ pub(crate) fn trace_with_table_getters(
         steps.push(gs);
     }
     let mut follow = FollowCoverage {
-        depth_cap: if getters.is_empty() { FOLLOW_DEPTH_CAP } else { 4 },
+        depth_cap: if getters.is_empty() { FOLLOW_DEPTH_CAP } else { FOLLOW_NODE_CAP + 1 },
+        node_cap: FOLLOW_NODE_CAP,
         edge_cap: FOLLOW_EDGE_CAP,
         followed: 0,
         truncated_nodes: entry_truncated,
@@ -1452,8 +1458,8 @@ fn follow_calls(
     }
     while let Some((node_id, depth)) = queue.pop_front() {
         let name = node_display_name(&node_id);
-        if follow.followed >= 512 {
-            follow.stops.push(format!("512 expanded nodes reached; {} queued calls remain", queue.len() + 1));
+        if follow.followed >= FOLLOW_NODE_CAP {
+            follow.stops.push(format!("{FOLLOW_NODE_CAP} expanded nodes reached; {} queued calls remain", queue.len() + 1));
             break;
         }
         if depth > depth_cap {
@@ -2491,8 +2497,9 @@ pub fn render_data_flow_markdown(t: &DataFlowTrace) -> String {
         md.push_str(&format!("- {}\n", step.description));
     }
     md.push_str(&format!(
-        "## Follow — depth cap {}, edge cap {}: {} callee node(s) expanded, {} node(s) truncated, {} stop(s)\n\n",
+        "## Follow — depth cap {}, node cap {}, edge cap {}: {} callee node(s) expanded, {} node(s) truncated, {} stop(s)\n\n",
         t.follow.depth_cap,
+        t.follow.node_cap,
         t.follow.edge_cap,
         t.follow.followed,
         t.follow.truncated_nodes,

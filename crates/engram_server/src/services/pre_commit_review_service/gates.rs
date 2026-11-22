@@ -1602,7 +1602,7 @@ impl Gate for AntiPatternGate {
                 if content.is_empty() {
                     continue;
                 }
-                let (matched_n, total_n, terms) = query_overlap(&content, query_text);
+                let (matched_n, total_n, terms) = query_overlap(pattern_subject(&content), query_text);
                 let overlap = matched_n as f32 / total_n.max(1) as f32;
                 if matched_n >= 4 && overlap >= 0.3 {
                     let excerpt = content.lines().map(str::trim).find(|line| !line.is_empty()).unwrap_or_default();
@@ -1629,7 +1629,7 @@ impl Gate for AntiPatternGate {
                 let Some(c) = hit_content(ctx, &ps.search, &h.pk) else {
                     continue;
                 };
-                let (m, t, _) = query_overlap(&c, &query_text);
+                let (m, t, _) = query_overlap(pattern_subject(&c), &query_text);
                 if m >= 4 && (m as f32 / t.max(1) as f32) >= 0.3 {
                     strong_supp = true;
                     break;
@@ -2805,12 +2805,20 @@ pub(crate) fn query_overlap(content: &str, query: &str) -> (usize, usize, Vec<St
 /// Matched query terms below which an overlap is incidental vocabulary.
 pub(crate) const MIN_MATCHED_TERMS: usize = 4;
 
+/// Review-import documents append an archived fix hunk and PR statistics
+/// to the complaint. Common imports in a fix are not evidence of recurrence.
+pub(crate) fn pattern_subject(document: &str) -> &str {
+    let description = document.split_once("\n\nHouse fix (applied in a merged PR):")
+        .map_or(document, |(head, _)| head);
+    description.split_once("\nPR references:").map_or(description, |(head, _)| head)
+}
+
 /// Similarity of proposed code to a stored anti-pattern: the share of the
 /// code's query terms found in the anti-pattern's content. Hybrid hit scores
 /// are rank-fusion values and cannot serve as a similarity. A query of four
 /// or more terms needs four matches; a shorter one must match every term.
 pub(crate) fn code_similarity(content: &str, query: &str) -> f32 {
-    let (matched, total, _) = query_overlap(content, query);
+    let (matched, total, _) = query_overlap(pattern_subject(content), query);
     if total == 0 || matched < total.min(MIN_MATCHED_TERMS) {
         return 0.0;
     }

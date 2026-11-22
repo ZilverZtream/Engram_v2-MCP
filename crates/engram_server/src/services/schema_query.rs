@@ -78,6 +78,7 @@ pub(crate) fn mapped_query_sites(graph: &engram_graph::GraphStore, project: &str
     let query = input_name(table)?;
     let mut mappings = BTreeMap::<String, BTreeSet<String>>::new();
     let mut aliases = BTreeMap::new();
+    let mut getters = BTreeMap::<String, (String, Citation)>::new();
     let files = graph.indexed_paths_with_suffix(project, ".dbml", 33)?;
     if files.len() > 32 { return Ok("DBML reader lookup incomplete: more than 32 mapping files.\n".into()); }
     let mut remaining = 16 * 1024 * 1024usize;
@@ -89,12 +90,56 @@ pub(crate) fn mapped_query_sites(graph: &engram_graph::GraphStore, project: &str
             let Some(member) = mapping.data_context_member else { continue; };
             let key = member.to_ascii_lowercase();
             mappings.entry(key.clone()).or_default().insert(mapping.name.to_ascii_lowercase());
+            if mapping.key.lookup(&query) && let Some(owner) = mapping.data_context_class {
+                getters.insert(format!("{owner}.{member}").to_lowercase(), (member.clone(), mapping.citation.clone()));
+            }
             if mapping.key.lookup(&query) && !member.eq_ignore_ascii_case(table) {
                 aliases.insert(key, (member, mapping.citation));
             }
         }
     }
     let mut report = String::new();
+    if !getters.is_empty() && limit > 0 {
+        let mut declarations = Vec::new();
+        graph.visit_symbol_names(project, |kind, _, name, id, _| {
+            if matches!(kind, "property" | "function") && let Some(source) = getters.get(&name.to_lowercase()) {
+                declarations.push((id.to_owned(), source.clone()));
+            }
+        })?;
+        let mut callers = BTreeSet::new();
+        let mut source_cache = BTreeMap::new();
+        let mut omitted = false;
+        for (id, (member, citation)) in declarations {
+            let (incoming, truncated) = graph.incoming_edge_prefix(project, engram_graph::EdgeKind::Calls, &id, limit)?;
+            omitted |= truncated;
+            for (caller, _, _) in incoming {
+                if callers.len() >= limit { omitted = true; break; }
+                let Some(node) = graph.get_node(project, &caller)? else { continue; };
+                if node.start_line == 0 || node.end_line < node.start_line { continue; }
+                let path = node.file_path.as_str();
+                let source = source_cache.entry(path.to_owned()).or_insert_with(|| {
+                    crate::planner_source::read(graph, project, root, path).ok().map(|text|
+                        super::business_outcome_dependencies::executable_lines(&text, path.to_ascii_lowercase().ends_with(".vb")))
+                });
+                let Some(source) = source else { omitted = true; continue; };
+                // The bound edge establishes the receiver. A token in the same
+                // method alone cannot identify which of two receivers it uses.
+                let pattern = regex::RegexBuilder::new(&format!(r"\.\s*{}\b", regex::escape(&member)))
+                    .case_insensitive(path.to_ascii_lowercase().ends_with(".vb")).build()?;
+                let lines: Vec<_> = source.lines().enumerate().skip(node.start_line as usize - 1)
+                    .take((node.end_line - node.start_line + 1) as usize)
+                    .filter(|(_, line)| pattern.is_match(line))
+                    .map(|(index, _)| index + 1).collect();
+                let location = match lines.as_slice() {
+                    [line] => format!("{path}:{line}"),
+                    _ => format!("{path}:{} (caller declaration)", node.start_line),
+                };
+                callers.insert(format!("  [mapped property access] {} at {location} via {member} ({}:{})\n", node.name, citation.path, citation.start_line));
+            }
+        }
+        for caller in callers { report.push_str(&caller); }
+        if omitted { report.push_str("  DBML property access coverage is partial (caller limit or source unavailable).\n"); }
+    }
     for (key, (member, citation)) in aliases {
         if mappings[&key].len() != 1 {
             report.push_str(&format!("Ambiguous DBML member {member} is assigned to multiple tables.\n"));

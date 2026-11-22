@@ -63,6 +63,14 @@ mod vector_generation_inventory;
 #[cfg(feature = "vector")]
 mod vector_recovery_scan;
 
+/// Within one request, namespaces share a query vector only when both the
+/// input and the pinned epoch's embedding provider are identical.
+#[derive(Default)]
+pub struct RequestEmbedding {
+    #[cfg(feature = "vector")]
+    value: tokio::sync::OnceCell<(String, Arc<dyn engram_ml::Embedder>, Vec<f32>)>,
+}
+
 #[derive(Debug, Clone)]
 pub struct HybridQuery {
     pub project_id: String,
@@ -4699,6 +4707,14 @@ impl HybridSearchEngine {
         cancel: &CancellationToken,
         _vector_epoch: Arc<vector_epochs::Epoch>,
     ) -> anyhow::Result<Vec<HybridHit>> {
+        self.vector_search_with_embedding(q, cancel, _vector_epoch, None).await
+    }
+
+    #[cfg(feature = "vector")]
+    async fn vector_search_with_embedding(
+        &self, q: &HybridQuery, cancel: &CancellationToken,
+        _vector_epoch: Arc<vector_epochs::Epoch>, shared: Option<&RequestEmbedding>,
+    ) -> anyhow::Result<Vec<HybridHit>> {
         if self.is_lexical_only() { return Ok(Vec::new()); }
         anyhow::ensure!(q.top_k <= 10_000, "Native query output exceeds 10000 rows");
         self.ensure_managed_vector_table_present(&_vector_epoch)?;
@@ -4711,9 +4727,16 @@ impl HybridSearchEngine {
         } else { None };
         // Provider failures occur before any Lance operation is started. They
         // do not leave native reader quiescence unproven or disable pruning.
-        let query_vec = _vector_epoch.query_embedder.as_ref()
-            .ok_or_else(|| anyhow::anyhow!("VEC1: vector embedding identity is unavailable; explicit recovery is required"))?
-            .embed_cancellable(&q.text, cancel).await?;
+        let provider = _vector_epoch.query_embedder.as_ref()
+            .ok_or_else(|| anyhow::anyhow!("VEC1: vector embedding identity is unavailable; explicit recovery is required"))?;
+        let query_vec = if let Some(shared) = shared {
+            let (text, owner, vector) = shared.value.get_or_try_init(|| async {
+                let vector = provider.embed_cancellable(&q.text, cancel).await?;
+                Ok::<_, anyhow::Error>((q.text.clone(), provider.clone(), vector))
+            }).await?;
+            if text == &q.text && Arc::ptr_eq(owner, provider) { vector.clone() }
+            else { provider.embed_cancellable(&q.text, cancel).await? }
+        } else { provider.embed_cancellable(&q.text, cancel).await? };
         let worker = self.clone();
         let query = q.clone();
         self.run_native_vector_query(_vector_epoch.clone(), cancel, async move {
@@ -5286,6 +5309,13 @@ impl HybridSearchEngine {
         cancel: &CancellationToken,
         output_limit: usize,
     ) -> anyhow::Result<Vec<HybridHit>> {
+        self.search_ranked_prefix_shared(q, centrality_boost, cancel, output_limit, None).await
+    }
+
+    pub async fn search_ranked_prefix_shared(
+        &self, q: &HybridQuery, centrality_boost: Option<&std::collections::HashMap<String, f32>>,
+        cancel: &CancellationToken, output_limit: usize, _shared: Option<&RequestEmbedding>,
+    ) -> anyhow::Result<Vec<HybridHit>> {
         let output_limit = output_limit.min(q.top_k);
         let _snapshot = if engram_core::get_policy(&q.namespace)
             .is_ok_and(|policy| policy.versioning == engram_core::NamespaceVersioning::Snapshot)
@@ -5327,7 +5357,7 @@ impl HybridSearchEngine {
         #[cfg(feature = "vector")]
         let vector = match &vector_epoch {
             Some(epoch) => {
-                self.vector_search_with_epoch(&q_modified, cancel, epoch.clone())
+                self.vector_search_with_embedding(&q_modified, cancel, epoch.clone(), _shared)
                     .await?
             }
             None => Vec::new(),

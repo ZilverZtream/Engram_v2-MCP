@@ -580,7 +580,7 @@ impl Engram {
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
         let include_typed_settings = matches!(req.output_format, TestMatrixFormat::Json);
-        let (settings_axis, setting_labels, indexed_setting_ids, mut setting_evidence, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, bulk_copy_axes, unresolved, coverage_notes, companion_context, member_observations, constructor_context, branch_cases) =
+        let (settings_axis, setting_labels, indexed_setting_ids, mut setting_evidence, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, bulk_copy_axes, unresolved, coverage_notes, companion_context, member_observations, constructor_context, branch_cases, helper_decisions) =
             tokio::task::spawn_blocking(move || {
                 let mut settings_axis: Axis = BTreeMap::new();
                 let mut setting_labels: BTreeMap<String, String> = BTreeMap::new();
@@ -603,6 +603,7 @@ impl Engram {
                 let mut member_observations = std::collections::BTreeSet::new();
                 let mut constructor_context = Vec::new();
                 let mut branch_cases = Vec::new();
+                let mut helper_decisions = Vec::new();
                 let mut seen = std::collections::HashSet::new();
                 let mut pending = std::collections::VecDeque::new();
                 // A discovered code-behind may introduce VB after a markup-only
@@ -815,6 +816,12 @@ impl Engram {
                                 }
                             }
                             cases.sort_by_key(|c| c.line);
+                            if needs_vb && allow_current_settings && !cases.is_empty() && let Some(source) = source {
+                                helper_decisions.extend(super::test_derivation::decision_helpers(
+                                    &graph, &pid, &axis_root, gen_, selected, expected.as_ref().map_err(String::as_str),
+                                    n, source, &cases, &mut source_bytes, &mut coverage_notes,
+                                ));
+                            }
                             branch_cases.extend(cases);
                         }
                         if n.node_type == "setting_key" {
@@ -1017,6 +1024,7 @@ impl Engram {
                     member_observations,
                     constructor_context,
                     branch_cases,
+                    helper_decisions,
                 )
             })
             .await
@@ -1171,6 +1179,7 @@ impl Engram {
                 "knowledge_before": req.knowledge_before,
                 "authored_guidance": project_policy_sources,
                 "selected_method_branches": branch_cases,
+                "called_helper_decisions": helper_decisions,
                 "axes": {
                     "settings": settings,
                     "roles": structured_matrix_axis(&roles_axis, None, |_| None),
@@ -1212,8 +1221,17 @@ impl Engram {
                 out.push_str(&format!("- {}:{} {} — `{}`\n  - True: {}\n  - False: {}\n", case.file, case.line, case.method, case.condition, case.when_true, case.when_false));
             }
         }
+        if !helper_decisions.is_empty() {
+            out.push_str("\n## Conditions inside helpers used by the selected decisions\n");
+            for helper in &helper_decisions {
+                for case in &helper.branches {
+                    out.push_str(&format!("- {}:{} calls {}. Exercise both outcomes of `{}` at {}:{} (true: {}, false: {}).\n",
+                        helper.caller_file, helper.call_line, case.method, case.condition, case.file, case.line, case.when_true, case.when_false));
+                }
+            }
+        }
         if let Some(scopes)=&req.methods {
-            out.push_str(&format!("Method declaration scope: {}. Inferred axes and rule cases cover only these exact methods. Authored file guidance remains applicable; this is not whole-file, companion or transitive-helper QA.\n",serde_json::to_string(scopes).unwrap_or_default()));
+            out.push_str(&format!("Method declaration scope: {}. Axes and rule cases cover these declarations. Called-helper conditions are listed separately for bound VB calls used in decisions, up to two calls deep.\n",serde_json::to_string(scopes).unwrap_or_default()));
         }
         if configured_risk_count > 0 {
             out.push_str(&format!("Configured risk packs: {configured_risk_count} validated rule(s) loaded at call time; repository rules override organization rules by stable id.\n"));

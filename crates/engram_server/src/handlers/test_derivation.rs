@@ -14,6 +14,78 @@ pub(super) struct BranchCase {
     pub when_false: String,
 }
 
+#[derive(serde::Serialize)]
+pub(super) struct HelperDecision {
+    pub caller: String,
+    pub caller_file: String,
+    pub call_line: u32,
+    pub branches: Vec<BranchCase>,
+}
+
+/// Follow bound VB calls whose result participates in an actual decision.
+/// Ordinary downstream reads and writes do not broaden a method-scoped matrix.
+pub(super) fn decision_helpers(
+    graph: &engram_graph::GraphStore, project: &str, root: &Path, generation: u64,
+    selected: Option<&BTreeMap<String, u64>>, extraction: Result<&engram_index::SourceExtractionExpectation, &str>,
+    entry: &engram_graph::Node, source: &str, branches: &[BranchCase], bytes_read: &mut u64,
+    notes: &mut Vec<String>,
+) -> Vec<HelperDecision> {
+    let mut pending = VecDeque::from([(entry.clone(), source.to_owned(), branches.iter().map(|b| (b.line,b.condition.clone())).collect::<Vec<_>>(), 0)]);
+    let mut visited = HashSet::from([entry.node_id.clone()]);
+    let mut results = Vec::new();
+    let mut sources = BTreeMap::new();
+    let assignment = regex::Regex::new(r"(?i)^\s*(?:Dim\s+)?(\w+)(?:\s+As\s+[\w.]+)?\s*=\s*$").unwrap();
+    while let Some((caller, source, conditions, depth)) = pending.pop_front() {
+        let (edges, truncated) = match graph.outgoing_edges_of_kind(project, engram_graph::EdgeKind::Calls, &caller.node_id, 128) {
+            Ok(rows) => rows, Err(e) => { notes.push(format!("{}: helper calls unavailable: {e}", caller.name)); continue; }
+        };
+        if truncated { notes.push(format!("{}: inspected the first 128 bound calls",caller.name)); }
+        let executable = crate::services::business_outcome_dependencies::executable_lines(&source, true);
+        let body: Vec<_> = executable.lines().enumerate().skip(caller.start_line.saturating_sub(1) as usize)
+            .take(caller.end_line.saturating_sub(caller.start_line) as usize + 1).collect();
+        for edge in edges {
+            if visited.contains(&edge.target_id) { continue; }
+            let Ok(Some(node)) = graph.get_node(project, &edge.target_id) else { continue; };
+            let path = node.file_path.as_str();
+            if node.node_type != "function" || node.start_line == 0 || node.end_line <= node.start_line
+                || !path.to_ascii_lowercase().ends_with(".vb")
+                || selected.is_some_and(|revisions| revisions.get(path) != Some(&node.generation)) { continue; }
+            let name = node.name.rsplit('.').next().unwrap_or(&node.name);
+            let call = regex::Regex::new(&format!(r"(?i)\b(?:[\w.]+\.)?{}\s*\(", regex::escape(name))).unwrap();
+            let site = body.iter().find_map(|(index, line)| {
+                let site = *index as u32 + 1;
+                if site == caller.start_line { return None; }
+                let hit = call.find(line)?;
+                if conditions.iter().any(|(row, _)| *row == site) { return Some(site); }
+                let var = assignment.captures(&line[..hit.start()])?;
+                let token = regex::Regex::new(&format!(r"(?i)\b{}\b", regex::escape(&var[1]))).unwrap();
+                // A fresh assignment before the condition breaks this lexical dependency.
+                let reassign = regex::Regex::new(&format!(r"(?i)^\s*{}\s*=", regex::escape(&var[1]))).unwrap();
+                conditions.iter().any(|(row, condition)| *row > site && token.is_match(condition)
+                    && !body.iter().any(|(i,l)| *i as u32 + 1 > site && (*i as u32 + 1) < *row && reassign.is_match(l))).then_some(site)
+            });
+            let Some(call_line) = site else { continue; };
+            if visited.len() >= 13 { notes.push("Decision helper coverage reached the 12-method limit".into()); return results; }
+            visited.insert(node.node_id.clone());
+            let snapshot = sources.entry(path.to_owned()).or_insert_with(|| {
+                let (ok, note, bytes) = axis_source(graph, project, root, generation, selected, extraction, path, bytes_read);
+                if let Some(note) = note { notes.push(note); }
+                ok.then(|| String::from_utf8(bytes?).ok()).flatten()
+            });
+            let Some(snapshot) = snapshot else { continue; };
+            match vb_branch_cases(path, &node.name, snapshot, node.start_line, node.end_line) {
+                Ok(branches) if !branches.is_empty() => {
+                    if depth == 0 { pending.push_back((node.clone(), snapshot.clone(), branches.iter().map(|b| (b.line,b.condition.clone())).collect(), 1)); }
+                    results.push(HelperDecision { caller: caller.name.clone(), caller_file: caller.file_path.to_string(), call_line, branches });
+                }
+                Err(e) => notes.push(format!("{path}:{}: helper decisions unavailable: {e}",node.start_line)),
+                _ => {}
+            }
+        }
+    }
+    results
+}
+
 pub(super) fn vb_branch_cases(file: &str, method: &str, source: &str, start: u32, end: u32) -> Result<Vec<BranchCase>, String> {
     let parsed = engram_index::vb_extractor::vb_return_paths(Path::new(file), source, start, end)?;
     let inventory = &parsed["branch_contexts"];
