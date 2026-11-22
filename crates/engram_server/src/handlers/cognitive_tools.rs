@@ -2048,9 +2048,10 @@ impl Engram {
         };
         // Both downstream comparisons require literal markup attributes or
         // quoted selectors. Vector neighbours cannot satisfy those checks.
+        let snapshot = std::sync::Arc::new(_source_snapshot);
         let literal_candidates = |query| {
             let engine = ps.search.clone();
-            let source = _source_snapshot.clone();
+            let source = snapshot.clone();
             async move {
                 tokio::task::spawn_blocking(move || {
                     let _source = source;
