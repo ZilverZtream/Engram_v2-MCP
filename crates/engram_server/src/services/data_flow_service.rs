@@ -289,6 +289,17 @@ pub fn trace_data_flow(
     entry_point: &str,
     codebehind_content: &str,
 ) -> anyhow::Result<DataFlowTrace> {
+    trace_with_table_getters(graph, project_id, file_path, entry_point, codebehind_content, &Default::default())
+}
+
+pub(crate) fn trace_with_table_getters(
+    graph: &Arc<GraphStore>,
+    project_id: &str,
+    file_path: &str,
+    entry_point: &str,
+    codebehind_content: &str,
+    getters: &super::schema_query::TableGetters,
+) -> anyhow::Result<DataFlowTrace> {
     let trigger = infer_trigger(entry_point);
 
     // ── Step 1: extract the method body ──────────────────────────────────────
@@ -751,7 +762,7 @@ pub fn trace_data_flow(
         steps.push(gs);
     }
     let mut follow = FollowCoverage {
-        depth_cap: FOLLOW_DEPTH_CAP,
+        depth_cap: if getters.is_empty() { FOLLOW_DEPTH_CAP } else { 4 },
         edge_cap: FOLLOW_EDGE_CAP,
         followed: 0,
         truncated_nodes: entry_truncated,
@@ -783,6 +794,7 @@ pub fn trace_data_flow(
         &mut follow,
         file_path,
         codebehind_content,
+        getters,
     )?;
 
     // ── Step 4: re-sequence all steps ────────────────────────────────────────
@@ -797,6 +809,24 @@ pub fn trace_data_flow(
     controls_written.dedup();
     methods_called.sort();
     methods_called.dedup();
+    // Keep the physical table once when every observed query for the raw member has
+    // a matching class-qualified getter in the very same caller.
+    let mut resolved_members = std::collections::BTreeSet::new();
+    for step in steps.iter().filter(|s| s.step_type == "MappedTableAccess") {
+        if let (Some(caller), Some(property)) = (step.details.get("node_id"), step.details.get("property"))
+            && let Some((_, member)) = property.rsplit_once('.')
+        {
+            resolved_members.insert((caller.as_str(), member.to_lowercase()));
+        }
+    }
+    let physical = steps.iter().filter(|s| s.step_type == "MappedTableAccess")
+        .map(|s| s.target.as_str()).collect::<std::collections::BTreeSet<_>>();
+    tables_touched.retain(|name| {
+        if physical.contains(name.as_str()) { return true; }
+        let mut observations = steps.iter().filter(|s| s.target.eq_ignore_ascii_case(name)).peekable();
+        observations.peek().is_none() || !observations.all(|s| s.details.get("node_id")
+            .is_some_and(|id| resolved_members.contains(&(id.as_str(), name.to_lowercase()))))
+    });
     tables_touched.sort();
     tables_touched.dedup();
 
@@ -1192,7 +1222,7 @@ fn collect_graph_steps(
 ) -> anyhow::Result<(Vec<DataFlowStep>, Vec<String>, usize)> {
     let mut steps: Vec<DataFlowStep> = Vec::new();
     let mut seq = 1usize;
-    let truncated_entries = std::cell::Cell::new(0usize);
+    let truncated_entries = std::cell::RefCell::new(std::collections::BTreeSet::new());
 
     // Row-7 audit A1: graph steps belong to the traced METHOD NODE(S) — never
     // to another method in the same file (the live false step: a Session
@@ -1218,16 +1248,9 @@ fn collect_graph_steps(
     let fetch = |kind: EdgeKind| -> anyhow::Result<Vec<engram_graph::Edge>> {
         let mut out = Vec::new();
         for id in &entry_ids {
-            let (edges, truncated) =
-                graph.edges_touching_with_coverage(project_id, id, FOLLOW_EDGE_CAP)?;
-            if truncated {
-                truncated_entries.set(truncated_entries.get() + 1);
-            }
-            out.extend(
-                edges
-                    .into_iter()
-                    .filter(|e| e.edge_kind == kind && &e.source_id == id),
-            );
+            let (edges, truncated) = graph.outgoing_edges_of_kind(project_id, kind.clone(), id, FOLLOW_EDGE_CAP)?;
+            if truncated { truncated_entries.borrow_mut().insert(id.clone()); }
+            out.extend(edges);
         }
         Ok(out)
     };
@@ -1377,8 +1400,7 @@ fn collect_graph_steps(
         seq += 1;
     }
 
-    // `fetch` ran once per kind (4x): count each entry node once.
-    let truncated = truncated_entries.get().div_ceil(4);
+    let truncated = truncated_entries.into_inner().len();
     Ok((steps, entry_ids, truncated))
 }
 
@@ -1398,29 +1420,48 @@ fn follow_calls(
     follow: &mut FollowCoverage,
     source_file: &str,
     source_text: &str,
+    getters: &super::schema_query::TableGetters,
 ) -> anyhow::Result<()> {
     use std::collections::{HashSet, VecDeque};
+    let depth_cap = follow.depth_cap;
     let mut visited: HashSet<String> = entry_ids.iter().cloned().collect();
     let mut queue: VecDeque<(String, usize)> = VecDeque::new();
+    let mapped_access = |source: &str, target: &str, depth: usize, steps: &mut Vec<DataFlowStep>, tables: &mut Vec<String>| {
+        let property = node_display_name(target);
+        let Some(names) = getters.get(&property.to_lowercase()) else { return false; };
+        let Some(table) = names.first().filter(|_| names.len() == 1) else { return false; };
+        if !tables.contains(table) { tables.push(table.clone()); }
+        let owner = node_display_name(source);
+        steps.push(DataFlowStep {
+            sequence: steps.len() + 1, step_type: "MappedTableAccess".into(),
+            description: format!("{owner} accesses `{table}` through mapped property `{property}`"),
+            source: owner, target: table.clone(),
+            details: HashMap::from([("depth".into(),depth.to_string()),("node_id".into(),source.to_owned()),("property".into(),property)]),
+            resolved: None,
+        });
+        true
+    };
     for id in entry_ids {
-        let (edges, _) = graph.edges_touching_with_coverage(project_id, id, FOLLOW_EDGE_CAP)?;
-        for e in edges
-            .into_iter()
-            .filter(|e| e.edge_kind == EdgeKind::Calls && &e.source_id == id)
-        {
-            if visited.insert(e.target_id.clone()) {
+        let (edges, capped) = graph.outgoing_edges_of_kind(project_id, EdgeKind::Calls, id, FOLLOW_EDGE_CAP)?;
+        if capped { follow.stops.push(format!("Outgoing calls from {id} exceeded {FOLLOW_EDGE_CAP}")); }
+        for e in edges {
+            if !mapped_access(id, &e.target_id, 1, steps, tables_touched) && visited.insert(e.target_id.clone()) {
                 queue.push_back((e.target_id, 2));
             }
         }
     }
     while let Some((node_id, depth)) = queue.pop_front() {
         let name = node_display_name(&node_id);
-        if depth > FOLLOW_DEPTH_CAP {
+        if follow.followed >= 512 {
+            follow.stops.push(format!("512 expanded nodes reached; {} queued calls remain", queue.len() + 1));
+            break;
+        }
+        if depth > depth_cap {
             // Unreachable by construction (deeper calls are stopped where
             // they are seen); kept so a future change cannot follow past
             // the cap silently.
             follow.stops.push(format!(
-                "{name} (depth {depth}): beyond depth cap {FOLLOW_DEPTH_CAP} — not followed"
+                "{name} (depth {depth}): beyond depth cap {depth_cap} — not followed"
             ));
             continue;
         }
@@ -1440,8 +1481,13 @@ fn follow_calls(
                 follow,
             )?;
         }
-        let (edges, truncated) =
-            graph.edges_touching_with_coverage(project_id, &node_id, FOLLOW_EDGE_CAP)?;
+        let mut edges = Vec::new();
+        let mut truncated = false;
+        for kind in [EdgeKind::QueriesTable, EdgeKind::SqlCalls, EdgeKind::ReadsState, EdgeKind::WritesState, EdgeKind::Calls] {
+            let (outgoing, capped) = graph.outgoing_edges_of_kind(project_id, kind, &node_id, FOLLOW_EDGE_CAP)?;
+            edges.extend(outgoing);
+            truncated |= capped;
+        }
         follow.followed += 1;
         if truncated {
             follow.truncated_nodes += 1;
@@ -1519,10 +1565,14 @@ fn follow_calls(
                     });
                 }
                 EdgeKind::Calls => {
-                    if depth + 1 > FOLLOW_DEPTH_CAP {
+                    if mapped_access(&node_id, &e.target_id, depth, steps, tables_touched) {
+                        terminal = true;
+                        continue;
+                    }
+                    if depth + 1 > depth_cap {
                         deeper += 1;
                         follow.stops.push(format!(
-                            "{name} (depth {depth}) → {}: depth cap {FOLLOW_DEPTH_CAP} reached — not followed",
+                            "{name} (depth {depth}) → {}: depth cap {depth_cap} reached — not followed",
                             node_display_name(&e.target_id)
                         ));
                     } else if visited.insert(e.target_id.clone()) {
@@ -2434,6 +2484,12 @@ pub fn render_data_flow_markdown(t: &DataFlowTrace) -> String {
         t.methods_called.len(),
         t.unresolved_calls
     ));
+    if !t.tables_touched.is_empty() {
+        md.push_str(&format!("Indexed table targets: {}\n\n", t.tables_touched.join(", ")));
+    }
+    for step in t.steps.iter().filter(|s| s.step_type == "MappedTableAccess").take(12) {
+        md.push_str(&format!("- {}\n", step.description));
+    }
     md.push_str(&format!(
         "## Follow — depth cap {}, edge cap {}: {} callee node(s) expanded, {} node(s) truncated, {} stop(s)\n\n",
         t.follow.depth_cap,

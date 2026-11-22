@@ -27,6 +27,26 @@ pub(crate) fn add_model_columns(map: &mut ModelColumnMap, file: &str, source: &s
     Ok(())
 }
 
+/// Only a class-qualified data-context getter identifies a mapped table on a call edge.
+pub(crate) type TableGetters = std::collections::BTreeMap<String, std::collections::BTreeSet<String>>;
+pub(crate) fn table_getters(graph: &engram_graph::GraphStore, project: &str, root: &std::path::Path) -> anyhow::Result<TableGetters> {
+    let files = graph.indexed_paths_with_suffix(project, ".dbml", 33)?;
+    anyhow::ensure!(files.len() <= 32, "DBML mapping inventory exceeds 32 files");
+    let mut bytes = 0;
+    let mut getters = TableGetters::new();
+    for path in files {
+        let source = crate::planner_source::read(graph, project, root, &path)?;
+        bytes += source.len();
+        anyhow::ensure!(bytes <= 16 * 1024 * 1024, "DBML mapping input exceeds 16 MiB");
+        for row in dbml::tables(&path, &source)? {
+            if let (Some(class), Some(member)) = (row.data_context_class, row.data_context_member) {
+                getters.entry(format!("{class}.{member}").to_lowercase()).or_default().insert(row.name);
+            }
+        }
+    }
+    Ok(getters)
+}
+
 /// Read declared data-context members once for the requested table set.
 pub(crate) fn expected_members(graph: &engram_graph::GraphStore, project: &str, root: &std::path::Path,
     expected: &[String]) -> anyhow::Result<std::collections::BTreeMap<String, Vec<String>>> {
@@ -251,6 +271,8 @@ pub(super) struct Table {
     pub(super) name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     data_context_member: Option<String>,
+    #[serde(skip)]
+    data_context_class: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) source_kind: Option<&'static str>,
     pub(super) columns: Vec<Column>,
@@ -532,6 +554,7 @@ impl Catalog {
                     name: key.display(),
                     source_kind: None,
                     data_context_member: None,
+                    data_context_class: None,
                     key,
                     columns: vec![],
                     primary_key: vec![],

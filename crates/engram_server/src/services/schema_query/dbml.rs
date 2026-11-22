@@ -39,6 +39,7 @@ pub(super) fn tables(path: &str, source: &str) -> anyhow::Result<Vec<Table>> {
     reader.config_mut().expand_empty_elements = true;
     let mut depth = 0usize;
     let mut seen_root = false;
+    let mut context_class = None;
     let mut current: Option<Table> = None;
     let mut in_type = false;
     let mut tables = Vec::new();
@@ -63,6 +64,7 @@ pub(super) fn tables(path: &str, source: &str) -> anyhow::Result<Vec<Table>> {
                         "Expected one DBML Database root"
                     );
                     seen_root = true;
+                    context_class = attributes.get("Class").cloned();
                 } else if depth == 1 && dbml && element.local_name().as_ref() == b"Table" {
                     let name = attributes
                         .get("Name")
@@ -71,6 +73,7 @@ pub(super) fn tables(path: &str, source: &str) -> anyhow::Result<Vec<Table>> {
                     current = Some(Table {
                         name: key.display(), source_kind: Some("dbml_mapping"), key,
                         data_context_member: attributes.get("Member").cloned(),
+                        data_context_class: context_class.clone(),
                         columns: vec![], primary_key: vec![], foreign_keys: vec![], model_associations: vec![],
                         constraints: vec![], constraint_indexes: vec![],
                         citation: Citation {path:path.into(),start_line:line(position),

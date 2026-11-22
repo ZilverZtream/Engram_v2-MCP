@@ -668,13 +668,16 @@ impl Engram {
         })?;
 
         let result = tokio::task::spawn_blocking(move || {
-            crate::services::data_flow_service::trace_data_flow(
-                &graph,
-                &pid,
-                &file_path,
-                &entry_point,
-                &cb_content,
-            )
+            let mapping = crate::services::schema_query::table_getters(&graph, &pid, Path::new(&rec.directory));
+            let (getters, gap) = match mapping {
+                Ok(getters) => (getters, None),
+                Err(err) => (Default::default(), Some(format!("DBML table mapping unavailable: {err}"))),
+            };
+            let mut trace = crate::services::data_flow_service::trace_with_table_getters(
+                &graph, &pid, &file_path, &entry_point, &cb_content, &getters,
+            )?;
+            trace.follow.stops.extend(gap);
+            anyhow::Ok(trace)
         })
         .await
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
