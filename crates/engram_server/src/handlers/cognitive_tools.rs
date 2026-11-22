@@ -5708,9 +5708,11 @@ impl Engram {
         );
 
         if req.output_json {
-            let json = serde_json::to_string_pretty(&decision)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            return Ok(CallToolResult::success(vec![Content::text(json)]));
+            let mut report = serde_json::to_value(&decision).map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            report["assessed_verdict"] = serde_json::json!(raw_decision.verdict);
+            report["rollout_phase"] = serde_json::json!(phase);
+            report["verdict_scope"] = serde_json::json!("verdict is the effective rollout decision; assessed_verdict is the result of evaluating the evidence");
+            return Ok(CallToolResult::success(vec![Content::text(report.to_string())]));
         }
 
         Ok(CallToolResult::success(vec![Content::text(

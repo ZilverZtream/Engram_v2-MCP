@@ -81,7 +81,7 @@ pub async fn gather_evidence(
     state: &AppState,
     project_id: &str,
     target_files: &[String],
-    _proposed_change: &str,
+    proposed_change: &str,
     risk_profile: RiskProfile,
     depth: EvidenceDepth,
     overrides: &EvidenceOverrides,
@@ -98,7 +98,7 @@ pub async fn gather_evidence(
                 "Cannot select source generation {generation} for live retrieval evidence; refresh the source head and retry: {error:#}"
             ))).transpose()?
     } else { None };
-    gather_evidence_with_source_view(state, project_id, target_files, _proposed_change,
+    gather_evidence_with_source_view(state, project_id, target_files, proposed_change,
         risk_profile, depth, overrides, require_runtime_evidence, generation, source_view).await
 }
 
@@ -109,7 +109,7 @@ pub async fn gather_evidence_with_source_view(
     state: &AppState,
     project_id: &str,
     target_files: &[String],
-    _proposed_change: &str,
+    proposed_change: &str,
     risk_profile: RiskProfile,
     depth: EvidenceDepth,
     overrides: &EvidenceOverrides,
@@ -137,7 +137,7 @@ pub async fn gather_evidence_with_source_view(
     let (mut graph_impact, blast_result) = tokio::join!(graph_impact_fut, blast_radius_fut);
     if !target_files.is_empty() {
         graph_impact.extraction_evidence = Some(crate::services::extraction_evidence::gather(
-            state, project_id, target_files, generation, source_view.clone(),
+            state, project_id, target_files, generation, source_view.clone(), proposed_change,
         ).await);
     }
     let (blast_risk, blast_band, blast_downstream, blast_causal_truncated) = blast_result;

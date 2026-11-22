@@ -37,6 +37,8 @@ pub struct ExtractionEvidence {
     pub witnesses: Vec<EdgeWitness>,
     pub witnesses_omitted: usize,
     pub scope: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub patch_observations: Vec<String>,
 }
 
 impl ExtractionEvidence {
@@ -67,9 +69,9 @@ impl ExtractionEvidence {
             },
             skipped: !known && !below,
             detail: format!(
-                "Observed semantic-edge confidence: minimum {:?}; effective {:?}; threshold {:.2}; scored {}/{}; coverage {}. Caller scores cannot raise the observed minimum or supply missing graph coverage. {}",
-                self.minimum_confidence,
-                score,
+                "Observed semantic-edge confidence: minimum {}; effective {}; threshold {:.2}; scored {}/{}; coverage {}. Caller scores cannot raise the observed minimum or supply missing graph coverage. {} {}",
+                self.minimum_confidence.map_or("unknown".into(), |n| format!("{n:.2}")),
+                score.map_or("unknown".into(), |n| format!("{n:.2}")),
                 input.min_extraction_confidence,
                 self.scored_edges,
                 self.edges_checked,
@@ -78,7 +80,7 @@ impl ExtractionEvidence {
                 } else {
                     "incomplete"
                 },
-                self.scope
+                self.scope, self.patch_observations.join(" ")
             ),
             extraction_evidence: Some(self.clone()),
         }
@@ -100,6 +102,8 @@ fn collect(
     files: &[String],
     generation: u64,
     source: Arc<engram_index::SourceSnapshotGuard>,
+    root: &std::path::Path,
+    proposed_change: &str,
 ) -> anyhow::Result<ExtractionEvidence> {
     let membership = search.selected_source_revision_lookup(project, generation, source)?;
     let files = files
@@ -110,6 +114,13 @@ fn collect(
         scope: "Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety.".into(), ..Default::default() };
     if files.len() > MAX_FILES {
         result.gap("target_file_limit: at most 32 distinct files are inspected");
+    }
+    let patch = super::pre_commit_review_service::parse_unified_diff(proposed_change);
+    if !patch.is_empty() {
+        result.scope = "For submitted patches, added lines are compared with fingerprint-verified source. An exact match selects the indexed functions containing those lines. Other files retain whole-file graph coverage. This measures outgoing semantic-edge confidence; removed code, runtime behavior and correctness are unassessed.".into();
+        for changed in patch.iter().filter(|d| !files.contains(&d.path.replace('\\', "/"))).take(MAX_FILES) {
+            result.gap(format!("Submitted patch file outside target_files: {}", changed.path));
+        }
     }
     for file in files.iter().take(MAX_FILES) {
         let file_node = graph.get_node(project, &format!("file:{file}"))?;
@@ -123,7 +134,40 @@ fn collect(
         }
         result.files_checked += 1;
         let remaining = MAX_NODES.saturating_sub(result.nodes_checked);
-        let nodes = graph.query_nodes_in_file(project, None, file, remaining + 1)?;
+        let changed = patch.iter().find(|d| d.path.replace('\\', "/") == *file);
+        let selected = if let Some(diff) = changed {
+            let mut matching = BTreeSet::new();
+            if !diff.added_lines.is_empty() && diff.added_lines.len() <= 8192
+                && let Ok(text) = crate::planner_source::read(graph, project, root, file)
+            {
+                let source_lines: Vec<_> = text.lines().collect();
+                if diff.added_lines.iter().all(|(line, code)| line.checked_sub(1)
+                    .and_then(|i| source_lines.get(i)).is_some_and(|actual| *actual == code.trim_end_matches('\r')))
+                {
+                    matching.extend(diff.added_lines.iter().filter(|(_,s)| !s.trim().is_empty()).map(|(n,_)| *n));
+                }
+            }
+            if matching.is_empty() {
+                result.gap(format!("{file}: submitted additions could not be bound to the selected source; file-wide evidence only"));
+                None
+            } else {
+                let mut owners = graph.functions_for_source_lines(project, file)?;
+                owners.retain(|n| n.start_line > 0 && n.end_line >= n.start_line &&
+                    matching.range(n.start_line as usize..=n.end_line as usize).next().is_some());
+                if matching.iter().all(|line| owners.iter().any(|n| (n.start_line as usize..=n.end_line as usize).contains(line))) {
+                    let names = owners.iter().take(6).map(|n| format!("{} at {}", n.name,n.start_line)).collect::<Vec<_>>();
+                    result.patch_observations.push(format!("{file}: {} verified added lines (first {}), {} removed lines, {} overlapping indexed functions: {}", matching.len(),matching.first().unwrap(),diff.removed_lines.len(),owners.len(),names.join(", ")));
+                    Some(owners)
+                } else {
+                    result.gap(format!("{file}: {} verified added lines include changes outside indexed function ranges; file-wide evidence only", matching.len()));
+                    None
+                }
+            }
+        } else { None };
+        let nodes = match selected {
+            Some(nodes) => nodes,
+            None => graph.query_nodes_in_file(project, None, file, remaining + 1)?,
+        };
         if nodes.len() > remaining {
             result.gap("node_limit: at most 512 nodes are inspected");
         }
@@ -230,6 +274,7 @@ pub async fn gather(
     files: &[String],
     generation: u64,
     selected: Option<Arc<engram_index::SourceSnapshotGuard>>,
+    proposed_change: &str,
 ) -> ExtractionEvidence {
     let failed = |message: String| {
         ExtractionEvidence { generation, files_requested: files.len(),
@@ -239,6 +284,7 @@ pub async fn gather(
         return failed("project_runtime_unavailable".into());
     };
     let search = runtime.search.clone();
+    let root = std::path::PathBuf::from(&runtime.info.directory);
     drop(runtime);
     let source = match selected {
         Some(source) => source,
@@ -252,8 +298,10 @@ pub async fn gather(
     let graph = state.graph.clone();
     let project = project.to_owned();
     let files = files.to_vec();
+    if proposed_change.len() > 2 * 1024 * 1024 { return failed("submitted patch exceeds 2 MiB for extraction evidence".into()); }
+    let proposed_change = proposed_change.to_owned();
     match tokio::task::spawn_blocking(move || {
-        collect(&graph, &search, &project, &files, generation, source)
+        collect(&graph, &search, &project, &files, generation, source, &root, &proposed_change)
     })
     .await
     {
