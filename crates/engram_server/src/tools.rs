@@ -811,7 +811,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Indexed readers and writers of shared state. Modern types: Environment, Module, Singleton (JS/TS, Python, Rust, Go), LocalStorage, SessionStorage, ReactContext and Redux (JS/TS); also legacy Session/ViewState/Application/Cache. Environment and browser storage keys are literal names; other modern keys use project-relative path::declaration with any property suffix. Browser storage method calls and dot/literal-bracket property access share key identities. Browser key traces also include bounded source-verified store-wide clear() candidates, separately from key references. Refresh older JS/TS indexes with update_project. Static extraction does not prove shared browser origin/session or runtime execution; absence does not prove no runtime access."
+        description = "Find indexed shared-state keys touched by file_paths, or readers and writers of a specific state_type and state_key. Modern types: Environment, Module, Singleton (JS/TS, Python, Rust, Go), LocalStorage, SessionStorage, ReactContext and Redux (JS/TS); also legacy Session/ViewState/Application/Cache. Environment and browser storage keys are literal names; other modern keys use project-relative path::declaration with any property suffix. Browser storage method calls and dot/literal-bracket property access share key identities. Browser key traces also include bounded source-verified store-wide clear() candidates, separately from key references. Refresh older JS/TS indexes with update_project. Static extraction does not prove shared browser origin/session or runtime execution; absence does not prove no runtime access."
     )]
     pub async fn trace_state_usage(
         &self,
