@@ -1455,6 +1455,16 @@ fn build_method_info_from_node(
     build_method_info_with_coverage(node, graph, project_id).0
 }
 
+fn apply_script_declaration(info: &mut MethodInfoResult, declarations: &[engram_index::js_method_facts::Member]) {
+    if let Some(member) = declarations.iter().find(|member| member.name == info.method_name
+        && member.declaration_line == info.line_start as usize)
+    {
+        info.signature.clone_from(&member.signature);
+        if let Some(result) = &member.return_type { info.return_type.clone_from(result); }
+        info.complexity_score = member.decisions;
+    }
+}
+
 /// Build MethodInfoResult from a graph Node + edge lookups, reporting what
 /// each lookup delivered.
 fn build_method_info_with_coverage(
@@ -4191,6 +4201,18 @@ impl Engram {
                 .map(|n| build_method_info_from_node(n, &graph, &project_id))
                 .collect();
 
+            let mut by_file = std::collections::HashMap::new();
+            for row in &mut results {
+                let path = std::path::Path::new(&row.file_path);
+                if !matches!(path.extension().and_then(|value| value.to_str()),
+                    Some("ts" | "tsx" | "mts" | "cts" | "js" | "jsx" | "mjs" | "cjs")) { continue; }
+                let facts = by_file.entry(row.file_path.clone()).or_insert_with(|| {
+                    crate::planner_source::read(&graph, &project_id, &policy_root, &row.file_path)
+                        .map(|source| engram_index::js_method_facts::members(path, &source))
+                        .unwrap_or_default()
+                });
+                apply_script_declaration(row, facts);
+            }
             method_info_delivery::attach_policy(&policy_root, &mut results);
 
             Ok(results)

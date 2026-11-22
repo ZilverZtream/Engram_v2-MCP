@@ -5,6 +5,9 @@ use tree_sitter::{Node, Parser};
 pub struct Member {
     pub name: String,
     pub line: usize,
+    pub declaration_line: usize,
+    pub signature: String,
+    pub return_type: Option<String>,
     pub public: bool,
     pub accessor: bool,
     pub decisions: u32,
@@ -73,6 +76,11 @@ pub fn members(path: &Path, source: &str) -> Vec<Member> {
             found.push(Member {
                 name: text.to_owned(),
                 line: name.start_position().row + 1,
+                declaration_line: node.start_position().row + 1,
+                signature: source[node.start_byte()..body.start_byte()].trim().to_owned(),
+                return_type: node.child_by_field_name("return_type")
+                    .and_then(|annotation| annotation.utf8_text(bytes).ok())
+                    .map(|annotation| annotation.trim_start_matches(':').trim().to_owned()),
                 public,
                 accessor:node.children(&mut c).any(|v|matches!(v.kind(),"get"|"set")),
                 decisions: decisions(body),
