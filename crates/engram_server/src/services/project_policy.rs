@@ -57,6 +57,8 @@ pub struct PolicyOmission {
     pub refetch: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub read_action: Option<PolicySourceRead>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub navigation_excerpts: Vec<(usize, String)>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -205,7 +207,7 @@ impl PolicyContext {
     fn omit(&mut self, path: &str, reason: impl Into<String>, hash: Option<String>) {
         self.omissions.push(PolicyOmission {
             path: path.into(), reason: reason.into(), blake3: hash,
-            read_action: None,
+            read_action: None, navigation_excerpts: Vec::new(),
             refetch: format!("Read the complete project-relative file `{path}` from the checkout; verify its BLAKE3 when supplied. No excerpt establishes its full qualifications."),
         });
     }
@@ -222,6 +224,11 @@ impl PolicyContext {
         );
         if let Some(revision) = &self.source_revision {
             let _ = writeln!(text, "\nPolicy source revision: `{revision}`.");
+        }
+        for source in &self.omissions {
+            for (line, clause) in &source.navigation_excerpts {
+                let _ = writeln!(text, "Source excerpt at {}:{line}: {clause}", source.path);
+            }
         }
         let _ = writeln!(text, "\nLinked document coverage: {}; omitted reference observations: {}. This covers supported references in supplied complete sources, not omitted bodies or all prose/HTML. A link does not establish authority or applicability.", self.reference_coverage, self.references_omitted);
         for source in &self.sources {
@@ -820,6 +827,18 @@ fn resolve_observing_candidate_reads<F: FnMut(&str, usize)>(
     let candidates = discover(root, &targets, indexed_paths, &mut context.notes);
     context.sources_discovered = candidates.len();
     let mut applicable_sources = BTreeMap::new();
+    let mut excerpts = BTreeMap::new();
+    let mut topics = BTreeSet::new();
+    for target in &targets {
+        let path = target.to_ascii_lowercase();
+        topics.extend(path.split(|c: char| !c.is_alphanumeric())
+            .filter(|part| part.len() >= 3 && !matches!(*part, "site" | "src" | "app" | "code" | "modules" | "public" | "pages"))
+            .map(str::to_owned));
+        if let Some(language) = match path.rsplit('.').next() {
+            Some("vb") => Some("vb.net"), Some("ts" | "tsx") => Some("typescript"),
+            Some("js" | "jsx") => Some("javascript"), Some("aspx" | "ascx") => Some("webforms"), _ => None,
+        } { topics.insert(language.into()); }
+    }
     for relative in candidates {
         let full = match engram_core::safe_join(root, &relative) {
             Ok(full) => full,
@@ -905,6 +924,26 @@ fn resolve_observing_candidate_reads<F: FnMut(&str, usize)>(
             .iter()
             .any(|reason| reason.contains("repository guidance"));
         let characters_total = content.chars().count();
+        if characters_total > budget.max_characters_per_source && !topics.is_empty() {
+            let mut ranked = Vec::new();
+            let mut heading = 0;
+            let mut fenced = false;
+            for (i, line) in content.lines().enumerate() {
+                let line = line.trim();
+                if line.starts_with("```") || line.starts_with("~~~") { fenced = !fenced; continue; }
+                if fenced { continue; }
+                let lower = line.to_ascii_lowercase();
+                let score = topics.iter().filter(|t| crate::utils::text::contains_word(&lower, t)).count();
+                if line.starts_with('#') { heading = score; continue; }
+                if heading + score > 0 && (16..=360).contains(&line.len())
+                    && !line.starts_with(['|', '<']) && !line.contains("applyTo:") {
+                    ranked.push((std::cmp::Reverse(heading + 2 * score), i + 1, line));
+                }
+            }
+            ranked.sort_unstable();
+            excerpts.insert(relative.clone(), ranked.into_iter().take(2)
+                .map(|(_, line, text)| (line, text.to_owned())).collect::<Vec<_>>());
+        }
         // Applicability determines shared-first ordering, so qualify every
         // candidate before selecting. Retain descriptors rather than as much
         // as 512 * 512 KiB of bodies before applying the small output budget.
@@ -921,9 +960,13 @@ fn resolve_observing_candidate_reads<F: FnMut(&str, usize)>(
             },
         );
     }
-    select_sources(context, applicable_sources, budget, |source| {
+    let mut context = select_sources(context, applicable_sources, budget, |source| {
         read_selected_source(root, &source.path, &source.blake3)
-    })
+    });
+    for omission in context.omissions.iter_mut().take(budget.max_sources) {
+        omission.navigation_excerpts = excerpts.remove(&omission.path).unwrap_or_default();
+    }
+    context
 }
 
 fn select_sources(
