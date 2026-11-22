@@ -252,9 +252,76 @@ internal static class InvocationAnalyzer
         return new DatabaseCallDto
         {
             Method = name, ReceiverType = origin.Value.Type, DeclarationLine = origin.Value.Line,
+            QueryMembers = QueryMembers(member.Expression, invocation, model),
             Evidence = direct ? "declared_context_execution_candidate" : "query_materialization_from_declared_context",
             CommandTextOrigin = "LINQ/provider SQL is not translated or executed; declared DataContext/DbContext source syntax is candidate evidence"
         };
+    }
+
+    // A range variable binds its columns only within this query. Joined
+    // ranges and nested queries must never borrow another range's table.
+    private static List<QueryMemberDto> QueryMembers(ExpressionSyntax expression, InvocationExpressionSyntax call, SemanticModel model)
+    {
+        while (expression is ParenthesizedExpressionSyntax parent) expression = parent.Expression;
+        if (expression is not QueryExpressionSyntax query) return FluentQueryMembers(call, model);
+        bool Local(SyntaxNode node) => node.Ancestors().OfType<QueryExpressionSyntax>().FirstOrDefault() == query;
+        var aliases = query.DescendantNodes().OfType<CollectionRangeVariableSyntax>()
+            .Where(v => Local(v) && v.Expression is MemberAccessExpressionSyntax && ContextOrigin(v.Expression, call, model, new HashSet<ISymbol>(SymbolEqualityComparer.Default), 0) != null)
+            .GroupBy(v => v.Identifier.Identifier.ValueText, StringComparer.OrdinalIgnoreCase)
+            .Where(g => g.Count() == 1)
+            .ToDictionary(g => g.Key, g => ((MemberAccessExpressionSyntax)g.Single().Expression).Name.Identifier.ValueText,
+                          StringComparer.OrdinalIgnoreCase);
+        var sites = new List<QueryMemberDto>();
+        foreach (var access in query.DescendantNodes().OfType<MemberAccessExpressionSyntax>())
+        {
+            if (!Local(access) || access.Expression is not IdentifierNameSyntax receiver
+                || !aliases.TryGetValue(receiver.Identifier.ValueText, out var table)) continue;
+            var containing = access.Ancestors().TakeWhile(n => n != query).ToList();
+            if (containing.Any(n => n is LambdaExpressionSyntax)) continue;
+            var usage = containing.Any(n => n is JoinConditionSyntax) ? "join"
+                : containing.Any(n => n is WhereClauseSyntax) ? "filter"
+                : containing.Any(n => n is OrderingSyntax) ? "order" : null;
+            if (usage == null) continue;
+            sites.Add(new() { TableMember = table, ColumnMember = access.Name.Identifier.ValueText, Usage = usage, Line = StartLine(access) });
+            if (sites.Count == 128) break;
+        }
+        return sites;
+    }
+
+    private static List<QueryMemberDto> FluentQueryMembers(InvocationExpressionSyntax call, SemanticModel model)
+    {
+        var chain = new Stack<(string Name, ArgumentListSyntax? Args)>();
+        ExpressionSyntax? current = call;
+        while (current is InvocationExpressionSyntax step && step.Expression is MemberAccessExpressionSyntax access && chain.Count < 24)
+        {
+            chain.Push((access.Name.Identifier.ValueText.ToLowerInvariant(), step.ArgumentList));
+            current = access.Expression;
+        }
+        if (current is not MemberAccessExpressionSyntax table
+            || ContextOrigin(table, call, model, new HashSet<ISymbol>(SymbolEqualityComparer.Default), 0) == null) return new();
+        var rows = new List<QueryMemberDto>();
+        foreach (var (name, args) in chain)
+        {
+            // A projection or materializer can change the row type or move the remainder into memory.
+            var use = name switch {
+                "where" or "first" or "firstordefault" or "single" or "singleordefault" or "any" or "count" => "filter",
+                "orderby" or "orderbydescending" or "thenby" or "thenbydescending" => "order",
+                _ => null
+            };
+            if (use == null) break;
+            if (args?.Arguments.FirstOrDefault() is not SimpleArgumentSyntax arg || arg.Expression is not SingleLineLambdaExpressionSyntax lambda) continue;
+            var parameter = lambda.SubOrFunctionHeader.ParameterList?.Parameters;
+            if (parameter?.Count != 1) continue;
+            foreach (var field in lambda.Body.DescendantNodesAndSelf().OfType<MemberAccessExpressionSyntax>())
+            {
+                if (field.Expression is not IdentifierNameSyntax receiver
+                    || !receiver.Identifier.ValueText.Equals(parameter.Value[0].Identifier.Identifier.ValueText, StringComparison.OrdinalIgnoreCase)
+                    || field.Ancestors().OfType<LambdaExpressionSyntax>().FirstOrDefault() != lambda) continue;
+                rows.Add(new() { TableMember = table.Name.Identifier.ValueText, ColumnMember = field.Name.Identifier.ValueText, Usage = use, Line = StartLine(field) });
+                if (rows.Count == 128) return rows;
+            }
+        }
+        return rows;
     }
 
     private static (string Type, int Line)? ContextOrigin(ExpressionSyntax expression, InvocationExpressionSyntax call, SemanticModel model, HashSet<ISymbol> visited, int depth)
@@ -280,6 +347,15 @@ internal static class InvocationAnalyzer
         if (symbol is not null && visited.Add(symbol) && symbol.DeclaringSyntaxReferences.Length == 1)
         {
             var syntax = symbol.DeclaringSyntaxReferences[0].GetSyntax();
+            if (symbol is IParameterSymbol parameter
+                && syntax.AncestorsAndSelf().OfType<ParameterSyntax>().FirstOrDefault() is { AsClause: SimpleAsClauseSyntax declared } formal)
+            {
+                var name = declared.Type.ToString();
+                if ((name.EndsWith("DataContext", StringComparison.OrdinalIgnoreCase) || name.EndsWith("DbContext", StringComparison.OrdinalIgnoreCase))
+                    && (parameter.Type.TypeKind == TypeKind.Error || HasContextBase(parameter.Type)
+                        || parameter.Type.ToDisplayString() is "System.Data.Linq.DataContext" or "Microsoft.EntityFrameworkCore.DbContext"))
+                    return (name, StartLine(formal));
+            }
             var declaration = syntax.AncestorsAndSelf().OfType<VariableDeclaratorSyntax>().FirstOrDefault();
             if (declaration is not null)
             {
@@ -426,8 +502,17 @@ internal sealed class RepetitionContextDto
     [JsonPropertyName("binding")] public string? Binding { get; set; }
 }
 
+internal sealed class QueryMemberDto
+{
+    [JsonPropertyName("table_member")] public string TableMember { get; set; } = "";
+    [JsonPropertyName("column_member")] public string ColumnMember { get; set; } = "";
+    [JsonPropertyName("usage")] public string Usage { get; set; } = "";
+    [JsonPropertyName("line")] public int Line { get; set; }
+}
+
 internal sealed class DatabaseCallDto
 {
+    [JsonPropertyName("query_members")] public List<QueryMemberDto> QueryMembers { get; set; } = new();
     [JsonPropertyName("method")] public string Method { get; set; } = string.Empty;
     [JsonPropertyName("receiver_type")] public string ReceiverType { get; set; } = string.Empty;
     [JsonPropertyName("declaration_line")] public int DeclarationLine { get; set; }

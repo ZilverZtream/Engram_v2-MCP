@@ -304,6 +304,25 @@ impl<'a> Suggestions<'a> {
             }
         }
     }
+    /// Compare a source-level query member with schema declarations. A single
+    /// access cannot establish selectivity, provider translation or an optimal index.
+    pub fn linq_member(&self, site: &engram_index::vb_extractor::VbQueryMember, bindings: &super::schema_query::ModelColumnMap) -> Value {
+        let mut row = json!({"table_member":site.table_member,"column_member":site.column_member,"usage":site.usage,"line":site.line,"status":"mapping_unavailable"});
+        let Some([binding]) = bindings.get(&(site.table_member.to_lowercase(),site.column_member.to_lowercase())).map(Vec::as_slice) else {return row;};
+        let (name,column,citation) = binding;
+        row["table"] = json!(name.display()); row["column"] = json!(column); row["mapping"] = json!(citation);
+        let matched: Vec<_> = self.catalog.tables.iter().enumerate().filter(|(_, table)| table.key.lookup(name)
+            && table.columns.iter().any(|col|col.name.eq_ignore_ascii_case(column))).collect();
+        let [(id, table)] = matched.as_slice() else {row["status"]=json!("schema_unavailable");return row;};
+        let indexes: Vec<_> = self.indexes.get(id).into_iter().flatten().filter(|index|
+            index.filter.is_none() && index.filter_supported && index.keys.first().is_some_and(|k|k.column.eq_ignore_ascii_case(column)))
+            .map(|idx|json!({"name":idx.name,"source":idx.citation})).collect();
+        row["indexes"] = json!(indexes);
+        row["status"] = json!(if !indexes.is_empty() {"leading_key_declared"} else if self.incomplete_indexes.contains(id) {"index_inventory_incomplete"} else {"no_unfiltered_leading_key_observed"});
+        row["schema"] = json!(table.citation);
+        row
+    }
+
     pub fn add_source(&mut self, source: &QuerySource) {
         let tokens = match schema::tokens(source.sql.trim_start_matches('\u{feff}')) {
             Ok(t) => t,

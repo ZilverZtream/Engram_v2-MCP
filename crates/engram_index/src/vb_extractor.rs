@@ -849,12 +849,22 @@ pub struct VbRepetitionContext {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct VbDatabaseCall {
+    #[serde(default)]
+    pub query_members: Vec<VbQueryMember>,
     pub method: String,
     pub receiver_type: String,
     pub declaration_line: u32,
     pub literal_command: Option<String>,
     pub command_text_origin: Option<String>,
     pub evidence: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct VbQueryMember {
+    pub table_member: String,
+    pub column_member: String,
+    pub usage: String,
+    pub line: u32,
 }
 
 #[derive(Debug, Deserialize)]

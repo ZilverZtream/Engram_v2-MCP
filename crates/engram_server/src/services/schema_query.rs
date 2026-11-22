@@ -13,6 +13,20 @@ mod alter_foreign_keys;
 mod alter_columns;
 mod dbml;
 
+pub(crate) type ModelColumnMap = std::collections::BTreeMap<(String, String), Vec<(Name, String, Citation)>>;
+
+pub(crate) fn add_model_columns(map: &mut ModelColumnMap, file: &str, source: &str) -> anyhow::Result<()> {
+    for table in dbml::tables(file, source)? {
+        let Some(member) = table.data_context_member else { continue; };
+        for col in table.columns {
+            let property = col.model_member.as_ref().unwrap_or(&col.name);
+            map.entry((member.to_lowercase(),property.to_lowercase())).or_default()
+                .push((table.key.clone(), col.name, table.citation.clone()));
+        }
+    }
+    Ok(())
+}
+
 /// Read declared data-context members once for the requested table set.
 pub(crate) fn expected_members(graph: &engram_graph::GraphStore, project: &str, root: &std::path::Path,
     expected: &[String]) -> anyhow::Result<std::collections::BTreeMap<String, Vec<String>>> {
@@ -211,6 +225,8 @@ pub struct Citation {
 #[derive(Clone, Serialize)]
 pub(super) struct Column {
     pub(super) name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    model_member: Option<String>,
     pub(super) data_type: Option<String>,
     pub(super) nullable: Option<bool>,
     pub(super) default_value: Option<String>,
@@ -343,6 +359,7 @@ fn column(t: &[TokenWithSpan]) -> anyhow::Result<Column> {
     if kw(t, 1, "AS") {
         anyhow::ensure!(t.len() > 2, "Computed expression missing");
         return Ok(Column {
+            model_member: None,
             name: name.0[0].clone(),
             data_type: None,
             nullable: None,
@@ -362,6 +379,7 @@ fn column(t: &[TokenWithSpan]) -> anyhow::Result<Column> {
         "Unsupported trailing column syntax"
     );
     let mut result = Column {
+        model_member: None,
         name: parsed.name.value,
         data_type: Some(parsed.data_type.to_string()),
         nullable: None,

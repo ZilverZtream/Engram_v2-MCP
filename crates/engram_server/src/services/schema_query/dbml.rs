@@ -101,6 +101,7 @@ pub(super) fn tables(path: &str, source: &str) -> anyhow::Result<Vec<Table>> {
                         table.primary_key.push(name.clone());
                     }
                     table.columns.push(Column {
+                        model_member: attributes.get("Member").cloned(),
                         name,
                         data_type: attributes
                             .get("DbType")

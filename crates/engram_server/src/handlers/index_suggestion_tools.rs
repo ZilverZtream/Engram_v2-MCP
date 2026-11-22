@@ -170,6 +170,34 @@ impl Engram {
                 queries.push(QuerySource{sql:sql.into(),citation:Citation{path:path.into(),start_line:node.start_line as u64,end_line:node.end_line as u64,source_hash:blake3::hash(source.as_bytes()).to_hex().to_string()},exact_lines:false});inline_admitted+=1;
             }
             let mut suggestions=Suggestions::new(&catalog);for query in &queries {suggestions.add_source(query);}
+            let mut linq_sites = Vec::new();
+            let mut linq_methods = BTreeSet::new();
+            if let Some(path) = requested.as_ref().filter(|p| p.to_ascii_lowercase().ends_with(".vb")) {
+                let mut bindings = crate::services::schema_query::ModelColumnMap::new();
+                for (mapping,revision) in selected.iter().filter(|(p,_)| p.to_ascii_lowercase().ends_with(".dbml")).take(32) {
+                    let mapped = read_source(&graph,&req.project_id,directory,mapping,*revision)
+                        .and_then(|src| crate::services::schema_query::add_model_columns(&mut bindings,mapping,&src));
+                    if let Err(e)=mapped {query_gaps.push(format!("{mapping}: {e}"));}
+                }
+                let parsed = read_source(&graph,&req.project_id,directory,path,selected[path])
+                    .and_then(|src|engram_index::vb_extractor::vb_invocations(Path::new(path), &src).map_err(anyhow::Error::msg));
+                match parsed {
+                    Ok(report) => {
+                        if report.truncated {truncated=true;}
+                        for call in report.invocations {
+                            let Some(db)=call.repetition.and_then(|r|r.database_call) else {continue;};
+                            for member in db.query_members {
+                                if linq_sites.len() >= 512 { truncated = true; break; }
+                                linq_methods.insert((call.span_start,call.span_length));
+                                let mut row=suggestions.linq_member(&member,&bindings);
+                                row["file"]=json!(path);row["source_sha256"]=json!(report.source_sha256);
+                                linq_sites.push(row);
+                            }
+                        }
+                    }
+                    Err(e) => query_gaps.push(format!("{path}: LINQ query evidence unavailable: {e}")),
+                }
+            }
             let mut result=suggestions.finish();
             if !schema_complete || catalog.gaps.iter().any(|g|g.contains("SQL tokenization failed")) {
                 if let Some(rows)=result["suggestions"].as_array_mut(){for row in rows {row["status"]=json!("ddl_withheld_schema_inventory");row["create_index"]=Value::Null;row["filtered_alternative"]=Value::Null;row["warnings"].as_array_mut().expect("warnings array").push(json!("Selected SQL inventory contains unavailable or unparsed sources; existing index coverage cannot be established."));}}
@@ -181,6 +209,12 @@ impl Engram {
                 result["summary"] = json!("No query could be analyzed in the selected scope. Index coverage is unknown. This analyzer currently reads SQL and supported inline SQL sites.");
             } else {
                 result["summary"]=json!(format!("{} source-backed index candidate(s); {} access pattern(s) already have an eligible source-declared leading-key index",total,result["covered_pattern_count"]));
+            }
+            if !linq_sites.is_empty() {
+                result["status"]=json!("partial_source_analysis");
+                result["linq_query_sites"]=json!(linq_sites);
+                result["coverage"]["linq_materializations_analyzed"]=json!(linq_methods.len());
+                result["summary"]=json!(format!("{total} SQL index suggestion(s). Compared join, filter or order members at {} VB query materialization(s) with DBML and source-declared leading keys. LINQ materializations are identified from source; verify index usefulness with an execution plan.",linq_methods.len()));
             }
             result["project_id"]=json!(req.project_id);result["active_generation"]=json!(generation);
             result["coverage"]["source_inventory"]=json!({"admitted_sql_files":admitted_sql,"inline_query_sites_admitted":inline_admitted,"inline_evidence_withheld":inline_withheld,"query_sources":queries.len(),"source_bytes":bytes,"source_gaps":query_gaps,"truncated":truncated,"admission":"Selected membership, physical graph revision and current source BLAKE3; no atomic graph/disk snapshot. Inline query text comes from indexed SqlCalls metadata with containing-method citations. Assembled/fragment SQL is withheld. Schema comparison uses all admitted SQL declarations even when file_path narrows query sources."});
