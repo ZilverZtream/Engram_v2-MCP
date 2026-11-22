@@ -2036,55 +2036,76 @@ impl Engram {
         #[cfg(test)]
         crate::handlers::search_tools::selected_source_tests::after_selection(&req.project_id).await;
 
-        let hits = ps
-            .search
-            .search(
-                &HybridQuery {
-                    project_id: req.project_id.clone(),
-                    namespace: "memory".into(),
-                    generation: gen_,
-                    text: req.query.clone(),
-                    top_k: 10,
-                    fts_mode: "loose".into(),
-                    include_path_prefixes: None,
-                    exclude_path_prefixes: None,
-                    include_path_suffixes: None,
-                    language_filters: None,
-                    author_filter: None,
-                    date_after: None,
-                    date_before: None,
-                    use_mmr: false,
-                },
-                None,
-                &tokio_util::sync::CancellationToken::new(),
-            )
-            .await
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-        let mut start_nodes = Vec::new();
-        for h in &hits {
-            let nodes = self
-                .state
-                .graph
-                .query_nodes(&req.project_id, None, None, Some(h.path.as_str()), 10)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-            for n in nodes {
-                if matches!(n.node_type.as_str(), "control" | "page" | "function") {
-                    start_nodes.push(n.node_id);
+        use std::collections::{BTreeSet, HashSet};
+        let words: Vec<_> = req.query.split(|ch: char| !ch.is_alphanumeric()).filter(|s| !s.is_empty()).collect();
+        let key = words.concat().to_lowercase();
+        if key.is_empty() || key.len() > 160 { return Err(McpError::invalid_params("Supply a control id or short action caption", None)); }
+        let search = |text: String, suffixes: &[&str]| HybridQuery {
+            project_id: req.project_id.clone(), namespace: "memory".into(), generation: gen_, text,
+            top_k: 64, fts_mode:"loose".into(), include_path_prefixes:None, exclude_path_prefixes:None,
+            include_path_suffixes:Some(suffixes.iter().map(|s| s.to_string()).collect()), language_filters:None,
+            author_filter:None, date_after:None, date_before:None, use_mmr:false,
+        };
+        let cancel = tokio_util::sync::CancellationToken::new();
+        let root = PathBuf::from(&ps.info.directory);
+        let markup_query = search(format!("{} {}",req.query,words.join("_")), &[".aspx",".ascx",".html",".master",".cshtml",".vbhtml"]);
+        let hits = ps.search.search(&markup_query,None,&cancel).await.map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let graph = &self.state.graph;
+        let mut start_nodes = BTreeSet::new();
+        let mut anchors = BTreeSet::new();
+        let mut selectors = BTreeSet::new();
+        let mut files = HashSet::new();
+        let normalize = |text: &str| text.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect::<String>();
+        let attr = regex::Regex::new(r#"(?i)\b(id|class|title|aria-label|text)\s*=\s*["']([^"']+)["']"#).unwrap();
+        let control_name = words.iter().max_by_key(|w| w.len()).unwrap();
+        for node in graph.query_nodes(&req.project_id,Some("control"),Some(control_name),None,200)
+            .map_err(|e| McpError::internal_error(e.to_string(),None))? {
+            if normalize(&node.name).contains(&key) {
+                anchors.insert(format!("{}:{} control {}",node.file_path,node.start_line,node.name));
+                start_nodes.insert(node.node_id);
+            }
+        }
+        for hit in hits {
+            if !files.insert(hit.path.as_str().to_owned()) {continue;}
+            let Ok(source) = crate::planner_source::read(graph,&req.project_id,&root,hit.path.as_str()) else {continue;};
+            for (i,line) in source.lines().enumerate() {
+                let text = line.trim();
+                if !text.starts_with('<') || text.starts_with("<!--") {continue;}
+                let attrs: Vec<_> = attr.captures_iter(text).collect();
+                if !attrs.iter().any(|m| normalize(&m[2]).contains(&key)) {continue;}
+                anchors.insert(format!("{}:{} {}",hit.path,i+1,text.chars().take(280).collect::<String>()));
+                for m in attrs {
+                    if m[1].eq_ignore_ascii_case("id") && !m[2].contains(|c:char| !c.is_alphanumeric() && c!='_' && c!='-') {
+                        selectors.insert(format!("#{}",&m[2]));
+                    }
+                    if m[1].eq_ignore_ascii_case("class") {
+                        selectors.extend(m[2].split_whitespace().filter(|class| words.iter().any(|w| class.to_lowercase().contains(&w.to_lowercase())))
+                            .map(|class|format!(".{class}")));
+                    }
+                }
+                if anchors.len() >= 100 {break;}
+            }
+            if anchors.len() >= 100 {break;}
+        }
+        let mut out = format!("UI action evidence for '{}':\n",req.query);
+        for site in anchors.iter().take(30) {let _ = writeln!(out,"- {site}");}
+        for selector in selectors.iter().take(6) {
+            let query = search(selector.clone(), &[".ts",".tsx",".js",".jsx"]);
+            let hits = ps.search.search(&query,None,&cancel).await.map_err(|e| McpError::internal_error(e.to_string(),None))?;
+            let mut seen = HashSet::new();
+            for h in hits.iter().filter(|h| seen.insert(h.path.as_str())).take(12) {
+                let Ok(source) = crate::planner_source::read(graph,&req.project_id,&root,h.path.as_str()) else {continue;};
+                for (i,line) in source.lines().enumerate().filter(|(_,l)| !l.trim_start().starts_with("//")
+                    && (l.contains(&format!("'{selector}'")) || l.contains(&format!("\"{selector}\"")))).take(4) {
+                    let _ = writeln!(out,"- Selector {selector} at {}:{} {}",h.path,i+1,line.trim().chars().take(200).collect::<String>());
                 }
             }
         }
-        start_nodes.sort();
-        start_nodes.dedup();
-
         if start_nodes.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(
-                "No UI controls or handlers found for the query.",
-            )]));
+            if anchors.is_empty() {out.push_str("No matching control or markup caption found within the searched scope.");}
+            else {out.push_str("No indexed handler edge from the matched markup element.");}
+            return Ok(CallToolResult::success(vec![Content::text(out)]));
         }
-
-        let mut out = format!("UI Trace results for '{}':\n", req.query);
         let mut paths_found = 0;
 
         let edge_kinds = vec![
@@ -2128,9 +2149,8 @@ impl Engram {
         }
 
         if paths_found == 0 {
-            return Ok(CallToolResult::success(vec![Content::text(
-                "No call chains found from identified UI elements.",
-            )]));
+            out.push_str("No indexed call chain from the matched controls.");
+            return Ok(CallToolResult::success(vec![Content::text(out)]));
         }
 
         Ok(CallToolResult::success(vec![Content::text(
@@ -2290,8 +2310,22 @@ impl Engram {
             let mut tree = serde_json::Map::new();
             tree.insert("file".into(), serde_json::Value::String(req.file_path.clone()));
 
+            let selector = req.control_id.as_deref().map(str::trim);
+            if selector.is_some_and(str::is_empty) { return Err("control_id must contain an identifier".into()); }
+            let markup_layout = crate::planner_source::read(&graph, &req.project_id, &root, &req.file_path).ok()
+                .map(|markup| engram_index::layout_extractor::extract_webforms_layout(&req.file_path, &markup).1);
+            let mut selected = std::collections::HashSet::new();
+            if let Some(id) = selector {
+                tree.insert("requested_control_id".into(), serde_json::json!(id));
+                selected.insert(id.to_ascii_lowercase());
+                if let Some(edges) = &markup_layout {
+                    selected.extend(edges.iter().filter(|e| e.kind == "contains_ui" && e.target_name.eq_ignore_ascii_case(id))
+                        .map(|e| e.source_name.to_ascii_lowercase()));
+                }
+            }
             let mut containers_json = Vec::new();
             for container in &all_containers {
+                if selector.is_some() && !selected.contains(&container.name.to_ascii_lowercase()) { continue; }
                 let mut cobj = serde_json::Map::new();
                 cobj.insert("id".into(), serde_json::Value::String(container.name.clone()));
                 cobj.insert("node_id".into(), serde_json::Value::String(container.node_id.clone()));
@@ -2314,6 +2348,7 @@ impl Engram {
                     child_obj.insert("node_id".into(), serde_json::Value::String(child_id.clone()));
 
                     if let Ok(Some(child_node)) = graph.get_node(&req.project_id, child_id) {
+                        if selector.is_some_and(|id| !container.name.eq_ignore_ascii_case(id) && !child_node.name.eq_ignore_ascii_case(id)) { continue; }
                         child_obj.insert("name".into(), serde_json::Value::String(child_node.name.clone()));
                         child_obj.insert("type".into(), serde_json::Value::String(child_node.node_type.clone()));
 
@@ -2343,8 +2378,7 @@ impl Engram {
                 containers_json.push(serde_json::Value::Object(cobj));
             }
 
-            if let Ok(markup) = crate::planner_source::read(&graph, &req.project_id, &root, &req.file_path) {
-                let (_, layout) = engram_index::layout_extractor::extract_webforms_layout(&req.file_path, &markup);
+            if let Some(layout) = markup_layout {
                 let parents: std::collections::HashMap<_,_> = layout.iter().filter(|e| e.kind == "contains_ui")
                     .map(|e| (e.target_name.as_str(), (e.source_name.as_str(),e.target_start_line))).collect();
                 let mut ancestry = std::collections::BTreeMap::new();
@@ -2358,6 +2392,7 @@ impl Engram {
                         if !parent.starts_with("__anon_") { chain.push(parent); }
                         current = parent;
                     }
+                    if selector.is_some_and(|id| !child.eq_ignore_ascii_case(id) && !chain.first().is_some_and(|c| c.eq_ignore_ascii_case(id))) {continue;}
                     if !chain.is_empty() { ancestry.insert(child, serde_json::json!({"line":line,"nearest_parent_first":chain})); }
                 }
                 tree.insert("control_ancestry".into(),serde_json::json!(ancestry));
@@ -2369,6 +2404,7 @@ impl Engram {
                         for (index,line) in source.lines().enumerate() {
                             if line.trim_start().starts_with(['\'', '/']) {continue;}
                             if let Some(cap) = setter.captures(line)
+                                && (selector.is_none() || selected.contains(&cap[1].to_ascii_lowercase()))
                                 && all_containers.iter().any(|n| n.name.eq_ignore_ascii_case(&cap[1])) {
                                 sites.push(serde_json::json!({"file":path,"line":index+1,"control":&cap[1],"statement":line.trim()}));
                             }
@@ -2377,6 +2413,7 @@ impl Engram {
                 }
                 tree.insert("indexed_codebehind_visibility_assignments".into(),serde_json::json!(sites));
             }
+            tree.insert("returned_container_count".into(), serde_json::json!(containers_json.len()));
             tree.insert("containers".into(), serde_json::Value::Array(containers_json));
             tree.insert("container_count".into(), serde_json::Value::Number(all_containers.len().into()));
             serde_json::to_string_pretty(&tree).map_err(|e| e.to_string())

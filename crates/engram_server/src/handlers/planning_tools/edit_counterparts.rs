@@ -22,27 +22,6 @@ fn matches_entry(path: &str, pattern: &str) -> bool {
     crate::utils::files::pattern_match(path, p)
 }
 
-fn parse_config(text: &str) -> Option<serde_json::Value> {
-    static TOKENS: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r#""(?:\\.|[^"\\])*"|//[^\n]*|(?s:/\*.*?\*/)"#).unwrap());
-    static COMMAS: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r#""(?:\\.|[^"\\])*"|,\s*([}\]])"#).unwrap());
-    let clean = TOKENS.replace_all(
-        text.trim_start_matches('\u{feff}'),
-        |m: &regex::Captures| {
-            if m[0].starts_with('/') {
-                " ".to_owned()
-            } else {
-                m[0].to_owned()
-            }
-        },
-    );
-    let clean = COMMAS.replace_all(&clean, |m: &regex::Captures| {
-        m.get(1).unwrap_or(m.get(0).unwrap()).as_str().to_owned()
-    });
-    serde_json::from_str(&clean).ok()
-}
-
 fn build_outputs(
     root: &Path,
     current: &[String],
@@ -63,46 +42,10 @@ fn build_outputs(
         .filter(|p| typescript(p))
         .map(Path::new)
         .collect();
-    let mut configs = BTreeSet::new();
-    for p in &sources {
-        for parent in p.ancestors().skip(1) {
-            configs.insert(parent.join("tsconfig.json"));
-        }
-    }
-    configs.extend(
-        current
-            .iter()
-            .filter(|p| {
-                Path::new(p)
-                    .file_name()
-                    .and_then(|s| s.to_str())
-                    .is_some_and(|s| s.starts_with("tsconfig") && s.ends_with(".json"))
-            })
-            .map(PathBuf::from),
-    );
     let mut refs: HashMap<PathBuf, Vec<PathBuf>> = HashMap::new();
     let mut result = Vec::new();
-    for cfg in configs {
-        let Some(dir) = cfg.parent() else { continue };
-        let Some(text) = cfg
-            .to_str()
-            .and_then(|p| engram_core::safe_read_to_string(root, p).ok())
-        else {
-            continue;
-        };
-        let Some(config) = parse_config(&text) else {
-            continue;
-        };
-        let Some(output) = config["compilerOptions"]["outFile"].as_str() else {
-            continue;
-        };
-        let directory = root.join(dir);
-        let Ok(target) = directory.join(output).canonicalize() else {
-            continue;
-        };
-        let Ok(bundle) = target.strip_prefix(root) else {
-            continue;
-        };
+    for (dir, config, bundle) in crate::services::typescript_outputs::declared(root, current.iter().map(String::as_str)) {
+        let directory = root.join(&dir);
         let entries = |key: &str| {
             config[key]
                 .as_array()
@@ -118,7 +61,7 @@ fn build_outputs(
         }
         let exclude = entries("exclude");
         for p in &sources {
-            let Ok(local) = p.strip_prefix(dir) else {
+            let Ok(local) = p.strip_prefix(&dir) else {
                 continue;
             };
             let path = local.to_string_lossy().replace('\\', "/");
@@ -144,7 +87,7 @@ fn build_outputs(
                 continue;
             }
             if let Some(src) = targets.get(&path) {
-                result.push(((*src).clone(), bundle.to_string_lossy().replace('\\', "/")));
+                result.push(((*src).clone(), bundle.clone()));
             }
             let dependencies = refs.entry(path.clone()).or_insert_with(|| {
                 static REF: LazyLock<Regex> = LazyLock::new(|| {
@@ -197,7 +140,7 @@ pub(super) fn collect(
     edits: &[(String, String)],
     current: &[String],
     edited: &HashSet<String>,
-) -> BTreeSet<(String, String, &'static str)> {
+) -> BTreeSet<(String, String, String)> {
     let mut result = BTreeSet::new();
     let Ok(root) = root.canonicalize() else {
         return result;
@@ -216,16 +159,16 @@ pub(super) fn collect(
                 result.insert((
                     source.clone(),
                     output.clone(),
-                    "compiled output of an entry point referencing the edited source",
+                    "compiled output of an entry point referencing the edited source".to_owned(),
                 ));
             }
         }
-        let mut add = |candidate: &str, reason| {
+        let mut add = |candidate: &str, reason: &str| {
             let key = super::edit_path_key(candidate);
             if !edited.contains(&key)
                 && let Some(actual) = indexed.get(&key)
             {
-                result.insert((source.clone(), (*actual).clone(), reason));
+                result.insert((source.clone(), (*actual).clone(), reason.to_owned()));
             }
         };
         let page = lower
@@ -240,23 +183,7 @@ pub(super) fn collect(
                 add(&format!("{page}{ext}"), "generated WebForms designer");
             }
         }
-        if let Some(stem) = lower.strip_suffix(".resx") {
-            fn family(stem: &str) -> &str {
-                static CULTURE: LazyLock<Regex> =
-                    LazyLock::new(|| Regex::new(r"(?i)\.[a-z]{2,3}(?:-[a-z0-9]{2,8})*$").unwrap());
-                CULTURE.find(stem).map_or(stem, |m| &stem[..m.start()])
-            }
-            let base = family(stem);
-            for file in current {
-                if file
-                    .to_ascii_lowercase()
-                    .strip_suffix(".resx")
-                    .is_some_and(|s| family(s) == base)
-                {
-                    add(file, "sibling locale resource");
-                }
-            }
-        }
     }
+    super::resource_keys::assess(&root, edits, current, edited, &mut result);
     result
 }

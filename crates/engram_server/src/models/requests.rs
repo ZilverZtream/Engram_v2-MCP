@@ -2254,6 +2254,9 @@ pub struct GetUiBlueprintRequest {
     pub project_id: String,
     /// Project-relative path to the .aspx, .ascx, .Designer.vb, or .Designer.cs file.
     pub file_path: String,
+    /// Exact container or control identifier. Includes its immediate children and containing chain.
+    #[serde(default)]
+    pub control_id: Option<String>,
 }
 
 // -------------------- Git --------------------

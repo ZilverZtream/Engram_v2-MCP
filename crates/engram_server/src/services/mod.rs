@@ -31,6 +31,7 @@ pub mod evidence_orchestration;
 pub mod explain_change_service;
 pub mod full_project_migration_service;
 pub(crate) mod generated_files;
+pub(crate) mod typescript_outputs;
 pub mod git_service;
 pub mod graph_service;
 pub mod house_style;

@@ -16,6 +16,7 @@ mod page_guards;
 mod story_sites;
 pub(super) mod story_citations;
 mod edit_counterparts;
+mod resource_keys;
 #[path = "planning_tools/story_sources.rs"]
 mod story_sources;
 #[path = "planning_tools/story_routes.rs"]

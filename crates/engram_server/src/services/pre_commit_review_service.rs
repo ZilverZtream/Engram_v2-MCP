@@ -2754,6 +2754,18 @@ async fn run_pre_commit_review_selected(
         source.as_ref().ok(),
         &mut provider_notes,
     ));
+    let compiler_outputs: HashSet<String> = if diff_files.iter().any(|f| f.path.ends_with(".js")) {
+        crate::services::typescript_outputs::declared(project_dir,
+            files_by_parent.values().flatten().chain(changed_paths.iter()).map(String::as_str))
+            .into_iter().map(|(_, _, output)| output).collect()
+    } else {
+        HashSet::new()
+    };
+    let authored_files = if diff_files.iter().any(|f| compiler_outputs.contains(&f.path)) {
+        Arc::new(diff_files.iter().filter(|f| !compiler_outputs.contains(&f.path)).cloned().collect())
+    } else {
+        diff_files.clone()
+    };
     let audit_function = detect_audit_function(&state.graph, project_id, generation, source.as_ref().ok(), &mut provider_notes);
 
     // External audit 2026-08-29 P0-4: a structurally incomplete index returns
@@ -2784,6 +2796,7 @@ async fn run_pre_commit_review_selected(
     // Context shared across all gates. Wrapped in Arc so we can clone
     // cheaply into spawn_blocking closures.
     let shared = Arc::new(SharedGateData {
+        authored_files,
         graph: state.graph.clone(),
         registry: state.registry.clone(),
         project_id: project_id.to_string(),
@@ -2828,9 +2841,11 @@ async fn run_pre_commit_review_selected(
     let mut source_scopes = BTreeMap::new();
     for gate in gate_list {
         let name = gate.name();
-        if let Some(extensions) = gate.source_extensions() {
+        let authored_only = reviews_authored_lines(name) && shared.authored_files.len() != diff_files.len();
+        if gate.source_extensions().is_some() || authored_only {
+            let extensions = gate.source_extensions().unwrap_or_default();
             let (applicable_files, not_applicable_files) = diff_files.iter()
-                .map(|file| file.path.clone()).partition(|path| gate.supports_path(path));
+                .map(|file| file.path.clone()).partition(|path| gate.supports_path(path) && !(authored_only && compiler_outputs.contains(path)));
             source_scopes.insert(name, GateSourceScope {
                 supported_extensions: extensions.iter().map(|extension| (*extension).to_owned()).collect(),
                 applicable_files, not_applicable_files,
@@ -2849,7 +2864,7 @@ async fn run_pre_commit_review_selected(
         }
         if source_scopes.get(name).is_some_and(|scope| scope.applicable_files.is_empty()) {
             outcomes.push(GateOutcome {
-                name, status: GateStatus::NotApplicable("No submitted files are in this gate's supported source languages/formats; see source_scope. No analysis performed.".into()),
+                name, status: GateStatus::NotApplicable("No submitted files are applicable to this gate after checking source language and compiler outputs; see source_scope.".into()),
                 elapsed_ms: 0, caps: Vec::new(), source_scope: None,
             });
             if let Some(observe) = &observe_gate { observe(name, &[]); }
@@ -3065,8 +3080,13 @@ impl ProviderNote {
     }
 }
 
+fn reviews_authored_lines(name: &str) -> bool {
+    matches!(name, "style" | "complexity_budget" | "repo_rules" | "added_conventions")
+}
+
 #[derive(Clone)]
 struct SharedGateData {
+    authored_files: Arc<Vec<DiffFile>>,
     graph: Arc<GraphStore>,
     registry: Arc<Registry>,
     project_id: String,
@@ -3094,7 +3114,7 @@ impl SharedGateData {
             project_id: &self.project_id,
             project_dir: self.project_dir.as_path(),
             generation: self.generation,
-            diff_files: self.diff_files.as_slice(),
+            diff_files: if reviews_authored_lines(gate) { &self.authored_files } else { &self.diff_files },
             changed_paths: &self.changed_paths,
             total_commits: self.total_commits,
             repo_rules: self.repo_rules.clone(),

@@ -114,6 +114,17 @@ pub(crate) fn evidence(tool: &str, body: &str) -> String {
             }
             selected.join("\n## ")
         }
+        "get_ui_blueprint" => {
+            if let Ok(v) = serde_json::from_str::<Value>(body) {
+                let containers: Vec<_> = v["containers"].as_array().into_iter().flatten().map(|c|
+                    json!({"id": c["id"], "children":c["children"].as_array().map(Vec::len)})).collect();
+                return json!({"file":v["file"],"container_count":v["container_count"],"containers":containers,
+                    "narrow_with":"Call get_ui_blueprint on the same file with control_id set to an exact identifier."}).to_string();
+            }
+            body.to_owned()
+        }
+        "get_ui_conformance" | "trace_ui_event" | "trace_ui_action" => body.lines().take_while(|line|
+            !line.starts_with("## Repository policy sources")).collect::<Vec<_>>().join("\n"),
         "pre_push_audit" => body.lines().take_while(|line| !line.starts_with("Retrieval sampling")).collect::<Vec<_>>().join("\n"),
         "plan_user_story" => body
             .lines()
