@@ -1,6 +1,6 @@
 //! TypeScript compiler outputs declared by the reviewed checkout.
 use regex::Regex;
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
