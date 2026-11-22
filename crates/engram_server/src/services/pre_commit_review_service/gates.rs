@@ -3542,7 +3542,7 @@ impl Gate for ComplexityGate {
             }
             let disk_lines: Vec<&str> = disk.lines().collect();
             let member_facts=engram_index::js_method_facts::members(std::path::Path::new(&df.path),&disk);
-            let mut over: Vec<(u32, usize, String, bool)> = Vec::new();
+            let mut over = Vec::new();
             for (start, end, name) in function_spans(&disk, vb_style) {
                 if added.range(start..=end).next().is_none()
                     && !deletion_gaps.range(..=end).next_back().is_some_and(|line| *line > start)
@@ -3553,10 +3553,13 @@ impl Gate for ComplexityGate {
                     .get(start - 1..end.min(disk_lines.len()))
                     .unwrap_or(&[])
                     .join("\n");
-                let cx = member_facts.iter().find(|m|m.line==start && m.name==name)
-                    .map_or_else(|| estimate_complexity(&body),|m|m.decisions);
+                let member = member_facts.iter().find(|m|m.declaration_line==start && m.name==name);
+                let (cx, metric) = match member {
+                    Some(member) => (member.cognitive_complexity, "method-local cognitive complexity estimate"),
+                    None => (estimate_complexity(&body), "structural complexity estimate"),
+                };
                 if cx > SQ_COMPLEXITY_MAX {
-                    over.push((cx, start, name, added.range(start..=end).count() == end - start + 1));
+                    over.push((cx, start, name, added.range(start..=end).count() == end - start + 1, metric));
                 }
             }
             over.sort_by(|a, b| b.0.cmp(&a.0));
@@ -3567,15 +3570,15 @@ impl Gate for ComplexityGate {
                     df.path
                 ));
             }
-            for (cx, start, name, is_new) in over.into_iter().take(3) {
+            for (cx, start, name, is_new, metric) in over.into_iter().take(3) {
                 let (sev, title, detail, suggestion) = if is_new {
                     (
                         Severity::Warning,
                         format!(
-                            "Added function body `{name}` has estimated complexity {cx} (review threshold {SQ_COMPLEXITY_MAX})"
+                            "Added function body `{name}` has {metric} {cx} (review threshold {SQ_COMPLEXITY_MAX})"
                         ),
                         format!(
-                            "Engram's local estimate ({cx} decision points) exceeds its \
+                            "Engram's local {metric} ({cx}) exceeds its \
                              review threshold of {SQ_COMPLEXITY_MAX}. This is a heuristic, not \
                              a SonarQube result; scanner language support and the project's \
                              configured quality gate have not been verified."
@@ -3589,7 +3592,7 @@ impl Gate for ComplexityGate {
                     (
                         Severity::Info,
                         format!(
-                            "Touched function `{name}` has estimated complexity {cx} (review threshold {SQ_COMPLEXITY_MAX})"
+                            "Touched function `{name}` has {metric} {cx} (review threshold {SQ_COMPLEXITY_MAX})"
                         ),
                         format!(
                             "The post-change function exceeds Engram's local review threshold \

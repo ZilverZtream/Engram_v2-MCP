@@ -1268,6 +1268,19 @@ impl Engram {
                         if incoming.len() > CONSUMER_CAP_PER_ANCHOR {
                             cov.consumers = "truncated".into();
                         }
+                        let endpoints = incoming.iter().take(CONSUMER_CAP_PER_ANCHOR)
+                            .filter(|(_,kind,_)| *kind == EdgeKind::QueriesTable)
+                            .map(|(src,kind,_)| (src.clone(),kind.clone(),anchor_id.clone())).collect::<Vec<_>>();
+                        let mut table_access = HashMap::new();
+                        match graph.get_edges_by_endpoints(&pid, &endpoints) {
+                            Ok(edges) => for edge in edges {
+                                if let Some(access) = edge.metadata.as_ref().and_then(|m| m["access"].as_str())
+                                    && matches!(access, "read" | "write" | "readwrite" | "delete") {
+                                    table_access.insert(edge.source_id, access.to_owned());
+                                }
+                            },
+                            Err(e) => cov.failures.push(format!("Table access metadata unavailable for {anchor_name}: {e}")),
+                        }
                         for (src, kind, _w) in incoming.into_iter().take(CONSUMER_CAP_PER_ANCHOR) {
                             cov.consumer_edges += 1;
                             if matches!(
@@ -1281,7 +1294,9 @@ impl Engram {
                             ) {
                                 consumers.push((
                                     anchor_name.clone(),
-                                    format!("{}:{}", consumer_role(&kind, &src), kind.as_str()),
+                                    if kind == EdgeKind::QueriesTable {
+                                        format!("{}:{}", table_access.get(&src).map_or("unknown", String::as_str), kind.as_str())
+                                    } else { format!("{}:{}", consumer_role(&kind, &src), kind.as_str()) },
                                     src,
                                 ));
                             }
@@ -1345,7 +1360,14 @@ impl Engram {
                 let _source_snapshot = worker_snapshot;
                 #[cfg(test)]
                 if let Some(observation) = &observation { observation.pause(); }
-                match engine.lexical_search(&q) {
+                let hits = if compound {
+                    let words: Vec<_> = q.text.split_whitespace().map(str::to_lowercase).collect();
+                    engine.lexical_search_matching(&q, &mut |_, text| text.lines().any(|line| {
+                        let lower = line.to_lowercase();
+                        words.iter().all(|word| lower.contains(word.as_str()))
+                    }))
+                } else { engine.lexical_search(&q) };
+                match hits {
                     Ok(hits) => {
                         let n = hits.len();
                         let mut files: Vec<String> =
@@ -1697,7 +1719,7 @@ impl Engram {
                     .count()
             };
             out.push_str(&format!(
-                "\n## Consumers of core anchors — {} (write {}, read {}, delete {}, export {}, test {}, sql? {}; role from edge kind + source member name/path — bodies not inspected, so a `read` may still write via LINQ/SQL)\n",
+                "\n## Consumers of core anchors — {} (write {}, read {}, delete {}, export {}, test {}, sql? {}, read/write {}, unknown {}). Table access uses indexed operation metadata. Other roles use the edge kind and source member or path.\n",
                 consumers.len(),
                 role_count("write"),
                 role_count("read"),
@@ -1705,6 +1727,8 @@ impl Engram {
                 role_count("export"),
                 role_count("test"),
                 role_count("sql?"),
+                role_count("readwrite"),
+                role_count("unknown"),
             ));
             for (anchor, kind, src) in consumers.iter().take(cap * 2) {
                 out.push_str(&format!("- [{kind}] {src} -> {anchor}\n"));
@@ -12826,7 +12850,9 @@ impl Engram {
                 if historical_rules {
                     // Historical eligibility uses introduced_at below, never the
                     // current checked-out policy as historical evidence.
-                    Ok((rule_state.registry.list_repo_rules(&rule_project)?, Vec::<String>::new()))
+                    let mut rules = rule_state.registry.list_repo_rules(&rule_project)?;
+                    rules.retain(|rule| rule.legacy_example_field().is_none());
+                    Ok((rules, Vec::<String>::new()))
                 } else {
                     let paths: Vec<&str> = freshness_paths.iter().map(String::as_str).collect();
                     let effective = crate::services::quality_source::effective_repo_rules(&rule_state, &rule_project, Some(&paths))?;

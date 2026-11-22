@@ -2747,6 +2747,14 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let (per_file_reports, total_critical, total_high, total_medium, files_scanned) = result;
+        let publication = if let Some(file) = req.file_path.clone() {
+            let graph = self.state.graph.clone();
+            let project = req.project_id.clone();
+            tokio::task::spawn_blocking(move || crate::services::sync_publication::inspect(
+                &graph, &project, Path::new(&project_dir), &file))
+                .await.map_err(|e| McpError::internal_error(e.to_string(),None))?
+                .unwrap_or_else(|e| serde_json::json!({"status":"unavailable","reason":e.to_string()}))
+        } else { serde_json::json!({"status":"requires_file_scope","next":"Pass file_path to inspect authored publication requirements and indexed writes."}) };
 
         if output_json {
             let json_data: Vec<serde_json::Value> = per_file_reports
@@ -2768,6 +2776,7 @@ impl Engram {
                 "total_high": total_high,
                 "total_medium": total_medium,
                 "files_with_hazards": per_file_reports.len(),
+                "data_synchronization": publication,
                 "reports": json_data,
             }))
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -2832,6 +2841,20 @@ impl Engram {
             }
         }
 
+        out.push_str("\n## Data synchronization\n");
+        out.push_str(publication["status"].as_str().unwrap_or("unknown"));
+        out.push('\n');
+        for (name, rule) in publication["authored_publishers"].as_object().into_iter().flatten() {
+            out.push_str(&format!("- Publisher `{name}` in {}:{}\n", rule["file"].as_str().unwrap_or(""), rule["line"]));
+        }
+        for writer in publication["writers"].as_array().into_iter().flatten() {
+            out.push_str(&format!("- {}:{} {} — {}. Write targets {}. Publisher calls {}. Peers {}.\n",
+                writer["file"].as_str().unwrap_or(""), writer["line"], writer["method"].as_str().unwrap_or(""),
+                writer["status"].as_str().unwrap_or(""), writer["indexed_write_targets"], writer["publisher_calls"], writer["publishing_peers"]));
+        }
+        for key in ["scope", "reason", "next"] {
+            if let Some(note) = publication[key].as_str() { out.push_str(note); out.push('\n'); }
+        }
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 

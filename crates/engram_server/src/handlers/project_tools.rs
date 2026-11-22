@@ -3227,7 +3227,7 @@ async fn generation_completeness_with_graph_observation(
     let complete = missing.len() <= tolerance && cross_store_mismatch == 0 && !degraded;
     Ok(GenerationCompleteness {
         generation,
-        expected_paths: expected.len(),
+        expected_paths: expected.len().saturating_sub(skipped_by_rule),
         tantivy_paths: tantivy.len(),
         vector_paths: vectors.len(),
         graph_paths: graph_paths.len(),
@@ -5660,6 +5660,13 @@ impl Engram {
         let mut out = String::from("# Repository rules\n\n");
         let project = self.state.registry.get_project(&req.project_id)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        if let Some(record) = &project {
+            let written = crate::services::written_casing::for_repository(std::path::Path::new(&record.directory));
+            if let Some((rule, _)) = crate::services::written_casing::public_rule(&written) {
+                out.push_str(&format!("Current written TypeScript public-member policy: {} ({})\nGeneral naming conventions below defer to this written declaration. Check scoped guidance for the edited file.\n\n",
+                    rule.text, rule.source));
+            }
+        }
         let source = ".github/copilot-instructions.md";
         let checkout = project.as_ref().and_then(|rec|
             engram_core::safe_read_to_string(std::path::Path::new(&rec.directory), source).ok());

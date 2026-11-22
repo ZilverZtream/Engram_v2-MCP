@@ -171,6 +171,8 @@ pub struct MethodInfoResult {
     pub session_keys_read: Vec<String>,
     pub session_keys_written: Vec<String>,
     pub complexity_score: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub script_cognitive_complexity_estimate: Option<u32>,
     pub body_preview: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project_policy_sources: Option<crate::services::project_policy::PolicyContext>,
@@ -1462,6 +1464,7 @@ fn apply_script_declaration(info: &mut MethodInfoResult, declarations: &[engram_
         info.signature.clone_from(&member.signature);
         if let Some(result) = &member.return_type { info.return_type.clone_from(result); }
         info.complexity_score = member.decisions;
+        info.script_cognitive_complexity_estimate = Some(member.cognitive_complexity);
     }
 }
 
@@ -1646,6 +1649,7 @@ fn build_method_info_with_coverage(
         session_keys_read: session_reads,
         session_keys_written: session_writes,
         complexity_score: complexity,
+        script_cognitive_complexity_estimate: None,
         body_preview,
         project_policy_sources: None,
     };
@@ -7721,6 +7725,7 @@ mod edit_safety_tests {
                 .map(|i| format!("Session:k{i}"))
                 .collect(),
             complexity_score: complexity,
+            script_cognitive_complexity_estimate: None,
             body_preview: None,
             project_policy_sources: None,
         }

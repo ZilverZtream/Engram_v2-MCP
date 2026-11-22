@@ -18,9 +18,19 @@ pub fn for_file(root: &Path, target: &str) -> Vec<Rule> {
     if !is_typescript(target) {
         return Vec::new();
     }
+    written_rules(root, &[target.to_owned()])
+}
+
+/// An unscoped inventory may cite repository-wide declarations only.
+/// Additional path-specific rules are resolved when a caller supplies a file.
+pub fn for_repository(root: &Path) -> Vec<Rule> {
+    written_rules(root, &[])
+}
+
+fn written_rules(root: &Path, targets: &[String]) -> Vec<Rule> {
     let context = project_policy::resolve_with_budget(
         root,
-        &[target.to_owned()],
+        targets,
         &[],
         PolicyBudget {
             max_sources: 32,

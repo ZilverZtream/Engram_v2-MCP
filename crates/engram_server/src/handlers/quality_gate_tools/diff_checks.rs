@@ -159,6 +159,12 @@ fn arguments(s: &str) -> Option<Vec<&str>> {
     }
     None
 }
+pub(super) fn dialog_receiver(identifier: &str) -> bool {
+    let lower = identifier.to_ascii_lowercase();
+    let base = ["element", "container", "el"].into_iter().find_map(|suffix| lower.strip_suffix(suffix)).unwrap_or(&lower);
+    base.ends_with("modal") || base.ends_with("dialog")
+}
+
 fn javascript(lines: &[(usize, String)], out: &mut Vec<Observation<'static>>) {
     static BARE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"\.(?:preventDefault|stopPropagation)\s*;\s*$").unwrap());
@@ -172,7 +178,7 @@ fn javascript(lines: &[(usize, String)], out: &mut Vec<Observation<'static>>) {
             continue;
         }
         static SHOW: LazyLock<Regex> = LazyLock::new(|| {
-            Regex::new(r#"(?i)\b[\w.$]*(?:modal|dialog)[\w.$]*\.classList\.remove\(\s*["']hidden["']\s*\)"#).unwrap()
+            Regex::new(r#"([\w$]+)\.classList\.remove\(\s*["']hidden["']\s*\)"#).unwrap()
         });
         static ALERT: LazyLock<Regex> =
             LazyLock::new(|| Regex::new(r"^(?:window\.)?alert\s*\(").unwrap());
@@ -183,7 +189,7 @@ fn javascript(lines: &[(usize, String)], out: &mut Vec<Observation<'static>>) {
         static DYNAMIC: LazyLock<Regex> = LazyLock::new(|| {
             Regex::new(r#"(?is)\bcontent\s*:\s*(?:["'][^"']*["']\s*\+\s*[\w$(]|[\w$.]+\s*\+\s*["']|\x60[^\x60]*\$\{)"#).unwrap()
         });
-        if SHOW.is_match(code)
+        if SHOW.captures_iter(code).any(|hit| dialog_receiver(&hit[1]))
             && !lines.iter().any(|(_, l)| {
                 l.contains("modal-open") && (l.contains(".add(") || l.contains(".addClass("))
             })

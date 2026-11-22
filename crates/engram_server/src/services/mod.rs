@@ -56,6 +56,7 @@ pub mod memory_portability;
 pub mod migration_order_service;
 pub mod migration_progress_service;
 pub mod migration_service;
+pub(crate) mod sync_publication;
 pub mod pattern_detection_service;
 pub mod pagerank_cache;
 pub mod plan_verify;

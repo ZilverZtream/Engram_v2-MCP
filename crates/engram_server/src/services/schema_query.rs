@@ -112,9 +112,10 @@ pub(crate) fn mapped_query_sites(graph: &engram_graph::GraphStore, project: &str
         for (id, (member, citation)) in declarations {
             let (incoming, truncated) = graph.incoming_edge_prefix(project, engram_graph::EdgeKind::Calls, &id, limit)?;
             omitted |= truncated;
-            for (caller, _, _) in incoming {
+            let endpoints = incoming.into_iter().map(|(caller,kind,_)| (caller,kind,id.clone())).collect::<Vec<_>>();
+            for edge in graph.get_edges_by_endpoints(project, &endpoints)? {
                 if callers.len() >= limit { omitted = true; break; }
-                let Some(node) = graph.get_node(project, &caller)? else { continue; };
+                let Some(node) = graph.get_node(project, &edge.source_id)? else { continue; };
                 if node.start_line == 0 || node.end_line < node.start_line { continue; }
                 let path = node.file_path.as_str();
                 let source = source_cache.entry(path.to_owned()).or_insert_with(|| {
@@ -130,11 +131,19 @@ pub(crate) fn mapped_query_sites(graph: &engram_graph::GraphStore, project: &str
                     .take((node.end_line - node.start_line + 1) as usize)
                     .filter(|(_, line)| pattern.is_match(line))
                     .map(|(index, _)| index + 1).collect();
-                let location = match lines.as_slice() {
-                    [line] => format!("{path}:{line}"),
-                    _ => format!("{path}:{} (caller declaration)", node.start_line),
-                };
-                callers.insert(format!("  [mapped property access] {} at {location} via {member} ({}:{})\n", node.name, citation.path, citation.start_line));
+                let bound = edge.call_site_lines();
+                let mut locations = lines.iter().filter(|line| bound.contains(&(**line as u32)))
+                    .map(|line| format!("{path}:{line}")).collect::<Vec<_>>();
+                if locations.is_empty() {
+                    locations.push(match lines.as_slice() {
+                        [line] => format!("{path}:{line}"),
+                        _ => format!("{path}:{} (caller declaration)", node.start_line),
+                    });
+                }
+                for location in locations {
+                    if callers.len() >= limit { omitted = true; break; }
+                    callers.insert(format!("  [mapped property access] {} at {location} via {member} ({}:{})\n", node.name, citation.path, citation.start_line));
+                }
             }
         }
         for caller in callers { report.push_str(&caller); }

@@ -558,6 +558,15 @@ impl<'a> Input<'a> {
                 if !hit {
                     return None;
                 }
+                // A visible body scroll-lock companion applies to a dialog
+                // receiver. The same visibility operation on a row, menu
+                // item or validation message is ordinary UI state.
+                if c.companion.as_ref().is_some_and(|other| other.0.iter().any(|p|
+                    matches!(p, Part::Exact(s) if s.trim_matches(['\'', '"']) == "modal-open")))
+                    && !t.windows(3).any(|w| w[1] == "." && w[2] == "classList"
+                        && super::diff_checks::dialog_receiver(&w[0])) {
+                    return None;
+                }
                 if let Some(other) = &c.companion
                     && self
                         .lines

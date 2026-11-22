@@ -125,7 +125,8 @@ impl Plan {
 
     pub fn curation_candidates(&self) -> Vec<super::llm_curation::CurationCandidate> {
         let mut bytes = 0;
-        self.inputs.iter().filter(|row| matches!(row.authority, Authority::LearnedEvidence | Authority::LegacyUnverified))
+        self.inputs.iter().filter(|row| row.original.legacy_example_field().is_none()
+            && matches!(row.authority, Authority::LearnedEvidence | Authority::LegacyUnverified))
             .filter_map(|row| {
                 let text = row.original.rule_text.chars().take(2048).collect::<String>();
                 let evidence = format!("scope={:?}; row_hash={}; authority={:?}; selection changes no text or acceptance", row.original.file_pattern, row.original_blake3, row.authority);
