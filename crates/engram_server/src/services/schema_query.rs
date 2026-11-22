@@ -13,6 +13,29 @@ mod alter_foreign_keys;
 mod alter_columns;
 mod dbml;
 
+/// Read declared data-context members once for the requested table set.
+pub(crate) fn expected_members(graph: &engram_graph::GraphStore, project: &str, root: &std::path::Path,
+    expected: &[String]) -> anyhow::Result<std::collections::BTreeMap<String, Vec<String>>> {
+    let queries: Vec<_> = expected.iter().map(|name| Ok((name, input_name(name)?))).collect::<anyhow::Result<_>>()?;
+    let mut members = std::collections::BTreeMap::<String, Vec<String>>::new();
+    let files = graph.indexed_paths_with_suffix(project, ".dbml", 33)?;
+    anyhow::ensure!(files.len() <= 32, "mapping inventory exceeds 32 files");
+    let mut bytes = 0;
+    for path in files {
+        let text = crate::planner_source::read(graph, project, root, &path)?;
+        bytes += text.len();
+        anyhow::ensure!(bytes <= 16 * 1024 * 1024, "mapping source budget exhausted");
+        for row in dbml::tables(&path, &text)? {
+            if let Some(member) = row.data_context_member {
+                for (name, q) in &queries {
+                    if row.key.lookup(q) { members.entry((*name).clone()).or_default().push(member.clone()); }
+                }
+            }
+        }
+    }
+    Ok(members)
+}
+
 /// ORM graph targets retain the member spelling from the source expression.
 /// A DBML table mapping supplies evidence when that spelling differs from DDL.
 pub(crate) fn mapped_query_sites(graph: &engram_graph::GraphStore, project: &str, root: &std::path::Path,

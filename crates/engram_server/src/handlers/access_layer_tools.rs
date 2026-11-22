@@ -3713,6 +3713,8 @@ pub enum TargetStatus {
     /// The file is absent from the index, but exact current bytes are covered
     /// by both code_file BLAKE3 and a verified external-generator receipt.
     ReceiptVerified,
+    /// Working-tree or staged addition absent from HEAD and identical to the submitted bytes.
+    GitAddition,
     /// change_kind=modify but the exact path is not in the index.
     NotFound,
     /// change_kind=create and the path is absent — expected, not a failure.
@@ -3918,6 +3920,7 @@ fn render_validation_report_markdown(report: &ValidationReport) -> String {
     let target_label = match report.coverage.target {
         TargetStatus::Unspecified => "no target file given",
         TargetStatus::Exists => "target file exists in index",
+        TargetStatus::GitAddition => "new Git addition; submitted bytes match the current file",
         TargetStatus::ReceiptVerified => {
             "target file absent from index; current disk bytes verified by generator receipt"
         }
@@ -6102,7 +6105,10 @@ impl Engram {
 
         let result = tokio::task::spawn_blocking(move || {
             let mut checks: Vec<ValidationCheck> = Vec::new();
-            let is_vb = language.starts_with("vb");
+            let is_vb = language.to_ascii_lowercase().starts_with("vb");
+            if !matches!(language.to_ascii_lowercase().as_str(),"vb"|"vbnet"|"vb.net"|"csharp"|"c#"|"cs") {
+                checks.push(ValidationCheck::new("language","fail",CoverageClass::Meta,vec![format!("No generated-code validator is configured for {language}. Supported languages: VB.NET and C#.")]));
+            }
 
             if let Some(evidence) = generator_evidence {
                 checks.push(ValidationCheck::new(
@@ -6164,7 +6170,20 @@ impl Engram {
             // can have appeared after its last generation. Hash-bound code_file
             // input plus a verified receipt establishes the exact current disk
             // target without pretending it was present in the index.
-            let target_status = if generator_target_verified
+            let is_new_git_file = is_create && matches!(indexed_target_status, TargetStatus::Exists) && target_file.as_deref().is_some_and(|path| {
+                let root = std::path::Path::new(&_rec.directory);
+                let observed = || -> Option<bool> {
+                    let repo = git2::Repository::discover(root).ok()?;
+                    let relative = root.canonicalize().ok()?.strip_prefix(repo.workdir()?.canonicalize().ok()?).ok()?.join(path);
+                    let status = repo.status_file(&relative).ok()?;
+                    let head = repo.head().ok()?.peel_to_tree().ok()?;
+                    let absent = matches!(head.get_path(&relative),Err(e) if e.code()==git2::ErrorCode::NotFound);
+                    Some(absent && status.intersects(git2::Status::WT_NEW|git2::Status::INDEX_NEW)
+                        && engram_core::safe_read_to_string(root,path).ok().as_deref()==Some(code.as_str()))
+                };
+                observed()==Some(true)
+            });
+            let target_status = if is_new_git_file {TargetStatus::GitAddition} else if generator_target_verified
                 && matches!(indexed_target_status, TargetStatus::NotFound)
             {
                 TargetStatus::ReceiptVerified
@@ -6244,9 +6263,16 @@ impl Engram {
             if !expected_tables.is_empty() {
                 let mut missing_tables = Vec::new();
                 let mut found_tables = Vec::new();
+                let mappings = crate::services::schema_query::expected_members(&graph,&project_id,
+                    std::path::Path::new(&_rec.directory),&expected_tables);
+                let mut mapped = Vec::new();
                 for table in &expected_tables {
                     if contains_identifier_literal(&code_nc_lower, &table.to_lowercase()) {
                         found_tables.push(table.clone());
+                    } else if let Some(member) = mappings.as_ref().ok().and_then(|rows|rows.get(table))
+                        .and_then(|members|members.iter().find(|member| contains_identifier_literal(&code_nc_lower,&member.to_lowercase()))) {
+                        found_tables.push(table.clone());
+                        mapped.push(format!("{table} via DBML member {member}"));
                     } else {
                         missing_tables.push(table.clone());
                     }
@@ -6255,16 +6281,19 @@ impl Engram {
                     (
                         "pass",
                         format!(
-                            "All {} caller-expected table token(s) appear in the code (ASSERTION only — presence, not correctness)",
+                            "All {} caller-expected table names or mapped data-context members appear in the code (ASSERTION only — presence, not correctness)",
                             found_tables.len()
                         ),
                     )
                 } else {
                     (
                         "warn",
-                        format!("Expected table literal(s) not found: {}. ORM references/mappings are unverified; missing literals do not establish missing table access", missing_tables.join(", ")),
+                        format!("Expected table literal(s) not found: {}. No matching table identifier or verified DBML member was located; indirect access remains unverified", missing_tables.join(", ")),
                     )
                 };
+                let mut detail = detail;
+                if !mapped.is_empty() { detail.push_str(&format!("; declared mappings: {}",mapped.join(", "))); }
+                if let Err(error) = mappings {detail.push_str(&format!("; DBML mapping coverage unavailable: {error}")); }
                 checks.push(ValidationCheck::new(
                     "expected_tables",
                     status,
