@@ -29,7 +29,7 @@ use std::path::Path;
 use engram_graph::{EdgeKind, GraphStore};
 use serde::Serialize;
 
-use crate::services::blast_radius_service::compute_blast_radius;
+use crate::services::blast_radius_service::review_file_advisory;
 use crate::services::pre_commit_review_service::{
     ChangeType, DiffFile, is_test_path, parse_unified_diff, path_suffix_match, resolve_diff_source,
     resolve_partner_to_current, resx_dir_stem, resx_family_display,
@@ -264,6 +264,8 @@ pub async fn explain_change(
 
     // Stage 7: risk badge.
     let (risk_badge, mut risk_rationale) = compute_risk(&affected_files, &coupling_notes);
+    let scored = affected_files.iter().filter(|file| file.blast_radius.is_some()).count();
+    risk_rationale.push_str(&format!(". File-level graph scores available for {scored}/{} changed files; unscored files have unknown graph impact.", affected_files.len()));
     for note in policy.notes { risk_rationale.push_str(&format!("; {note}")); }
 
     // Stage 8: render narrative.
@@ -533,14 +535,31 @@ pub fn gather_affected_files(
     repo_rules: &[engram_core::registry::RepoRule],
 ) -> Vec<AffectedFile> {
     const BLAST_CAP: usize = 20;
-    let mut sorted_idx: Vec<usize> = (0..diff_files.len()).collect();
-    sorted_idx.sort_by_key(|i| diff_files[*i].path.matches('/').count());
-    let blast_set: HashSet<usize> = sorted_idx.iter().take(BLAST_CAP).copied().collect();
-
+    let mut eligible: Vec<_> = diff_files.iter().filter(|file|
+        !file.is_binary && !matches!(file.change_type, ChangeType::Deleted)
+    ).collect();
+    eligible.sort_by_key(|file| {
+        let extension = std::path::Path::new(&file.path).extension().and_then(|e| e.to_str());
+        (super::pre_commit_review_service::is_generated_filename(&file.path),
+            matches!(extension, Some("resx" | "css" | "json" | "xml")), &file.path)
+    });
+    let started = std::time::Instant::now();
+    let scores = graph.get_cached_centrality(project_id, generation).ok().flatten();
+    let mut impacts = HashMap::new();
+    for file in eligible.into_iter().take(BLAST_CAP) {
+        if started.elapsed() >= std::time::Duration::from_secs(5) { break; }
+        let target = format!("file:{}", file.path.replace('\\', "/"));
+        let score = scores.as_ref().and_then(|scores| scores.get(&target)).copied();
+        if let Ok(report) = review_file_advisory(graph, project_id, &target, generation, score)
+            && report.total_incoming + report.total_outgoing > 0
+        {
+            impacts.insert(&file.path, (Some(report.migration_risk),
+                Some(report.risk_band.as_str().to_owned()), Some(report.total_downstream)));
+        }
+    }
     diff_files
         .iter()
-        .enumerate()
-        .map(|(i, f)| {
+        .map(|f| {
             let change_type = match &f.change_type {
                 ChangeType::Added => "added",
                 ChangeType::Modified => "modified",
@@ -552,22 +571,7 @@ pub fn gather_affected_files(
                 .filter(|r| r.rule_id.starts_with("immune_"))
                 .any(|r| path_pattern_matches(&r.file_pattern, &f.path));
 
-            let (blast, band, downstream) = if blast_set.contains(&i)
-                && !f.is_binary
-                && !matches!(f.change_type, ChangeType::Deleted)
-            {
-                let target = format!("file:{}", f.path.replace('\\', "/"));
-                match compute_blast_radius(graph, project_id, &target, generation, false) {
-                    Ok(report) if report.total_incoming + report.total_outgoing > 0 => (
-                        Some(report.migration_risk),
-                        Some(report.risk_band.as_str().to_string()),
-                        Some(report.total_downstream),
-                    ),
-                    _ => (None, None, None),
-                }
-            } else {
-                (None, None, None)
-            };
+            let (blast, band, downstream) = impacts.remove(&f.path).unwrap_or_default();
 
             // A file-level match alone cannot locate the edit. Prefer the
             // narrowest method containing a changed line in the new version.

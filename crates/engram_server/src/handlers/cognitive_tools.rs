@@ -2046,10 +2046,22 @@ impl Engram {
             include_path_suffixes:Some(suffixes.iter().map(|s| s.to_string()).collect()), language_filters:None,
             author_filter:None, date_after:None, date_before:None, use_mmr:false,
         };
-        let cancel = tokio_util::sync::CancellationToken::new();
+        // Both downstream comparisons require literal markup attributes or
+        // quoted selectors. Vector neighbours cannot satisfy those checks.
+        let literal_candidates = |query| {
+            let engine = ps.search.clone();
+            let source = _source_snapshot.clone();
+            async move {
+                tokio::task::spawn_blocking(move || {
+                    let _source = source;
+                    engine.lexical_search(&query)
+                }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
+                    .map_err(|error| McpError::internal_error(error.to_string(), None))
+            }
+        };
         let root = PathBuf::from(&ps.info.directory);
         let markup_query = search(format!("{} {}",req.query,words.join("_")), &[".aspx",".ascx",".html",".master",".cshtml",".vbhtml"]);
-        let hits = ps.search.search(&markup_query,None,&cancel).await.map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let hits = literal_candidates(markup_query).await?;
         let graph = &self.state.graph;
         let mut start_nodes = BTreeSet::new();
         let mut anchors = BTreeSet::new();
@@ -2097,7 +2109,7 @@ impl Engram {
         let field_alias = regex::Regex::new(r"^\s*(this\.[\w$]+)\s*=\s*([\w$]+)\s*;?\s*$").unwrap();
         for (_,selector) in selectors.iter().take(6) {
             let query = search(selector.clone(), &[".ts",".tsx",".js",".jsx"]);
-            let hits = ps.search.search(&query,None,&cancel).await.map_err(|e| McpError::internal_error(e.to_string(),None))?;
+            let hits = literal_candidates(query).await?;
             let mut seen = HashSet::new();
             for h in hits.iter().filter(|h| seen.insert(h.path.as_str())).take(12) {
                 let Ok(source) = crate::planner_source::read(graph,&req.project_id,&root,h.path.as_str()) else {continue;};
