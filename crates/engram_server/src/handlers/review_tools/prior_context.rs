@@ -174,6 +174,24 @@ fn stored_summary_recovery(pid: &str, doc_id: &str, content_hash: &str) -> Value
             "expected_raw_hash":format!("blake3-raw-utf8:{content_hash}")}}})
 }
 
+fn finding_excerpt(document: &str) -> (&'static str, &str) {
+    let mut lines = document.lines();
+    let finding = lines.find(|line| line.starts_with("Finding by "))
+        .and_then(|_| lines.find(|line| !line.trim().is_empty()))
+        .or_else(|| document.lines().find_map(|line| line.strip_prefix("Finding: ")))
+        .unwrap_or_default().trim();
+    if !finding.is_empty() && !finding.starts_with("Actionable comments posted:")
+        && !finding.starts_with("Nitpick comments") { return ("finding", finding); }
+    // Aggregated review exports often begin with counts and agent instructions.
+    // Prefer the actual recorded disposition or the first inline finding.
+    let mut reasoning = document.lines().skip_while(|line| !line.starts_with("Reasoning"));
+    if reasoning.next().is_some()
+        && let Some(decision) = reasoning.find(|line| !line.trim().is_empty()) {
+        return ("recorded_disposition", decision.trim());
+    }
+    ("finding", finding.split_once("Inline comments:").map(|(_, body)| body.trim()).unwrap_or(finding))
+}
+
 fn omitted_item(pid: &str, item: Value, reason: &str) -> Value {
     let mut omitted = json!({"review_id":item["review_id"],
         "path":item["indexed_source"]["path"],"reason":reason});
@@ -303,13 +321,12 @@ fn collect_inner(
         };
         let content_hash = blake3::hash(document.content.as_bytes()).to_hex().to_string();
         if excerpts.len() < 3 {
-            let mut lines = document.content.lines();
-            let finding = lines.find(|line| line.starts_with("Finding by ")).and_then(|_| lines.find(|line| !line.trim().is_empty()))
-                .or_else(|| document.content.lines().find_map(|line| line.strip_prefix("Finding: ")))
-                .unwrap_or_else(|| document.content.lines().find(|line| !line.trim().is_empty()).unwrap_or(""));
-            excerpts.push(json!({"review_id":format!("PR-{pr}"), "thread_id":thread,
-                "finding_excerpt":finding.chars().take(240).collect::<String>(),
-                "stored_text_complete":false, "recovery":stored_summary_recovery(pid,&hit.doc_id,&content_hash)}));
+            let (kind, finding) = finding_excerpt(&document.content);
+            if !finding.is_empty() {
+                excerpts.push(json!({"review_id":format!("PR-{pr}"), "thread_id":thread,
+                    "excerpt_kind":kind,"finding_excerpt":finding.chars().take(240).collect::<String>(),
+                    "stored_text_complete":false, "recovery":stored_summary_recovery(pid,&hit.doc_id,&content_hash)}));
+            }
         }
         if document.content.len() > 16 * 1024 {
             omitted.push(json!({"review_id":format!("PR-{pr}"),"path":hit.path,

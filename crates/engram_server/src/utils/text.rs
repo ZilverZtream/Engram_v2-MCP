@@ -359,15 +359,25 @@ pub fn code_to_query(code: &str) -> String {
         }
     };
     let mut terms: Vec<String> = Vec::new();
-    for m in re.find_iter(code).take(30) {
+    let mut seen = std::collections::HashSet::new();
+    for m in re.find_iter(code).take(512) {
         let t = m.as_str();
         if t.len() > 30 {
             continue;
         }
-        if matches!(t, "self" | "this" | "that" | "Some" | "None" | "Result") {
+        let normalized = t.to_ascii_lowercase();
+        if matches!(normalized.as_str(), "self" | "this" | "that" | "some" | "none"
+            | "return" | "public" | "private" | "protected" | "shared" | "function"
+            | "class" | "static" | "readonly" | "const" | "var" | "let" | "new"
+            | "integer" | "boolean" | "string" | "void" | "nothing" | "null"
+            | "true" | "false" | "else" | "then" | "end" | "using" | "dim" | "sub"
+            | "async" | "await" | "byval" | "byref" | "optional" | "partial")
+            || !seen.insert(normalized)
+        {
             continue;
         }
         terms.push(t.to_string());
+        if terms.len() == 30 { break; }
     }
     terms.join(" ")
 }

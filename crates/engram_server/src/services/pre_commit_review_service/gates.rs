@@ -1606,12 +1606,13 @@ impl Gate for AntiPatternGate {
                 let overlap = matched_n as f32 / total_n.max(1) as f32;
                 if matched_n >= 4 && overlap >= 0.3 {
                     let excerpt = content.lines().map(str::trim).find(|line| !line.is_empty()).unwrap_or_default();
-                    let line = executable.iter().max_by_key(|(_, text)| query_overlap(text, &terms.join(" ")).0)
-                        .filter(|(_, text)| query_overlap(text, &terms.join(" ")).0 > 0).map(|(line, _)| *line);
-                    if let Some(line) = line {
+                    let query_terms = terms.join(" ");
+                    let best = executable.iter().map(|(line, text)| (*line, query_overlap(text, &query_terms).2))
+                        .max_by_key(|(_, matched)| matched.len());
+                    if let Some((line, matched)) = best.filter(|(_, terms)| terms.len() >= 2) {
                         locations.insert(line);
                         relevant.push(format!("{} | {} | {} | added line {} | terms: {} | overlap {:.2}",
-                            h.pk, h.path.as_str(), excerpt.chars().take(140).collect::<String>(), line, terms.join(", "), overlap));
+                            h.pk, h.path.as_str(), excerpt.chars().take(140).collect::<String>(), line, matched.join(", "), overlap));
                     }
                 }
             }

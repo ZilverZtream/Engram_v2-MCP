@@ -652,7 +652,6 @@ pub async fn detect_rule_alignments(
     repo_rules: &[engram_core::registry::RepoRule],
 ) -> Vec<RuleAlignment> {
     use engram_index::hybrid::HybridQuery;
-    use tokio_util::sync::CancellationToken;
 
     let mut out: Vec<RuleAlignment> = Vec::new();
     let mut seen: HashSet<(String, String)> = HashSet::new();
@@ -724,12 +723,10 @@ pub async fn detect_rule_alignments(
                 date_before: None,
                 use_mmr: false,
             };
-            let cancel = CancellationToken::new();
-            let hits = ps
-                .search
-                .search(&q, None, &cancel)
-                .await
-                .unwrap_or_default();
+            let engine = ps.search.clone();
+            let search_query = q.clone();
+            let hits = tokio::task::spawn_blocking(move || engine.lexical_search(&search_query))
+                .await.ok().and_then(Result::ok).unwrap_or_default();
             for h in hits {
                 // RRF scores (~0.03 at rank 1) make absolute score
                 // thresholds dead code — judge by term overlap against

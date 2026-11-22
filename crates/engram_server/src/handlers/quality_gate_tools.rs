@@ -25,6 +25,22 @@ mod guidance;
 
 const QG_NAMESPACE: &str = "quality_gate";
 
+fn advisory_excerpt(snippet: &str) -> String {
+    static EXAMPLE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(||
+        regex::Regex::new(r"(?i)\(\s*(?:e\.g\.|for example\b)").unwrap());
+    let Some(example) = EXAMPLE.find(snippet) else { return snippet.trim().to_owned(); };
+    let mut depth = 0u32;
+    let end = snippet[example.start()..].char_indices().find_map(|(i, ch)| {
+        match ch {
+            '(' => depth += 1,
+            ')' => { depth -= 1; if depth == 0 { return Some(example.start() + i + 1); } }
+            _ => {}
+        }
+        None
+    }).unwrap_or(snippet.len());
+    format!("{} [illustration in full_rule]{}", snippet[..example.start()].trim_end(), &snippet[end..])
+}
+
 /// A single hunk can inherit the path supplied alongside it.
 fn audit_diff(code: &str, path: Option<&str>) -> Vec<crate::services::pre_commit_review_service::DiffFile> {
     use crate::services::pre_commit_review_service::parse_unified_diff;
@@ -647,7 +663,7 @@ impl Engram {
             let line = format!(
                 "- [{}] Search excerpt (not the full rule): {}\n  {coverage}: {status}\n  full_rule: get_chunk({}) (rule #{})",
                 h.path.as_str(),
-                h.snippet.as_deref().unwrap_or("").trim(),
+                advisory_excerpt(h.snippet.as_deref().unwrap_or("")),
                 serde_json::json!({"project_id":req.project_id,"doc_id":h.doc_id,"namespace":QG_NAMESPACE}), index + 1
             );
             if scope.as_ref().is_some_and(|s| p.contains(s.as_str())) {
