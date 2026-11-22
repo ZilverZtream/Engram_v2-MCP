@@ -126,6 +126,24 @@ pub(crate) fn evidence(tool: &str, body: &str) -> String {
         "get_review_precedents" => body.split("\n--- #").skip(1).map(|row| row.lines()
             .take_while(|line| !line.starts_with("Imported discussion recovery")).take(8).map(|line| line.chars().take(320).collect::<String>()).collect::<Vec<_>>().join("\n"))
             .collect::<Vec<_>>().join("\n--- #"),
+        "trace_data_flow" => {
+            if let Ok(report) = serde_json::from_str::<Value>(body)
+                && report.get("entry_point").is_some()
+            {
+                serde_json::json!({
+                    "entry_point": report["entry_point"],
+                    "tables_touched": report["tables_touched"],
+                    "state_reads": report["state_reads"],
+                    "state_writes": report["state_writes"],
+                    "unresolved_calls": report["unresolved_calls"],
+                    "depth_cap": report["follow"]["depth_cap"],
+                    "truncated_nodes": report["follow"]["truncated_nodes"]
+                }).to_string()
+            } else {
+                body.lines().take_while(|line| !line.starts_with("- stop:") && !line.starts_with("## Value lineage"))
+                    .collect::<Vec<_>>().join("\n")
+            }
+        }
         "derive_test_matrix" | "map_page_lifecycle" | "get_ui_conformance" | "trace_ui_event" | "trace_ui_action" => body.lines().take_while(|line|
             !line.starts_with("## Repository policy sources")).collect::<Vec<_>>().join("\n"),
         "pre_push_audit" => body.lines().take_while(|line| !line.starts_with("Retrieval sampling")).collect::<Vec<_>>().join("\n"),
