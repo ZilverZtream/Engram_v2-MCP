@@ -611,7 +611,7 @@ fn static_analyze_vb(content: &str) -> Vec<String> {
             "Declaration style: **`Module {name}`** (shared helpers, no instance state)."
         ));
     } else if has_class {
-        bullets.push("Declaration style: `Class` (instance state or inheritance)".into());
+        bullets.push("Declaration style: `Class`".into());
     }
 
     // `Handles` clauses — event wiring style.
@@ -1255,10 +1255,7 @@ fn static_analyze_javascript_common(content: &str, file_path: &str, typescript: 
         .as_ref()
         .and_then(|re| re.captures(content))
         .and_then(|c| c.get(1).map(|m| m.as_str().to_string()));
-    let top_class = CLASS_RE
-        .as_ref()
-        .and_then(|re| re.captures(content))
-        .and_then(|c| c.get(1).map(|m| m.as_str().to_string()));
+    let syntax = engram_index::parsing::js_style_syntax(std::path::Path::new(file_path), content);
     if let Some(name) = top_ns {
         bullets.push(format!(
             "Declaration style: **`namespace {name}`** — legacy module pattern; new code should be \
@@ -1269,11 +1266,11 @@ fn static_analyze_javascript_common(content: &str, file_path: &str, typescript: 
             "Declaration style: **`module {name}`** (ambient/legacy) — new code should match \
              the same module shape."
         ));
-    } else if let Some(name) = top_class {
-        bullets.push(format!(
-            "Declaration style: **`class {name}`** — instance-based. Add new logic as methods on \
-             this class rather than free functions."
-        ));
+    }
+    if let Some(facts) = &syntax {
+        if !facts.classes.is_empty() {
+            bullets.push(format!("Class declarations: {}", facts.classes.join(", ")));
+        }
     }
 
     // ── 2. Function naming ───────────────────────────────────────────────
@@ -1325,16 +1322,13 @@ fn static_analyze_javascript_common(content: &str, file_path: &str, typescript: 
     }
 
     // ── 4. Variable declarations with legacy-risk advice ─────────────────
-    let var_count = count_lines_starting_with_word(content, "var");
-    let let_count = count_lines_starting_with_word(content, "let");
-    let const_count = count_lines_starting_with_word(content, "const");
-    if var_count + let_count + const_count > 0 {
+    if let Some(facts) = &syntax {
         if let Some(b) = format_popularity_bullet(
             "Variable declarations",
             &[
-                ("`const`", const_count),
-                ("`let`", let_count),
-                ("`var` (legacy)", var_count),
+                ("`const`", facts.const_declarations),
+                ("`let`", facts.let_declarations),
+                ("`var` (legacy)", facts.var_declarations),
             ],
             "",
         ) {
@@ -1367,7 +1361,6 @@ fn static_analyze_javascript_common(content: &str, file_path: &str, typescript: 
     // ── 6. String quote style ────────────────────────────────────────────
     // A mixed (464 total) bullet isn't actionable; always show the actual
     // distribution so the reader can judge what "match the existing style" means.
-    let syntax = engram_index::parsing::js_style_syntax(std::path::Path::new(file_path), content);
     if let Some(syntax) = &syntax {
         let double = syntax.strings.iter().filter(|s| s.quote == '"').count();
         let single = syntax.strings.len() - double;
@@ -1691,8 +1684,7 @@ fn static_analyze_javascript_common(content: &str, file_path: &str, typescript: 
         .unwrap_or(0);
     if section_headers >= 4 {
         bullets.push(format!(
-            "Section headers: {section_headers} decorative `// ── …` dividers — file is \
-             organised into labelled regions; preserve the layout when adding new members."
+            "Section headers: {section_headers} comment dividers."
         ));
     }
 
@@ -1832,14 +1824,6 @@ fn static_analyze_javascript_common(content: &str, file_path: &str, typescript: 
     }
 
     bullets
-}
-
-fn count_lines_starting_with_word(content: &str, word: &str) -> usize {
-    let pat = format!("{word} ");
-    content
-        .lines()
-        .filter(|l| l.trim_start().starts_with(&pat))
-        .count()
 }
 
 // ── ASPX / ASCX / Master ─────────────────────────────────────────────────

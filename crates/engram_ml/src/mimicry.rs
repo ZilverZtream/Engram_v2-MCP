@@ -551,6 +551,8 @@ impl StyleMimicryEngine {
             (interface_declaration) @iface
             (type_alias_declaration) @type_alias
             (lexical_declaration) @let_const
+            (call_expression function: (identifier) @test_fn
+              (#any-of? @test_fn "describe" "it" "test" "expect"))
             "#,
         )
         .ok()?;
@@ -563,6 +565,7 @@ impl StyleMimicryEngine {
         let mut iface_count = 0;
         let mut type_alias_count = 0;
         let mut let_const_count = 0;
+        let mut test_calls = 0;
 
         while let Some(m) = matches.next() {
             for cap in m.captures {
@@ -573,20 +576,23 @@ impl StyleMimicryEngine {
                     "iface" => iface_count += 1,
                     "type_alias" => type_alias_count += 1,
                     "let_const" => let_const_count += 1,
+                    "test_fn" => test_calls += 1,
                     _ => {}
                 }
             }
         }
 
         let mut out = Vec::new();
+        if test_calls > 0 {
+            out.push(format!("Found {test_calls} direct calls to test-suite or assertion identifiers."));
+        }
         if arrow_count > func_count && arrow_count > 2 {
             out.push(
-                "Prefer arrow functions for callbacks and short expressions; use `function` for named exports."
-                    .into(),
+                format!("Parsed {arrow_count} arrow functions and {func_count} function declarations."),
             );
         } else if func_count > arrow_count && func_count > 2 {
             out.push(
-                "Use named `function` declarations for top-level exports and hoisting.".into(),
+                format!("Parsed {func_count} function declarations and {arrow_count} arrow functions."),
             );
         }
         // TS-only iff TS type syntax is actually present (markers OR parsed
@@ -601,7 +607,7 @@ impl StyleMimicryEngine {
             );
         }
         if let_const_count > 3 && !text.contains("var ") {
-            out.push("Use `const` by default, `let` for reassignment; never use `var`.".into());
+            out.push(format!("Parsed {let_const_count} lexical declarations."));
         }
 
         if out.is_empty() {
@@ -947,16 +953,8 @@ fn detect_error_handling(text: &str, lang: DetectedLanguage) -> Option<String> {
             }
         }
         DetectedLanguage::TypeScript | DetectedLanguage::JavaScript => {
-            let has_try = text.contains("try {");
-            let has_catch_unknown = text.contains("catch (e)") || text.contains("catch (error)");
-            if has_try && has_catch_unknown {
-                Some(
-                    "Narrow caught errors with `instanceof` checks before handling (type-narrow in TypeScript)."
-                        .into(),
-                )
-            } else {
-                None
-            }
+            // The file profile already counts actual try statements, including nested ones.
+            None
         }
         DetectedLanguage::Python => {
             if text.contains("except:") {
@@ -1255,15 +1253,8 @@ fn detect_testing(text: &str, lang: DetectedLanguage) -> Option<String> {
             }
         }
         DetectedLanguage::TypeScript | DetectedLanguage::JavaScript => {
-            if text.contains("describe(")
-                || text.contains("it(")
-                || text.contains("test(")
-                || text.contains("expect(")
-            {
-                Some("Use describe/it blocks with clear expectations; prefer integration tests for API boundaries.".into())
-            } else {
-                None
-            }
+            // A substring such as split( or a RegExp.test call is not a test suite.
+            None
         }
         DetectedLanguage::Go => {
             if text.contains("func Test") || text.contains("testing.T") {

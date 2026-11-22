@@ -32,6 +32,10 @@ pub fn js_quoted_strings(path: &Path, content: &str) -> Option<Vec<JsQuotedStrin
 #[derive(Default)]
 pub struct JsStyleSyntax {
     pub strings: Vec<JsQuotedString>,
+    pub const_declarations: usize,
+    pub let_declarations: usize,
+    pub var_declarations: usize,
+    pub classes: Vec<String>,
     pub templates: usize,
     pub try_blocks: usize,
     pub catch_calls: usize,
@@ -70,6 +74,18 @@ pub fn js_style_syntax(path: &Path, content: &str) -> Option<JsStyleSyntax> {
             return None;
         }
         match node.kind() {
+            "class_declaration" | "abstract_class_declaration" => {
+                if let Some(name) = node.child_by_field_name("name") {
+                    inventory.classes.push(content[name.byte_range()].to_owned());
+                }
+            }
+            "const" | "let" | "var" if node.parent().is_some_and(|parent| {
+                matches!(parent.kind(), "lexical_declaration" | "variable_declaration" | "for_in_statement")
+            }) => match node.kind() {
+                "const" => inventory.const_declarations += 1,
+                "let" => inventory.let_declarations += 1,
+                _ => inventory.var_declarations += 1,
+            },
             "template_string" => inventory.templates += 1,
             "try_statement" => inventory.try_blocks += 1,
             "await_expression" => inventory.awaits += 1,
