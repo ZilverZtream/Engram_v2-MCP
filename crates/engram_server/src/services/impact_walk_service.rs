@@ -2367,6 +2367,11 @@ fn summary_section(
     let fits = |candidate: &Value|
         serde_json::to_vec(candidate).expect("JSON value serialization").len()
             <= SUMMARY_BYTES.saturating_sub(framing + 256);
+    if let Some(outputs) = full.get("build_outputs") {
+        let mut candidate = value.clone();
+        candidate["build_outputs"] = outputs.clone();
+        if fits(&candidate) { value = candidate; }
+    }
     recover_capped_member_search(&mut value, full, &fits);
     append_hinted_file_declarations(&mut value,full,&fits);
     append_consumer_navigation(&mut value,full,project,&fits);
@@ -3907,6 +3912,7 @@ async fn collect_evidence(
         runtime
             .search
             .selected_source_revision_lookup(project, generation, source.clone())?;
+    let checkout = std::path::PathBuf::from(&runtime.info.directory);
     let graph = state.graph.clone();
     let project = project.to_owned();
     tokio::task::spawn_blocking(move || -> Result<_> {
@@ -4024,6 +4030,18 @@ async fn collect_evidence(
         } else {
             "symbol_dependents; same-file callers included"
         });
+        if target_revision_admitted
+            && let Some(path) = internal_file.as_deref().filter(|p| p.ends_with(".ts") || p.ends_with(".tsx"))
+            && let Some(files) = source.selected_file_revisions()
+            && let Ok(root) = checkout.canonicalize()
+        {
+            let inventory = files.keys().filter(|p| p.ends_with(".ts") || p.ends_with(".tsx") || p.ends_with(".json")).cloned().collect::<Vec<_>>();
+            let outputs = super::typescript_outputs::build_outputs(&root, &inventory, &[(path.to_owned(), path.to_owned())])
+                .into_iter().map(|(_, output)| output).collect::<BTreeSet<_>>();
+            if !outputs.is_empty() {
+                value["build_outputs"] = json!({"files":outputs, "evidence":"Current checkout tsconfig outputs whose source closure includes this file. Outputs are separate from indexed callers."});
+            }
+        }
         value["target_revision_admitted"] = json!(target_revision_admitted);
         if !target_revision_admitted {
             coverage.truncated = true;

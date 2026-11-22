@@ -78,6 +78,26 @@ async fn classic_script_calls_follow_the_shared_entry_point_and_declared_receive
 }
 
 #[tokio::test]
+async fn shared_window_instance_connects_a_field_consumer_to_its_constructor_type() -> anyhow::Result<()> {
+    let temporary = tempfile::tempdir()?;
+    let state = state(temporary.path())?;
+    let files = [
+        ("entry.ts", "/// <reference path='./boot.ts'/>\n/// <reference path='./dialog.ts'/>\n/// <reference path='./page.ts'/>"),
+        ("dialog.ts", "class Dialog {\n Show() {}\n}"),
+        ("boot.ts", "function Start() { window.appDialog = new Dialog(); }"),
+        ("page.ts", "class Page {\n private current = window.appDialog;\n Open() { this.current.Show(); }\n}"),
+        ("foreign.ts", "class Other {}\nfunction Init() { window.appDialog = new Other(); }"),
+    ];
+    process_ingest_stats(&state, "tsmodules", 1, &stats(&files)).await?;
+    state.graph.resolve_symbol_edges("tsmodules")?;
+    let expected = NodeId::symbol("function", None, "dialog.ts", "Show", 2).0;
+    assert!(outgoing(&state, "Open")?.iter().any(|e| e.target_id == expected));
+    drop(state);
+    temporary.close()?;
+    Ok(())
+}
+
+#[tokio::test]
 async fn typescript_modules_bind_import_identity_and_publish_correct_public_calls()
 -> anyhow::Result<()> {
     let temporary = tempfile::tempdir()?;

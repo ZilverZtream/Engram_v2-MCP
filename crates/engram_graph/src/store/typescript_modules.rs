@@ -374,7 +374,11 @@ impl GraphStore {
             }
         }
         let mut parents = BTreeMap::<String, Vec<String>>::new();
-        for (path, (file, _)) in &resolver.modules {
+        let mut property_writers = BTreeMap::<&str, Vec<_>>::new();
+        for (path, (file, module)) in &resolver.modules {
+            for (name, assignments) in &module.window_assignments {
+                property_writers.entry(name.as_str()).or_default().push((path, assignments, module.issues.is_empty()));
+            }
             if let Some(refs) = file.metadata.as_ref().and_then(|m| m["script_reference_paths"].as_str())
                 .and_then(|raw| serde_json::from_str::<Vec<String>>(raw).ok()) {
                 for dependency in refs { parents.entry(dependency).or_default().push(path.clone()); }
@@ -423,13 +427,28 @@ impl GraphStore {
                 let resolution = if let Some(reason) = &call.unbound_reason {
                     Err(reason.as_str())
                 } else if let Some(receiver) = &call.script_receiver {
-                    let key = (receiver.class_name.as_str(), call.imported.as_str(), receiver.static_member);
+                    let shared = scopes.entry(path.clone()).or_insert_with(|| script_includers(path, &parents)).clone();
+                    let mut class = Some(receiver.class_name.as_str());
+                    let mut assignment_scopes = BTreeSet::new();
+                    if let Some(property) = &receiver.window_property {
+                        let mut types = BTreeSet::new();
+                        for &(writer, assigned, complete) in property_writers.get(property.as_str()).into_iter().flatten() {
+                            let roots = scopes.entry(writer.clone()).or_insert_with(|| script_includers(writer, &parents));
+                            if roots.is_disjoint(&shared) {continue;}
+                            assignment_scopes.extend(roots.intersection(&shared).cloned());
+                            if !complete { types.insert(None); }
+                            types.extend(assigned.iter().map(Option::as_deref));
+                        }
+                        class = (types.len() == 1).then(|| types.into_iter().next().flatten()).flatten();
+                    }
+                    let key = (class.unwrap_or(""), call.imported.as_str(), receiver.static_member);
                     let mut matches = Vec::new();
                     for candidate in members.get(&key).into_iter().flatten() {
                         let target = candidate.file_path.as_str();
                         scopes.entry(path.clone()).or_insert_with(|| script_includers(path, &parents));
                         scopes.entry(target.to_owned()).or_insert_with(|| script_includers(target, &parents));
-                        if !scopes[path].is_disjoint(&scopes[target]) { matches.push(candidate.node_id.clone()); }
+                        let roots = if receiver.window_property.is_some() { &assignment_scopes } else { &shared };
+                        if !roots.is_disjoint(&scopes[target]) { matches.push(candidate.node_id.clone()); }
                     }
                     if matches.len() == 1 { Ok(matches.remove(0)) } else { Err("no_unique_script_member_in_reference_scope") }
                 } else {

@@ -19,6 +19,13 @@ fn text<'a>(node: Node<'_>, source: &'a str) -> &'a str {
     &source[node.byte_range()]
 }
 
+fn window_property<'a>(expression: Node<'a>, source: &str) -> Option<Node<'a>> {
+    if expression.kind() != "member_expression" { return None; }
+    let object = expression.child_by_field_name("object")?;
+    let property = expression.child_by_field_name("property")?;
+    (object.kind() == "identifier" && text(object, source) == "window" && property.kind() == "property_identifier").then_some(property)
+}
+
 pub(super) fn site(node: Node<'_>) -> Site {
     Site {
         offset: node.start_byte(),
@@ -149,6 +156,7 @@ impl<'tree> Extraction<'tree> {
                 imports: vec![],
                 exports: vec![],
                 declarations: vec![],
+                window_assignments: Default::default(),
                 calls: vec![],
                 issues: vec![],
             },
@@ -168,6 +176,7 @@ impl<'tree> Extraction<'tree> {
             }
         }
         let mut pending = vec![root];
+        let mut assignments = Vec::new();
         let mut visited = 0;
         while let Some(node) = pending.pop() {
             visited += 1;
@@ -177,6 +186,12 @@ impl<'tree> Extraction<'tree> {
             }
             if node.kind() == "import_statement" {
                 continue;
+            }
+            if this.global_script && node.kind() == "assignment_expression" {
+                if let Some(left) = node.child_by_field_name("left")
+                    && let Some(name) = window_property(left, source) {
+                    assignments.push((name, node.child_by_field_name("right")));
+                }
             }
             if function_scope(node) {
                 for parameter in [
@@ -263,6 +278,14 @@ impl<'tree> Extraction<'tree> {
                 _ => {}
             }
             pending.extend(children(node));
+        }
+        for (property, value) in assignments {
+            if this.state_binding_shadowed(property, "window", root, false) { continue; }
+            let class = value.filter(|v| v.kind() == "new_expression")
+                .and_then(|v| v.child_by_field_name("constructor"))
+                .filter(|n| n.kind() == "identifier" && !this.state_binding_shadowed_below(*n, text(*n, source), root))
+                .map(|n| text(n, source).to_owned());
+            this.facts.window_assignments.entry(text(property, source).to_owned()).or_default().insert(class);
         }
         this
     }
@@ -528,6 +551,7 @@ impl<'tree> Extraction<'tree> {
         let member = callee.parent().filter(|n| n.kind() == "member_expression")?;
         let receiver = member.child_by_field_name("object")?;
         let root = std::iter::successors(Some(member), |n| n.parent()).last()?;
+        let mut window = None;
         let (class, anchor, static_member) = match receiver.kind() {
             "this" => {
                 let method = std::iter::successors(member.parent(), |n| n.parent())
@@ -561,9 +585,21 @@ impl<'tree> Extraction<'tree> {
                 }
                 let declaration = children(parent).into_iter().find(|n| n.kind() == "public_field_definition"
                     && n.child_by_field_name("name").is_some_and(|name| text(name, source) == field))?;
-                let ty = declaration.child_by_field_name("type")?.named_child(0)?;
-                if ty.kind() != "type_identifier" { return None; }
-                (text(ty, source), ty, false)
+                if let Some(ty) = declaration.child_by_field_name("type").and_then(|n| n.named_child(0)) {
+                    if ty.kind() != "type_identifier" { return None; }
+                    (text(ty, source), ty, false)
+                } else {
+                    let property = window_property(declaration.child_by_field_name("value")?, source)?;
+                    if self.state_binding_shadowed(property, "window", root, false) { return None; }
+                    window = Some(text(property, source).to_owned());
+                    ("", property, false)
+                }
+            }
+            "member_expression" => {
+                let property = window_property(receiver, source)?;
+                if self.state_binding_shadowed(property, "window", root, false) { return None; }
+                window = Some(text(property, source).to_owned());
+                ("", property, false)
             }
             _ => return None,
         };
@@ -572,7 +608,7 @@ impl<'tree> Extraction<'tree> {
             imported: text(callee, source).to_owned(), import_site: site(anchor),
             site: site(callee), unbound_reason: None,
             script_receiver: Some(engram_core::typescript_modules::ScriptReceiver {
-                class_name: class.to_owned(), static_member,
+                class_name: class.to_owned(), static_member, window_property: window,
             }),
         })
     }

@@ -51,6 +51,10 @@ pub struct Module {
     pub imports: Vec<Import>,
     pub exports: Vec<Export>,
     pub declarations: Vec<Declaration>,
+    /// Direct assignments on the unshadowed browser global. An unknown RHS
+    /// prevents a unique constructor inference for that property.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub window_assignments: std::collections::BTreeMap<String, std::collections::BTreeSet<Option<String>>>,
     pub calls: Vec<OwnedCall>,
     /// Incomplete or unsupported syntax must not silently produce proof.
     pub issues: Vec<String>,
@@ -82,6 +86,8 @@ pub struct Call {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ScriptReceiver {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub window_property: Option<String>,
     pub class_name: String,
     pub static_member: bool,
 }
