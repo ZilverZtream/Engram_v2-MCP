@@ -134,9 +134,8 @@ pub fn parse_quality_source_checked(content: &str, source: QualitySource, origin
 }
 
 fn parse_markdown_rules_checked(content: &str, category: &str, origin: &str) -> Result<Vec<QualityRule>, String> {
-    const LIMIT: usize = 16 * 1024;
-    if content.len() > LIMIT {
-        return Err("Markdown source exceeds 16 KiB complete UTF-8 context budget; split into self-contained documents preserving exceptions. No rules imported.".into());
+    if content.len() > 39_000 || content.lines().any(|line| line.len() > 16 * 1024) {
+        return Err("Complete Markdown context must fit a 39000-byte rule document and each source line must fit 16 KiB. No rules imported.".into());
     }
     fn marker(line: &str) -> Option<(char, usize)> {
         let first = line.chars().next()?;
@@ -164,6 +163,7 @@ fn parse_markdown_rules_checked(content: &str, category: &str, origin: &str) -> 
     let mut block = Vec::new();
     let mut listed = None;
     let mut heading = String::new();
+    let mut section_start = 0;
     let mut fence: Option<(char, usize)> = None;
     for raw in content.lines() {
         let line = raw.trim();
@@ -178,6 +178,10 @@ fn parse_markdown_rules_checked(content: &str, category: &str, origin: &str) -> 
         }
         if let Some(h) = line.strip_prefix('#') {
             emit(&mut block, &mut listed, &heading, &mut candidates);
+            if candidates.len() - section_start > 128 {
+                return Err("Markdown section exceeds 128 candidate rules. No rules imported.".into());
+            }
+            section_start = candidates.len();
             heading = h.trim_start_matches('#').trim().to_string(); continue;
         }
         if line.len() >= 3 && (line.bytes().all(|b| b == b'=') || line.bytes().all(|b| b == b'-')) && listed.is_none() && !block.is_empty() {
@@ -194,8 +198,8 @@ fn parse_markdown_rules_checked(content: &str, category: &str, origin: &str) -> 
         } else { block.push(raw); }
     }
     emit(&mut block, &mut listed, &heading, &mut candidates);
-    if candidates.len() > 128 {
-        return Err("Markdown source exceeds 128 candidate rules; split into self-contained documents preserving exceptions. No rules imported.".into());
+    if candidates.len() - section_start > 128 || candidates.len().saturating_mul(content.len()) > 8 * 1024 * 1024 {
+        return Err("Markdown exceeds 128 candidates in one section or 8 MiB of repeated source context. No rules imported.".into());
     }
     candidates.into_iter().enumerate().map(|(idx, candidate)| {
         let text = format!("{MARKDOWN_CONTEXT_PREFIX}{candidate}\n\nComplete source context (read exceptions and examples before applying):\n{content}");

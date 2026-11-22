@@ -9,7 +9,7 @@ pub(crate) fn with_preview(mut packet: Value, evidence: &str, budget: usize) -> 
     }
     packet["report_content"] = json!("PARTIAL_EVIDENCE");
     packet["response_delivery"]["instruction"] = json!(
-        "Selected evidence is shown. Follow next_call from offset zero for the complete saved report, including omitted rows, guidance and qualifications."
+        "Selected evidence is shown. Follow next_call from offset zero for the saved report and its qualifications. Follow any separate row-recovery actions in that report. Original scan limits still apply."
     );
     packet["source_basis"] = json!(
         "Indexed registered working checkout. Use get_index_freshness to bind cited files to a commit."

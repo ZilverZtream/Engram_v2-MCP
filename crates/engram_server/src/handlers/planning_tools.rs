@@ -1084,6 +1084,9 @@ impl Engram {
         snapshot: Option<(u64, NodeSnapshot)>,
     ) -> Result<FootprintEvidence, McpError> {
         validate_project_id(&req.project_id)?;
+        // Internal planners supply their shared node snapshot and request a
+        // compact scope. Only a direct public call publishes overflow evidence.
+        let retain_overflow = snapshot.is_none();
         if req.concept.trim().len() < 2 {
             return Err(McpError::invalid_params(
                 "concept must be at least 2 characters",
@@ -1659,6 +1662,42 @@ impl Engram {
             stems.join(", "),
             total
         );
+        if retain_overflow {
+            use std::fmt::Write;
+            let mut extra = String::new();
+            let mut omitted = 0usize;
+            let mut append = |row: String| {
+                if extra.len() + row.len() < 4 * 1024 * 1024 {
+                    extra.push_str(&row);
+                    extra.push('\n');
+                } else {
+                    omitted += 1;
+                }
+            };
+            for (group, rows) in &groups {
+                for (name, id, file, line) in rows.iter().skip(cap) {
+                    append(format!("[{group}] {name} ({file}:{line}) {id}"));
+                }
+            }
+            for (anchor, kind, src) in consumers.iter().skip(cap * 2) {
+                append(format!("[consumer:{kind}] {src} -> {anchor}"));
+            }
+            for file in lexical_only.iter().skip(cap) {
+                append(format!("[text] {file}"));
+            }
+            for (path, witness) in indirect.iter().skip(cap * 2) {
+                append(format!("[indirect] {path}: {witness}"));
+            }
+            if omitted > 0 {
+                let _ = writeln!(out, "{omitted} additional rows exceeded the 4 MiB overflow budget and have no recovery action.");
+            }
+            if !extra.is_empty() {
+                let body = format!("Additional observed rows for {} at generation {gen_}. Extraction and scan limits are described in the main report.\n{extra}",req.concept);
+                let id = change_set_delivery::save_concept_footprint(&self.state.cfg.data_dir,&req.project_id,&body)?;
+                let args = serde_json::json!({"project_id":req.project_id,"response_id":id,"response_offset":0,"max_tokens":req.max_tokens});
+                let _ = writeln!(out,"Additional observed group rows: get_concept_footprint({args}). Follow its byte offsets to recover these rows without another scan.");
+            }
+        }
         if !indirect.is_empty() {
             out.push_str(
                 "\n## Indirect type-use leads (bounded literal matches; verify binding)\n",

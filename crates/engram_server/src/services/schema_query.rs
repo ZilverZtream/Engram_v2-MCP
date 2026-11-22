@@ -29,6 +29,25 @@ pub(crate) fn add_model_columns(map: &mut ModelColumnMap, file: &str, source: &s
 
 /// Only a class-qualified data-context getter identifies a mapped table on a call edge.
 pub(crate) type TableGetters = std::collections::BTreeMap<String, std::collections::BTreeSet<String>>;
+
+fn visit_model_getters(tables: &[Table], mut visit: impl FnMut(&str, &str, &Table, &Citation)) {
+    let mut model = std::collections::BTreeMap::<&str, Vec<&Table>>::new();
+    for table in tables {
+        if let Some(name) = table.model_type.as_deref() { model.entry(name).or_default().push(table); }
+        if let (Some(owner), Some(member)) = (&table.data_context_class, &table.data_context_member) {
+            visit(owner, member, table, &table.citation);
+        }
+    }
+    for table in tables {
+        let Some(owner) = &table.model_type else { continue; };
+        for relation in &table.model_associations {
+            if let (Some(member), Some(target)) = (&relation.member, relation.target_type.as_deref())
+                && let Some(&[destination]) = model.get(target).map(Vec::as_slice) {
+                visit(owner, member, destination, &relation.citation);
+            }
+        }
+    }
+}
 pub(crate) fn table_getters(graph: &engram_graph::GraphStore, project: &str, root: &std::path::Path) -> anyhow::Result<TableGetters> {
     let files = graph.indexed_paths_with_suffix(project, ".dbml", 33)?;
     anyhow::ensure!(files.len() <= 32, "DBML mapping inventory exceeds 32 files");
@@ -38,11 +57,9 @@ pub(crate) fn table_getters(graph: &engram_graph::GraphStore, project: &str, roo
         let source = crate::planner_source::read(graph, project, root, &path)?;
         bytes += source.len();
         anyhow::ensure!(bytes <= 16 * 1024 * 1024, "DBML mapping input exceeds 16 MiB");
-        for row in dbml::tables(&path, &source)? {
-            if let (Some(class), Some(member)) = (row.data_context_class, row.data_context_member) {
-                getters.entry(format!("{class}.{member}").to_lowercase()).or_default().insert(row.name);
-            }
-        }
+        visit_model_getters(&dbml::tables(&path, &source)?, |owner, member, table, _| {
+            getters.entry(format!("{owner}.{member}").to_lowercase()).or_default().insert(table.name.clone());
+        });
     }
     Ok(getters)
 }
@@ -86,13 +103,16 @@ pub(crate) fn mapped_query_sites(graph: &engram_graph::GraphStore, project: &str
         let source = crate::planner_source::read(graph, project, root, &path)?;
         anyhow::ensure!(source.len() <= remaining, "DBML reader lookup exceeds source budget");
         remaining -= source.len();
-        for mapping in dbml::tables(&path, &source)? {
+        let tables = dbml::tables(&path, &source)?;
+        visit_model_getters(&tables, |owner, member, table, citation| {
+            if table.key.lookup(&query) {
+                getters.insert(format!("{owner}.{member}").to_lowercase(), (member.to_owned(), citation.clone()));
+            }
+        });
+        for mapping in tables {
             let Some(member) = mapping.data_context_member else { continue; };
             let key = member.to_ascii_lowercase();
             mappings.entry(key.clone()).or_default().insert(mapping.name.to_ascii_lowercase());
-            if mapping.key.lookup(&query) && let Some(owner) = mapping.data_context_class {
-                getters.insert(format!("{owner}.{member}").to_lowercase(), (member.clone(), mapping.citation.clone()));
-            }
             if mapping.key.lookup(&query) && !member.eq_ignore_ascii_case(table) {
                 aliases.insert(key, (member, mapping.citation));
             }
@@ -327,6 +347,8 @@ pub(super) struct Table {
     data_context_member: Option<String>,
     #[serde(skip)]
     data_context_class: Option<String>,
+    #[serde(skip)]
+    model_type: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) source_kind: Option<&'static str>,
     pub(super) columns: Vec<Column>,
@@ -609,6 +631,7 @@ impl Catalog {
                     source_kind: None,
                     data_context_member: None,
                     data_context_class: None,
+                    model_type: None,
                     key,
                     columns: vec![],
                     primary_key: vec![],

@@ -2370,7 +2370,22 @@ fn summary_section(
     if let Some(outputs) = full.get("build_outputs") {
         let mut candidate = value.clone();
         candidate["build_outputs"] = outputs.clone();
+        if !fits(&candidate) {
+            let hosts = outputs["indexed_hosts"].as_array().into_iter().flatten()
+                .filter_map(|h| h["path"].as_str()).collect::<BTreeSet<_>>();
+            candidate["build_outputs"] = json!({"files":outputs["files"], "host_paths":hosts,
+                "details":"Graph detail includes each bundle registration and relation."});
+        }
         if fits(&candidate) { value = candidate; }
+    }
+    if let Some(uses) = full["declared_type_consumers"].as_array() {
+        for row in uses {
+            let mut candidate = value.clone();
+            if !candidate["declared_type_consumers"].is_array() { candidate["declared_type_consumers"]=json!([]); }
+            candidate["declared_type_consumers"].as_array_mut().unwrap().push(row.clone());
+            if !fits(&candidate) { break; }
+            value=candidate;
+        }
     }
     recover_capped_member_search(&mut value, full, &fits);
     append_hinted_file_declarations(&mut value,full,&fits);
@@ -4034,6 +4049,28 @@ async fn collect_evidence(
             && let Some(path) = internal_file.as_deref().filter(|p| p.ends_with(".ts") || p.ends_with(".tsx"))
             && let Ok(root) = checkout.canonicalize()
         {
+            let mut typed_uses = BTreeMap::new();
+            let source_file = graph.get_node(&project, &format!("file:{path}"))?;
+            for kind in ["interface", "class", "type_alias", "enum"] {
+                for declaration in graph.query_nodes_in_file(&project, Some(kind), path, 32)? {
+                    if admit_selected_source(&membership, &declaration, source_file.as_ref())? != ImpactAdmission::Selected {continue;}
+                    let (incoming, _) = graph.incoming_edge_prefix(&project, engram_graph::EdgeKind::TypeDefinition, &declaration.node_id, 128)?;
+                    for (id,_,_) in incoming {
+                        let Some(node) = graph.get_node(&project,&id)? else {continue;};
+                        if node.file_path.as_str()==path || node.start_line==0 || node.node_type!="type_reference" {continue;}
+                        let file=graph.get_node(&project,&format!("file:{}",node.file_path))?;
+                        if admit_selected_source(&membership,&node,file.as_ref())? == ImpactAdmission::Selected {
+                            let line = typed_uses.entry((node.file_path.to_string(),declaration.name.clone())).or_insert(node.start_line);
+                            *line = (*line).min(node.start_line);
+                        }
+                    }
+                }
+            }
+            if !typed_uses.is_empty() {
+                value["declared_type_consumer_scope"]=json!("Selected checkout, up to 32 declarations per kind, 128 incoming type references per declaration and 24 file/declaration examples.");
+                value["declared_type_consumers"]=json!(typed_uses.iter().take(24).map(|((file,name),line)|
+                    format!("{file}:{line} references {name} (inferred declaration)")).collect::<Vec<_>>());
+            }
             let mut inventory = Vec::new();
             let mut partial = false;
             if let Some(files) = source.selected_file_revisions() {

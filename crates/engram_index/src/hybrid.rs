@@ -4409,6 +4409,10 @@ impl HybridSearchEngine {
         let reader = self.tantivy_index.reader()?;
         let searcher = reader.searcher();
 
+        Ok(self.stored_document(&searcher, pk)?.map(|doc| self.document_parts(&doc)))
+    }
+
+    fn stored_document(&self, searcher: &tantivy::Searcher, pk: &str) -> anyhow::Result<Option<tantivy::TantivyDocument>> {
         let pk_term = Term::from_field_text(self.fields.pk, pk);
         let pk_q = TermQuery::new(pk_term, IndexRecordOption::Basic);
 
@@ -4419,7 +4423,7 @@ impl HybridSearchEngine {
         let (_, addr) = top_docs[0];
         let doc: tantivy::TantivyDocument = searcher.doc(addr)?;
 
-        Ok(Some(self.document_parts(&doc)))
+        Ok(Some(doc))
     }
 
     fn document_parts(
@@ -4527,6 +4531,7 @@ impl HybridSearchEngine {
     /// which carries no line columns. Looks each unenriched hit up in Tantivy
     /// by pk (bounded: only runs over a final, truncated result list).
     fn enrich_hits_from_store(&self, hits: &mut [HybridHit]) {
+        let mut searcher = None;
         for hit in hits.iter_mut() {
             if hit.start_line != 0 || hit.end_line != 0 {
                 continue;
@@ -4534,39 +4539,26 @@ impl HybridSearchEngine {
             if hit.pk.is_empty() {
                 continue;
             }
-            if let Ok(Some((_, _, content, start_line, end_line))) = self.get_doc_by_pk(&hit.pk) {
-                hit.start_line = start_line;
-                hit.end_line = end_line;
-                if hit.snippet.is_none() {
-                    let (sn, truncated) = snippet_of(&content, SNIPPET_MAX_CHARS);
-                    hit.snippet = Some(sn);
-                    hit.snippet_truncated = truncated;
-                }
+            if searcher.is_none() {
+                let Ok(reader) = self.tantivy_index.reader() else { return; };
+                searcher = Some(reader.searcher());
+            }
+            let Ok(Some(doc)) = self.stored_document(searcher.as_ref().unwrap(), &hit.pk) else { continue; };
+            hit.start_line = doc.get_first(self.fields.start_line).and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+            hit.end_line = doc.get_first(self.fields.end_line).and_then(|v| v.as_u64()).unwrap_or(0) as u32;
+            if hit.snippet.is_none() {
+                let content = doc.get_first(self.fields.content).and_then(|v| v.as_str()).unwrap_or("");
+                let (sn, truncated) = snippet_of(content, SNIPPET_MAX_CHARS);
+                hit.snippet = Some(sn);
+                hit.snippet_truncated = truncated;
             }
             // Vector rows carry no timestamp column; fill it from Tantivy so
             // the recency term works on the semantic path too. Bounded: only
             // the final, truncated result list reaches here.
             if hit.timestamp.is_none() {
-                hit.timestamp = self.timestamp_by_pk(&hit.pk);
+                hit.timestamp = doc.get_first(self.fields.timestamp).and_then(|v| v.as_u64()).filter(|&t| t > 0);
             }
         }
-    }
-
-    /// The indexed timestamp (unix ms) of one doc, by pk. `None` when the doc
-    /// has no timestamp or is not found.
-    fn timestamp_by_pk(&self, pk: &str) -> Option<u64> {
-        let reader = self.tantivy_index.reader().ok()?;
-        let searcher = reader.searcher();
-        let pk_q = TermQuery::new(
-            Term::from_field_text(self.fields.pk, pk),
-            IndexRecordOption::Basic,
-        );
-        let top: Vec<(Score, DocAddress)> = searcher.search(&pk_q, &TopDocs::with_limit(1)).ok()?;
-        let (_, addr) = *top.first()?;
-        let doc: tantivy::TantivyDocument = searcher.doc(addr).ok()?;
-        doc.get_first(self.fields.timestamp)
-            .and_then(|v| v.as_u64())
-            .filter(|&t| t > 0)
     }
 
     fn exact_generation_selection(

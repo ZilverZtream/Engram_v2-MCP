@@ -9,12 +9,12 @@ const NS: &[u8] = b"http://schemas.microsoft.com/linqtosql/dbml/2007";
 #[derive(Clone, Serialize)]
 pub(super) struct Association {
     name: Option<String>,
-    member: Option<String>,
-    target_type: Option<String>,
+    pub(super) member: Option<String>,
+    pub(super) target_type: Option<String>,
     this_key: Option<String>,
     other_key: Option<String>,
     is_foreign_key: Option<bool>,
-    citation: Citation,
+    pub(super) citation: Citation,
 }
 
 fn boolean(attributes: &BTreeMap<String, String>, name: &str) -> anyhow::Result<Option<bool>> {
@@ -74,6 +74,7 @@ pub(super) fn tables(path: &str, source: &str) -> anyhow::Result<Vec<Table>> {
                         name: key.display(), source_kind: Some("dbml_mapping"), key,
                         data_context_member: attributes.get("Member").cloned(),
                         data_context_class: context_class.clone(),
+                        model_type: None,
                         columns: vec![], primary_key: vec![], foreign_keys: vec![], model_associations: vec![],
                         constraints: vec![], constraint_indexes: vec![],
                         citation: Citation {path:path.into(),start_line:line(position),
@@ -86,6 +87,7 @@ pub(super) fn tables(path: &str, source: &str) -> anyhow::Result<Vec<Table>> {
                     && current.is_some()
                 {
                     in_type = true;
+                    if let Some(table) = &mut current { table.model_type = attributes.get("Name").cloned(); }
                 } else if depth == 3
                     && dbml
                     && element.local_name().as_ref() == b"Column"
