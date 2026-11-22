@@ -164,6 +164,12 @@ pub(super) struct Epoch {
     _catalog: Arc<snapshots::Catalog>,
 }
 
+impl Epoch {
+    pub(super) fn same_physical_table(&self, other: &Self) -> bool {
+        self.table == other.table && Arc::ptr_eq(&self._lease, &other._lease)
+    }
+}
+
 struct EpochData {
     record: Option<Record>,
     table: String,

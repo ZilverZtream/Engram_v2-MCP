@@ -1999,7 +1999,9 @@ fn source_handoff_section(value: &Value, full: &Value) -> Option<(usize, String)
 }
 
 fn render_summary_handoff(value: &Value, full: &Value, immediate_prefix: &str) -> String {
-    let original = render_summary(value, immediate_prefix);
+    let mut baseline = value.clone();
+    let baseline_count = add_summary_dependencies(&mut baseline, full, immediate_prefix);
+    let original = render_summary(&baseline, immediate_prefix);
     let mut compact = compact_summary_display(value);
     disclose_graph_configuration(&mut compact, full);
     let handoff = source_handoff_section(value, full);
@@ -2017,16 +2019,38 @@ fn render_summary_handoff(value: &Value, full: &Value, immediate_prefix: &str) -
             }
         }
     }
-    let rendered = render_summary(&compact, if shared_first_read { "" } else { immediate_prefix });
-    // Compaction retains source evidence/actions; optional configuration plans
-    // can move behind the existing graph continuation with explicit disclosure.
-    // Unusual metadata can make reference notation larger; retain the original.
-    if rendered.len() <= original.len()
+    let prefix = if shared_first_read { "" } else { immediate_prefix };
+    let compact_count = add_summary_dependencies(&mut compact, full, prefix);
+    let rendered = render_summary(&compact, prefix);
+    if (compact_count > baseline_count || (compact_count == baseline_count && rendered.len() <= original.len()))
         && rendered.len() <= SUMMARY_BYTES.saturating_sub(256)
     {
-        append_spare_direct_consumers(&compact, full,
-            if shared_first_read { "" } else { immediate_prefix }, rendered)
+        append_spare_direct_consumers(&compact, full, prefix, rendered)
     } else { original }
+}
+
+fn add_summary_dependencies(summary: &mut Value, full: &Value, prefix: &str) -> usize {
+    let fits = |value: &Value| render_summary(value, prefix).len() <= SUMMARY_BYTES.saturating_sub(256);
+    let mut count = 0;
+    if let Some(outputs) = full.get("build_outputs") {
+        let hosts = outputs["indexed_hosts"].as_array().into_iter().flatten()
+            .filter_map(|h| h["path"].as_str()).collect::<BTreeSet<_>>();
+        let mut candidate = summary.clone();
+        candidate["build_outputs"] = json!({"files":outputs["files"],"host_paths":hosts});
+        if fits(&candidate) { *summary = candidate; count += 1; }
+    }
+    if let Some(rows) = full["declared_type_consumers"].as_array() {
+        let mut selected = Vec::new();
+        for row in rows {
+            selected.push(row);
+            let mut candidate = summary.clone();
+            candidate["declared_type_consumers"] = json!(selected);
+            if !fits(&candidate) { break; }
+            *summary = candidate;
+            count += 1;
+        }
+    }
+    count
 }
 
 /// Spend only space left after the final summary, routes and source handoff.
@@ -2367,26 +2391,6 @@ fn summary_section(
     let fits = |candidate: &Value|
         serde_json::to_vec(candidate).expect("JSON value serialization").len()
             <= SUMMARY_BYTES.saturating_sub(framing + 256);
-    if let Some(outputs) = full.get("build_outputs") {
-        let mut candidate = value.clone();
-        candidate["build_outputs"] = outputs.clone();
-        if !fits(&candidate) {
-            let hosts = outputs["indexed_hosts"].as_array().into_iter().flatten()
-                .filter_map(|h| h["path"].as_str()).collect::<BTreeSet<_>>();
-            candidate["build_outputs"] = json!({"files":outputs["files"], "host_paths":hosts,
-                "details":"Graph detail includes each bundle registration and relation."});
-        }
-        if fits(&candidate) { value = candidate; }
-    }
-    if let Some(uses) = full["declared_type_consumers"].as_array() {
-        for row in uses {
-            let mut candidate = value.clone();
-            if !candidate["declared_type_consumers"].is_array() { candidate["declared_type_consumers"]=json!([]); }
-            candidate["declared_type_consumers"].as_array_mut().unwrap().push(row.clone());
-            if !fits(&candidate) { break; }
-            value=candidate;
-        }
-    }
     recover_capped_member_search(&mut value, full, &fits);
     append_hinted_file_declarations(&mut value,full,&fits);
     append_consumer_navigation(&mut value,full,project,&fits);

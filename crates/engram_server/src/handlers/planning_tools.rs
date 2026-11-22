@@ -1191,7 +1191,7 @@ impl Engram {
                     "stored_proc" | "stored_procedure" | "inline_sql" => "sql",
                     "global_state" if n.name.starts_with("Module:") => "module_state",
                     "global_state" => "state",
-                    "control" if dbml_designers.contains(&n.file_path.as_str().to_ascii_lowercase()) => continue,
+                    "control" | "control_layout" if dbml_designers.contains(&n.file_path.as_str().to_ascii_lowercase()) => continue,
                     "page" | "control" | "ui_container" | "control_layout" => "ui",
                     "function" | "class" | "interface" => "logic",
                     "web_service" | "http_handler" | "wcf_service" | "route_handler" => "endpoints",

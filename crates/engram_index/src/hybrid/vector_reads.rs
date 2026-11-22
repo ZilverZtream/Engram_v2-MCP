@@ -34,16 +34,27 @@ impl HybridSearchEngine {
         T: Send + 'static,
         F: std::future::Future<Output = anyhow::Result<T>> + Send + 'static,
     {
+        self.run_native_read(epoch, cancel, false, operation).await
+    }
+
+    pub(super) async fn run_native_read<T, F>(
+        &self, epoch: Arc<vector_epochs::Epoch>, cancel: &CancellationToken,
+        wait_for_slot: bool, operation: F,
+    ) -> anyhow::Result<T>
+    where T: Send + 'static, F: std::future::Future<Output = anyhow::Result<T>> + Send + 'static {
         anyhow::ensure!(
             !cancel.is_cancelled(),
             "Native read cancelled before admission"
         );
-        let slot = self
-            .vector_routes
-            .read_slots
-            .clone()
-            .try_acquire_owned()
-            .map_err(|_| anyhow::anyhow!("Native read capacity is busy; retry the operation"))?;
+        let slots = self.vector_routes.read_slots.clone();
+        let slot = if wait_for_slot {
+            tokio::select! {
+                _ = cancel.cancelled() => anyhow::bail!("Native read cancelled before admission"),
+                permit = slots.acquire_owned() => permit?,
+            }
+        } else {
+            slots.try_acquire_owned().map_err(|_| anyhow::anyhow!("Native read capacity is busy; retry the operation"))?
+        };
         let mut completion = Completion {
             routes: self.vector_routes.clone(),
             _epoch: epoch,

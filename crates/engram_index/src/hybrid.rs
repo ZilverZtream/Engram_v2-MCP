@@ -69,7 +69,12 @@ mod vector_recovery_scan;
 pub struct RequestEmbedding {
     #[cfg(feature = "vector")]
     value: tokio::sync::OnceCell<(String, Arc<dyn engram_ml::Embedder>, Vec<f32>)>,
+    #[cfg(feature = "vector")]
+    table: RequestTable,
 }
+
+#[cfg(feature = "vector")]
+type RequestTable = Arc<tokio::sync::OnceCell<(Arc<vector_epochs::Epoch>, lancedb::Table)>>;
 
 #[derive(Debug, Clone)]
 pub struct HybridQuery {
@@ -4731,9 +4736,29 @@ impl HybridSearchEngine {
         } else { provider.embed_cancellable(&q.text, cancel).await? };
         let worker = self.clone();
         let query = q.clone();
-        self.run_native_vector_query(_vector_epoch.clone(), cancel, async move {
-            worker.vector_search_backend(&query, query_vec, _vector_epoch, snapshot).await
+        let table = shared.map(|request| request.table.clone());
+        self.run_native_read(_vector_epoch.clone(), cancel, table.is_some(), async move {
+            worker.vector_search_backend(&query, query_vec, _vector_epoch, snapshot, table).await
         }).await
+    }
+
+    /// All namespaces in a managed request can read through the same validated
+    /// table. Its physical lease lives at least as long as the request or any
+    /// outstanding native worker. Legacy tables retain their discovery path.
+    #[cfg(feature = "vector")]
+    async fn query_table(&self, epoch: &Arc<vector_epochs::Epoch>, shared: Option<&RequestTable>) -> anyhow::Result<Option<lancedb::Table>> {
+        if epoch.record.is_none() {
+            if !self.native_store.capture()?.connection.table_names().execute().await?.contains(&epoch.table) {
+                return Ok(None);
+            }
+        } else if let Some(shared) = shared {
+            let (owner, table) = shared.get_or_try_init(|| async {
+                let table = self.open_vector_epoch_table(epoch).await?;
+                Ok::<_, anyhow::Error>((epoch.clone(), table))
+            }).await?;
+            if owner.same_physical_table(epoch) { return Ok(Some(table.clone())); }
+        }
+        self.open_vector_epoch_table(epoch).await.map(Some)
     }
 
     #[cfg(feature = "vector")]
@@ -4743,6 +4768,7 @@ impl HybridSearchEngine {
         query_vec: Vec<f32>,
         _vector_epoch: Arc<vector_epochs::Epoch>,
         _snapshot: Option<snapshots::Lease>,
+        shared: Option<RequestTable>,
     ) -> anyhow::Result<Vec<HybridHit>> {
         if self.is_lexical_only() {
             return Ok(Vec::new());
@@ -4754,17 +4780,9 @@ impl HybridSearchEngine {
                 _vector_epoch.record.is_some() || self.count_docs(&q.project_id)? == 0,
                 "VEC1: stored documents have no identified vector store; initialize vectors from stored text before searching"
             );
-            let table_name = _vector_epoch.table.clone();
-            if !self
-                .native_store.capture()?.connection
-                .table_names()
-                .execute()
-                .await?
-                .contains(&table_name)
-            {
+            let Some(table) = self.query_table(&_vector_epoch, shared.as_ref()).await? else {
                 return Ok(Vec::new());
-            }
-            let table = self.open_vector_epoch_table(&_vector_epoch).await?;
+            };
 
             // Build the WHERE clause into a single pre-allocated String instead
             // of N separate format!() + Vec<String> + join(). Saves ~10 intermediate
@@ -5049,6 +5067,7 @@ impl HybridSearchEngine {
                     &chunk_ids,
                     vector_epoch.clone(),
                     _snapshot.clone(),
+                    None,
                 )
                 .await
             {
@@ -5086,6 +5105,7 @@ impl HybridSearchEngine {
                 chunk_ids,
                 self.pin_vector_epoch(project_id)?,
                 None,
+                None,
             )
             .await
         }
@@ -5103,6 +5123,7 @@ impl HybridSearchEngine {
         chunk_ids: &[u64],
         _vector_epoch: Arc<vector_epochs::Epoch>,
         source: Option<snapshots::Lease>,
+        shared: Option<RequestTable>,
     ) -> anyhow::Result<std::collections::HashMap<u64, Vec<f32>>> {
         // Hybrid ranking can combine disjoint 10,000-row lexical and vector
         // candidate sets before selecting its MMR prefix.
@@ -5113,9 +5134,9 @@ impl HybridSearchEngine {
         let worker = self.clone();
         let project = project_id.to_owned();
         let ids = chunk_ids.to_vec();
-        self.run_native_vector_query(_vector_epoch.clone(), &CancellationToken::new(), async move {
+        self.run_native_read(_vector_epoch.clone(), &CancellationToken::new(), shared.is_some(), async move {
             let _source = source;
-            worker.get_vectors_by_chunk_ids_backend(&project, &ids, _vector_epoch).await
+            worker.get_vectors_by_chunk_ids_backend(&project, &ids, _vector_epoch, shared).await
         }).await
     }
 
@@ -5125,6 +5146,7 @@ impl HybridSearchEngine {
         project_id: &str,
         chunk_ids: &[u64],
         _vector_epoch: Arc<vector_epochs::Epoch>,
+        shared: Option<RequestTable>,
     ) -> anyhow::Result<std::collections::HashMap<u64, Vec<f32>>> {
         anyhow::ensure!(
             _vector_epoch
@@ -5136,17 +5158,9 @@ impl HybridSearchEngine {
         #[cfg(feature = "vector")]
         {
             self.ensure_managed_vector_table_present(&_vector_epoch)?;
-            let table_name = _vector_epoch.table.clone();
-            if !self
-                .native_store.capture()?.connection
-                .table_names()
-                .execute()
-                .await?
-                .contains(&table_name)
-            {
+            let Some(table) = self.query_table(&_vector_epoch, shared.as_ref()).await? else {
                 return Ok(std::collections::HashMap::new());
-            }
-            let table = self.open_vector_epoch_table(&_vector_epoch).await?;
+            };
 
             let id_list = chunk_ids
                 .iter()
@@ -5453,6 +5467,7 @@ impl HybridSearchEngine {
                         .expect("MMR requires a vector epoch")
                         .clone(),
                     _snapshot.clone(),
+                    _shared.map(|request| request.table.clone()),
                 )
                 .await?;
             merged = self.mmr_rerank(merged, &vectors, output_limit, 0.5);

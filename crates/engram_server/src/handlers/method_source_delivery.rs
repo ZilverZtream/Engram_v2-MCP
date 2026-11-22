@@ -23,7 +23,9 @@ pub(super) fn recover(data: &Path,req: &GetFullMethodBodyRequest) -> Result<Opti
 
 pub(super) fn finish(data: &Path,req: &GetFullMethodBodyRequest,body: String,paths: &[String],policy: &PolicyContext, source: &str) -> Result<String,McpError> {
     let limit=budget(req)?;
-    if body.len()<=limit {return Ok(body);}
+    let policy_bytes = body.len().saturating_sub(source.len());
+    let compact = req.max_tokens.is_some() && policy_bytes > 4096 && policy_bytes > source.len();
+    if body.len()<=limit && !compact {return Ok(body);}
     let id=blake3::hash(body.as_bytes()).to_hex().to_string();let recovery_limit=limit.min(32768);
     let paths=paths.iter().collect::<BTreeSet<_>>();
     let manifest=json!({"summary":{
@@ -52,7 +54,16 @@ pub(super) fn finish(data: &Path,req: &GetFullMethodBodyRequest,body: String,pat
         });
         page["response_delivery"]["status"] = json!("SOURCE_SUPPLIED_POLICY_DEFERRED");
         page["response_delivery"]["instruction"] = json!("Recover the saved report for full applicable policy before editing.");
-        let output = if req.output_json {
+        let output = if req.output_json && body.len() <= limit {
+            // Existing in-budget consumers read source_code and range metadata
+            // at the top level. Only the large policy bodies need recovery.
+            let mut report: serde_json::Value = serde_json::from_str(source)
+                .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+            report["project_policy_sources"] = policy.planning_index(&req.project_id);
+            report["project_policy_sources"]["content_deferred"] = json!(true);
+            report["response_delivery"] = page["response_delivery"].clone();
+            report.to_string()
+        } else if req.output_json {
             page["source_report"] = serde_json::from_str(source).unwrap_or_else(|_| json!(source));
             page.to_string()
         } else {
@@ -65,6 +76,7 @@ pub(super) fn finish(data: &Path,req: &GetFullMethodBodyRequest,body: String,pat
     }
     let encoded=serde_json::to_string(&manifest).map_err(|error|McpError::internal_error(error.to_string(),None))?;
     let output=if req.output_json {encoded} else {format!("# Method/source: deferred evidence\n\nRecover the complete original report before using its source.\n\n```json\n{encoded}\n```\n")};
+    if body.len() <= limit { return Ok(body); }
     if output.len()>limit {
         return Err(McpError::invalid_params(format!("max_tokens is too small for method/source identities, policy and recovery metadata; at least {} estimated tokens ({} UTF-8 bytes) required. Increase max_tokens or narrow the source request. No source or qualifications were silently removed.",output.len().div_ceil(4),output.len()),None));
     }

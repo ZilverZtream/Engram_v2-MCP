@@ -704,7 +704,13 @@ impl Report {
             .filter(|value| !value.is_null())
             .map(|value| value.to_string().len())
             .unwrap_or(0);
-        if !self.capture_window && text_bytes.saturating_add(structured_bytes) <= self.budget {
+        // Preserve the complete original for recovery when appended policy
+        // would consume most of an otherwise usable evidence page.
+        let policy_dominates = preview_body.as_deref().is_some_and(|text| {
+            text.rsplit_once("\n## Repository policy sources\n").is_some_and(|(evidence, policy)|
+                policy.len() > 4096 && policy.len() > evidence.len())
+        });
+        if !self.capture_window && !policy_dominates && text_bytes.saturating_add(structured_bytes) <= self.budget {
             return Ok(original);
         }
         let body = serde_json::to_string(&original)
@@ -713,7 +719,10 @@ impl Report {
         let manifest = self.manifest_for(&id, body.len(), operation.as_ref().or(plan_summary.as_ref()));
         let manifest = if let Some(source) = preview_body {
             let packet = serde_json::from_str(&manifest).map_err(|e| McpError::internal_error(format!("{e}"), None))?;
-            crate::planner_page::with_preview(packet, &crate::planner_page::evidence(self.tool, &source), self.budget)
+            let evidence = if policy_dominates {
+                source.rsplit_once("\n## Repository policy sources\n").map_or(source.as_str(), |(body, _)| body)
+            } else { &source };
+            crate::planner_page::with_preview(packet, &crate::planner_page::evidence(self.tool, evidence), self.budget)
         } else { manifest };
         if manifest.len() > self.budget {
             return Err(McpError::invalid_params(

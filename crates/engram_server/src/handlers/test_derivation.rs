@@ -137,6 +137,24 @@ pub(super) fn vb_branch_cases(file: &str, method: &str, source: &str, start: u32
             *arm = format!("reaches line {row}: {}",stmt.trim().chars().take(180).collect::<String>());
         }
     }
+    // A block whose only statement contains a lambda can have no usable
+    // body span. Roslyn still identifies the If header outside that lambda.
+    let observed: HashSet<_> = branches.keys().map(|(line, _)| *line).collect();
+    let header = regex::Regex::new(r"(?is)^\s*If\s+(.+?)\s+Then\s*$").unwrap();
+    for entry in inventory["entries"].as_array().into_iter().flatten() {
+        if entry["statement_kind"] != "IfStatement" { continue; }
+        let (Some(first), Some(last)) = (entry["start_line"].as_u64(), entry["end_line"].as_u64()) else { continue; };
+        if first < start as u64 || last < first || last > end as u64 || observed.contains(&first) { continue; }
+        let Some(span) = lines.get((first as usize - 1)..last as usize) else { continue; };
+        let source = crate::services::business_outcome_dependencies::source_without_comments(&span.join("\n"), true);
+        let Some(captures) = header.captures(&source) else { continue; };
+        let condition = captures[1].to_string();
+        branches.insert((first, condition.clone()), BranchCase {
+            method: method.into(), file: file.into(), line: first as u32, condition,
+            when_true: "verify the effect of the conditional body".into(),
+            when_false: "verify behavior when this body is skipped".into(),
+        });
+    }
     for case in branches.values_mut() {
         for arm in [&mut case.when_true,&mut case.when_false] {
             if arm.is_empty() { *arm = "verify the continuation after the conditional".to_owned(); }
