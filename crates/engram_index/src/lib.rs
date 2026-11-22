@@ -10,6 +10,7 @@ pub mod asset_bundles;
 /// authored C#/VB value syntax for source-located definition/use lineage.
 pub const SOURCE_INDEX_VERSION: u64 = 9;
 pub mod source_contract;
+pub mod js_method_facts;
 pub use source_contract::{SourceExtractionExpectation, SourceExtractionIdentity};
 pub mod chunking;
 pub mod confidence;

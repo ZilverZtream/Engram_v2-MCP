@@ -1076,7 +1076,7 @@ fn antipattern_hit_text(snippet: Option<&str>, include_content: bool) -> String 
     }
     let header: Vec<&str> = s.lines().take_while(|l| !l.trim().is_empty()).collect();
     let mut out = header.join("\n");
-    out.push_str("\n(code hidden — pass include_content=true to see the reverted code)");
+    out.push_str("\n(content hidden — pass include_content=true to inspect the indexed example)");
     out
 }
 
@@ -1088,6 +1088,14 @@ fn immune_status(verdict_rank: u8, incomplete_evidence: bool) -> &'static str {
         _ if incomplete_evidence => "INSUFFICIENT",
         _ => "🟢 CLEAN",
     }
+}
+
+fn ranked_pattern_matches<'a>(hits: &'a [engram_index::HybridHit], scores: &[f32]) -> Vec<(&'a engram_index::HybridHit,f32)> {
+    let mut ranked:Vec<_>=hits.iter().zip(scores.iter().copied()).filter(|(_,s)| *s>0.0).collect();
+    ranked.sort_by(|a,b| b.1.total_cmp(&a.1));
+    let mut seen=std::collections::HashSet::new();
+    ranked.retain(|(hit,_)|seen.insert(hit.snippet.as_deref().filter(|s|!s.is_empty()).unwrap_or(&hit.pk)));
+    ranked
 }
 
 fn immune_rule_matches_path(file_pattern: &str, target_path: &str) -> bool {
@@ -3648,13 +3656,15 @@ impl Engram {
         };
         // Versioned: a binary with a new output format must never serve a
         // previous binary's cached text as current (live, 2026-08-29).
-        const STYLE_GUIDE_FORMAT: &str = "v2";
+        const STYLE_GUIDE_FORMAT: &str = "v3";
         let cache_key = format!(
             "style_guide:{STYLE_GUIDE_FORMAT}:{}:{}",
             cache_subject, latest_oid
         );
 
-        if let Some(mut cached) = self
+        // The Git tip cannot identify uncommitted TypeScript or instruction edits.
+        let cacheable=!crate::services::written_casing::is_typescript(&req.file_path);
+        if cacheable && let Some(mut cached) = self
             .state
             .registry
             .get_meta(&req.project_id, &cache_key)
@@ -3709,7 +3719,7 @@ impl Engram {
             result.analyzed_commits.len()
         ));
 
-        if let Err(e) = self
+        if cacheable && let Err(e) = self
             .state
             .registry
             .set_meta(&req.project_id, &cache_key, &out)
@@ -3849,10 +3859,11 @@ impl Engram {
                 }
             });
         }
-        let match_count = hits.len();
+        let ranked=ranked_pattern_matches(&hits,&similarities);
+        let match_count = ranked.len();
         let highest_score = similarities.iter().copied().fold(0.0f32, f32::max);
         // Only hits similar enough count toward the match-count escalation.
-        let similar_count = similarities.iter().filter(|s| **s > warn_t / 2.0).count();
+        let similar_count = ranked.iter().filter(|(_,s)| *s > warn_t / 2.0).count();
         let cap = req.sanitized_top_k();
         let mut out = format!(
             "# Immune Check Result\n\n**Matches Found**: {} shown (cap top_k={}{})\n\n",
@@ -3870,7 +3881,7 @@ impl Engram {
                 "FAILURE: {f} — immune-file escalation could not run\n\n"
             ));
         }
-        for (i, (hit, similarity)) in hits.iter().zip(&similarities).enumerate() {
+        for (i, (hit, similarity)) in ranked.iter().enumerate() {
             out.push_str(&format!(
                 "### {}. {} (similarity: {:.2}; rank score {:.3})\n\n{}\n\n",
                 i + 1,
@@ -3896,12 +3907,6 @@ impl Engram {
             0
         };
 
-        // Match-count escalation: 3+ matches → WARN (compounding).
-        const MATCH_COUNT_WARN_THRESHOLD: usize = 3;
-        let match_count_warn = similar_count >= MATCH_COUNT_WARN_THRESHOLD;
-        if match_count_warn {
-            verdict_rank = verdict_rank.max(1);
-        }
 
         // Immune + any signal at all → WARN.
         let immune_any_signal =
@@ -3928,17 +3933,16 @@ impl Engram {
 
         // Surface the escalation reasoning so callers see WHY the verdict
         // landed where it did, not just the bare label.
-        if is_immune_flagged || match_count_warn || !destructive_hits.is_empty() {
+        if is_immune_flagged || highest_score > warn_t || !destructive_hits.is_empty() {
             out.push_str("## Escalation Signals\n\n");
             out.push_str(&format!(
                 "- highest similarity (share of this code's terms found in an anti-pattern): {:.2} (warn above {:.2}, block above 0.80)\n",
                 highest_score, warn_t
             ));
             out.push_str(&format!(
-                "- similar matches (similarity above {:.2}): {} (warn at {})\n",
+                "- distinct related examples (similarity above {:.2}): {}\n",
                 warn_t / 2.0,
-                similar_count,
-                MATCH_COUNT_WARN_THRESHOLD
+                similar_count
             ));
             if is_immune_flagged {
                 out.push_str(&format!(
@@ -4030,7 +4034,8 @@ impl Engram {
             })
             .collect();
         let highest_score = similarities.iter().copied().fold(0.0f32, f32::max);
-        let (block_t, warn_t) = (0.85, 0.65);
+        let block_t=0.80;
+        let warn_t=self.state.registry.get_meta(&req.project_id,"immune_warn_threshold").ok().flatten().and_then(|s|s.parse::<f32>().ok()).unwrap_or(0.60);
         let verdict = if highest_score > block_t {
             "BLOCK"
         } else if highest_score > warn_t {
@@ -4048,9 +4053,10 @@ impl Engram {
                 "unreadable_matches: {unreadable} (backing document missing or unreadable; their similarity is unknown)\n\n"
             ));
         }
-        if !hits.is_empty() {
+        let ranked=ranked_pattern_matches(&hits,&similarities);
+        if !ranked.is_empty() {
             out.push_str("Matches in anti-pattern index:\n");
-            for (h, similarity) in hits.iter().zip(&similarities).take(3) {
+            for (h, similarity) in ranked.iter().take(3) {
                 out.push_str(&format!(
                     "- {} (similarity: {:.2}; rank score {:.3})\n",
                     h.path, similarity, h.score
@@ -4076,10 +4082,7 @@ impl Engram {
                 }
             }
             out.push('\n');
-            out.push_str("This pattern was previously reverted as risky code.\n");
-            out.push_str(
-                "Consider an alternative implementation that avoids the flagged construct.\n",
-            );
+            if highest_score>warn_t {out.push_str("Inspect the matched example and its recorded provenance before applying the warning.\n");}
         }
 
         Ok(CallToolResult::success(vec![Content::text(out)]))

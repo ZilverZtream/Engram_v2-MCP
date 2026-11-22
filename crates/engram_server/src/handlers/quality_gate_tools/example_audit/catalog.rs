@@ -310,7 +310,7 @@ pub(in super::super) fn audit(
             .take(3)
             .find_map(|l| l.strip_prefix("Repository-rule pattern: "))
             .filter(|s| *s != "none supplied");
-        let status = verifier.document_status(&id, &content);
+        let status = verifier.document_status_at(&path,&id, &content);
         let title = label(body);
         let checks = compile(body);
         let contracts = structural::contracts(body);
@@ -437,6 +437,16 @@ pub(in super::super) fn audit(
                 &label(title),
                 "working checkout",
             );
+        }
+    }
+    for (file,hunks) in files.iter().zip(&hunks){
+        let rules=crate::services::written_casing::for_file(root,&file.path);
+        if let Some((rule,upper))=crate::services::written_casing::public_rule(&rules){
+            let c=structural::Contract::PublicMemberCase(upper);
+            for n in hunks.iter().flat_map(|h|h.hits(&c)){
+                let desc=c.description();let path=&file.path;
+                matched.insert((path.clone(),n,desc.clone()),format!("- {path}:{n} [source pattern] {desc}. {}. Source: {} (working checkout)",rule.text,rule.source));
+            }
         }
     }
     report.summary = format!(

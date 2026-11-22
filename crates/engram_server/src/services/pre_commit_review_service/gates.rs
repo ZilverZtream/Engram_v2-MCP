@@ -622,7 +622,21 @@ impl Gate for StyleGate {
                 .is_some_and(|ext| matches!(ext.to_ascii_lowercase().as_str(), "ts" | "tsx" | "js" | "jsx" | "mjs")) {
                 ctx.degrade(format!("{}: a complete bounded JS/TS string inventory is unavailable; quote-style check not run. Inspect syntax or source-size limits before relying on quote coverage.", df.path));
             }
-            let conventions = super::extract_conventions_with_strings(&full, &df.path, strings.as_deref());
+            let mut conventions = super::extract_conventions_with_strings(&full, &df.path, strings.as_deref());
+            if crate::services::written_casing::is_typescript(&df.path){
+                // A majority in older code is descriptive. Only a written rule can
+                // require a new TypeScript class member to be renamed.
+                conventions.retain(|c|!matches!(c.category,ConventionCategory::MethodNaming));
+                let rules=crate::services::written_casing::for_file(ctx.project_dir,&df.path);
+                if let Some((rule,upper))=crate::services::written_casing::public_rule(&rules){
+                    let added:std::collections::BTreeSet<_>=df.added_lines.iter().map(|(n,_)|*n).collect();
+                    for m in engram_index::js_method_facts::members(std::path::Path::new(&df.path),&full){
+                        if m.public && added.contains(&m.line) && crate::services::written_casing::violates(&m.name,upper){
+                            findings.push(ReviewFinding::new(Severity::Style,"style",df.path.clone(),format!("Public method `{}` violates the written casing rule",m.name),rule.text.clone(),format!("Apply the casing specified in {}.",rule.source)).with_lines(vec![m.line]).with_evidence(vec![rule.source.clone()]));
+                        }
+                    }
+                }
+            }
             if conventions.is_empty() {
                 continue;
             }
@@ -3529,6 +3543,7 @@ impl Gate for ComplexityGate {
                 }
             }
             let disk_lines: Vec<&str> = disk.lines().collect();
+            let member_facts=engram_index::js_method_facts::members(std::path::Path::new(&df.path),&disk);
             let mut over: Vec<(u32, usize, String, bool)> = Vec::new();
             for (start, end, name) in function_spans(&disk, vb_style) {
                 if added.range(start..=end).next().is_none()
@@ -3540,7 +3555,8 @@ impl Gate for ComplexityGate {
                     .get(start - 1..end.min(disk_lines.len()))
                     .unwrap_or(&[])
                     .join("\n");
-                let cx = estimate_complexity(&body);
+                let cx = member_facts.iter().find(|m|m.line==start && m.name==name)
+                    .map_or_else(|| estimate_complexity(&body),|m|m.decisions);
                 if cx > SQ_COMPLEXITY_MAX {
                     over.push((cx, start, name, added.range(start..=end).count() == end - start + 1));
                 }

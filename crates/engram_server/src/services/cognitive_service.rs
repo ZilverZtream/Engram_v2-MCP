@@ -238,7 +238,11 @@ async fn analyze_file_style_inner(
     // The static analyser reads the FILE; history depth is irrelevant to
     // it (the old `< 5 commits` gate gave the most-edited files the least
     // specific guide — row-5 audit D7).
+    let written=super::written_casing::for_file(std::path::Path::new(&rec.directory),file_path);
     let mut merged_bullets: Vec<String> = mimicry_guide;
+    if !written.is_empty(){
+        merged_bullets.retain(|s|!["casing","naming","camelcase","pascalcase","snake_case"].iter().any(|t|s.to_lowercase().contains(t)));
+    }
     if let Some(ref content) = file_content {
         let static_bullets = static_analyze_file_style(content, file_path);
         basis.static_analyser_ran = true;
@@ -252,10 +256,14 @@ async fn analyze_file_style_inner(
         }
     }
 
-    let mimicry_combined = merged_bullets.join("\n");
+    let mut mimicry_combined = merged_bullets.join("\n");
+    if !written.is_empty(){
+        let policy=written.iter().map(|r|format!("- {} ({})",r.text,r.source)).collect::<Vec<_>>().join("\n");
+        mimicry_combined=format!("### Written casing rules for new code\n{policy}\n\n### Observations from existing code\n{mimicry_combined}");
+    }
 
     // Try LLM enhancement with the style-analysis prompt.
-    let llm_guide = if enhance_with_llm {
+    let llm_guide = if enhance_with_llm && written.is_empty() {
         try_llm_style_analysis(state, file_path, &diffs_text).await
     } else {
         None
@@ -1321,7 +1329,19 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
         }
     }
     if let Some(b) = format_casing_bullet("Function naming", &fn_counts, &fn_samples) {
-        bullets.push(format!("{b}. Follow the same casing for new methods."));
+        bullets.push(b);
+    }
+    if typescript {
+        let members=engram_index::js_method_facts::members(std::path::Path::new("source.ts"),content);
+        for (public,label) in [(true,"Public class method naming"),(false,"Non-public class method naming")] {
+            let mut counts=CasingCounts::default();
+            let mut samples=Vec::new();
+            for m in members.iter().filter(|m|m.public==public){
+                counts.observe(&m.name);
+                if samples.len()<3{samples.push(m.name.clone());}
+            }
+            if let Some(b)=format_casing_bullet(label,&counts,&samples){bullets.push(b);}
+        }
     }
 
     // ── 3. Class naming (separate bullet — almost always PascalCase) ─────

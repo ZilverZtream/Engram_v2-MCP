@@ -21,6 +21,7 @@ use crate::services::quality_source::{self, SourceReceipt};
 
 pub(crate) mod diff_checks;
 mod example_audit;
+mod guidance;
 
 const QG_NAMESPACE: &str = "quality_gate";
 
@@ -529,6 +530,7 @@ impl Engram {
         }
         out.push_str(&coverage.summary);
         out.push_str(&coverage.matches);
+        out.push_str(&guidance::related(root,&diff,&ps.search,&rule_query));
         // Link exact API names in the retrieved prose to added lines.
         static MEMBER_CALL: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(||
             regex::Regex::new(r"\.\s*([A-Za-z_]\w{2,})\s*\(").unwrap());
@@ -579,7 +581,7 @@ impl Engram {
         for (index, h) in hits.iter().enumerate() {
             let p = h.path.as_str().to_ascii_lowercase();
             let status = match ps.search.get_doc_by_doc_id(&req.project_id, QG_NAMESPACE, gen_, &h.doc_id) {
-                Ok(Some((_, _, content, _, _))) => verifier.document_status(&h.doc_id, &content),
+                Ok(Some((_, _, content, _, _))) => verifier.document_status_at(&h.path,&h.doc_id, &content),
                 _ => "unverified: full source evidence unavailable",
             };
             let coverage = if status.starts_with("current:") || status.starts_with("historical:") {

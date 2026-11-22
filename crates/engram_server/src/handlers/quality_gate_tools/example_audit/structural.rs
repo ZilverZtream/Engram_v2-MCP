@@ -12,6 +12,7 @@ pub(super) enum Contract {
     Poll,
     Listener,
     Selector,
+    PublicMemberCase(bool),
 }
 
 pub(super) fn contracts(policy: &str) -> Vec<Contract> {
@@ -64,6 +65,12 @@ pub(super) fn contracts(policy: &str) -> Vec<Contract> {
 impl Contract {
     pub(super) fn description(&self) -> String {
         match self {
+            Self::PublicMemberCase(true) => {
+                "Public TypeScript method violates the repository PascalCase rule"
+            }
+            Self::PublicMemberCase(false) => {
+                "Public TypeScript method violates the repository camelCase rule"
+            }
             Self::Redirect => "Redirect continues without a visible immediate Return",
             Self::Postback => {
                 "Permission check is nested in the initial-load branch and skipped on postback"
@@ -91,6 +98,7 @@ impl Contract {
 pub(super) struct Hunk {
     vb: bool,
     js: bool,
+    public_methods: Vec<(usize, String)>,
     rows: Vec<(usize, bool, Vec<String>)>,
 }
 impl Hunk {
@@ -98,8 +106,37 @@ impl Hunk {
         let ext = path.rsplit('.').next().unwrap_or("").to_ascii_lowercase();
         let vb = ext == "vb";
         let mut block = false;
+        let rows: Vec<_> = rows.into_iter().collect();
+        let mut public_methods = Vec::new();
+        if matches!(ext.as_str(), "ts" | "tsx" | "cts" | "mts") {
+            let src = rows
+                .iter()
+                .map(|(_, _, s)| s.as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+            let mut members = engram_index::js_method_facts::members(Path::new(path), &src);
+            if members.is_empty()
+                && rows
+                    .iter()
+                    .any(|(_, _, s)| s.trim_start().starts_with("public "))
+            {
+                members = engram_index::js_method_facts::members(
+                    Path::new(path),
+                    &format!("class Scope {{\n{src}\n}}"),
+                );
+                for m in &mut members {
+                    m.line = m.line.saturating_sub(1);
+                }
+            }
+            for m in members.into_iter().filter(|m| m.public) {
+                if let Some((n, true, _)) = m.line.checked_sub(1).and_then(|i| rows.get(i)) {
+                    public_methods.push((*n, m.name));
+                }
+            }
+        }
         Self {
             vb,
+            public_methods,
             js: matches!(ext.as_str(), "js" | "ts" | "tsx" | "jsx" | "mjs"),
             rows: rows
                 .into_iter()
@@ -134,6 +171,14 @@ impl Hunk {
             .collect()
     }
     pub(super) fn hits(&self, c: &Contract) -> Vec<usize> {
+        if let Contract::PublicMemberCase(upper) = c {
+            return self
+                .public_methods
+                .iter()
+                .filter(|(_, s)| crate::services::written_casing::violates(s, *upper))
+                .map(|(n, _)| *n)
+                .collect();
+        }
         let mut hits = Vec::new();
         let mut initial = Vec::new();
         for (i, (n, added, t)) in self.rows.iter().enumerate() {

@@ -36,12 +36,13 @@ pub(crate) struct SourceVerifier<'a> {
     pid: &'a str,
     root: &'a Path,
     remaining: usize,
+    copilot_text: std::sync::OnceLock<Option<String>>,
     checked: HashMap<String, Result<SourceReceipt, &'static str>>,
 }
 
 impl<'a> SourceVerifier<'a> {
     pub fn new(state: &'a AppState, pid: &'a str, root: &'a Path) -> Self {
-        Self { state, pid, root, remaining: 8 * 1024 * 1024, checked: HashMap::new() }
+        Self { state, pid, root, remaining: 8 * 1024 * 1024, copilot_text: Default::default(), checked: HashMap::new() }
     }
 
     fn source(&mut self, origin: &str) -> Result<&SourceReceipt, &'static str> {
@@ -92,6 +93,20 @@ impl<'a> SourceVerifier<'a> {
         self.checked.get(origin).expect("inserted above").as_ref().map_err(|e| *e)
     }
 
+    pub fn legacy_checkout_status(&self,path:&str,content:&str)->Option<&'static str> {
+        if !matches!(path,"copilot-instructions.md"|".github/copilot-instructions.md"){return None;}
+        let file=self.copilot_text.get_or_init(||engram_core::safe_read_to_string(self.root,".github/copilot-instructions.md").ok().map(|s|s.split_whitespace().collect::<Vec<_>>().join(" ")));
+        let text=content.trim().strip_prefix('[').and_then(|s|s.split_once("] ")).map_or(content,|(_,s)|s);
+        let quote=text.split_whitespace().collect::<Vec<_>>().join(" ");
+        if file.as_ref().is_some_and(|s|!quote.is_empty() && !s.contains(&quote)){
+            Some("stale: imported wording absent from current .github/copilot-instructions.md; inspect its replacement before use")
+        } else {None}
+    }
+
+    pub fn document_status_at(&mut self,path:&str,id:&str,content:&str)->&'static str{
+        if !content.starts_with("Quality-rule source:") && let Some(s)=self.legacy_checkout_status(path,content){return s;}
+        self.document_status(id,content)
+    }
     pub fn document_status(&mut self, doc_id: &str, content: &str) -> &'static str {
         let mut lines = content.lines();
         let Some(origin) = lines.next().and_then(|l| l.strip_prefix("Quality-rule source: ")) else {
@@ -131,6 +146,10 @@ pub(crate) fn effective_repo_rules_from_rows(state: &AppState, pid: &str,
     let mut unresolved_authority = 0usize;
     let corpus_revision = state.registry.get_meta_bounded(pid, CORPUS_REVISION, 4096)?.unwrap_or_default();
     for rule in rules {
+        if rule.provenance.is_none() && rule.rule_id.starts_with("qg-copilot:copilot-instructions.md:")
+            && let Some(status)=verifier.legacy_checkout_status("copilot-instructions.md",&rule.rule_text){
+            out.notes.push(format!("{} — {status}",rule.rule_id));continue;
+        }
         if paths.is_some_and(|paths| !paths.iter().any(|p|
             crate::services::produce_claude_md_service::instruction_plan::applies(&rule.file_pattern, p))) {
             continue;
