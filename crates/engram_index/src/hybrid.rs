@@ -5128,7 +5128,13 @@ impl HybridSearchEngine {
             let ids: Vec<_> = candidates.iter().map(|hit| hit.chunk_id).collect();
             let vectors = self.get_vectors_by_chunk_ids_with_epoch(project, &ids, epoch.clone(), None, Some(shared.table.clone())).await?;
             if !ids.iter().all(|id| vectors.contains_key(id)) { return Ok(None); }
-            Ok(Some(self.mmr_rerank(candidates, &vectors, prefix, 0.5)))
+            // Cosine similarities range up to one, while fused reciprocal ranks
+            // are only a few hundredths. Bound the diversity penalty relative
+            // to the strongest relevance score so weak hits cannot jump to
+            // the front merely because they discuss a different subject.
+            let strongest = candidates.first().map_or(0.0, |hit| hit.score);
+            let relevance_weight = 1.0 / (1.0 + 0.15 * strongest);
+            Ok(Some(self.mmr_rerank(candidates, &vectors, prefix, relevance_weight)))
         }
         #[cfg(not(feature = "vector"))]
         { let _ = (project, shared, candidates, prefix); Ok(None) }
@@ -5182,7 +5188,7 @@ impl HybridSearchEngine {
 
             let id_list = chunk_ids
                 .iter()
-                .map(|id| format!("CAST({} AS BIGINT UNSIGNED)", id))
+                .map(|id| crate::sql_literals::u64_literal(*id).to_string())
                 .collect::<Vec<_>>()
                 .join(", ");
             let filter = format!("chunk_id IN ({})", id_list);
