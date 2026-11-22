@@ -367,6 +367,7 @@ pub fn static_analyze_file_style(content: &str, file_path: &str) -> Vec<String> 
 struct CasingCounts {
     pub pascal: u32,
     pub camel: u32,
+    pub underscore_camel: u32,
     pub snake: u32,
     pub screaming: u32,
     pub other: u32,
@@ -393,7 +394,7 @@ impl CasingCounts {
     }
 
     fn total(&self) -> u32 {
-        self.pascal + self.camel + self.snake + self.screaming + self.other
+        self.pascal + self.camel + self.underscore_camel + self.snake + self.screaming + self.other
     }
 
     /// Produce a `"{conv}: ({dominant}/{total})"` summary, or `None` when
@@ -406,6 +407,7 @@ impl CasingCounts {
         let (label, count) = [
             ("PascalCase", self.pascal),
             ("camelCase", self.camel),
+            ("_camelCase", self.underscore_camel),
             ("snake_case", self.snake),
             ("SCREAMING_SNAKE", self.screaming),
         ]
@@ -1337,7 +1339,13 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
             let mut counts=CasingCounts::default();
             let mut samples=Vec::new();
             for m in members.iter().filter(|m|m.public==public && m.accessor==accessor){
-                counts.observe(&m.name);
+                if m.name.strip_prefix('_').is_some_and(|name| {
+                    name.starts_with(|c: char| c.is_ascii_lowercase()) && !name.contains('_')
+                }) {
+                    counts.underscore_camel += 1;
+                } else {
+                    counts.observe(&m.name);
+                }
                 if samples.len()<3{samples.push(m.name.clone());}
             }
             if let Some(b)=format_casing_bullet(label,&counts,&samples){bullets.push(b);}
