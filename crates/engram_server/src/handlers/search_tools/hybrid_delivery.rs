@@ -10,6 +10,7 @@ pub(super) struct Delivery {
     exhausted: bool,
     used_semantics: bool,
     outcomes: Vec<Value>,
+    pub diversity: Option<&'static str>,
 }
 
 impl Delivery {
@@ -21,6 +22,7 @@ impl Delivery {
             exhausted: false,
             used_semantics: false,
             outcomes: Vec::new(),
+            diversity: None,
         }
     }
 
@@ -31,6 +33,10 @@ impl Delivery {
     pub fn include(&mut self, attempt: Self) {
         self.used_semantics |= attempt.used_semantics;
         self.outcomes.extend(attempt.outcomes);
+    }
+
+    pub fn remaining(&self) -> std::time::Duration {
+        std::time::Duration::from_millis(self.budget_ms).saturating_sub(self.started.elapsed())
     }
 
     /// None asks the caller to run its existing pinned, filtered lexical path.
@@ -91,7 +97,7 @@ impl Delivery {
     pub fn metadata(&self, requested: bool, configured: SemanticQuality) -> Value {
         json!({"semantic_requested":requested,
             "configured_semantic_quality":super::structured_response::quality(configured),
-            "semantic_budget_ms":self.budget_ms,"namespaces":self.outcomes,
+            "semantic_budget_ms":self.budget_ms,"namespaces":self.outcomes,"cross_namespace_diversity":self.diversity,
             "budget_scope":"One optional hybrid-attempt budget shared across project and user namespaces. Cooperative deadline: synchronous work is not interrupted. Excludes runtime startup, lexical/source work and rendering. A dropped provider request does not prove remote computation stopped."})
     }
 

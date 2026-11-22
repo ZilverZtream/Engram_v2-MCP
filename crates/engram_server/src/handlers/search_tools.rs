@@ -299,6 +299,11 @@ impl Engram {
         let request = &req;
         let embedding = engram_index::hybrid::RequestEmbedding::default();
         let shared_embedding = &embedding;
+        // Retrieve semantic evidence for all curated sources before spending
+        // the common deadline on diversity. The final list crosses corpora.
+        let fused_diversity = req.semantic && req.use_mmr
+            && req.search_scope.eq_ignore_ascii_case("knowledge")
+            && ps.search.semantic_quality() == engram_index::SemanticQuality::Semantic;
         let mut searches = futures::stream::iter(namespaces.clone().into_iter().enumerate().map(|(order, ns)| {
             let mut delivery = semantic_delivery.namespace_attempt();
             let q = HybridQuery {
@@ -315,7 +320,7 @@ impl Engram {
                 author_filter: req.author_filter.clone(),
                 date_after: req.date_after,
                 date_before: req.date_before,
-                use_mmr: req.use_mmr,
+                use_mmr: req.use_mmr && !fused_diversity,
             };
             async move {
                 let hybrid_hits = if request.semantic {
@@ -447,8 +452,30 @@ impl Engram {
 
         // Fuse, then slice out the requested page. Done before the dreamer
         // feed so co-occurrence edges reflect what the agent actually saw.
-        let hits: Vec<(String, engram_index::HybridHit)> = rrf_fuse_namespaces(lists, per_ns_top_k, &req.query)
-            .into_iter()
+        let mut ranked = rrf_fuse_namespaces(lists, per_ns_top_k, &req.query);
+        if fused_diversity && ranked.len() > 1 {
+            let tags: std::collections::HashMap<_, _> = ranked.iter()
+                .map(|(namespace, hit)| (hit.pk.clone(), namespace.clone())).collect();
+            let remaining = semantic_delivery.remaining();
+            semantic_delivery.diversity = Some(if ranked.iter().any(|(ns, hit)| ns.starts_with("user:") || hit.pk.is_empty())
+                || tags.len() != ranked.len() {
+                "fused ranking retained; candidates lack a single project and unique document identities"
+            } else if remaining.is_zero() {
+                "fused ranking retained; semantic budget exhausted before diversification"
+            } else {
+                let prefix = offset.saturating_add(req.sanitized_max_results()).min(ranked.len());
+                let candidates = ranked.iter().map(|(_, hit)| hit.clone()).collect();
+                match tokio::time::timeout(remaining, engine.diversify_fused_hits(&req.project_id, shared_embedding, candidates, prefix)).await {
+                    Ok(Ok(Some(rows))) => {
+                        ranked = rows.into_iter().map(|hit| (tags[&hit.pk].clone(), hit)).collect();
+                        "diversified across the fused project candidates"
+                    }
+                    Ok(_) => "fused ranking retained; complete matching vectors unavailable",
+                    Err(_) => "fused ranking retained; optional diversification timed out",
+                }
+            });
+        }
+        let hits: Vec<(String, engram_index::HybridHit)> = ranked.into_iter()
             .skip(offset)
             .take(req.sanitized_max_results())
             .collect();
@@ -479,6 +506,9 @@ impl Engram {
         }
         if let Some(warning) = semantic_delivery.warning() {
             out.push_str(&warning);
+        }
+        if let Some(status) = semantic_delivery.diversity {
+            out.push_str(&format!("Cross-namespace diversity: {status}.\n"));
         }
         let structured_warnings=if req.output_json && !out.is_empty() {vec![out.trim().to_owned()]} else {Vec::new()};
 

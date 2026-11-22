@@ -5116,6 +5116,24 @@ impl HybridSearchEngine {
         }
     }
 
+    /// Diversify a fused project result once, using the same managed vector
+    /// table that produced the semantic candidates. An incomplete vector set
+    /// leaves the caller's already ranked baseline available.
+    pub async fn diversify_fused_hits(
+        &self, project: &str, shared: &RequestEmbedding, candidates: Vec<HybridHit>, prefix: usize,
+    ) -> anyhow::Result<Option<Vec<HybridHit>>> {
+        #[cfg(feature = "vector")]
+        {
+            let Some((epoch, _)) = shared.table.get() else { return Ok(None); };
+            let ids: Vec<_> = candidates.iter().map(|hit| hit.chunk_id).collect();
+            let vectors = self.get_vectors_by_chunk_ids_with_epoch(project, &ids, epoch.clone(), None, Some(shared.table.clone())).await?;
+            if !ids.iter().all(|id| vectors.contains_key(id)) { return Ok(None); }
+            Ok(Some(self.mmr_rerank(candidates, &vectors, prefix, 0.5)))
+        }
+        #[cfg(not(feature = "vector"))]
+        { let _ = (project, shared, candidates, prefix); Ok(None) }
+    }
+
     #[cfg(feature = "vector")]
     async fn get_vectors_by_chunk_ids_with_epoch(
         &self,
