@@ -310,16 +310,11 @@ impl Engram {
             .map(|v| v.iter().map(|s| s.trim().to_lowercase()).collect());
         let limit = req.limit.clamp(1, 30);
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let mut text = req.query.clone();
-        if let Some(file) = req.file_path.as_deref() {
-            text.push(' ');
-            text.push_str(file.replace('\\', "/").rsplit('/').next().unwrap_or(file));
-        }
         let query = engram_index::HybridQuery {
             project_id: req.project_id.clone(),
             namespace: NAMESPACE_REVIEW_VERDICT.into(),
             generation: 0,
-            text,
+            text: req.query.clone(),
             top_k: (limit * 5).min(200),
             fts_mode: "loose".into(),
             include_path_prefixes: Some(vec![VERDICT_PREFIX.into()]),
@@ -350,7 +345,9 @@ impl Engram {
         }
 
         let file = req.file_path.as_deref().map(|f| f.replace('\\', "/"));
-        let mut rows: Vec<(bool, String, String)> = Vec::new(); // (same file, kind, content)
+        let terms: std::collections::BTreeSet<_> = req.query.split(|ch: char| !ch.is_alphanumeric())
+            .filter(|term| term.len() > 2).map(str::to_lowercase).collect();
+        let mut rows = Vec::new();
         for hit in &hits {
             if req
                 .before_pr_id
@@ -380,10 +377,14 @@ impl Engram {
                             .ends_with(f.trim_start_matches('/'))
                 })
             });
-            rows.push((same_file, kind, doc.content));
+            // Paths and author metadata can mention a language without the review
+            // discussing the requested subject. Score the discussion itself.
+            let discussion = doc.content.lines().filter(|line| !line.starts_with("File: ") && !line.starts_with("Review verdict: "))
+                .collect::<Vec<_>>().join(" ").to_lowercase();
+            let matched = terms.iter().filter(|term| discussion.contains(term.as_str())).count();
+            rows.push((matched, same_file, kind, doc.content));
         }
-        // Same-file precedents first; relevance order otherwise.
-        rows.sort_by_key(|(same_file, _, _)| !*same_file);
+        rows.sort_by_key(|(matched, same_file, _, _)| (std::cmp::Reverse(*matched), !*same_file));
         rows.truncate(limit);
         if rows.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(format!(
@@ -393,7 +394,7 @@ impl Engram {
         }
 
         let mut tally: BTreeMap<&str, usize> = BTreeMap::new();
-        for (_, kind, _) in &rows {
+        for (_, _, kind, _) in &rows {
             *tally.entry(kind.as_str()).or_default() += 1;
         }
         let mut out = format!(
@@ -432,7 +433,7 @@ impl Engram {
              code and retain findings; no automatic suppression. Stored finding and reasoning \
              may be clipped. New imports provide exact full-capture recovery references; legacy summaries have no recoverable full discussion. Captured source is unauthenticated supplied input, not proof of unreturned provider history.\n",
         );
-        for (i, (same_file, kind, content)) in rows.iter().enumerate() {
+        for (i, (_, same_file, kind, content)) in rows.iter().enumerate() {
             out.push_str(&format!(
                 "\n--- #{}{} ---\n{}",
                 i + 1,

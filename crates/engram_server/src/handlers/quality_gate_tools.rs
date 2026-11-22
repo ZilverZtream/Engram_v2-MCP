@@ -554,15 +554,17 @@ impl Engram {
         out.push_str(&guidance::related(root,&diff,&ps.search,&rule_query));
         // Link exact API names in the retrieved prose to added lines.
         static MEMBER_CALL: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(||
-            regex::Regex::new(r"\.\s*([A-Za-z_]\w{2,})\s*\(").unwrap());
+            regex::Regex::new(r"\b([A-Za-z_$][\w$]*(?:\s*\.\s*[A-Za-z_$][\w$]*)+)\s*\(").unwrap());
         let mut anchors = Vec::new();
         'files: for file in &diff {
             for (line, source) in &file.added_lines {
                 for cap in MEMBER_CALL.captures_iter(source) {
-                    let name = &cap[1];
+                    let name: String = cap[1].split_whitespace().collect();
                     let rule = hits.iter().position(|h| h.snippet.as_deref().is_some_and(|snippet|
-                        snippet.split(|c: char| !c.is_alphanumeric() && c != '_')
-                            .any(|word| word.eq_ignore_ascii_case(name))));
+                        MEMBER_CALL.captures_iter(snippet).any(|m| {
+                            let candidate: String = m[1].split_whitespace().collect();
+                            candidate.eq_ignore_ascii_case(&name)
+                        })));
                     if let Some(index) = rule {
                         let row = format!("- {}:{}  {}() occurs in retrieved rule #{}\n", file.path, line, name, index + 1);
                         if !anchors.contains(&row) { anchors.push(row); }

@@ -123,7 +123,10 @@ pub(crate) fn evidence(tool: &str, body: &str) -> String {
             }
             body.to_owned()
         }
-        "get_ui_conformance" | "trace_ui_event" | "trace_ui_action" => body.lines().take_while(|line|
+        "get_review_precedents" => body.split("\n--- #").skip(1).map(|row| row.lines()
+            .take_while(|line| !line.starts_with("Imported discussion recovery")).take(8).map(|line| line.chars().take(320).collect::<String>()).collect::<Vec<_>>().join("\n"))
+            .collect::<Vec<_>>().join("\n--- #"),
+        "map_page_lifecycle" | "get_ui_conformance" | "trace_ui_event" | "trace_ui_action" => body.lines().take_while(|line|
             !line.starts_with("## Repository policy sources")).collect::<Vec<_>>().join("\n"),
         "pre_push_audit" => body.lines().take_while(|line| !line.starts_with("Retrieval sampling")).collect::<Vec<_>>().join("\n"),
         "plan_user_story" => body

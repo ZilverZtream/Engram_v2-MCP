@@ -169,7 +169,7 @@ pub(super) fn finish(data: &Path, project: &str, body: String, limit: usize) -> 
     }
     if text.len() > limit {
         let navigation_bytes = text.len();
-        let deferred = json!({
+        let mut deferred = json!({
             "status":report["status"],
             "project_id":project,
             "active_generation":report["active_generation"],
@@ -182,6 +182,25 @@ pub(super) fn finish(data: &Path, project: &str, body: String, limit: usize) -> 
                 "next_call":snapshots::request_trace_continuation(project,&id,0,limit)
             }
         });
+        // Even when the path table cannot fit, deliver the actual selected
+        // entry methods before requiring recovery of downstream evidence.
+        let controllers = report["api_traces"].as_array().into_iter().flatten()
+            .flat_map(|api| api["controllers"].as_array().into_iter().flatten());
+        for trace in report["pages"].as_array().into_iter().flatten().chain(controllers) {
+            for handler in trace["handlers"].as_array().into_iter().flatten().take(12) {
+                let source = json!({"name":handler["name"], "file":handler["file"], "line":handler["line"],
+                    "binding":handler.get("binding").and_then(Value::as_str).unwrap_or("").chars().take(300).collect::<String>()});
+                if deferred.get("entry_handlers").is_none() {deferred["entry_handlers"] = json!([]);}
+                let handlers = deferred["entry_handlers"].as_array_mut().unwrap();
+                if handlers.len() >= 12 {break;}
+                handlers.push(source);
+                if serde_json::to_vec(&deferred).map_err(|e| McpError::internal_error(e.to_string(),None))?.len() > limit {
+                    deferred["entry_handlers"].as_array_mut().unwrap().pop();
+                    if deferred["entry_handlers"].as_array().unwrap().is_empty() {deferred.as_object_mut().unwrap().remove("entry_handlers");}
+                    break;
+                }
+            }
+        }
         text = serde_json::to_string(&deferred)
             .map_err(|error| McpError::internal_error(error.to_string(), None))?;
         if text.len() > limit {

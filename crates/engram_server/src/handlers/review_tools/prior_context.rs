@@ -285,6 +285,7 @@ fn collect_inner(
     let mut items = Vec::new();
     let mut omitted = Vec::new();
     let mut emitted_events = BTreeSet::new();
+    let mut excerpts = Vec::new();
     for hit in hits {
         let Some((pr, thread)) = identity(hit.path.as_str()) else {
             omitted.push(json!({"reason":"unsupported_indexed_identity"}));
@@ -301,6 +302,15 @@ fn collect_inner(
             continue;
         };
         let content_hash = blake3::hash(document.content.as_bytes()).to_hex().to_string();
+        if excerpts.len() < 3 {
+            let mut lines = document.content.lines();
+            let finding = lines.find(|line| line.starts_with("Finding by ")).and_then(|_| lines.find(|line| !line.trim().is_empty()))
+                .or_else(|| document.content.lines().find_map(|line| line.strip_prefix("Finding: ")))
+                .unwrap_or_else(|| document.content.lines().find(|line| !line.trim().is_empty()).unwrap_or(""));
+            excerpts.push(json!({"review_id":format!("PR-{pr}"), "thread_id":thread,
+                "finding_excerpt":finding.chars().take(240).collect::<String>(),
+                "stored_text_complete":false, "recovery":stored_summary_recovery(pid,&hit.doc_id,&content_hash)}));
+        }
         if document.content.len() > 16 * 1024 {
             omitted.push(json!({"review_id":format!("PR-{pr}"),"path":hit.path,
                 "reason":"complete_stored_document_exceeds_context_budget",
@@ -480,6 +490,18 @@ fn collect_inner(
         };
         output["omissions"].as_array_mut().expect("omissions array")
             .push(omitted_item(pid, item, "serialized_response_budget"));
+    }
+    if output["items"].as_array().is_some_and(Vec::is_empty) && !excerpts.is_empty() {
+        // Preserve the omission ledger and canonical recovery while offering
+        // actual review evidence when a complete thread cannot fit.
+        output["finding_excerpts"] = json!([]);
+        for excerpt in excerpts {
+            output["finding_excerpts"].as_array_mut().unwrap().push(excerpt);
+            if serde_json::to_vec(&output)?.len() + 48 > MAX_BYTES {
+                output["finding_excerpts"].as_array_mut().unwrap().pop();
+                break;
+            }
+        }
     }
     output["status"] = json!(if output["items"].as_array().is_some_and(|items| !items.is_empty()) {
         "observed"
