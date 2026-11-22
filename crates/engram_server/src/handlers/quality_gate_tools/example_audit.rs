@@ -3,6 +3,7 @@ mod catalog;
 mod structural;
 mod syntax;
 pub(super) use catalog::audit;
+pub(super) use catalog::document_applies;
 
 use crate::services::{pre_commit_review_service::DiffFile, quality_source::SourceVerifier};
 use engram_index::HybridSearchEngine;

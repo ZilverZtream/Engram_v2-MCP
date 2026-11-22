@@ -539,11 +539,34 @@ impl Engram {
         let rule_query=diff_checks::query(&req.project_id,gen_,query,top_k);
         let findings = diff_checks::review(&diff, &ps.search, &rule_query, &mut verifier, std::path::Path::new(&ps.info.directory));
         let coverage=example_audit::audit(&ps.search,&req.project_id,&diff,&mut verifier,root,&findings,None);
-        let retrieved = crate::services::rule_retrieval::search(&ps.search, &rule_query, &cancel)
+        let mut retrieval_query = rule_query.clone();
+        if req.file_path.is_some() || !diff.is_empty() {
+            retrieval_query.top_k = (top_k * 3).min(150);
+        }
+        let retrieved = crate::services::rule_retrieval::search(&ps.search, &retrieval_query, &cancel)
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         sampling.push_str(retrieved.note);
-        let hits = retrieved.hits;
+        let mut hits = Vec::new();
+        let mut rule_status = Vec::new();
+        for hit in retrieved.hits {
+            let document = ps.search.get_doc_by_doc_id(&req.project_id, QG_NAMESPACE, gen_, &hit.doc_id);
+            let status = if let Ok(Some((_, _, content, _, _))) = document {
+                let applicable = |path: &str| example_audit::document_applies(&content, path);
+                let applies = if let Some(path) = req.file_path.as_deref() {
+                    applicable(path)
+                } else {
+                    diff.is_empty() || diff.iter().any(|file| applicable(&file.path))
+                };
+                if !applies { continue; }
+                verifier.document_status_at(hit.path.as_str(), &hit.doc_id, &content)
+            } else {
+                "unverified: full source evidence unavailable"
+            };
+            hits.push(hit);
+            rule_status.push(status);
+            if hits.len() == top_k { break; }
+        }
 
         // Rules scoped to the edited file rank first.
         let scope = req.file_path.as_deref().map(|f| {
@@ -617,10 +640,7 @@ impl Engram {
 
         for (index, h) in hits.iter().enumerate() {
             let p = h.path.as_str().to_ascii_lowercase();
-            let status = match ps.search.get_doc_by_doc_id(&req.project_id, QG_NAMESPACE, gen_, &h.doc_id) {
-                Ok(Some((_, _, content, _, _))) => verifier.document_status_at(h.path.as_str(),&h.doc_id, &content),
-                _ => "unverified: full source evidence unavailable",
-            };
+            let status = rule_status[index];
             let coverage = if status.starts_with("current:") || status.starts_with("historical:") {
                 "Evidence status"
             } else { "INCOMPLETE policy coverage; advisory evidence only" };

@@ -42,6 +42,23 @@ fn applies(tags: &str, path: &str) -> bool {
                 || (*t == "ts" && ext == "tsx")
         })
 }
+
+/// Use the same declared applicability for retrieval and execution. Untagged
+/// rules remain candidates since their examples can mention other languages.
+pub(crate) fn document_applies(content: &str, path: &str) -> bool {
+    let body = if content.starts_with("Quality-rule source:") {
+        if content.lines().take(3)
+            .filter_map(|line| line.strip_prefix("Repository-rule pattern: "))
+            .any(|pattern| pattern != "none supplied" && !crate::utils::files::pattern_match(path, pattern))
+        {
+            return false;
+        }
+        content.split_once("\n\n").map_or("", |(_, body)| body)
+    } else {
+        content
+    };
+    TAGS.captures(body).is_none_or(|tags| applies(&tags[1].to_ascii_lowercase(), path))
+}
 fn sections(s: &str) -> Vec<(usize, &str, String)> {
     let mut blocks = Vec::new();
     let mut start = 1;
