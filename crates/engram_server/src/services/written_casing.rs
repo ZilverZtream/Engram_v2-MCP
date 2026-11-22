@@ -2,6 +2,7 @@ use super::project_policy::{self, PolicyBudget};
 use std::path::Path;
 
 pub struct Rule {
+    language_scoped:bool,
     pub source: String,
     pub text: String,
     pub public_upper: Option<bool>,
@@ -81,6 +82,7 @@ pub fn for_file(root: &Path, target: &str) -> Vec<Rule> {
                 _ => None,
             });
             rules.push(Rule {
+                language_scoped:scope.last().is_some_and(|(_,applies)|*applies),
                 source: format!("{p}:{}", i + 1),
                 text: s.trim_start_matches("- ").to_owned(),
                 public_upper,
@@ -91,7 +93,8 @@ pub fn for_file(root: &Path, target: &str) -> Vec<Rule> {
 }
 
 pub fn public_rule(rules: &[Rule]) -> Option<(&Rule, bool)> {
-    let mut candidates = rules.iter().filter_map(|r| Some((r, r.public_upper?)));
+    let language_scoped=rules.iter().any(|r|r.public_upper.is_some() && r.language_scoped);
+    let mut candidates = rules.iter().filter(|r|!language_scoped || r.language_scoped).filter_map(|r| Some((r, r.public_upper?)));
     let first = candidates.next()?;
     candidates
         .all(|(_, value)| value == first.1)

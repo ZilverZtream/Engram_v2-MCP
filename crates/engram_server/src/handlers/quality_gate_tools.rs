@@ -581,7 +581,7 @@ impl Engram {
         for (index, h) in hits.iter().enumerate() {
             let p = h.path.as_str().to_ascii_lowercase();
             let status = match ps.search.get_doc_by_doc_id(&req.project_id, QG_NAMESPACE, gen_, &h.doc_id) {
-                Ok(Some((_, _, content, _, _))) => verifier.document_status_at(&h.path,&h.doc_id, &content),
+                Ok(Some((_, _, content, _, _))) => verifier.document_status_at(h.path.as_str(),&h.doc_id, &content),
                 _ => "unverified: full source evidence unavailable",
             };
             let coverage = if status.starts_with("current:") || status.starts_with("historical:") {

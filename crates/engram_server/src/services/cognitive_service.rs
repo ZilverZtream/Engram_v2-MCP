@@ -1333,14 +1333,15 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
     }
     if typescript {
         let members=engram_index::js_method_facts::members(std::path::Path::new("source.ts"),content);
-        for (public,label) in [(true,"Public class method naming"),(false,"Non-public class method naming")] {
+        for (public,accessor,label) in [(true,false,"Public class method naming"),(true,true,"Public property accessor naming"),(false,false,"Non-public class method naming")] {
             let mut counts=CasingCounts::default();
             let mut samples=Vec::new();
-            for m in members.iter().filter(|m|m.public==public){
+            for m in members.iter().filter(|m|m.public==public && m.accessor==accessor){
                 counts.observe(&m.name);
                 if samples.len()<3{samples.push(m.name.clone());}
             }
             if let Some(b)=format_casing_bullet(label,&counts,&samples){bullets.push(b);}
+            else if !samples.is_empty(){bullets.push(format!("{label}: {} declaration(s): {}",samples.len(),samples.join(", ")));}
         }
     }
 

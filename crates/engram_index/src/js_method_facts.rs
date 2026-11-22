@@ -6,6 +6,7 @@ pub struct Member {
     pub name: String,
     pub line: usize,
     pub public: bool,
+    pub accessor: bool,
     pub decisions: u32,
 }
 
@@ -73,6 +74,7 @@ pub fn members(path: &Path, source: &str) -> Vec<Member> {
                 name: text.to_owned(),
                 line: name.start_position().row + 1,
                 public,
+                accessor:node.children(&mut c).any(|v|matches!(v.kind(),"get"|"set")),
                 decisions: decisions(body),
             });
         }

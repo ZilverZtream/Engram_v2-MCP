@@ -516,7 +516,7 @@ pub(crate) fn review(
                 let hits = engine.lexical_search_with_content(&targeted).ok()?;
                 hits.into_iter()
                     .filter_map(|(hit, text, _)| {
-                        let status = verifier.document_status_at(&hit.path,&hit.doc_id, &text);
+                        let status = verifier.document_status_at(hit.path.as_str(),&hit.doc_id, &text);
                         if status.starts_with("retired:") || status.starts_with("stale:") {
                             return None;
                         }
