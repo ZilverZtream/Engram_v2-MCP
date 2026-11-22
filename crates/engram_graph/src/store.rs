@@ -397,6 +397,15 @@ pub struct Edge {
     pub updated_at_ms: u64,
 }
 
+impl Edge {
+    pub fn call_site_lines(&self) -> std::collections::BTreeSet<u32> {
+        let Some(meta) = self.metadata.as_ref() else {return Default::default();};
+        meta.get("call_site_line").into_iter().chain(meta.get("call_site_lines").and_then(JsonValue::as_array).into_iter().flatten())
+            .filter_map(|v| v.as_u64().or_else(||v.as_str()?.parse().ok()).and_then(|n|u32::try_from(n).ok()))
+            .filter(|n| *n > 0).collect()
+    }
+}
+
 // ─── GraphStore ──────────────────────────────────────────────────────────────
 
 #[derive(Clone)]

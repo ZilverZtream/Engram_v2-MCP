@@ -184,6 +184,8 @@ pub struct CallerLocation {
     pub line: u32,
     /// `line` is the caller declaration start, not a verified invocation site.
     pub line_kind: &'static str,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub indexed_call_site_lines: Vec<u32>,
     pub line_end: u32,
     /// Edge kind that made this a caller (`calls`, `dependency`, …).
     pub edge_kind: String,
@@ -1501,15 +1503,18 @@ fn build_method_info_with_coverage(
     ) {
         Ok((edges, over_ceiling)) => {
             let distinct = edges.len();
+            let mut site_endpoints = Vec::new();
             for (source_id, kind, _weight) in &edges {
                 match graph.get_node(project_id, source_id) {
                     Ok(Some(src)) => {
                         if called_by.len() < CALLER_CAP {
+                            site_endpoints.push((source_id.clone(), kind.clone(), node.node_id.clone()));
                             called_by.push(CallerLocation {
                                 fqn: fqn_from_node(&src),
                                 file_path: src.file_path.as_str().to_string(),
                                 line: src.start_line,
                                 line_kind: "declaration",
+                indexed_call_site_lines: Vec::new(),
                                 line_end: src.end_line,
                                 edge_kind: kind.as_str().to_string(),
                             });
@@ -1523,6 +1528,18 @@ fn build_method_info_with_coverage(
                         break;
                     }
                 }
+            }
+            match graph.get_edges_by_endpoints(project_id, &site_endpoints) {
+                Ok(facts) => {
+                    let sites: std::collections::HashMap<_,_> = facts.iter().map(|edge|
+                        ((edge.source_id.as_str(), edge.edge_kind.as_str()),edge.call_site_lines())).collect();
+                    for (caller,(source,kind,_)) in called_by.iter_mut().zip(&site_endpoints) {
+                        if let Some(lines) = sites.get(&(source.as_str(),kind.as_str())) {
+                            caller.indexed_call_site_lines = lines.iter().copied().collect();
+                        }
+                    }
+                }
+                Err(e) => callers_status = ProviderStatus::Failed {reason: e.to_string()},
             }
             let resolved_total = distinct.saturating_sub(callers_dangling);
             if !matches!(callers_status, ProviderStatus::Failed { .. })
@@ -2642,6 +2659,7 @@ fn render_method_info_markdown(info: &MethodInfoResult) -> String {
                 "- `{}` (`{}` line {})\n",
                 c.fqn, c.file_path, c.line
             ));
+            if !c.indexed_call_site_lines.is_empty() {md.push_str(&format!("  Indexed invocation lines: {:?}\n",c.indexed_call_site_lines));}
         }
         md.push('\n');
     }
@@ -7659,6 +7677,7 @@ mod edit_safety_tests {
                     file_path: format!("Site/App_Code/c{i}.vb"),
                     line: 1,
                     line_kind: "declaration",
+                indexed_call_site_lines: Vec::new(),
                     line_end: 3,
                     edge_kind: "calls".into(),
                 })

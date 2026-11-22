@@ -186,6 +186,7 @@ mod tests {
             line: 1,
             line_end: 1,
             line_kind: "declaration",
+            indexed_call_site_lines: Vec::new(),
             edge_kind: "calls".into(),
         };
         let mut budget = 3;

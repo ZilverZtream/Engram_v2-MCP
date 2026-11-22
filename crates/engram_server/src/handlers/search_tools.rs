@@ -1327,22 +1327,7 @@ impl Engram {
                         Ok(edges) => {
                             for edge in edges {
                                 if let Some(meta) = edge.metadata.as_ref() {
-                                    let mut lines = std::collections::BTreeSet::new();
-                                    for value in meta.get("call_site_line").into_iter().chain(
-                                        meta.get("call_site_lines")
-                                            .and_then(|v| v.as_array())
-                                            .into_iter()
-                                            .flatten(),
-                                    ) {
-                                        if let Some(line) = value
-                                            .as_u64()
-                                            .or_else(|| value.as_str().and_then(|s| s.parse().ok()))
-                                            && line > 0
-                                            && line <= u32::MAX as u64
-                                        {
-                                            lines.insert(line);
-                                        }
-                                    }
+                                    let lines = edge.call_site_lines();
                                     let location = if !lines.is_empty() {
                                         let capped = lines.len() > 20
                                             || meta
