@@ -5124,17 +5124,25 @@ impl HybridSearchEngine {
     ) -> anyhow::Result<Option<Vec<HybridHit>>> {
         #[cfg(feature = "vector")]
         {
-            let Some((epoch, _)) = shared.table.get() else { return Ok(None); };
-            let ids: Vec<_> = candidates.iter().map(|hit| hit.chunk_id).collect();
-            let vectors = self.get_vectors_by_chunk_ids_with_epoch(project, &ids, epoch.clone(), None, Some(shared.table.clone())).await?;
-            if !ids.iter().all(|id| vectors.contains_key(id)) { return Ok(None); }
+            let Some((epoch, table)) = shared.table.get() else { return Ok(None); };
+            anyhow::ensure!(epoch.record.as_ref().is_some_and(|r| r.project == project), "Vector lease belongs to another project");
+            anyhow::ensure!(candidates.len() <= 20_000, "Native vector lookup exceeds 20000 keys");
+            // Chunk numbers repeat across documents (many single-chunk notes use
+            // zero). The storage primary key identifies the exact vector.
+            let keys = candidates.iter().map(|h| format!("'{}'", h.pk.replace('\'', "''"))).collect::<Vec<_>>().join(", ");
+            let table = table.clone();
+            let rows = self.run_native_read(epoch.clone(), &CancellationToken::new(), true, async move {
+                Self::read_vector_rows(table, format!("pk IN ({keys})")).await
+            }).await?;
+            let vectors: std::collections::HashMap<_,_> = rows.into_iter().map(|(pk, _, vector)| (pk, vector)).collect();
+            if !candidates.iter().all(|h| vectors.contains_key(&h.pk)) { return Ok(None); }
             // Cosine similarities range up to one, while fused reciprocal ranks
             // are only a few hundredths. Bound the diversity penalty relative
             // to the strongest relevance score so weak hits cannot jump to
             // the front merely because they discuss a different subject.
             let strongest = candidates.first().map_or(0.0, |hit| hit.score);
             let relevance_weight = 1.0 / (1.0 + 0.15 * strongest);
-            Ok(Some(self.mmr_rerank(candidates, &vectors, prefix, relevance_weight)))
+            Ok(Some(self.mmr_rerank_by(candidates, |hit| vectors.get(&hit.pk), prefix, relevance_weight)))
         }
         #[cfg(not(feature = "vector"))]
         { let _ = (project, shared, candidates, prefix); Ok(None) }
@@ -5179,58 +5187,57 @@ impl HybridSearchEngine {
                 .is_none_or(|r| r.project == project_id),
             "Vector lease belongs to another project"
         );
-        #[cfg(feature = "vector")]
-        {
-            self.ensure_managed_vector_table_present(&_vector_epoch)?;
-            let Some(table) = self.query_table(&_vector_epoch, shared.as_ref()).await? else {
-                return Ok(std::collections::HashMap::new());
-            };
+        self.ensure_managed_vector_table_present(&_vector_epoch)?;
+        let Some(table) = self.query_table(&_vector_epoch, shared.as_ref()).await? else {
+            return Ok(std::collections::HashMap::new());
+        };
 
-            let id_list = chunk_ids
-                .iter()
-                .map(|id| crate::sql_literals::u64_literal(*id).to_string())
-                .collect::<Vec<_>>()
-                .join(", ");
-            let filter = format!("chunk_id IN ({})", id_list);
+        let id_list = chunk_ids
+            .iter()
+            .map(|id| crate::sql_literals::u64_literal(*id).to_string())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let filter = format!("chunk_id IN ({})", id_list);
 
-            let mut results = table.query().only_if(filter)
-                .select(lancedb::query::Select::Columns(vec!["chunk_id".into(), "vector".into()]))
-                .limit(1_000_001).execute().await?;
+        let rows = Self::read_vector_rows(table, filter).await?;
+        Ok(rows.into_iter().map(|(_, id, vector)| (id, vector)).collect())
+    }
 
-            let mut map = std::collections::HashMap::new();
-            let mut rows = 0usize;
-            use futures::TryStreamExt;
-            while let Some(batch) = TryStreamExt::try_next(&mut results).await? {
-                rows += batch.num_rows();
-                anyhow::ensure!(rows <= 1_000_000, "Native vector lookup exceeds 1000000 rows");
-                let chunk_id_arr = batch
-                    .column_by_name("chunk_id")
-                    .and_then(|c| c.as_any().downcast_ref::<arrow_array::UInt64Array>())
-                    .ok_or_else(|| anyhow::anyhow!("missing chunk_id"))?;
-                let vector_arr = batch
-                    .column_by_name("vector")
-                    .and_then(|c| c.as_any().downcast_ref::<arrow_array::FixedSizeListArray>())
-                    .ok_or_else(|| anyhow::anyhow!("missing vector"))?;
+    #[cfg(feature = "vector")]
+    async fn read_vector_rows(table: lancedb::Table, filter: String) -> anyhow::Result<Vec<(String, u64, Vec<f32>)>> {
+        let mut results = table.query().only_if(filter)
+            .select(lancedb::query::Select::Columns(vec!["pk".into(), "chunk_id".into(), "vector".into()]))
+            .limit(1_000_001).execute().await?;
 
-                for i in 0..batch.num_rows() {
-                    let id = chunk_id_arr.value(i);
-                    let vec_view = vector_arr.value(i);
-                    let vec_f32 = vec_view
-                        .as_any()
-                        .downcast_ref::<arrow_array::Float32Array>()
-                        .ok_or_else(|| anyhow::anyhow!("vector is not f32"))?;
-                    map.insert(id, vec_f32.values().to_vec());
-                }
+        let mut vectors = Vec::new();
+        let mut rows = 0usize;
+        use futures::TryStreamExt;
+        while let Some(batch) = TryStreamExt::try_next(&mut results).await? {
+            rows += batch.num_rows();
+            anyhow::ensure!(rows <= 1_000_000, "Native vector lookup exceeds 1000000 rows");
+            let keys = batch.column_by_name("pk").and_then(|c| c.as_any().downcast_ref::<arrow_array::StringArray>())
+                .ok_or_else(|| anyhow::anyhow!("missing pk"))?;
+            let chunk_id_arr = batch
+                .column_by_name("chunk_id")
+                .and_then(|c| c.as_any().downcast_ref::<arrow_array::UInt64Array>())
+                .ok_or_else(|| anyhow::anyhow!("missing chunk_id"))?;
+            let vector_arr = batch
+                .column_by_name("vector")
+                .and_then(|c| c.as_any().downcast_ref::<arrow_array::FixedSizeListArray>())
+                .ok_or_else(|| anyhow::anyhow!("missing vector"))?;
+
+            for i in 0..batch.num_rows() {
+                let id = chunk_id_arr.value(i);
+                let vec_view = vector_arr.value(i);
+                let vec_f32 = vec_view
+                    .as_any()
+                    .downcast_ref::<arrow_array::Float32Array>()
+                    .ok_or_else(|| anyhow::anyhow!("vector is not f32"))?;
+                vectors.push((keys.value(i).to_owned(), id, vec_f32.values().to_vec()));
             }
+        }
 
-            Ok(map)
-        }
-        #[cfg(not(feature = "vector"))]
-        {
-            let _ = project_id;
-            let _ = chunk_ids;
-            Ok(std::collections::HashMap::new())
-        }
+        Ok(vectors)
     }
 
     /// MMR diversity rerank.
@@ -5239,6 +5246,17 @@ impl HybridSearchEngine {
         &self,
         candidates: Vec<HybridHit>,
         vectors: &std::collections::HashMap<u64, Vec<f32>>,
+        top_k: usize,
+        lambda: f32,
+    ) -> Vec<HybridHit> {
+        self.mmr_rerank_by(candidates, |hit| vectors.get(&hit.chunk_id), top_k, lambda)
+    }
+
+    #[cfg(feature = "vector")]
+    fn mmr_rerank_by<'v>(
+        &self,
+        candidates: Vec<HybridHit>,
+        vector_for: impl Fn(&HybridHit) -> Option<&'v Vec<f32>>,
         top_k: usize,
         lambda: f32,
     ) -> Vec<HybridHit> {
@@ -5277,17 +5295,17 @@ impl HybridSearchEngine {
             let mut best_idx = 0;
 
             for (idx, cand) in remaining.iter().enumerate() {
-                let cand_vec = vectors.get(&cand.chunk_id).unwrap_or(&zero_vec);
+                let cand_vec = vector_for(cand).unwrap_or(&zero_vec);
 
                 let mut max_sim = 0.0f32;
                 if let Some(maxima) = max_similarities.as_mut() {
-                    if let Some(sel_vec) = selected.last().and_then(|sel| vectors.get(&sel.chunk_id)) {
+                    if let Some(sel_vec) = selected.last().and_then(&vector_for) {
                         let sim = dot_product(cand_vec, sel_vec).clamp(0.0, 1.0);
                         if sim > maxima[idx] { maxima[idx] = sim; }
                     }
                     max_sim = maxima[idx];
                 } else { for sel in &selected {
-                    let sel_vec = match vectors.get(&sel.chunk_id) {
+                    let sel_vec = match vector_for(sel) {
                         Some(v) => v,
                         None => continue,
                     };
