@@ -167,6 +167,53 @@ pub(super) fn collect(
 }
 
 impl Engram {
+    pub async fn handle_state_usage_for_files(&self, req: TraceStateUsageRequest)
+        -> Result<CallToolResult, McpError>
+    {
+        super::validate_project_id(&req.project_id)?;
+        if !req.state_key.is_empty() || req.file_paths.len() > 32 {
+            return Err(McpError::invalid_params("Supply at most 32 file_paths without a state_key", None));
+        }
+        let runtime = self.ensure_project_runtime(&req.project_id).await?;
+        let (generation, snapshot) = self.pin_active_source_generation(&req.project_id, &runtime.search).await?;
+        let graph = self.state.graph.clone();
+        let limit = req.sanitized_limit();
+        let report = tokio::task::spawn_blocking(move || -> anyhow::Result<Value> {
+            let _snapshot = snapshot;
+            let mut accesses = Vec::new();
+            let mut gaps = Vec::new();
+            let mut truncated = false;
+            let paths = req.file_paths.into_iter().map(|p| p.replace('\\', "/")).collect::<BTreeSet<_>>();
+            for path in &paths {
+                engram_core::safe_join(Path::new(&runtime.info.directory), path)?;
+                let file_id = engram_core::ids::NodeId::file(path).0;
+                if graph.get_node(&req.project_id, &file_id)?.is_none() {
+                    gaps.push(format!("File missing from index: {path}"));
+                    continue;
+                }
+                let methods = graph.functions_for_source_lines(&req.project_id, path)?;
+                let sources = std::iter::once((file_id, 1)).chain(methods.into_iter().map(|n| (n.node_id, n.start_line)));
+                for (source, declaration_line) in sources {
+                    for kind in [EdgeKind::ReadsState, EdgeKind::WritesState] {
+                        let (edges, capped) = graph.outgoing_edges_of_kind(&req.project_id, kind, &source, 500)?;
+                        truncated |= capped;
+                        for edge in edges {
+                            let Some((store, key)) = edge.target_id.strip_prefix("state:").and_then(|s| s.split_once(':')) else { continue; };
+                            if !req.state_type.is_empty() && !store.eq_ignore_ascii_case(&req.state_type) { continue; }
+                            if accesses.len() == limit { truncated = true; continue; }
+                            accesses.push(json!({"file":path,"source_id":source,"declaration_line":declaration_line,
+                                "access":kind.as_str(),"state_type":store,"state_key":key}));
+                        }
+                    }
+                }
+            }
+            Ok(json!({"generation":generation,"files":paths,"accesses":accesses,"truncated":truncated,
+                "gaps":gaps,"scope":"Indexed static state edges from file and function nodes. Dynamic keys and runtime execution may be unresolved."}))
+        }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+          .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+        Ok(CallToolResult::success(vec![Content::text(report.to_string())]))
+    }
+
     pub async fn handle_trace_state_usage_with_clear(
         &self,
         req: TraceStateUsageRequest,

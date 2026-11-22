@@ -6835,21 +6835,30 @@ impl Engram {
                 .map_err(|e| format!("caller lookup failed: {e}"))?;
             if capped { warnings.push("Caller candidates truncated at 2000.".into()); }
             let caller_ids: std::collections::HashSet<_> = incoming.into_iter().map(|(id, _, _)| id).collect();
-            let mut methods = graph.query_nodes(&project_id, Some("function"), None, None, 20001)
-                .map_err(|e| format!("test-name lookup failed: {e}"))?;
-            if methods.len() > 20000 { warnings.push("Name-based candidate scan truncated at 20000 indexed functions; direct callers are looked up separately.".into()); methods.truncate(20000); }
-            let mut seen: std::collections::HashSet<_> = methods.iter().map(|n| n.node_id.clone()).collect();
-            for id in &caller_ids {
-                if seen.insert(id.clone()) {
-                    match graph.get_node(&project_id, id).map_err(|e| format!("caller node lookup failed: {e}"))? {
-                        Some(node) => methods.push(node),
-                        None => warnings.push(format!("Caller node unavailable: {id}")),
-                    }
+            let terminal = bare_method_name(target).to_lowercase();
+            let mut test_files = std::collections::HashSet::new();
+            let mut matches = std::collections::BTreeSet::new();
+            let mut names_capped = false;
+            graph.visit_symbol_names(&project_id, |kind, path, name, id, _line| {
+                if kind != "function" || !crate::services::pre_commit_review_service::is_test_path(&format!("/{path}")) { return; }
+                test_files.insert(path.to_owned());
+                if name.to_lowercase().contains(&terminal) {
+                    if matches.len() < 2000 { matches.insert(id.to_owned()); }
+                    else { names_capped = true; }
+                }
+            }).map_err(|e| format!("test declaration lookup failed: {e}"))?;
+            if names_capped {
+                warnings.push("Name-based candidates capped at 2000 matching test declarations; direct callers are checked separately.".into());
+            }
+            matches.extend(caller_ids.iter().cloned());
+            let mut methods = Vec::new();
+            for id in matches {
+                match graph.get_node(&project_id, &id).map_err(|e| format!("test declaration lookup failed: {e}"))? {
+                    Some(node) => methods.push(node),
+                    None => warnings.push(format!("Indexed declaration unavailable: {id}")),
                 }
             }
-            let mut test_files = std::collections::HashSet::new();
             let mut test_hits = Vec::new();
-            let terminal = bare_method_name(target).to_lowercase();
             for tm in methods {
                 if !crate::services::pre_commit_review_service::is_test_path(&format!("/{}", tm.file_path.as_str())) { continue; }
                 test_files.insert(tm.file_path.as_str().to_string());
@@ -6883,7 +6892,7 @@ impl Engram {
             report.target_file, report.target_start_line, report.target_node_id
         ));
         md.push_str(&format!(
-            "Searched {} test files.\n\n",
+            "Inspected indexed test declarations in {} test files.\n\n",
             report.test_files_searched
         ));
 

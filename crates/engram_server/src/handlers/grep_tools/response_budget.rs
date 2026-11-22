@@ -14,7 +14,7 @@ fn encode(value: &Value) -> Result<String, McpError> {
 }
 
 pub(super) fn render(result: &GrepResult, req: &GrepProjectRequest, value: Option<Value>, freshness: &str) -> Result<String, McpError> {
-    let limit=byte_limit(req.max_tokens)?;
+    let requested_limit=byte_limit(req.max_tokens)?;
     let window=result.matches.len();
     let start=req.offset.min(window);
     let available=window-start;
@@ -25,7 +25,7 @@ pub(super) fn render(result: &GrepResult, req: &GrepProjectRequest, value: Optio
         let mut rows=Vec::new();
         let mut rendered_bytes=0usize;
         for hit in matches.iter().skip(start) {
-            if !rows.is_empty() && limit.is_some_and(|limit|rendered_bytes>limit) {break;}
+            if !rows.is_empty() && requested_limit.is_some_and(|limit|rendered_bytes>limit) {break;}
             let row=encode(hit)?;
             rendered_bytes+=row.len()+usize::from(!rows.is_empty());
             rows.push(row);
@@ -35,7 +35,7 @@ pub(super) fn render(result: &GrepResult, req: &GrepProjectRequest, value: Optio
         header.push_str(",\"matches\":[");
         (header,rows,String::new(),",")
     } else {
-        let parts=markdown_parts(result,&req.pattern,req.regex,&req.project_id,&req.namespace,req.max_results.clamp(1,1000),start,limit.unwrap_or(3000));
+        let parts=markdown_parts(result,&req.pattern,req.regex,&req.project_id,&req.namespace,req.max_results.clamp(1,1000),start,requested_limit.unwrap_or(3000));
         (parts.header,parts.hits,format!("{}{freshness}",parts.footer),"")
     };
     let mut sizes=Vec::with_capacity(rows.len()+1);
@@ -74,11 +74,17 @@ pub(super) fn render(result: &GrepResult, req: &GrepProjectRequest, value: Optio
         }
     };
     let length=|count,tokens| -> Result<usize,McpError> {Ok(header.len()+sizes[count]+tail(count,tokens)?.len())};
+    // Large default JSON responses should deliver a page of complete matches
+    // with a usable offset before the transport has to defer the whole report.
+    let tokens = if requested_limit.is_none() && req.output_json && length(rows.len(), None)? > 32_000 && length(usize::from(!rows.is_empty()), Some(8000))? <= 32_000 {
+        Some(8_000)
+    } else { req.max_tokens };
+    let limit = byte_limit(tokens)?;
     let count=if let Some(limit)=limit {
         let mut selected=None;
         let first=usize::from(available>0);
         for count in (first..=rows.len()).rev() {
-            if length(count,req.max_tokens)?<=limit {selected=Some(count);break;}
+            if length(count,tokens)?<=limit {selected=Some(count);break;}
         }
         match selected {
             Some(count)=>count,
@@ -97,7 +103,7 @@ pub(super) fn render(result: &GrepResult, req: &GrepProjectRequest, value: Optio
         // the old approximate matches limit in markdown_parts.
         rows.len()
     };
-    let output=format!("{header}{}{}",rows[..count].join(separator),tail(count,req.max_tokens)?);
+    let output=format!("{header}{}{}",rows[..count].join(separator),tail(count,tokens)?);
     debug_assert!(limit.is_none_or(|limit|output.len()<=limit));
     Ok(output)
 }

@@ -2207,9 +2207,14 @@ pub struct GetTableSchemaRequest {
 #[serde(deny_unknown_fields)]
 pub struct TraceStateUsageRequest {
     pub project_id: String,
+    /// Discover indexed state readers and writers in these project-relative files.
+    #[serde(default)]
+    pub file_paths: Vec<String>,
     /// LocalStorage, SessionStorage, Environment, Module, Singleton, ReactContext, Redux, or a legacy state type such as Session.
+    #[serde(default)]
     pub state_type: String,
     /// Literal environment name; otherwise modern state uses project-relative path::declaration plus property suffix. Legacy keys retain their original spelling.
+    #[serde(default)]
     pub state_key: String,
     #[serde(default = "default_top_k")]
     pub limit: usize,

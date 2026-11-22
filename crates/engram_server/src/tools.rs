@@ -817,6 +817,9 @@ impl Engram {
         &self,
         params: Parameters<TraceStateUsageRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if !params.0.file_paths.is_empty() {
+            return self.handle_state_usage_for_files(params.0).await;
+        }
         if let Some(result) = self.state_tool_applicability(&params.0.project_id, &params.0.state_type).await? {
             return Ok(result);
         }
