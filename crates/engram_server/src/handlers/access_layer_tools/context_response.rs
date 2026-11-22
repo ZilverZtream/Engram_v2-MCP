@@ -157,6 +157,7 @@ pub(super) fn finish(
     }
     inventory.push(json!({"field":"method_info.body_preview","available":!preview.is_null(),"items":usize::from(!preview.is_null()),"records":rows.len()-begin}));
 
+    page_policy(&mut required, &mut inventory, &mut rows, &ctx.project_policy_sources, &req.project_id)?;
     render(
         request,
         full,
@@ -248,16 +249,23 @@ pub(super) fn finish_page(
         }
         inventory.push(json!({"field":field,"available":!value.is_null(),"items":value.as_array().map_or(0,Vec::len),"records":rows.len()-begin}));
     }
+    page_policy(&mut required, &mut inventory, &mut rows, &ctx.project_policy_sources, &req.project_id)?;
     render(
-        request,
-        full,
-        required,
-        inventory,
-        rows,
-        freshness,
-        "get_page_context",
+        request, full, required, inventory, rows, freshness, "get_page_context",
         &format!("Page Context: `{}`", ctx.aspx_file),
     )
+}
+
+fn page_policy(required: &mut Value, inventory: &mut Vec<Value>, rows: &mut Vec<Value>,
+    policy: &crate::services::project_policy::PolicyContext, project: &str) -> Result<(), McpError> {
+    let field = "project_policy_sources";
+    let original = encode(&required[field])?;
+    if original.len() <= 4096 { return Ok(()); }
+    required[field] = policy.planning_index(project);
+    let start = rows.len();
+    source_parts(rows, field, None, &original, json!({"encoding":"JSON","scope":"full repository policy evidence"}));
+    inventory.push(json!({"field":field,"available":true,"items":1,"records":rows.len()-start}));
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]

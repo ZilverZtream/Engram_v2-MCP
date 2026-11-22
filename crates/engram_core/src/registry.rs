@@ -107,6 +107,17 @@ pub struct RepoRule {
     pub provenance: Option<String>,
 }
 
+impl RepoRule {
+    /// Some legacy imports split structured documents into single field rows.
+    /// Keep the stored rows for provenance while excluding examples from policy.
+    pub fn legacy_example_field(&self) -> Option<&str> {
+        if !self.rule_id.starts_with("qg-coding_rule:") { return None; }
+        let (key, _) = self.rule_text.trim().split_once(':')?;
+        let field = key.trim().strip_prefix('"')?.strip_suffix('"')?;
+        matches!(field, "bad_example" | "good_example" | "why").then_some(field)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WatchRecord {
     pub watch_id: String,

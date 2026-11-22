@@ -1854,8 +1854,10 @@ fn dedup_edges(edges: &mut Vec<ExtractedEdge>) {
     // edge can carry the true call-site count (ingest collapses duplicate
     // keys, which would otherwise silently lose multiplicity).
     let mut counts: HashMap<String, u32> = HashMap::with_capacity(edges.len());
+    let mut api_sites = HashMap::<String, Vec<u32>>::new();
     for e in edges.iter() {
         let key = format!("{}|{}|{}", e.source_name, e.target_name, e.kind);
+        if e.kind == "api_call" { api_sites.entry(key.clone()).or_default().push(e.source_start_line); }
         *counts.entry(key).or_insert(0) += 1;
     }
     let mut seen = HashSet::with_capacity(edges.len());
@@ -1863,6 +1865,12 @@ fn dedup_edges(edges: &mut Vec<ExtractedEdge>) {
         let key = format!("{}|{}|{}", e.source_name, e.target_name, e.kind);
         if !seen.insert(key.clone()) {
             return false;
+        }
+        if let Some(mut sites) = api_sites.remove(&key) {
+            sites.sort_unstable();
+            sites.dedup();
+            e.metadata.get_or_insert_with(Default::default).insert("api_source_lines".into(),
+                serde_json::to_string(&sites).expect("serializable line numbers"));
         }
         if let Some(&n) = counts.get(&key)
             && n > 1

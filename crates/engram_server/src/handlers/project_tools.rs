@@ -5652,6 +5652,10 @@ impl Engram {
             out.push_str("No repository rules are stored for this project.\n");
         }
         for r in rules {
+            if let Some(field) = r.legacy_example_field() {
+                out.push_str(&format!("- `{}` | legacy JSON field `{field}` | excluded from rule enforcement; re-ingest the structured source for the complete rule.\n", r.rule_id));
+                continue;
+            }
             let text = r.rule_text.replace(['\r', '\n'], " ");
             out.push_str(&format!(
                 "- `{}` | files: `{}` | priority: {} | introduced: {} | provenance: {} | updated_at_ms: {}\n  {}\n",

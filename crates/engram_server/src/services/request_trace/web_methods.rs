@@ -83,12 +83,6 @@ pub(super) fn trace(
 ) -> anyhow::Result<execution::PageTrace> {
     let mut result = execution::empty_trace(&route.page, include_db, include_triggers);
     let method = route.web_method.as_deref().expect("WebMethod route entry");
-    if action.is_some_and(|value| !value.eq_ignore_ascii_case(method)) {
-        result.gaps.push(
-            "action conflicts with the literal WebMethod URL suffix; no entry selected".into(),
-        );
-        return Ok(result);
-    }
     let Some(page_source) = sources.iter().find(|s| s.path == route.page) else {
         result
             .gaps
@@ -254,6 +248,34 @@ pub(super) fn trace(
     }
     if files.len() == 1 {
         result.codebehind = files.into_iter().next();
+    }
+    if let Some(action) = action.filter(|value| !value.eq_ignore_ascii_case(method)) {
+        // The URL identifies the WebMethod. A separately supplied action may
+        // be a dispatch argument. Only follow a matching indexed dispatch arm
+        // reached from an admitted entry, never a project-wide name match.
+        let mut pending = std::collections::VecDeque::from_iter(chosen.drain(..).map(|(n, _)| (n, 0)));
+        let mut walked = BTreeSet::new();
+        let mut targets = BTreeSet::new();
+        while let Some((node, depth)) = pending.pop_front() {
+            if !walked.insert(node.node_id.clone()) { continue; }
+            if walked.len() > 64 { result.gaps.push("Dispatch walk reached its 64-method limit".into()); break; }
+            let (edges, capped) = graph.outgoing_edges_of_kind(project, engram_graph::EdgeKind::Calls, &node.node_id, 1024)?;
+            if capped { result.gaps.push(format!("Dispatch edges capped at {}", node.name)); }
+            for edge in edges {
+                let key = edge.metadata.as_ref().and_then(|m| m["dispatch_key"].as_str());
+                if key.is_some_and(|name| !name.eq_ignore_ascii_case(action)) || (key.is_none() && depth >= 2) { continue; }
+                let Some(target) = graph.get_node(project, &edge.target_id)? else { continue; };
+                if target.node_type != "function" || !execution::verified_node(graph, project, &target, sources, selected)? { continue; }
+                if key.is_some() {
+                    if targets.insert(target.node_id.clone()) {
+                        chosen.push((target, format!("WebMethod {method} reaches dispatch key {action} through {}", node.name)));
+                    }
+                } else if pending.len() < 64 { pending.push_back((target, depth + 1)); }
+            }
+        }
+        if chosen.is_empty() {
+            result.gaps.push("No admitted dispatch arm connects the literal WebMethod URL suffix to the supplied action".into());
+        }
     }
     result.gaps.push("WebMethod attributes and source types are static candidates. Hosting/configuration, HTTP protocol/verb, serialization, authentication, session availability and successful execution are not established. Page lifecycle handlers are not included in this method entry.".into());
     execution::trace_selected(

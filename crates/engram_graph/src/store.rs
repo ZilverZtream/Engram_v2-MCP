@@ -4242,53 +4242,36 @@ impl GraphStore {
             };
 
             // lift the source to the enclosing client function when known
-            let src_line: Option<u32> = meta("src_line").and_then(|s| s.parse().ok());
-            let source = if fn_ids.contains(&e.source_id) {
-                e.source_id.clone()
-            } else {
-                let path = node_path.get(&e.source_id).cloned().or_else(|| {
-                    e.source_id
-                        .strip_prefix("file:")
-                        .map(|p| p.replace('\\', "/"))
-                });
-                match (path, src_line) {
-                    (Some(p), Some(line)) => fns_by_file
-                        .get(&p)
-                        .and_then(|fns| {
-                            fns.iter()
-                                .filter(|(s, en, _)| *s <= line && line <= *en)
-                                .min_by_key(|(s, en, _)| en - s)
-                                .map(|(_, _, id)| id.clone())
-                        })
-                        .unwrap_or_else(|| e.source_id.clone()),
-                    _ => e.source_id.clone(),
+            let file = node_path.get(&e.source_id).cloned().or_else(|| e.source_id.strip_prefix("file:").map(str::to_owned));
+            let mut sites = meta("api_source_lines")
+                .and_then(|s| serde_json::from_str::<Vec<u32>>(&s).ok()).unwrap_or_default();
+            if sites.is_empty() { sites.extend(meta("src_line").and_then(|s| s.parse::<u32>().ok())); }
+            let mut owners = std::collections::BTreeMap::<String, Vec<u32>>::new();
+            for line in sites {
+                let source = if fn_ids.contains(&e.source_id) { &e.source_id } else {
+                    file.as_ref().and_then(|p| fns_by_file.get(p))
+                        .and_then(|fns| fns.iter().filter(|(start, end, _)| *start <= line && line <= *end)
+                            .min_by_key(|(start, end, _)| end - start)).map(|(_, _, id)| id).unwrap_or(&e.source_id)
+                };
+                owners.entry(source.clone()).or_default().push(line);
+            }
+            if owners.is_empty() { owners.insert(e.source_id.clone(), Vec::new()); }
+            for (source, lines) in owners {
+                if (source == e.source_id && target == e.target_id) || source == target ||
+                    !seen.insert((source.clone(), target.clone())) { continue; }
+                let mut edge = Edge {
+                    source_id: source, target_id: target.clone(), updated_at_ms: now, ..e.clone()
+                };
+                let metadata = edge.metadata.get_or_insert_with(|| serde_json::json!({}));
+                metadata["route_via"] = serde_json::json!(e.target_id);
+                if let Some(first) = lines.first() {
+                    metadata["src_line"] = serde_json::json!(first.to_string());
+                    metadata["call_site_lines"] = serde_json::json!(lines);
+                    metadata.as_object_mut().expect("edge metadata").remove("api_source_lines");
                 }
-            };
-            if (source == e.source_id && target == e.target_id)
-                || source == target
-                || !seen.insert((source.clone(), target.clone()))
-            {
-                continue;
+                Self::stamp_resolution(&mut edge, how, conf);
+                new_edges.push(edge);
             }
-            let mut edge = Edge {
-                source_id: source,
-                target_id: target,
-                namespace: e.namespace.clone(),
-                language: e.language.clone(),
-                edge_kind: EdgeKind::ApiCall,
-                weight: e.weight.max(1),
-                generation: e.generation,
-                metadata: e.metadata.clone(),
-                updated_at_ms: now,
-            };
-            if let Some(serde_json::Value::Object(o)) = edge.metadata.as_mut() {
-                o.insert(
-                    "route_via".into(),
-                    serde_json::Value::String(e.target_id.clone()),
-                );
-            }
-            Self::stamp_resolution(&mut edge, how, conf);
-            new_edges.push(edge);
         }
         if !new_edges.is_empty() {
             self.upsert_edges(project_id, &new_edges)?;

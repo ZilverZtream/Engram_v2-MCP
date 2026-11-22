@@ -13962,8 +13962,10 @@ impl Engram {
         ).collect::<Vec<_>>())?;
         let rule_files = edited.clone();
         let max_partners = req.max_partners.clamp(1, 20);
+        let history_cache = self.state.co_change_cache.clone();
+        let history_path = self.state.cfg.data_dir.join("co_change").join(format!("{pid}.bin"));
 
-        let (counterparts, partners, states, unwired, unresolved, mut coverage) = tokio::task::spawn_blocking(move || {
+        let (counterparts, partners, states, unwired, unresolved, history_basis, mut coverage) = tokio::task::spawn_blocking(move || {
             let mut coverage = EditCompletenessCoverage::default();
             let real_case: HashMap<String, String> = match graph.list_file_node_metadata(&pid) {
                 Ok(files) => files.into_iter().map(|(file, _)| {
@@ -13983,8 +13985,41 @@ impl Engram {
                 .collect();
             let covered = |file: &str| edited_set.contains(&edit_path_key(file));
             let counterparts = edit_counterparts::collect(&project_dir, &resolved_edits, &current_files, &edited_set);
+            let mut memberships = HashMap::<String, HashSet<usize>>::new();
+            let window_size = 500;
+            let history = GitWalker::open_repo(&project_dir).and_then(|repo| {
+                let oids = GitWalker::walk_older_commits(&repo, None, window_size, MergeCommitPolicy::FirstParentOnly,
+                    &tokio_util::sync::CancellationToken::new())?;
+                let eligible: HashMap<_,_> = oids.iter().enumerate().map(|(i, id)| (id.to_string(), i)).collect();
+                let (_, commits, _, _, partial, _, _) = build_co_change_snapshot(&history_cache, pid.clone(),
+                    &history_path, &project_dir, window_size, co_change_budget(), std::time::Instant::now(), false)?;
+                for commit in commits {
+                    if let Some(id) = eligible.get(&commit.oid) {
+                        for path in commit.files { memberships.entry(edit_path_key(&path)).or_default().insert(*id); }
+                    }
+                }
+                Ok((oids.len(), partial))
+            });
+            let history_available = history.is_ok();
+            let history_basis = match history {
+                Ok((depth, partial)) => format!("Distinct reachable commits among the latest {depth} first-parent commits at checkout HEAD. Commits changing over 80 files are excluded. Partial walk: {partial}."),
+                Err(_) => "Git history unavailable. Indexed coupling weights below are ranking scores.".into(),
+            };
             let mut raw = Vec::new();
             for (file, resolved) in &resolved_edits {
+                if history_available {
+                    if let Some(changes) = memberships.get(&edit_path_key(resolved)) {
+                        for (path, times) in &memberships {
+                            let Some(current) = real_case.get(path) else { continue; };
+                            if covered(current) { continue; }
+                            let shared = changes.intersection(times).count();
+                            if shared >= 5 && shared * 2 >= changes.len() && shared * 4 >= times.len() {
+                                raw.push((file.clone(), current.clone(), shared as u32, current.clone()));
+                            }
+                        }
+                    }
+                    continue;
+                }
                 let mut neighbors = match graph.neighbors(&pid, EdgeKind::TemporalCoupling, &format!("file:{resolved}"), 501) {
                     Ok(neighbors) => neighbors,
                     Err(error) => { coverage.note(format!("temporal neighbors for {file} failed: {error}")); continue; },
@@ -14023,7 +14058,7 @@ impl Engram {
                 // owes each changed file its own allowance and source attribution.
                 let anchor = if snapshot.is_some() { "" } else { edited.as_str() };
                 if !seen_edges.insert((anchor.to_owned(), partner.to_lowercase())) { continue; }
-                let hub = *hub_cache.entry(historical.clone()).or_insert_with(|| {
+                let hub = !history_available && *hub_cache.entry(historical.clone()).or_insert_with(|| {
                     match graph.neighbors(&pid, EdgeKind::TemporalCoupling, &format!("file:{historical}"), 2001) {
                         Ok(mut neighbors) => {
                             coverage.cap(&mut neighbors, 2000, &format!("hub-degree lookup for {historical}"));
@@ -14142,7 +14177,7 @@ impl Engram {
                 }
             }
             coverage.cap(&mut unwired, 10, "zero-indexed-caller display");
-            (counterparts, partners, states, unwired, unresolved, coverage)
+            (counterparts, partners, states, unwired, unresolved, (history_available, history_basis), coverage)
         }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?;
 
         let mut out = String::from("# Edit completeness check\n");
@@ -14164,7 +14199,10 @@ impl Engram {
         }
         if !partners.is_empty() {
             out.push_str("\n## Co-change partners you did NOT touch\nHistory supplies review candidates, not mandatory edits; assess applicability:\n");
-            for (edited, partner, weight) in &partners { out.push_str(&format!("- `{partner}` ({weight} co-changes with `{edited}`)\n")); }
+            out.push_str(&history_basis.1);
+            out.push('\n');
+            let unit = if history_basis.0 { "co-changes" } else { "indexed coupling weight" };
+            for (edited, partner, weight) in &partners { out.push_str(&format!("- `{partner}` ({weight} {unit} with `{edited}`)\n")); }
         }
         if !states.is_empty() {
             out.push_str("\n## Shared state with untouched files\n");

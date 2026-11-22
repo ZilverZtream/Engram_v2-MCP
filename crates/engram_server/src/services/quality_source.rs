@@ -146,6 +146,10 @@ pub(crate) fn effective_repo_rules_from_rows(state: &AppState, pid: &str,
     let mut unresolved_authority = 0usize;
     let corpus_revision = state.registry.get_meta_bounded(pid, CORPUS_REVISION, 4096)?.unwrap_or_default();
     for rule in rules {
+        if let Some(field) = rule.legacy_example_field() {
+            out.notes.push(format!("{} is a retained JSON {field} field, excluded from executable guidance. Refresh the structured rule source to recover its parent rule.", rule.rule_id));
+            continue;
+        }
         if rule.provenance.is_none() && rule.rule_id.starts_with("qg-copilot:copilot-instructions.md:")
             && let Some(status)=verifier.legacy_checkout_status("copilot-instructions.md",&rule.rule_text){
             out.notes.push(format!("{} — {status}",rule.rule_id));continue;
@@ -182,7 +186,7 @@ pub(crate) fn effective_repo_rules_from_rows(state: &AppState, pid: &str,
     }
     if unresolved_authority > 0 {
         out.notes.push(format!(
-            "INCOMPLETE policy coverage: {unresolved_authority} retained repository rules have unspecified or unrecognized ownership provenance; existing enforcement retained. Source ownership and policy acceptance are not inferred; inspect original rows and source evidence before adoption."
+            "INCOMPLETE policy coverage: {unresolved_authority} retained repository rules have unspecified or unrecognized ownership provenance in this path selection; existing enforcement retained. Inspect original rows and source evidence before adoption."
         ));
     }
     Ok(out)
