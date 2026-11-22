@@ -455,7 +455,7 @@ fn format_casing_bullet(label: &str, counts: &CasingCounts, samples: &[String]) 
     let tail = if samples.is_empty() {
         String::new()
     } else {
-        format!(". Examples: {}", samples.join(", "))
+        format!(". Sampled names: {}", samples.join(", "))
     };
     Some(format!("{label}: **{conv}** ({count}/{total}){tail}"))
 }
@@ -532,39 +532,9 @@ fn static_analyze_vb(content: &str) -> Vec<String> {
 
     // Method naming convention (PascalCase / camelCase / other).
     if let Some(re) = METHOD_RE.as_ref() {
-        let mut pascal = 0u32;
-        let mut camel = 0u32;
-        let mut other = 0u32;
-        let mut samples: Vec<String> = Vec::new();
-        for cap in re.captures_iter(content).take(200) {
-            if let Some(m) = cap.get(1) {
-                let name = m.as_str();
-                let first = name.chars().next().unwrap_or('_');
-                if first.is_ascii_uppercase() {
-                    pascal += 1;
-                } else if first.is_ascii_lowercase() {
-                    camel += 1;
-                } else {
-                    other += 1;
-                }
-                if samples.len() < 3 {
-                    samples.push(name.to_string());
-                }
-            }
-        }
-        let total = pascal + camel + other;
-        if total >= 3 {
-            let (conv, count) = if pascal >= camel.max(other) {
-                ("PascalCase", pascal)
-            } else if camel >= pascal.max(other) {
-                ("camelCase", camel)
-            } else {
-                ("mixed", other)
-            };
-            bullets.push(format!(
-                "Method naming: **{conv}** ({count}/{total} methods). Examples: {}",
-                samples.join(", ")
-            ));
+        let (counts, samples) = count_casing(content, re, 200);
+        if let Some(bullet) = format_casing_bullet("Method naming", &counts, &samples) {
+            bullets.push(bullet);
         }
     }
 
@@ -1366,15 +1336,6 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
     let let_count = count_lines_starting_with_word(content, "let");
     let const_count = count_lines_starting_with_word(content, "const");
     if var_count + let_count + const_count > 0 {
-        let suffix = if var_count > (let_count + const_count) && var_count >= 3 {
-            " — heavy `var` usage is a legacy signal; prefer `const` for bindings that \
-             don't reassign, `let` only when mutation is required. `var` hoists and \
-             should be avoided in new code."
-        } else if var_count >= 2 {
-            " — mixed `var`/`let`/`const`: do not introduce new `var` bindings."
-        } else {
-            " — prefer `const` by default, `let` only when mutated."
-        };
         if let Some(b) = format_popularity_bullet(
             "Variable declarations",
             &[
@@ -1382,7 +1343,7 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
                 ("`let`", let_count),
                 ("`var` (legacy)", var_count),
             ],
-            suffix,
+            "",
         ) {
             bullets.push(b);
         }

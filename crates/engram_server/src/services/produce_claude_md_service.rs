@@ -1139,27 +1139,11 @@ fn render_language_rules_with_cr(
     }
     out.push('\n');
 
-    // ## Mandatory — only when there's at least one.
-    if !mandatory.is_empty() {
-        out.push_str("## Mandatory\n\n");
-        out.push_str("Invariants that must hold in every file matching the glob above.\n\n");
-        for b in &mandatory {
-            let t = b.trim().trim_start_matches(['-', '*', ' ']);
-            let _ = writeln!(out, "- {t}");
-        }
-        out.push('\n');
-    }
-
-    // ## Strong preferences — sample-consistent conventions.
-    if !strong.is_empty() {
-        out.push_str("## Strong preferences\n\n");
-        out.push_str(
-            "Conventions consistent across every sampled file. Match these when \
-             extending or adding code alongside existing modules.\n\n",
-        );
-        for b in &strong {
-            let t = b.trim().trim_start_matches(['-', '*', ' ']);
-            let _ = writeln!(out, "- {t}");
+    // Frequency in a sample cannot establish a rule for newly authored code.
+    if !mandatory.is_empty() || !strong.is_empty() {
+        out.push_str("## Recurring source observations\n\nFollow the team's written requirements for new code. These counts describe the sampled files.\n\n");
+        for b in mandatory.iter().chain(&strong) {
+            let _ = writeln!(out, "- {}", b.trim().trim_start_matches(['-', '*', ' ']));
         }
         out.push('\n');
     }

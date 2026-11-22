@@ -650,6 +650,14 @@ fn declared_scope_patterns(metadata: Option<&serde_yaml::Mapping>) -> Result<Vec
 }
 
 fn applicability(path: &str, content: &str, targets: &[String]) -> Result<Vec<String>, String> {
+    let mut reasons = scope_reasons(path, content, targets)?;
+    if !reasons.is_empty() && content.contains("Observations below were aggregated from") && content.contains("sampled file") {
+        reasons.push("This document includes generated sample statistics. Use the team's explicit written rule to decide new-code style.".into());
+    }
+    Ok(reasons)
+}
+
+fn scope_reasons(path: &str, content: &str, targets: &[String]) -> Result<Vec<String>, String> {
     if !has_directory_authority(path, targets) {
         return Ok(Vec::new());
     }

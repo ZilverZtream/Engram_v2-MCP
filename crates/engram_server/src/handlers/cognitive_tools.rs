@@ -6714,7 +6714,9 @@ async fn gather_language_style(
     // In-memory filter + rank. No graph round-trip.
     let mut ranked: Vec<(&engram_graph::Node, f32)> = file_nodes
         .iter()
-        .filter(|n| n.language.eq_ignore_ascii_case(language))
+        .filter(|n| n.language.eq_ignore_ascii_case(language)
+            && !engram_core::is_vendor_path(n.file_path.as_str())
+            && !engram_core::is_declaration_path(n.file_path.as_str()))
         .map(|n| {
             let r = pagerank_map.get(&n.node_id).copied().unwrap_or(0.0);
             (n, r)
