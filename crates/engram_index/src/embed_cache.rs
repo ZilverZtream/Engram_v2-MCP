@@ -54,7 +54,7 @@ fn open_cache_db(path: &Path) -> anyhow::Result<Arc<Database>> {
 /// recovery/opening of the bulk indexing database. Keys retain only text hashes.
 pub struct QueryEmbedder {
     inner: Arc<dyn Embedder>,
-    entries: Mutex<std::collections::VecDeque<(blake3::Hash, Embedding)>>,
+    entries: Mutex<std::collections::VecDeque<(blake3::Hash, Arc<tokio::sync::OnceCell<Embedding>>)>>,
 }
 
 impl QueryEmbedder {
@@ -70,29 +70,29 @@ impl QueryEmbedder {
 impl Embedder for QueryEmbedder {
     async fn embed(&self, text: &str) -> anyhow::Result<Embedding> {
         let key = blake3::hash(text.as_bytes());
-        {
+        let cell = {
             let mut entries = self.entries.lock().unwrap_or_else(|e| e.into_inner());
-            if let Some(pos) = entries.iter().position(|(k, _)| *k == key) {
-                let entry = entries.remove(pos).expect("position exists");
-                let result = entry.1.clone();
-                entries.push_back(entry);
-                return Ok(result);
+            let cell = entries.iter().position(|(hash, _)| *hash == key)
+                .and_then(|position| entries.remove(position))
+                .map(|(_, existing)| existing)
+                .unwrap_or_default();
+            if entries.len() >= 128 {
+                entries.pop_front();
             }
-        }
-        // Never hold the cache lock across provider I/O. Concurrent misses may
-        // duplicate provider work, but unrelated queries remain independent.
-        let result = self.inner.embed(text).await?;
-        anyhow::ensure!(
-            result.len() == self.dimension() && result.iter().all(|v| v.is_finite()),
-            "query embedder returned an invalid vector"
-        );
-        let mut entries = self.entries.lock().unwrap_or_else(|e| e.into_inner());
-        entries.retain(|(k, _)| *k != key);
-        if entries.len() >= 128 {
-            entries.pop_front();
-        }
-        entries.push_back((key, result.clone()));
-        Ok(result)
+            entries.push_back((key, Arc::clone(&cell)));
+            cell
+        };
+        // Namespace fan-out shares one provider request. Failed or cancelled
+        // initialization leaves the cell open for a future retry.
+        let result = cell.get_or_try_init(|| async {
+            let vector = self.inner.embed(text).await?;
+            anyhow::ensure!(
+                vector.len() == self.dimension() && vector.iter().all(|v| v.is_finite()),
+                "query embedder returned an invalid vector"
+            );
+            Ok::<_, anyhow::Error>(vector)
+        }).await?;
+        Ok(result.clone())
     }
 
     fn dimension(&self) -> usize {

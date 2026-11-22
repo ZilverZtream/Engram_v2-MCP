@@ -293,7 +293,12 @@ impl Engram {
             Vec::with_capacity(namespaces.len());
         let mut semantic_delivery =
             hybrid_delivery::Delivery::new(self.state.cfg.vector_search_timeout_ms);
-        for ns in &namespaces {
+        use futures::{StreamExt, TryStreamExt};
+        let engine = &ps.search;
+        let source_snapshot = &_source_snapshot;
+        let request = &req;
+        let searches = futures::stream::iter(namespaces.clone().into_iter().map(|ns| {
+            let mut delivery = semantic_delivery.namespace_attempt();
             let q = HybridQuery {
                 project_id: req.project_id.clone(),
                 namespace: ns.clone(),
@@ -310,52 +315,58 @@ impl Engram {
                 date_before: req.date_before,
                 use_mmr: req.use_mmr,
             };
-            let hybrid_hits = if req.semantic {
-                semantic_delivery
-                    .query(ns.clone(), ps.search.semantic_quality(), async {
-                        ps.search
-                            .search_ranked_prefix(
-                                &q,
-                                pagerank,
-                                &tokio_util::sync::CancellationToken::new(),
-                                if req.search_scope.eq_ignore_ascii_case("code") && ns == "memory" {
-                                    offset.saturating_add(req.sanitized_max_results()).min(per_ns_top_k)
-                                } else {
-                                    per_ns_top_k
-                                },
-                            )
-                            .await
+            async move {
+                let hybrid_hits = if request.semantic {
+                    delivery
+                        .query(ns.clone(), engine.semantic_quality(), async {
+                            engine
+                                .search_ranked_prefix(
+                                    &q,
+                                    pagerank,
+                                    &tokio_util::sync::CancellationToken::new(),
+                                    if request.search_scope.eq_ignore_ascii_case("code") && ns == "memory" {
+                                        offset.saturating_add(request.sanitized_max_results()).min(per_ns_top_k)
+                                    } else {
+                                        per_ns_top_k
+                                    },
+                                )
+                                .await
+                        })
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                } else {
+                    None
+                };
+                let ns_hits = if let Some(hits) = hybrid_hits {
+                    hits
+                } else {
+                    // Explicit lexical search or disclosed semantic fallback.
+                    // No vector embedding, RRF or MMR in this path.
+                    let engine = engine.clone();
+                    let q_clone = q.clone();
+                    // A cancelled RPC does not stop a queued blocking read. It
+                    // must retain its source before admission to the worker pool.
+                    let worker_snapshot = if q.namespace == "memory" { source_snapshot.clone() } else { None };
+                    tokio::task::spawn_blocking(move || {
+                        #[cfg(test)]
+                        let observation = if q_clone.namespace == "memory" {
+                            lexical_worker_tests::observe(&q_clone.project_id)
+                        } else { None };
+                        let _source_snapshot = worker_snapshot;
+                        #[cfg(test)]
+                        if let Some(observation) = &observation { observation.pause(); }
+                        engine.lexical_search(&q_clone)
                     })
-                    .await
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
-            } else {
-                None
-            };
-            let ns_hits = if let Some(hits) = hybrid_hits {
-                hits
-            } else {
-                // Explicit lexical search or disclosed semantic fallback.
-                // No vector embedding, RRF or MMR in this path.
-                let engine = ps.search.clone();
-                let q_clone = q.clone();
-                // A cancelled RPC does not stop a queued blocking read. It
-                // must retain its source before admission to the worker pool.
-                let worker_snapshot = if q.namespace == "memory" { _source_snapshot.clone() } else { None };
-                tokio::task::spawn_blocking(move || {
-                    #[cfg(test)]
-                    let observation = if q_clone.namespace == "memory" {
-                        lexical_worker_tests::observe(&q_clone.project_id)
-                    } else { None };
-                    let _source_snapshot = worker_snapshot;
-                    #[cfg(test)]
-                    if let Some(observation) = &observation { observation.pause(); }
-                    engine.lexical_search(&q_clone)
-                })
-                    .await
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
-                    .map_err(|e| McpError::internal_error(e.to_string(), None))?
-            };
-            lists.push((ns.clone(), ns_hits));
+                        .await
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                        .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                };
+                Ok::<_, McpError>((ns.clone(), ns_hits, delivery))
+            }
+        })).buffered(3).try_collect::<Vec<_>>().await?;
+        for (namespace, hits, attempt) in searches {
+            semantic_delivery.include(attempt);
+            lists.push((namespace, hits));
         }
 
         // Fold in USER-LEVEL memory: a standing preference recorded once in

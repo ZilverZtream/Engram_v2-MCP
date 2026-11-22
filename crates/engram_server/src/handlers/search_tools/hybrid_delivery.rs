@@ -24,6 +24,15 @@ impl Delivery {
         }
     }
 
+    pub fn namespace_attempt(&self) -> Self {
+        Self { started: self.started, ..Self::new(self.budget_ms) }
+    }
+
+    pub fn include(&mut self, attempt: Self) {
+        self.used_semantics |= attempt.used_semantics;
+        self.outcomes.extend(attempt.outcomes);
+    }
+
     /// None asks the caller to run its existing pinned, filtered lexical path.
     /// Errors from a lexical-only backend remain errors, not empty successes.
     pub async fn query<F>(
