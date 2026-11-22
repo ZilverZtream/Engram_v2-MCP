@@ -55,20 +55,19 @@ fn recency_bonus(timestamp_ms: u64, now_ms: u64) -> f32 {
     RECENCY_MAX * 0.5_f32.powf(age_days / HALFLIFE_DAYS)
 }
 
-/// Rank-fuse ranked hit lists from several namespaces into one list (RRF).
-///
-/// Raw BM25 / vector scores are not comparable across namespaces, so fusion
-/// is by RANK POSITION: a hit's fused score is `1 / (K + rank)` within its
-/// own list. No summing is needed because each doc lives in exactly one
-/// namespace (doc_ids are namespace-scoped, so no doc appears in two lists).
-///
-/// For a SINGLE list this is an identity on order — `1/(K+rank)` is monotonic
-/// in rank — so `search_scope: "code"` is unchanged. The tiebreak (namespace,
-/// then doc_id) keeps the order deterministic when two lists' ranks collide.
+/// A single namespace keeps its native score. Across independent corpora,
+/// measure the same query terms against each snippet and use within-source
+/// rank and recency as additional evidence. Raw BM25 and vector scores have
+/// different units and cannot be ordered against each other.
 fn rrf_fuse_namespaces(
     lists: Vec<(String, Vec<engram_index::HybridHit>)>,
     limit: usize,
+    query: &str,
 ) -> Vec<(String, engram_index::HybridHit)> {
+    let multiple = lists.iter().filter(|(_, rows)| !rows.is_empty()).count() > 1;
+    let phrase = query.trim().to_lowercase();
+    let terms: std::collections::BTreeSet<_> = phrase.split(|c:char| !c.is_alphanumeric() && c != '_')
+        .filter(|t| t.len() > 1 && !matches!(*t,"the"|"and"|"for"|"with"|"from"|"what"|"which")).collect();
     const K: f32 = 60.0;
     let now = crate::utils::now_ms();
     // Rank fusion preserves small-source visibility without discarding eligible
@@ -89,6 +88,12 @@ fn rrf_fuse_namespaces(
             if is_knowledge && let Some(ts) = h.timestamp {
                 s += recency_bonus(ts, now);
             }
+            if multiple && !terms.is_empty() {
+                let excerpt = h.snippet.as_deref().unwrap_or("").to_lowercase();
+                let words: std::collections::HashSet<_> = excerpt.split(|c:char| !c.is_alphanumeric() && c != '_').collect();
+                let coverage = terms.iter().filter(|term| words.contains(**term)).count() as f32 / terms.len() as f32;
+                s += (coverage + if excerpt.contains(&phrase) {1.0} else {0.0}) / K;
+            }
             scored.push((s, ns.clone(), h));
         }
     }
@@ -99,7 +104,10 @@ fn rrf_fuse_namespaces(
             .then_with(|| a.2.doc_id.cmp(&b.2.doc_id))
     });
     scored.truncate(limit);
-    scored.into_iter().map(|(_, ns, h)| (ns, h)).collect()
+    scored.into_iter().map(|(score, ns, mut hit)| {
+        if multiple {hit.score = score;}
+        (ns, hit)
+    }).collect()
 }
 
 impl Engram {
@@ -424,7 +432,7 @@ impl Engram {
 
         // Fuse, then slice out the requested page. Done before the dreamer
         // feed so co-occurrence edges reflect what the agent actually saw.
-        let hits: Vec<(String, engram_index::HybridHit)> = rrf_fuse_namespaces(lists, per_ns_top_k)
+        let hits: Vec<(String, engram_index::HybridHit)> = rrf_fuse_namespaces(lists, per_ns_top_k, &req.query)
             .into_iter()
             .skip(offset)
             .take(req.sanitized_max_results())
@@ -2068,8 +2076,8 @@ mod rrf_tests {
                 ("memory_bank".into(), vec![hit("mb1"), hit("mb2")]),
             ]
         };
-        let full = rrf_fuse_namespaces(lists(), 22);
-        let small = rrf_fuse_namespaces(lists(), 8);
+        let full = rrf_fuse_namespaces(lists(), 22,"");
+        let small = rrf_fuse_namespaces(lists(), 8,"");
         let ids = |v: &[(String, engram_index::HybridHit)]| {
             v.iter()
                 .map(|(ns, h)| (ns.clone(), h.doc_id.clone()))
@@ -2080,12 +2088,27 @@ mod rrf_tests {
     }
 
     #[test]
+    fn two_topic_matches_outrank_the_first_unrelated_namespace_hit() {
+        let mut first = hit("a");
+        first.snippet = Some("Keep translated resource keys consistent".into());
+        let mut second = hit("b");
+        second.snippet = Some("Resource keys are case sensitive".into());
+        let mut unrelated = hit("c");
+        unrelated.snippet = Some("A large class owns too many responsibilities".into());
+        unrelated.score = 1000.0;
+        let result = rrf_fuse_namespaces(vec![("quality_gate".into(),vec![first,second]),
+            ("insights".into(),vec![unrelated])], 3, "resource keys");
+        assert_eq!(result.iter().map(|(_,h)| h.doc_id.as_str()).collect::<Vec<_>>(), ["a","b","c"]);
+        assert!(result[1].1.score > result[2].1.score);
+    }
+
+    #[test]
     fn rank_fusion_fills_imbalanced_corpora_without_hiding_small_sources() {
         let big: Vec<_> = (0..20).map(|i| hit(&format!("qg{i}"))).collect();
         let small = vec![hit("mb1"), hit("mb2")];
         let fused = rrf_fuse_namespaces(
             vec![("quality_gate".into(), big), ("memory_bank".into(), small)],
-            8,
+            8, "",
         );
         let qg = fused.iter().filter(|(ns, _)| ns == "quality_gate").count();
         let mb = fused.iter().filter(|(ns, _)| ns == "memory_bank").count();

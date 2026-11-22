@@ -669,6 +669,19 @@ pub fn trace_data_flow(
     let mut unresolved_calls = 0usize;
     {
         let mut seen: Vec<String> = Vec::new();
+        // VB receiver variables often have no lexical resemblance to their type.
+        // Use the declared type as lookup evidence; overload dispatch is still static.
+        static RECEIVER: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(
+            r"(?i)\b([a-z_]\w*)\s+As\s+(?:New\s+)?([a-z_]\w*(?:\.[a-z_]\w*)*)").unwrap());
+        let declarations: HashMap<_,_> = method_body.lines().filter(|l| !l.trim_start().starts_with('\''))
+            .flat_map(|line| RECEIVER.captures_iter(line).map(|m| (m[1].to_lowercase(),m[2].to_string()))).collect();
+        let mut names: HashMap<String, Vec<String>> = RE_CALL_EXPR.captures_iter(&method_body)
+            .map(|m| (m[1].rsplit('.').next().unwrap_or("").to_lowercase(),Vec::new())).collect();
+        graph.visit_symbol_names(project_id, |kind, _, qualified, _, _| {
+            if kind != "function" {return;}
+            let tail = qualified.rsplit('.').next().unwrap_or(qualified).to_lowercase();
+            if let Some(matches) = names.get_mut(&tail) {matches.push(qualified.to_owned());}
+        })?;
         for line in method_body.lines() {
             let trimmed = line.trim();
             if trimmed.starts_with('\'') {
@@ -692,14 +705,11 @@ pub fn trace_data_flow(
                     continue;
                 }
                 seen.push(expr.clone());
-                let resolved = graph
-                    .query_nodes(project_id, Some("function"), Some(&last), None, 25)
-                    .map(|nodes| {
-                        nodes
-                            .iter()
-                            .any(|n| callee_name_matches(&n.name, &expr, &last))
-                    })
-                    .unwrap_or(false);
+                let typed = expr.rsplit_once('.').and_then(|(receiver, method)|
+                    declarations.get(&receiver.to_lowercase()).map(|ty| format!("{ty}.{method}")));
+                let wanted = typed.as_deref().unwrap_or(&expr);
+                let resolved = names.get(&last.to_lowercase()).into_iter().flatten()
+                    .any(|name| callee_name_matches(name, wanted, &last));
                 if !resolved {
                     unresolved_calls += 1;
                 }
@@ -712,9 +722,9 @@ pub fn trace_data_flow(
                     sequence: steps.len() + 1,
                     step_type: "MethodCall".into(),
                     description: if resolved {
-                        format!("Call: {expr}(…) — resolved to an indexed function")
+                        format!("Call: {expr}(...) - indexed function matching {wanted}; static candidate")
                     } else {
-                        format!("Call: {expr}(…) — UNRESOLVED (no indexed function named {last}); the trace stops here")
+                        format!("Call: {expr}(...) - UNRESOLVED for this receiver; no binding established")
                     },
                     source: entry_point.to_string(),
                     target: last,

@@ -343,6 +343,12 @@ pub(crate) fn method_advisory(
     Ok((report, score.is_some()))
 }
 
+pub(crate) fn review_file_advisory(graph: &GraphStore, project: &str, target: &str, generation: u64,
+    cached_score: Option<f32>) -> anyhow::Result<BlastRadiusReport> {
+    compute_blast_radius_inner(graph, project, target, generation, false,
+        RankingInput::Observed(cached_score.filter(|score| score.is_finite() && (0.0..=1.0).contains(score))), None)
+}
+
 enum RankingInput { OnDemand, Observed(Option<f32>) }
 
 /// Optional public advice must consume existing target observations only.

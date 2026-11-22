@@ -5085,6 +5085,7 @@ pub(crate) fn build_guards_report(
             &mut cov.failures,
             &mut notes,
         );
+        let mut conditional_object_helpers = std::collections::BTreeSet::new();
         candidates.retain(|helper| {
             if node_meta_str(helper, "extraction_fallback") == "true" {
                 cov.failures.push(format!(
@@ -5147,6 +5148,9 @@ pub(crate) fn build_guards_report(
                     own_checks_all_conditional(b, node_meta_str(helper, "permission_checks"))
                 })
             {
+                if body.is_some() && helper_body.is_some() && guard_level_for(node_meta_str(helper,"permission_checks")).as_deref() == Some("object") {
+                    conditional_object_helpers.insert(helper.name.clone());
+                }
                 cov.failures.push(format!(
                     "{bare}: helper {} is conditional; all-path coverage unknown",
                     helper.name
@@ -5218,9 +5222,9 @@ pub(crate) fn build_guards_report(
                 "symbol came from the extraction fallback — its guard metadata cannot be trusted"
                     .into();
         } else {
-            if let Some(t) = candidates
-                .iter()
-                .find(|t| !node_meta_str(t, "permission_checks").is_empty())
+            if let Some(t) = candidates.iter()
+                .filter(|t| !node_meta_str(t, "permission_checks").is_empty())
+                .min_by_key(|t| guard_level_for(node_meta_str(t,"permission_checks")).as_deref() != Some("object"))
             {
                 credit(&mut v, t, "inherited from helper");
             }
@@ -5254,13 +5258,20 @@ pub(crate) fn build_guards_report(
             && !v.scope_reads.is_empty()
             && v.level.as_deref() != Some("object")
         {
-            v.role_only = true;
-            v.reason = format!(
-                "{} — reads client {} but no object-level guard covers it (ROLE-ONLY)",
+            if !conditional_object_helpers.is_empty() {
+                let names = conditional_object_helpers.into_iter().collect::<Vec<_>>().join(", ");
+                v.reason.push_str(&format!("; object check in {names} is conditional. Per-object and all-path coverage remain unverified."));
+            } else if incomplete_helpers {
+                v.reason.push_str("; helper coverage incomplete. Object scoping remains unverified.");
+            } else {
+                v.role_only = true;
+                v.reason = format!(
+                    "{} — reads client {} but no object-level guard covers it (ROLE-ONLY)",
                 v.reason,
                 v.scope_reads.join(", ")
-            );
-            report.role_only.push(bare.clone());
+                );
+                report.role_only.push(bare.clone());
+            }
         }
         match v.verdict.as_str() {
             "guarded" => report.guarded.push(bare.clone()),

@@ -24,7 +24,7 @@ use super::{
     resolve_partner_to_current_checked,
 };
 
-use crate::services::blast_radius_service::compute_blast_radius;
+use crate::services::blast_radius_service::review_file_advisory;
 use engram_index::hybrid::HybridQuery;
 
 fn resolve_gate_partner(ctx: &GateContext<'_>, path: &str, current_files: &[String]) -> Option<String> {
@@ -447,15 +447,19 @@ impl Gate for BlastRadiusGate {
         }
 
         let mut findings = Vec::new();
-        for df in files {
+        let started = std::time::Instant::now();
+        let scores = ctx.graph.get_cached_centrality(ctx.project_id, ctx.generation)?;
+        if scores.is_none() {
+            ctx.degrade(String::from("No published centrality for this generation. Risk scores omit that contribution and are lower bounds."));
+        }
+        for (index, df) in files.into_iter().enumerate() {
+            if index > 0 && started.elapsed() >= std::time::Duration::from_secs(5) {
+                ctx.note_cap(format!("Examined {index} of {total_files} changed files in {} ms. Stopped before starting another file.", started.elapsed().as_millis()));
+                break;
+            }
             let target = file_node_id(&df.path);
-            let report = match compute_blast_radius(
-                &ctx.graph,
-                ctx.project_id,
-                &target,
-                ctx.generation,
-                false,
-            ) {
+            let score = scores.as_ref().and_then(|s| s.get(&target)).copied();
+            let report = match review_file_advisory(&ctx.graph,ctx.project_id,&target,ctx.generation,score) {
                 Ok(r) => r,
                 Err(e) => {
                     // Not "file unknown": the graph call itself failed.
