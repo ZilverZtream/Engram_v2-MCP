@@ -11,6 +11,7 @@ pub(super) struct Delivery {
     used_semantics: bool,
     outcomes: Vec<Value>,
     pub diversity: Option<&'static str>,
+    pub pooled_knowledge: bool,
 }
 
 impl Delivery {
@@ -23,6 +24,7 @@ impl Delivery {
             used_semantics: false,
             outcomes: Vec::new(),
             diversity: None,
+            pooled_knowledge: false,
         }
     }
 
@@ -98,6 +100,7 @@ impl Delivery {
         json!({"semantic_requested":requested,
             "configured_semantic_quality":super::structured_response::quality(configured),
             "semantic_budget_ms":self.budget_ms,"namespaces":self.outcomes,"cross_namespace_diversity":self.diversity,
+            "project_candidate_scope":if self.pooled_knowledge {"one shared semantic window across knowledge sources; lexical candidates ranked per source"} else {"per namespace"},
             "budget_scope":"One optional hybrid-attempt budget shared across project and user namespaces. Cooperative deadline: synchronous work is not interrupted. Excludes runtime startup, lexical/source work and rendering. A dropped provider request does not prove remote computation stopped."})
     }
 

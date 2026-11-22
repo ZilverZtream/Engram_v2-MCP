@@ -297,7 +297,14 @@ impl Engram {
         let engine = &ps.search;
         let source_snapshot = &_source_snapshot;
         let request = &req;
-        let embedding = engram_index::hybrid::RequestEmbedding::default();
+        let pooled_knowledge = req.semantic && req.search_scope.eq_ignore_ascii_case("knowledge")
+            && ps.search.semantic_quality() == engram_index::SemanticQuality::Semantic
+            && req.include_path_prefixes.is_none() && req.exclude_path_prefixes.is_none()
+            && req.language_filters.is_none() && req.author_filter.is_none()
+            && req.date_after.is_none() && req.date_before.is_none();
+        let embedding = if pooled_knowledge { engram_index::hybrid::RequestEmbedding::for_knowledge() }
+            else { engram_index::hybrid::RequestEmbedding::default() };
+        semantic_delivery.pooled_knowledge = pooled_knowledge;
         let shared_embedding = &embedding;
         // Retrieve semantic evidence for all curated sources before spending
         // the common deadline on diversity. The final list crosses corpora.
@@ -509,6 +516,9 @@ impl Engram {
         }
         if let Some(status) = semantic_delivery.diversity {
             out.push_str(&format!("Cross-namespace diversity: {status}.\n"));
+        }
+        if pooled_knowledge {
+            out.push_str("Project knowledge uses a shared semantic candidate window across all seven sources and a separate lexical ranking for each source.\n");
         }
         let structured_warnings=if req.output_json && !out.is_empty() {vec![out.trim().to_owned()]} else {Vec::new()};
 

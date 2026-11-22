@@ -71,6 +71,28 @@ pub struct RequestEmbedding {
     value: tokio::sync::OnceCell<(String, Arc<dyn engram_ml::Embedder>, Vec<f32>)>,
     #[cfg(feature = "vector")]
     table: RequestTable,
+    #[cfg(feature = "vector")]
+    knowledge: Option<tokio::sync::OnceCell<KnowledgeVectorPool>>,
+}
+
+impl RequestEmbedding {
+    /// A knowledge-wide request ranks semantic candidates across the project's
+    /// curated sources. Other searches keep their own namespace predicates.
+    pub fn for_knowledge() -> Self {
+        Self {
+            #[cfg(feature = "vector")]
+            knowledge: Some(Default::default()),
+            ..Self::default()
+        }
+    }
+}
+
+#[cfg(feature = "vector")]
+struct KnowledgeVectorPool {
+    epoch: Arc<vector_epochs::Epoch>,
+    text: String,
+    per_source: usize,
+    hits: std::collections::HashMap<String, Vec<HybridHit>>,
 }
 
 #[cfg(feature = "vector")]
@@ -4737,8 +4759,41 @@ impl HybridSearchEngine {
         let worker = self.clone();
         let query = q.clone();
         let table = shared.map(|request| request.table.clone());
+        if let Some(pool) = shared.and_then(|request| request.knowledge.as_ref())
+            && engram_core::namespaces::KNOWLEDGE_NAMESPACES.contains(&q.namespace.as_str())
+            && q.include_path_prefixes.is_none() && q.exclude_path_prefixes.is_none()
+            && q.include_path_suffixes.is_none() && q.language_filters.is_none()
+            && q.author_filter.is_none() && q.date_after.is_none() && q.date_before.is_none()
+        {
+            let grouped = pool.get_or_try_init(|| async {
+                let epoch = _vector_epoch.clone();
+                let worker = worker.clone();
+                let mut wide = query.clone();
+                // Reserve a second window for overlap with lexical candidates.
+                // The final page uses one bounded project list, without a
+                // guaranteed result quota from each individual namespace.
+                wide.top_k = q.top_k.saturating_mul(2).min(10_000);
+                let vector = query_vec.clone();
+                let table = table.clone();
+                let rows = self.run_native_read(epoch.clone(), cancel, true, async move {
+                    worker.vector_search_backend(&wide, vector, epoch, None, table, true).await
+                }).await?;
+                let mut hits: std::collections::HashMap<String, Vec<HybridHit>> = Default::default();
+                for hit in rows {
+                    let namespace = hit.pk.split(':').nth(1).ok_or_else(|| anyhow::anyhow!("Knowledge result has no namespace in its primary key"))?;
+                    let list = hits.entry(namespace.to_owned()).or_default();
+                    if list.len() < q.top_k { list.push(hit); }
+                }
+                Ok::<_, anyhow::Error>(KnowledgeVectorPool {
+                    epoch: _vector_epoch.clone(), text: q.text.clone(), per_source: q.top_k, hits,
+                })
+            }).await?;
+            if grouped.epoch.same_physical_table(&_vector_epoch) && grouped.text == q.text && grouped.per_source == q.top_k {
+                return Ok(grouped.hits.get(&q.namespace).cloned().unwrap_or_default());
+            }
+        }
         self.run_native_read(_vector_epoch.clone(), cancel, table.is_some(), async move {
-            worker.vector_search_backend(&query, query_vec, _vector_epoch, snapshot, table).await
+            worker.vector_search_backend(&query, query_vec, _vector_epoch, snapshot, table, false).await
         }).await
     }
 
@@ -4769,6 +4824,7 @@ impl HybridSearchEngine {
         _vector_epoch: Arc<vector_epochs::Epoch>,
         _snapshot: Option<snapshots::Lease>,
         shared: Option<RequestTable>,
+        all_knowledge: bool,
     ) -> anyhow::Result<Vec<HybridHit>> {
         if self.is_lexical_only() {
             return Ok(Vec::new());
@@ -4790,8 +4846,13 @@ impl HybridSearchEngine {
             let where_clause = {
                 use std::fmt::Write;
                 let mut wc = String::with_capacity(256);
-                let safe_ns = q.namespace.replace('\'', "''");
-                let _ = write!(wc, "namespace = '{}'", safe_ns);
+                if all_knowledge {
+                    let names = engram_core::namespaces::KNOWLEDGE_NAMESPACES.iter().map(|ns| format!("'{ns}'")).collect::<Vec<_>>().join(",");
+                    let _ = write!(wc, "namespace IN ({names})");
+                } else {
+                    let safe_ns = q.namespace.replace('\'', "''");
+                    let _ = write!(wc, "namespace = '{}'", safe_ns);
+                }
 
                 if let Ok(policy) = engram_core::get_policy(&q.namespace) {
                     match policy.versioning {
@@ -4927,7 +4988,12 @@ impl HybridSearchEngine {
                         scanner.batch_size(lancedb::query::QueryExecutionOptions::default().max_batch_length as usize);
                         // Bound fragment concurrency only. Keep the SDK's I/O byte
                         // budget: lowering it below an encoded batch can deadlock.
-                        scanner.fragment_readahead(1);
+                        // The grouped request replaces the four native readers
+                        // otherwise scanning these same fragments concurrently.
+                        if all_knowledge {
+                            scanner.project(&["pk", "chunk_id", "path", "doc_id", "_distance"])?;
+                        }
+                        scanner.fragment_readahead(if all_knowledge { 4 } else { 1 });
                         scanner.try_into_stream().await?.map_err(anyhow::Error::from).boxed()
                     }
                     _ => native_query.execute().await?.map_err(anyhow::Error::from).boxed(),
