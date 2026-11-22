@@ -3709,13 +3709,17 @@ impl Engram {
             .resolve_path(&abs_path)
             .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
 
-        let latest_oid = tokio::task::spawn_blocking({
+        let (latest_oid, clean_source) = tokio::task::spawn_blocking({
             let repo_path = PathBuf::from(&ps.info.directory);
-            move || -> anyhow::Result<String> {
+            let source = resolved.clone();
+            move || -> anyhow::Result<(String, bool)> {
                 use engram_git::GitWalker;
                 let repo = GitWalker::open_repo(&repo_path)?;
                 let head = repo.head()?.peel_to_commit()?;
-                Ok(head.id().to_string())
+                let clean = repo.workdir().and_then(|root| source.strip_prefix(root).ok())
+                    .and_then(|relative| repo.status_file(relative).ok())
+                    .is_some_and(|status| status.is_empty());
+                Ok((head.id().to_string(), clean))
             }
         })
         .await
@@ -3731,14 +3735,15 @@ impl Engram {
         };
         // Versioned: a binary with a new output format must never serve a
         // previous binary's cached text as current (live, 2026-08-29).
-        const STYLE_GUIDE_FORMAT: &str = "v3";
+        const STYLE_GUIDE_FORMAT: &str = "v4";
+        let diff_limit = req.sanitized_diff_limit();
         let cache_key = format!(
-            "style_guide:{STYLE_GUIDE_FORMAT}:{}:{}",
+            "style_guide:{STYLE_GUIDE_FORMAT}:{diff_limit}:{}:{}",
             cache_subject, latest_oid
         );
 
         // The Git tip cannot identify uncommitted TypeScript or instruction edits.
-        let cacheable=!crate::services::written_casing::is_typescript(&req.file_path);
+        let cacheable = clean_source && !crate::services::written_casing::is_typescript(&req.file_path);
         if cacheable && let Some(mut cached) = self
             .state
             .registry
@@ -3752,7 +3757,6 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(cached)]));
         }
 
-        let diff_limit = req.sanitized_diff_limit();
         let result = self
             .cognitive_analyze_file_style(&req.project_id, &req.file_path, diff_limit)
             .await;
