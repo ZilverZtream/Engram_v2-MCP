@@ -1015,8 +1015,12 @@ pub struct ValidateFeatureContractRequest {
 #[serde(deny_unknown_fields)]
 pub struct IngestQualityGatesRequest {
     pub project_id: String,
-    /// Project-relative path to the source file to ingest.
+    /// Project-relative path, or a stable JSON filename for an inline board export.
     pub source_path: String,
+    /// Optional JSON text from a historical board export. This attaches a snapshot
+    /// to this project without creating a file in its working tree.
+    #[serde(default)]
+    pub board_export: Option<String>,
     /// Source kind: copilot | rules | coderabbit | sonarqube | board | text.
     /// JSON guidelines may declare one path_scope or file_pattern string per rule.
     /// These use existing repository-rule matching, not applyTo glob semantics.

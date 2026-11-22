@@ -119,6 +119,10 @@ impl Engram {
                 None,
             )
         })?;
+        if req.board_export.is_some() && (source != QualitySource::DevOpsBoard || req.clear_existing
+            || req.alias_review.is_some() || req.adoption.is_some()) {
+            return Err(McpError::invalid_params("board_export requires a board import without global clearing or ownership changes", None));
+        }
 
         if let Some(review) = &req.alias_review {
             if req.adoption.is_some() {
@@ -154,15 +158,30 @@ impl Engram {
         let _import_guard = self.state.acquire_project_update_lock(&req.project_id).await;
         let active_gen = self.get_active_generation(&req.project_id).await?;
 
-        let abs = safe_join(std::path::Path::new(&ps.info.directory), &req.source_path)
-            .map_err(|e| McpError::invalid_request(e.to_string(), None))?;
         let root = std::path::Path::new(&ps.info.directory);
-        let origin = quality_source_origin(root, &abs)?;
-        let content = crate::services::legacy_rule_adoption::read_source(root, &origin)
-            .map_err(|e| McpError::invalid_params(format!("cannot read source: {e}"), None))?;
+        let (origin, content) = if let Some(export) = req.board_export.as_ref() {
+            let name = &req.source_path;
+            if !name.ends_with(".json") || name.len() > 200 || !name.bytes().all(|c| c.is_ascii_alphanumeric() || b"._-".contains(&c))
+                || export.len() > 4 * 1024 * 1024 || serde_json::from_str::<serde_json::Value>(export).is_err() {
+                return Err(McpError::invalid_params("Supply a JSON board export up to 4 MiB and a simple .json filename", None));
+            }
+            (format!("@board-exports/{name}"), export.clone())
+        } else {
+            let abs = safe_join(root, &req.source_path).map_err(|e| McpError::invalid_request(e.to_string(), None))?;
+            let origin = quality_source_origin(root, &abs)?;
+            if origin.starts_with("@board-exports/") {
+                return Err(McpError::invalid_params("This source namespace is reserved for board export snapshots", None));
+            }
+            let content = crate::services::legacy_rule_adoption::read_source(root, &origin)
+                .map_err(|e| McpError::invalid_params(format!("cannot read source: {e}"), None))?;
+            (origin, content)
+        };
 
         let rules = parse_quality_source_checked(&content, source, &origin)
             .map_err(|error| McpError::invalid_params(error, None))?;
+        if req.board_export.is_some() && (rules.is_empty() || rules.iter().map(|r| &r.id).collect::<std::collections::HashSet<_>>().len() != rules.len()) {
+            return Err(McpError::invalid_params("Board export needs at least one readable item and unique work item identities", None));
+        }
         let receipt_key = quality_source::receipt_key(&origin);
         let previous_raw = self.state.registry.get_meta_bounded(&req.project_id, &receipt_key, 4 * 1024 * 1024)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
@@ -196,7 +215,7 @@ impl Engram {
             }
         }
         let provenance = format!("quality-gate source: {origin}");
-        let basename = abs.file_name().and_then(|name| name.to_str()).unwrap_or(&origin);
+        let basename = origin.rsplit('/').next().unwrap_or(&origin);
         // Older promotions recorded only a basename. Their owning source cannot
         // be inferred when importing a nested file with the same name.
         for rule in &rules {
@@ -257,7 +276,7 @@ impl Engram {
         let mut promotions: Vec<_> = aliases.values().cloned().collect();
         {
             for r in rules.iter().filter(|r| {
-                !aliases.contains_key(&r.id) && source_promotion_candidate(r, source)
+                req.board_export.is_none() && !aliases.contains_key(&r.id) && source_promotion_candidate(r, source)
             }) {
                 if promoted >= SOURCE_PROMOTION_LIMIT {
                     break;

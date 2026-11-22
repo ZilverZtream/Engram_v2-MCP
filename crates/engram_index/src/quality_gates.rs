@@ -299,10 +299,12 @@ fn parse_findings_json(content: &str, category: &str, origin: &str) -> Vec<Quali
             ],
         );
         let line = get(f, &["line", "startLine", "lineNumber"]);
-        let id = rule_key
+        let work_item = (category == "board" && f.get("fields").and_then(|fields| fields.get("System.Title")).is_some())
+            .then(|| get(f, &["id"])).flatten();
+        let id = work_item.map(|item| format!("{category}:{origin}:item:{item}")).unwrap_or_else(|| rule_key
             .clone()
             .map(|r| format!("{category}:{origin}:{r}:{i}"))
-            .unwrap_or_else(|| format!("{category}:{origin}:{i}"));
+            .unwrap_or_else(|| format!("{category}:{origin}:{i}")));
         let mut full = text;
         if category == "board"
             && let Some(detail) = get(f, &["fields.System.Description", "Body"])

@@ -5648,10 +5648,32 @@ impl Engram {
             .list_repo_rules(&req.project_id)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let mut out = String::from("# Repository rules\n\n");
+        let project = self.state.registry.get_project(&req.project_id)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let source = ".github/copilot-instructions.md";
+        let checkout = project.as_ref().and_then(|rec|
+            engram_core::safe_read_to_string(std::path::Path::new(&rec.directory), source).ok());
+        let verifier = project.as_ref().map(|rec| crate::services::quality_source::SourceVerifier::new(
+            &self.state, &req.project_id, std::path::Path::new(&rec.directory)));
         if rules.is_empty() {
             out.push_str("No repository rules are stored for this project.\n");
         }
         for r in rules {
+            if r.rule_id.starts_with("qg-copilot:copilot-instructions.md:") && r.provenance.is_none() {
+                if let Some(reason) = verifier.as_ref().and_then(|v| v.legacy_checkout_status(source, &r.rule_text)) {
+                    out.push_str(&format!("- `{}` | {reason} | historical wording excluded from current guidance\n", r.rule_id));
+                    continue;
+                }
+                let text = r.rule_text.trim();
+                let quote = text.strip_prefix('[').and_then(|s| s.split_once("] ")).map_or(text, |(_, s)| s);
+                let mut matches = checkout.as_deref().unwrap_or_default().lines().enumerate()
+                    .filter(|(_, line)| !quote.is_empty() && line.contains(quote));
+                if let Some((i, _)) = matches.next() && matches.next().is_none() {
+                    out.push_str(&format!("Current source: {source}:{}\n", i + 1));
+                } else {
+                    out.push_str("Source location unverified. The final number in this stored rule ID is an import ordinal.\n");
+                }
+            }
             if let Some(field) = r.legacy_example_field() {
                 out.push_str(&format!("- `{}` | legacy JSON field `{field}` | excluded from rule enforcement; re-ingest the structured source for the complete rule.\n", r.rule_id));
                 continue;
