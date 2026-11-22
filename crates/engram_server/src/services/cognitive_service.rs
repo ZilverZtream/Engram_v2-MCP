@@ -335,9 +335,9 @@ pub fn static_analyze_file_style(content: &str, file_path: &str) -> Vec<String> 
     } else if lower.ends_with(".cs") {
         static_analyze_cs(content)
     } else if lower.ends_with(".ts") || lower.ends_with(".tsx") {
-        static_analyze_typescript(content)
+        static_analyze_typescript(content, file_path)
     } else if lower.ends_with(".js") || lower.ends_with(".jsx") || lower.ends_with(".mjs") {
-        static_analyze_javascript(content)
+        static_analyze_javascript(content, file_path)
     } else if lower.ends_with(".aspx") || lower.ends_with(".ascx") || lower.ends_with(".master") {
         static_analyze_aspx(content)
     } else if lower.ends_with(".sql") {
@@ -561,8 +561,7 @@ fn static_analyze_vb(content: &str) -> Vec<String> {
         let using_count = re.find_iter(content).count();
         if using_count >= 2 {
             bullets.push(format!(
-                "`Using` block for context ownership (seen {using_count} times). \
-                 Never declare a bare `Dim db As New …Context` without a `Using`."
+                "Resource lifetime: {using_count} Using declarations."
             ));
         }
     }
@@ -830,11 +829,11 @@ fn static_analyze_cs(content: &str) -> Vec<String> {
 }
 
 // ── TypeScript ───────────────────────────────────────────────────────────
-fn static_analyze_typescript(content: &str) -> Vec<String> {
+fn static_analyze_typescript(content: &str, file_path: &str) -> Vec<String> {
     // TypeScript layers on JavaScript — inherit every JS bullet, then add
     // the TS-specific detectors (types, triple-slash, casts, non-null,
     // generics, decorators, ambient declarations).
-    let mut bullets = static_analyze_javascript_common(content, /* typescript */ true);
+    let mut bullets = static_analyze_javascript_common(content, file_path, /* typescript */ true);
 
     use regex::Regex;
     use std::sync::LazyLock;
@@ -1144,8 +1143,8 @@ fn static_analyze_typescript(content: &str) -> Vec<String> {
 }
 
 // ── JavaScript ───────────────────────────────────────────────────────────
-fn static_analyze_javascript(content: &str) -> Vec<String> {
-    static_analyze_javascript_common(content, /* typescript */ false)
+fn static_analyze_javascript(content: &str, file_path: &str) -> Vec<String> {
+    static_analyze_javascript_common(content, file_path, /* typescript */ false)
 }
 
 /// Shared JS/TS detectors. Designed to reach the same depth as `static_analyze_vb`:
@@ -1154,7 +1153,7 @@ fn static_analyze_javascript(content: &str) -> Vec<String> {
 ///
 /// `typescript` is true when the caller is TS — a few bullets phrase
 /// differently (e.g. `"use strict"` is irrelevant in TS).
-fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<String> {
+fn static_analyze_javascript_common(content: &str, file_path: &str, typescript: bool) -> Vec<String> {
     use regex::Regex;
     use std::sync::LazyLock;
 
@@ -1242,13 +1241,7 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
     });
 
     // ── missing-await detection (async fn body scans below) ──────────────
-    static ASYNC_FN_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
-        // Capture the function body opening brace — we'll scan forward for `await`.
-        Regex::new(
-            r"(?m)\basync\s+(?:function\s*\w*\s*\([^)]*\)|\([^)]*\)\s*=>|\w+\s*\([^)]*\))\s*\{",
-        )
-        .ok()
-    });
+
 
     let mut bullets = Vec::new();
 
@@ -1374,31 +1367,12 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
     // ── 6. String quote style ────────────────────────────────────────────
     // A mixed (464 total) bullet isn't actionable; always show the actual
     // distribution so the reader can judge what "match the existing style" means.
-    let dbl = content.matches('"').count() / 2;
-    let sng = content.matches('\'').count() / 2;
-    let tick = content.matches('`').count() / 2;
-    let total_q = dbl + sng + tick;
-    if total_q >= 4 {
-        let (dom_label, dom_count) = {
-            let mut v = [
-                ("double `\"…\"`", dbl),
-                ("single `'…'`", sng),
-                ("template `` `…` ``", tick),
-            ];
-            v.sort_by(|a, b| b.1.cmp(&a.1));
-            v[0]
-        };
-        let ratio = dom_count as f32 / total_q as f32;
-        if ratio >= 0.55 {
-            bullets.push(format!(
-                "String quotes: **{dom_label}** ({dom_count}/{total_q}) — match the dominant style."
-            ));
-        } else {
-            // Mixed — show the split so the bullet is actionable.
-            bullets.push(format!(
-                "String quotes: mixed — {dbl} double / {sng} single / {tick} template. Pick one \
-                 and stay consistent; do NOT introduce new quote styles."
-            ));
+    let syntax = engram_index::parsing::js_style_syntax(std::path::Path::new(file_path), content);
+    if let Some(syntax) = &syntax {
+        let double = syntax.strings.iter().filter(|s| s.quote == '"').count();
+        let single = syntax.strings.len() - double;
+        if single + double + syntax.templates >= 4 {
+            bullets.push(format!("String literals: {double} double-quoted, {single} single-quoted, {} template literals.", syntax.templates));
         }
     }
 
@@ -1465,39 +1439,12 @@ fn static_analyze_javascript_common(content: &str, typescript: bool) -> Vec<Stri
     }
 
     // ── 9. Async / error-handling shape (with missing-await risk) ────────
-    let try_blocks = content.matches("try {").count() + content.matches("try{").count();
-    let catch_chains = content.matches(".catch(").count();
-    let then_chains = content.matches(".then(").count();
-    let async_await = content.matches("await ").count();
-    let async_fn_count = ASYNC_FN_RE
-        .as_ref()
-        .map(|re| re.find_iter(content).count())
-        .unwrap_or(0);
-    if try_blocks + catch_chains + async_await > 0 {
-        let mut note = format!(
-            "Async / error handling: {try_blocks} try-blocks, {catch_chains} `.catch(`, \
-             {then_chains} `.then(`, {async_await} `await` sites"
-        );
-        if async_fn_count > 0 && async_await == 0 {
-            note.push_str(
-                " — RISK: async functions declared but no `await` detected; either await \
-                 the inner calls or drop the `async` modifier",
-            );
-        } else if then_chains > async_await && async_await >= 1 {
-            note.push_str(
-                " — mixed Promise chains and async/await; prefer `await` inside `try`/`catch` \
-                 for new code",
-            );
-        }
-        bullets.push(note);
-    } else if async_fn_count > 0 {
-        bullets.push(format!(
-            "Async: {async_fn_count} async function(s) declared — RISK: no `await` sites \
-             found; drop `async` or add the `await`."
-        ));
+    if let Some(syntax) = &syntax
+        && syntax.try_blocks + syntax.catch_calls + syntax.then_calls + syntax.awaits > 0 {
+        bullets.push(format!("Async / error handling: {} try-blocks, {} catch calls, {} then calls, {} await expressions.",
+            syntax.try_blocks, syntax.catch_calls, syntax.then_calls, syntax.awaits));
     }
 
-    // ── 10. Guard / early-return idiom (VB `Is Nothing` analogue) ────────
     let guards = EARLY_GUARD_RE
         .as_ref()
         .map(|re| re.find_iter(content).count())

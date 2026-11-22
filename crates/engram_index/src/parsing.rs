@@ -26,6 +26,20 @@ pub struct JsQuotedString {
 }
 
 pub fn js_quoted_strings(path: &Path, content: &str) -> Option<Vec<JsQuotedString>> {
+    js_style_syntax(path, content).map(|inventory| inventory.strings)
+}
+
+#[derive(Default)]
+pub struct JsStyleSyntax {
+    pub strings: Vec<JsQuotedString>,
+    pub templates: usize,
+    pub try_blocks: usize,
+    pub catch_calls: usize,
+    pub then_calls: usize,
+    pub awaits: usize,
+}
+
+pub fn js_style_syntax(path: &Path, content: &str) -> Option<JsStyleSyntax> {
     if content.len() > 8 * 1024 * 1024 {
         return None;
     }
@@ -46,7 +60,7 @@ pub fn js_quoted_strings(path: &Path, content: &str) -> Option<Vec<JsQuotedStrin
     }
     let mut stack = vec![tree.root_node()];
     let mut visited = 0;
-    let mut strings = Vec::new();
+    let mut inventory = JsStyleSyntax::default();
     while let Some(node) = stack.pop() {
         visited += 1;
         if visited > 200_000 {
@@ -54,6 +68,23 @@ pub fn js_quoted_strings(path: &Path, content: &str) -> Option<Vec<JsQuotedStrin
         }
         if node.is_error() || node.is_missing() {
             return None;
+        }
+        match node.kind() {
+            "template_string" => inventory.templates += 1,
+            "try_statement" => inventory.try_blocks += 1,
+            "await_expression" => inventory.awaits += 1,
+            "call_expression" => {
+                if let Some(property) = node.child_by_field_name("function")
+                    .filter(|callee| callee.kind() == "member_expression")
+                    .and_then(|member| member.child_by_field_name("property")) {
+                    match &content[property.byte_range()] {
+                        "catch" => inventory.catch_calls += 1,
+                        "then" => inventory.then_calls += 1,
+                        _ => {}
+                    }
+                }
+            }
+            _ => {}
         }
         if node.kind() == "string" {
             // JSX attribute delimiters are markup, unlike a real JS string
@@ -64,14 +95,14 @@ pub fn js_quoted_strings(path: &Path, content: &str) -> Option<Vec<JsQuotedStrin
             let raw = content.as_bytes().get(node.start_byte()..node.end_byte())?;
             let quote = *raw.first()?;
             if matches!(quote, b'\'' | b'"') && raw.last() == Some(&quote) {
-                strings.push(JsQuotedString {
+                inventory.strings.push(JsQuotedString {
                     quote: quote as char,
                     start_byte: node.start_byte(),
                     end_byte: node.end_byte(),
                     start_line: (node.start_position().row + 1) as u32,
                     end_line: (node.end_position().row + 1) as u32,
                 });
-                if strings.len() > 50_000 {
+                if inventory.strings.len() > 50_000 {
                     return None;
                 }
             }
@@ -85,7 +116,7 @@ pub fn js_quoted_strings(path: &Path, content: &str) -> Option<Vec<JsQuotedStrin
             }
         }
     }
-    Some(strings)
+    Some(inventory)
 }
 
 #[derive(Debug, Clone)]
