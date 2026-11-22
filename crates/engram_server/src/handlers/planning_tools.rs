@@ -4652,6 +4652,17 @@ pub(crate) fn client_scope_reads(body: &str) -> Vec<String> {
             }
         }
     }
+    // A named key still reads request data. Keep its source expression
+    // distinct from a literal key until its declaration has been resolved.
+    static NAMED_KEY: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(||
+        regex::Regex::new(r"(?i)\b(?:GetDictionary\w*Value\s*\(\s*qry\.(?:params|data)\s*,\s*|qry\.(?:params|data)\s*(?:\.\s*(?:Item|ContainsKey))?\s*\(\s*)([a-z_]\w*(?:\.\w+)*)\s*[,)]").expect("named request key"));
+    for cap in NAMED_KEY.captures_iter(body) {
+        let key = cap.get(1).expect("key group");
+        let label = format!("key expression {}", key.as_str());
+        if !found.iter().any(|(_, existing)| existing == &label) {
+            found.push((key.start(), label));
+        }
+    }
     found.sort_by_key(|(at, _)| *at);
     found.into_iter().map(|(_, k)| k).collect()
 }

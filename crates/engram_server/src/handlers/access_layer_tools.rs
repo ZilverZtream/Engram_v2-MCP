@@ -70,6 +70,37 @@ pub(crate) fn discover_web_application_root(project: &Path, page: &Path) -> std:
     configured.unwrap_or_else(|| project.to_path_buf())
 }
 
+/// Return the authentication requirement when an applicable rule explicitly
+/// addresses anonymous users. Ambiguous rules require a configuration review.
+fn page_anonymous_access(project: &Path, page_path: &str) -> Option<bool> {
+    let page = project.join(page_path);
+    let application = discover_web_application_root(project, &page);
+    for directory in page.parent()?.ancestors().take_while(|dir| dir.starts_with(&application)) {
+        let config = directory.join("web.config");
+        if !config.exists() { continue; }
+        let relative = config.strip_prefix(project).ok()?.to_str()?.replace('\\', "/");
+        let xml = engram_core::safe_read_to_string(project, &relative).ok()?;
+        let local = page.strip_prefix(directory).ok()?.to_str()?.replace('\\', "/").to_ascii_lowercase();
+        let mut outcome = None;
+        for rule in crate::services::auth_config_service::parse_location_rules(&xml) {
+            let path = rule.path.trim_matches('/').to_ascii_lowercase();
+            if !matches!(path.as_str(), "(global)" | "." | "") && path != local && !local.starts_with(&format!("{path}/")) {
+                continue;
+            }
+            let applies = |users: &[String]| users.iter().any(|u| matches!(u.trim(), "*" | "?"));
+            let requirement = match (applies(&rule.allow_users), applies(&rule.deny_users)) {
+                (false, false) => continue,
+                (true, true) => return None,
+                (_, deny) => deny,
+            };
+            if outcome.is_some_and(|prior| prior != requirement) { return None; }
+            outcome = Some(requirement);
+        }
+        if outcome.is_some() { return outcome; }
+    }
+    None
+}
+
 #[derive(Serialize)]
 struct FreshAccessResponse<'a, T: Serialize> {
     #[serde(flatten)]
@@ -727,7 +758,7 @@ pub struct PageContextResult {
     pub has_script_manager: bool,
     pub vb_trap_count: usize,
     pub vb_traps_summary: Vec<String>,
-    pub requires_authentication: bool,
+    pub requires_authentication: Option<bool>,
     pub total_methods: usize,
     /// What each graph/file provider behind this page context delivered.
     pub completeness: PageContextCompleteness,
@@ -3292,7 +3323,7 @@ fn render_page_context_markdown(ctx: &PageContextResult) -> String {
     md.push_str(&format!("- **Total methods**: {}\n", ctx.total_methods));
     md.push_str(&format!(
         "- **Authentication required**: {}\n",
-        ctx.requires_authentication
+        ctx.requires_authentication.map(|v| v.to_string()).unwrap_or_else(|| "unknown from static configuration".into())
     ));
     if ctx.has_script_manager {
         md.push_str("- **ScriptManager**: present (AJAX enabled)\n");
@@ -5262,10 +5293,7 @@ impl Engram {
                 vec![]
             };
 
-            // 11. Auth from @Page directive
-            let requires_auth = aspx_content.contains("Authorize")
-                || aspx_content.contains("<%@ Page")
-                    && aspx_content.contains("RequiresAuthentication");
+            let requires_auth = page_anonymous_access(Path::new(&project_dir), &aspx_file);
 
             let total_methods = methods.len();
             let vb_trap_count = vb_traps.len();

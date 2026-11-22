@@ -726,7 +726,7 @@ fn source_snapshot(
 mod worktree_binding_tests {
     use super::{resolve_review_directory, staged_entries, staged_index_snapshot};
     use crate::services::pre_commit_review_service::{
-        parse_unified_diff, resolve_diff_source, resolve_staged_review_diff,
+        parse_unified_diff, resolve_review_diff, resolve_staged_review_diff,
     };
     use std::path::Path;
 
