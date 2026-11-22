@@ -14,6 +14,36 @@ pub(super) struct BranchCase {
     pub when_false: String,
 }
 
+pub(super) fn vb_branch_cases(file: &str, method: &str, source: &str, start: u32, end: u32) -> Result<Vec<BranchCase>, String> {
+    let parsed = engram_index::vb_extractor::vb_return_paths(Path::new(file), source, start, end)?;
+    let inventory = &parsed["branch_contexts"];
+    if inventory["status"] != "available" {
+        return Err(inventory["reason"].as_str().unwrap_or("branch contexts unavailable").to_string());
+    }
+    let mut branches = BTreeMap::new();
+    let lines: Vec<_> = source.lines().collect();
+    for entry in inventory["entries"].as_array().into_iter().flatten() {
+        let Some(row) = entry["start_line"].as_u64() else { continue; };
+        let Some(condition) = entry["conditions"].as_array().and_then(|c| c.last()) else {continue;};
+        let (Some(line),Some(text)) = (condition["line"].as_u64(),condition["expression"].as_str()) else {continue;};
+        if line < start as u64 || row < line || row > end as u64 {continue;}
+        let case = branches.entry((line,text.to_owned())).or_insert_with(|| BranchCase {
+            file:file.to_owned(),method:method.to_owned(),line:line as u32,condition:text.to_owned(),
+            when_true:String::new(),when_false:String::new(),
+        });
+        let arm = match condition["outcome"].as_str() {Some("true")=>&mut case.when_true, Some("false")=>&mut case.when_false,_=>continue};
+        if arm.is_empty() && let Some(stmt)=lines.get(row as usize-1) {
+            *arm = format!("reaches line {row}: {}",stmt.trim().chars().take(180).collect::<String>());
+        }
+    }
+    for case in branches.values_mut() {
+        for arm in [&mut case.when_true,&mut case.when_false] {
+            if arm.is_empty() { *arm = "verify the continuation after the conditional".to_owned(); }
+        }
+    }
+    Ok(branches.into_values().collect())
+}
+
 /// Only describe the first authored statement on each arm. A return in a
 /// nested condition is not necessarily an exit from the enclosing arm.
 pub(super) fn branch_cases(

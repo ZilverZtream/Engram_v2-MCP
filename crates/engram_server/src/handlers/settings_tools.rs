@@ -803,10 +803,19 @@ impl Engram {
                         if n.node_type == "function" && scoped_ranges.as_ref().is_some_and(|ranges| ranges.contains(&(n.start_line, n.end_line))) {
                             let raw = n.metadata.as_ref().and_then(|m| m.get(engram_core::value_flow::METADATA_KEY)).and_then(|v| v.as_str());
                             let source = snapshot.as_deref().and_then(|b| std::str::from_utf8(b).ok());
-                            match raw.zip(source).and_then(|(raw, source)| super::test_derivation::branch_cases(raw, &file, &n.name, source, n.start_line, n.end_line)) {
-                                Some(cases) => branch_cases.extend(cases),
-                                None => coverage_notes.push(format!("{file}:{}: parser branch evidence unavailable for {}.", n.start_line, n.name)),
+                            let mut cases = raw.zip(source).and_then(|(raw, source)| super::test_derivation::branch_cases(raw, &file, &n.name, source, n.start_line, n.end_line)).unwrap_or_default();
+                            if needs_vb && let Some(source) = source {
+                                match super::test_derivation::vb_branch_cases(&file, &n.name, source, n.start_line, n.end_line) {
+                                    Ok(nested) => {
+                                        for branch in nested {
+                                            if !cases.iter().any(|c| c.line == branch.line && c.condition == branch.condition) { cases.push(branch); }
+                                        }
+                                    }
+                                    Err(reason) => coverage_notes.push(format!("{file}:{}: nested branch coverage incomplete for {}: {reason}", n.start_line, n.name)),
+                                }
                             }
+                            cases.sort_by_key(|c| c.line);
+                            branch_cases.extend(cases);
                         }
                         if n.node_type == "setting_key" {
                             indexed_setting_ids.insert(n.node_id.clone());
