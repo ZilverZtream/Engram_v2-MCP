@@ -2074,13 +2074,17 @@ impl Engram {
                 let attrs: Vec<_> = attr.captures_iter(text).collect();
                 if !attrs.iter().any(|m| normalize(&m[2]).contains(&key)) {continue;}
                 anchors.insert(format!("{}:{} {}",hit.path,i+1,text.chars().take(280).collect::<String>()));
+                let caption = attrs.iter().any(|m|
+                    (m[1].eq_ignore_ascii_case("title") || m[1].eq_ignore_ascii_case("aria-label") || m[1].eq_ignore_ascii_case("text"))
+                        && normalize(&m[2]).contains(&key));
+                let priority = if caption {0} else if text.to_lowercase().starts_with("<button") || text.to_lowercase().starts_with("<asp:linkbutton") {1} else {2};
                 for m in attrs {
                     if m[1].eq_ignore_ascii_case("id") && !m[2].contains(|c:char| !c.is_alphanumeric() && c!='_' && c!='-') {
-                        selectors.insert(format!("#{}",&m[2]));
+                        selectors.insert((priority,format!("#{}",&m[2])));
                     }
                     if m[1].eq_ignore_ascii_case("class") {
                         selectors.extend(m[2].split_whitespace().filter(|class| words.iter().any(|w| class.to_lowercase().contains(&w.to_lowercase())))
-                            .map(|class|format!(".{class}")));
+                            .map(|class|(priority,format!(".{class}"))));
                     }
                 }
                 if anchors.len() >= 100 {break;}
@@ -2089,7 +2093,9 @@ impl Engram {
         }
         let mut out = format!("UI action evidence for '{}':\n",req.query);
         for site in anchors.iter().take(30) {let _ = writeln!(out,"- {site}");}
-        for selector in selectors.iter().take(6) {
+        let assignment = regex::Regex::new(r"^\s*(?:(?:const|let|var)\s+)?((?:this\.)?[\w$]+)(?:\s*:[^=;]+)?\s*=\s*[^=]").unwrap();
+        let field_alias = regex::Regex::new(r"^\s*(this\.[\w$]+)\s*=\s*([\w$]+)\s*;?\s*$").unwrap();
+        for (_,selector) in selectors.iter().take(6) {
             let query = search(selector.clone(), &[".ts",".tsx",".js",".jsx"]);
             let hits = ps.search.search(&query,None,&cancel).await.map_err(|e| McpError::internal_error(e.to_string(),None))?;
             let mut seen = HashSet::new();
@@ -2098,6 +2104,32 @@ impl Engram {
                 for (i,line) in source.lines().enumerate().filter(|(_,l)| !l.trim_start().starts_with("//")
                     && (l.contains(&format!("'{selector}'")) || l.contains(&format!("\"{selector}\"")))).take(4) {
                     let _ = writeln!(out,"- Selector {selector} at {}:{} {}",h.path,i+1,line.trim().chars().take(200).collect::<String>());
+                    let Some(m) = assignment.captures(line) else {continue;};
+                    let mut receivers = BTreeSet::from([m[1].to_owned()]);
+                    let members = graph.functions_for_source_lines(&req.project_id,h.path.as_str()).map_err(|e|McpError::internal_error(e.to_string(),None))?;
+                    let containing = members.iter().filter(|n| n.start_line as usize <= i+1 && n.end_line as usize >= i+1).min_by_key(|n| n.end_line - n.start_line);
+                    let lines: Vec<_> = source.lines().collect();
+                    let end = containing.map_or(i+1,|n|n.end_line as usize).min(lines.len());
+                    for alias in &lines[i+1..end] {
+                        if let Some(a) = field_alias.captures(alias) && a[2] == m[1] {receivers.insert(a[1].to_owned());}
+                    }
+                    let classes = graph.query_nodes(&req.project_id,Some("class"),None,Some(h.path.as_str()),200)
+                        .map_err(|e|McpError::internal_error(e.to_string(),None))?;
+                    let class = classes.iter().filter(|n| n.file_path.as_str()==h.path.as_str() && n.start_line as usize <= i+1 && n.end_line as usize >= i+1)
+                        .min_by_key(|n| n.end_line - n.start_line);
+                    for receiver in receivers {
+                        let scope = if receiver.starts_with("this.") {class} else {containing};
+                        let Some(scope) = scope else {continue;};
+                        let event = regex::Regex::new(&format!(r"^\s*{}\s*\.\s*(?:on\w+\s*=|addEventListener\s*\()",regex::escape(&receiver))).unwrap();
+                        for (row,stmt) in lines.iter().enumerate().skip(scope.start_line.saturating_sub(1) as usize).take(scope.end_line.saturating_sub(scope.start_line) as usize+1)
+                            .filter(|(_,stmt)|event.is_match(stmt)).take(5) {
+                            let _=writeln!(out,"  Listener {}:{} {}",h.path,row+1,stmt.trim().chars().take(180).collect::<String>());
+                            if let Some(next)=lines.get(row+1).filter(|_|stmt.trim_end().ends_with('{')){
+                                let _=writeln!(out,"  {}:{} {}",h.path,row+2,next.trim().chars().take(180).collect::<String>());
+                            }
+                        }
+                    }
+
                 }
             }
         }

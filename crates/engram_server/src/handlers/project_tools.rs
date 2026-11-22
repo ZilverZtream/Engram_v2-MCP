@@ -3640,6 +3640,16 @@ impl Engram {
                     .ok()
                     .flatten();
                 let mut summary = describe_git_history_freshness(recorded.as_deref(), tip);
+                let merged = registry.get_meta(&project, "pr_ingest_watermark")?;
+                let target = tip.map(|(oid,_)| oid.to_string());
+                let status = match (merged.as_deref(),target.as_deref()) {
+                    (Some(a),Some(b)) if a.eq_ignore_ascii_case(b) => "at_history_target",
+                    (Some(_),Some(_)) => "different_from_history_target; refresh with ingest_merged_prs",
+                    (None,_) => "no_merged_work_watermark",
+                    _ => "unknown_history_target"
+                };
+                summary.push_str(&format!("merged_work_corpus: {status}\nmerged_work_indexed_tip: {}\n",merged.as_deref().unwrap_or("unknown")));
+
                 if let Ok(repo) = git2::Repository::discover(&directory)
                     && let Ok(head) = repo.head()
                 {

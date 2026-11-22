@@ -799,12 +799,23 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
+        let watermark = self.state.registry.get_meta(&req.project_id,"pr_ingest_watermark").ok().flatten();
+        let root = std::path::PathBuf::from(&ps.info.directory);
+        let target = tokio::task::spawn_blocking(move || super::git_tools::source_refresh_history_tip(&root)).await
+            .ok().and_then(Result::ok).flatten().map(|(id,_)|id.to_string());
+        let basis = match (&watermark,&target) {
+            (Some(w),Some(t)) if w.eq_ignore_ascii_case(t) => format!("Merged-work corpus indexed through target {t}.\n"),
+            (Some(w),Some(t)) => format!("Merged-work corpus last indexed {w}; history target is {t}. Recent merged changes may be missing. Refresh with ingest_merged_prs.\n"),
+            _ => String::from("Merged-work coverage unknown: a corpus watermark or target commit is unavailable.\n")
+        };
         if hits.is_empty() {
             let mut out = "result: no merged work matched.\n\
                  hints: run ingest_merged_prs first (one-time per repo, then \
                  incremental); or broaden the story wording — titles use the \
                  team's vocabulary, try domain terms from get_concept_footprint."
                 .to_string();
+            out.push_str("\n");
+            out.push_str(&basis);
             out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
             return Ok(CallToolResult::success(vec![Content::text(out)]));
         }
@@ -817,6 +828,7 @@ impl Engram {
                 .map(|k| format!(" [kind: {k}]"))
                 .unwrap_or_default()
         );
+        out.push_str(&basis);
         out.push_str("Evidence: indexed git history; review approvals were not fetched. Direct commits may also appear.\n");
         if !req.file_paths.is_empty() {
             out.push_str("File scope: shipped cohort paths, exact or multi-segment suffix matches. Suffix matches are leads only; root/rename equivalence and applicability to this method are not proven.\n");
