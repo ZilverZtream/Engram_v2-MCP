@@ -60,3 +60,31 @@ pub(crate) fn declared<'a>(
         })
         .collect()
 }
+
+/// Positive evidence only. An unlisted script remains eligible as authored JS.
+/// The source-generation inventory supplies config names even across bundles.
+pub(crate) fn indexed_outputs(
+    graph: &engram_graph::GraphStore,
+    project: &str,
+    root: &Path,
+) -> anyhow::Result<BTreeSet<String>> {
+    let mut paths = graph.indexed_paths_with_suffix(project, "tsconfig.json", 4096)?;
+    paths.extend(graph.indexed_paths_with_suffix(project, ".ts", 8192)?);
+    paths.extend(graph.indexed_paths_with_suffix(project, ".tsx", 8192)?);
+    // Some projects use distinct named entrypoint configs in one directory.
+    paths.extend(
+        graph
+            .indexed_paths_with_suffix(project, ".json", 8192)?
+            .into_iter()
+            .filter(|p| {
+                Path::new(p)
+                    .file_name()
+                    .and_then(|name| name.to_str())
+                    .is_some_and(|n| n.starts_with("tsconfig"))
+            }),
+    );
+    Ok(declared(root, paths.iter().map(String::as_str))
+        .into_iter()
+        .map(|(_, _, out)| out)
+        .collect())
+}

@@ -1033,6 +1033,7 @@ pub struct DeadMethodCoverage {
     pub runtime_reachability: &'static str,
     pub script_candidates_with_visible_uses: usize,
     pub script_files_unassessed: usize,
+    pub compiler_output_methods_omitted: usize,
     pub scope_note: &'static str,
 }
 
@@ -6892,8 +6893,12 @@ impl Engram {
 
             let mut dead_methods: Vec<DeadMethodInfo> = Vec::new();
             let mut inspected_methods = 0;
+            let outputs = if !file_filter.as_deref().is_some_and(|p|p.ends_with(".js")) && all_methods.iter().any(|m|m.file_path.as_str().ends_with(".js")) {
+                crate::services::typescript_outputs::indexed_outputs(&graph,&project_id,&root)?
+            } else {Default::default()};
+            let compiler_output_methods_omitted = all_methods.iter().filter(|m|outputs.contains(m.file_path.as_str())).count();
             let scripts: std::collections::BTreeSet<_> = all_methods.iter().map(|n| n.file_path.as_str())
-                .filter(|p| matches!(p.rsplit('.').next(), Some("ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs"))).collect();
+                .filter(|p| !outputs.contains(*p) && matches!(p.rsplit('.').next(), Some("ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs"))).collect();
             let mut uses_by_path = std::collections::HashMap::new();
             let mut bytes_remaining = 16 * 1024 * 1024usize;
             for &path in scripts.iter().take(128) {
@@ -6909,6 +6914,8 @@ impl Engram {
             let mut script_candidates_with_visible_uses = 0;
 
             for node in &all_methods {
+                if outputs.contains(node.file_path.as_str()) {continue;}
+
                 inspected_methods += 1;
                 let effects = meta_csv(node, "effects");
                 let kind = full_mig::classify_method_kind_pub(&node.name, &effects, &node.metadata);
@@ -7002,6 +7009,7 @@ impl Engram {
                     returned_limit: limit,
                     partial: all_methods.len() == SCAN_LIMIT || inspected_methods < all_methods.len() || script_files_unassessed > 0,
                     script_candidates_with_visible_uses,
+                    compiler_output_methods_omitted,
                     script_files_unassessed,
                     runtime_reachability: "unknown",
                     scope_note: "Live indexed graph observations only; capped query/results and event/lifecycle exclusions do not prove exhaustive runtime, dynamic or external-call coverage.",

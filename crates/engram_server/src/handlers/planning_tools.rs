@@ -1119,6 +1119,7 @@ impl Engram {
         // One graph scan + bounded consumer expansion, all in one blocking hop.
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
+        let root_for_outputs = std::path::PathBuf::from(&ps.info.directory);
         let stems_b = stems.clone();
         type Entry = (String, String, String, u32); // name, node_id, file, line
         let (groups, collapsed, consumers, consumer_paths, consumer_paths_complete, scan_truncated, mut cov) = tokio::task::spawn_blocking(move || {
@@ -1151,6 +1152,8 @@ impl Engram {
                 cov.node_scan = "truncated".into();
             }
 
+            let compiled: std::collections::BTreeSet<_> = crate::services::typescript_outputs::declared(&root_for_outputs,
+                nodes.iter().filter(|n| n.node_type == "file").map(|n|n.file_path.as_str())).into_iter().map(|(_,_,path)|path).collect();
             let mut groups: BTreeMap<&'static str, Vec<Entry>> = BTreeMap::new();
             let mut anchors: Vec<(String, String)> = Vec::new(); // (node_id, name)
             for n in nodes.iter() {
@@ -1165,7 +1168,7 @@ impl Engram {
                 // can never be where this concept lives. Live, five `typings/`
                 // classes held slots in a capped group while the function an edit
                 // would touch never appeared.
-                if engram_core::is_declaration_path(n.file_path.as_str()) {
+                if compiled.contains(n.file_path.as_str()) || engram_core::is_declaration_path(n.file_path.as_str()) {
                     continue;
                 }
                 let group = match n.node_type.as_str() {

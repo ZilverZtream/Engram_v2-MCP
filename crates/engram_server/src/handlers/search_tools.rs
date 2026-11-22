@@ -1184,12 +1184,14 @@ impl Engram {
             symbols_truncated,
             labels_total,
             graph_failures,
+            compiled_matches,
         ): (
             Vec<NodeGraphResult>,
             EndpointLabels,
             bool,
             bool,
             usize,
+            Vec<String>,
             Vec<String>,
         ) = tokio::task::spawn_blocking(move || {
             // The match ladder (exact / `.`-suffix / `::`-suffix / node-id
@@ -1219,6 +1221,20 @@ impl Engram {
             };
             let symbols_truncated = nodes.len() > SYMBOL_FETCH_CAP;
             nodes.truncate(SYMBOL_FETCH_CAP);
+            let mut compiled_matches = Vec::new();
+            if file_scope_b.is_none() && nodes.iter().any(|n| n.file_path.as_str().ends_with(".js")) && nodes.iter().any(|n|
+                n.file_path.as_str().ends_with(".ts") || n.file_path.as_str().ends_with(".tsx")) {
+                match crate::services::typescript_outputs::indexed_outputs(&graph_b,&project_id_b,&project_root) {
+                    Ok(outputs) => nodes.retain(|n| {
+                        if outputs.contains(n.file_path.as_str()) {
+                            compiled_matches.push(n.file_path.as_str().to_owned());
+                            false
+                        } else {true}
+                    }),
+                    Err(e) => graph_failures.push(format!("Compiler-output classification unavailable: {e}")),
+                }
+            }
+
             let mut results: Vec<NodeGraphResult> = Vec::new();
 
             // VB construction sites point to the declared .New member in the graph.
@@ -1431,6 +1447,7 @@ impl Engram {
                 symbols_truncated,
                 labels_total,
                 graph_failures,
+                compiled_matches,
             )
         })
         .await
@@ -1438,6 +1455,11 @@ impl Engram {
 
         // Format output from the non-blocking data collected above.
         let mut out = String::with_capacity(4096);
+        if !compiled_matches.is_empty() {
+            out.push_str(&format!("Authored definitions shown. {} same-name declaration(s) in compiler outputs omitted. Set file_scope to inspect: {}.\n",
+                compiled_matches.len(),compiled_matches.iter().collect::<std::collections::BTreeSet<_>>().into_iter().map(String::as_str).collect::<Vec<_>>().join(", ")));
+        }
+
 
         // Same-name collisions are the norm in legacy WebForms (every page
         // has a Page_Load). Say up front how many DISTINCT symbols matched
