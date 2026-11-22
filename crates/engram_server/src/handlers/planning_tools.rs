@@ -4764,6 +4764,27 @@ pub(crate) fn own_checks_all_conditional(body: &str, checks: &str) -> bool {
         }
         return true;
     }
+    // VB permits a condition to span physical lines (explicit continuation or
+    // open argument lists). The conditional body starts after its logical Then.
+    // A Return in that body must not hide an access check later in the method.
+    static THEN: std::sync::LazyLock<regex::Regex> =
+        std::sync::LazyLock::new(|| regex::Regex::new(r"(?i)\bthen\b").expect("VB Then keyword"));
+    let mut logical = Vec::<String>::new();
+    let mut pending_if = false;
+    for physical in lines {
+        let text = physical.trim();
+        if pending_if {
+            let condition = logical.last_mut().expect("pending VB If has a first line");
+            condition.push(' ');
+            condition.push_str(text);
+        } else {
+            logical.push(physical.to_owned());
+        }
+        let starts_if = text.get(..2).is_some_and(|s| s.eq_ignore_ascii_case("if"))
+            && text.as_bytes().get(2).is_some_and(|c| c.is_ascii_whitespace() || *c == b'(');
+        pending_if = (pending_if || starts_if) && !THEN.is_match(text);
+    }
+    let lines = logical;
     // Top-level statement indent: the smallest indent of a non-blank line
     // after the declaration line, excluding `End …` lines.
     let top = lines
@@ -4830,7 +4851,7 @@ pub(crate) fn own_checks_all_conditional(body: &str, checks: &str) -> bool {
                 break;
             }
         }
-        if (statement.starts_with("if ") && statement.ends_with(" then"))
+        if ((statement.starts_with("if ") || statement.starts_with("if(")) && statement.ends_with(" then"))
             || statement.starts_with("select case ")
             || statement.starts_with("while ")
             || statement.starts_with("for ")
@@ -5764,6 +5785,14 @@ mod guards_unit_tests {
         assert!(!has_object_level_guard(
             "If Not _us.UserAccess.CheckRead(x) Then"
         ));
+    }
+
+    #[test]
+    fn multiline_vb_condition_keeps_its_return_and_guard_in_the_right_branch() {
+        let direct = "Sub Apply()\n    Try\n        If Not IsAccepted(value,\n                revision) Then\n            Return\n        End If\n        CheckAccessToProject(id)\n    End Try\nEnd Sub";
+        assert!(!own_checks_all_conditional(direct, "CheckAccessToProject"));
+        let branch = "Sub Apply()\n    If enabled OrElse _\n            CheckAccessToProject(id) Then\n        Save()\n    End If\nEnd Sub";
+        assert!(own_checks_all_conditional(branch, "CheckAccessToProject"));
     }
 
     #[test]
