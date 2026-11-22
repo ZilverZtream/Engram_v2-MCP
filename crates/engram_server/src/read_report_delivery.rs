@@ -657,7 +657,7 @@ impl Report {
         } else {
             None
         };
-        let preview_body = if matches!(self.tool, "pre_push_audit" | "find_symbol_references" | "plan_user_story" | "get_method_edit_context" | "get_ui_blueprint" | "get_ui_conformance" | "trace_ui_action" | "trace_ui_event" | "map_page_lifecycle" | "get_review_precedents") {
+        let preview_body = if matches!(self.tool, "pre_push_audit" | "find_symbol_references" | "plan_user_story" | "get_method_edit_context" | "get_ui_blueprint" | "get_ui_conformance" | "trace_ui_action" | "trace_ui_event" | "derive_test_matrix" | "map_page_lifecycle" | "get_review_precedents") {
             original.content.first().and_then(|p| p.as_text()).map(|v| v.text.clone())
         } else { None };
         let original = if self.json_envelope {

@@ -1504,7 +1504,18 @@ impl Gate for AntiPatternGate {
             {
                 continue;
             }
-            let query = crate::utils::text::code_to_query(&df.added_content);
+            let mut executable = Vec::new();
+            for group in review_hunk_groups(df) {
+                let source = group.iter().map(|(_, _, text)| text.as_str()).collect::<Vec<_>>().join("\n");
+                let masked = review_lexical_text(&source, is_vb_path(&df.path), true, lower_path.ends_with(".sql"));
+                for ((line, added, _), code) in group.iter().zip(masked.lines()) {
+                    if *added && code.chars().any(char::is_alphanumeric) {
+                        executable.push((*line, code.trim().to_owned()));
+                    }
+                }
+            }
+            let query = crate::utils::text::code_to_query(&executable.iter().map(|(_, s)| s.as_str()).collect::<Vec<_>>().join("\n"));
+            if query.split_whitespace().count() < MIN_MATCHED_TERMS { continue; }
             // Run both namespace searches concurrently — same query,
             // two indexes (antipattern + wontfix_patterns). Suppression
             // hits scoped to the diff's file family dampen antipattern
@@ -1568,8 +1579,9 @@ impl Gate for AntiPatternGate {
             // diff-derived query and each hit's actual stored content
             // instead (same mechanism as ProductIntentGate). Content is
             // fetched by pk — exact, generation-proof.
-            let query_text = crate::utils::text::code_to_query(&df.added_content);
-            let mut relevant: Vec<(String, f32)> = Vec::new(); // (display path, overlap)
+            let query_text = ap_query.text.as_str();
+            let mut relevant = Vec::new();
+            let mut locations = BTreeSet::new();
             if hits.len() > 5 {
                 ctx.note_cap(format!(
                     "antipattern: examined the first 5 of {} corpus hits for {}",
@@ -1590,10 +1602,17 @@ impl Gate for AntiPatternGate {
                 if content.is_empty() {
                     continue;
                 }
-                let (matched_n, total_n, _) = query_overlap(&content, &query_text);
+                let (matched_n, total_n, terms) = query_overlap(&content, query_text);
                 let overlap = matched_n as f32 / total_n.max(1) as f32;
                 if matched_n >= 4 && overlap >= 0.3 {
-                    relevant.push((h.path.as_str().to_string(), overlap));
+                    let excerpt = content.lines().map(str::trim).find(|line| !line.is_empty()).unwrap_or_default();
+                    let line = executable.iter().max_by_key(|(_, text)| query_overlap(text, &terms.join(" ")).0)
+                        .filter(|(_, text)| query_overlap(text, &terms.join(" ")).0 > 0).map(|(line, _)| *line);
+                    if let Some(line) = line {
+                        locations.insert(line);
+                        relevant.push(format!("{} | {} | {} | added line {} | terms: {} | overlap {:.2}",
+                            h.pk, h.path.as_str(), excerpt.chars().take(140).collect::<String>(), line, terms.join(", "), overlap));
+                    }
                 }
             }
             if relevant.len() < 2 {
@@ -1615,29 +1634,9 @@ impl Gate for AntiPatternGate {
                     break;
                 }
             }
-            let severity = if relevant.iter().any(|(_, ov)| *ov >= 0.5) {
-                Severity::Warning
-            } else {
-                Severity::Info
-            };
-
-            let mut evidence: Vec<String> = Vec::new();
-            for (path, overlap) in &relevant {
-                // `path` on CodeRabbit-sourced docs is the cluster's
-                // file pattern (e.g. `/site/**/*.vb`) — surface that
-                // so the reader sees it's a CodeRabbit rule, not a
-                // reverted-commit antipattern. The DocStore also
-                // carries `author` = "coderabbit" on those docs; the
-                // path prefix is a reliable visual signal.
-                let source_label = if path.contains("**/") || path.starts_with("coderabbit://") {
-                    " [source: CodeRabbit]"
-                } else {
-                    ""
-                };
-                evidence.push(format!(
-                    "match = `{path}` (term overlap {overlap:.2}){source_label}"
-                ));
-            }
+            let title = format!("Historical vocabulary match: {}", relevant[0]);
+            let detail = relevant.join("\n");
+            let mut evidence = relevant;
             if strong_supp {
                 evidence.push(format!(
                     "prior workflow-disposition candidates: {} retrieved match(es); acceptance, scope and current revision applicability require review; severity unchanged",
@@ -1646,26 +1645,14 @@ impl Gate for AntiPatternGate {
             }
             findings.push(
                 ReviewFinding::new(
-                    severity,
+                    Severity::Info,
                     "antipattern",
                     df.path.clone(),
-                    format!(
-                        "Added code resembles {} indexed anti-pattern(s)",
-                        relevant.len()
-                    ),
-                    format!(
-                        "The hybrid search index found {} previously-reverted / CodeRabbit-\
-                         flagged snippet(s) that structurally match the added code. Review \
-                         them before merging to confirm you are not re-introducing a known \
-                         bad pattern.",
-                        relevant.len()
-                    ),
-                    format!(
-                        "Run `anti_pattern_guard(project_id=\"{}\", code=…)` with the exact \
-                         snippet for full match detail.",
-                        ctx.project_id
-                    ),
+                    title,
+                    detail,
+                    "Inspect the cited historical examples and added lines to assess applicability.",
                 )
+                .with_lines(locations.into_iter().collect())
                 .with_evidence(evidence)
                 .with_next_tool(format!(
                     "anti_pattern_guard(project_id=\"{}\")",
@@ -3191,7 +3178,7 @@ impl Gate for CoAddedFamilyGate {
 
             // Exemplars: PRs whose shipped-file list includes an ADD
             // under this family dir.
-            let mut exemplar_count = 0usize;
+            let mut exemplars = BTreeSet::new();
             let mut companion_counts: BTreeMap<String, usize> = BTreeMap::new();
             for h in hits {
                 if !h.path.as_str().starts_with("pr:") {
@@ -3201,15 +3188,16 @@ impl Gate for CoAddedFamilyGate {
                     continue;
                 };
                 let files = parse_pr_doc_files(&content);
-                let in_family = files.iter().any(|f| f.to_lowercase().contains(&family));
+                let includes_family = |p: &str| format!("/{}/",p.to_lowercase()).contains(&format!("/{family}/"));
+                let in_family = files.iter().any(|f| includes_family(f));
                 if !in_family {
                     continue;
                 }
-                exemplar_count += 1;
+                if !exemplars.insert(h.path.as_str().to_owned()) { continue; }
                 let mut seen_this_pr: BTreeSet<String> = BTreeSet::new();
                 for f in files {
                     let fl = f.to_lowercase();
-                    if fl.contains(&family) {
+                    if includes_family(&fl) {
                         continue; // the cohort itself, not a companion
                     }
                     if seen_this_pr.insert(fl.clone()) {
@@ -3217,6 +3205,7 @@ impl Gate for CoAddedFamilyGate {
                     }
                 }
             }
+            let exemplar_count = exemplars.len();
             if exemplar_count < 3 {
                 continue; // too little history to assert a contract
             }
@@ -3260,13 +3249,8 @@ impl Gate for CoAddedFamilyGate {
                     severity,
                     "co_added_family",
                     format!("{family}/"),
-                    format!("PRs adding files under {family}/ historically touch companion files"),
-                    format!(
-                        "Of {exemplar_count} merged PRs that added files under `{family}/`, \
-                         {label}: {list}. This diff adds files there but touches none of \
-                         these companions — docs contracts, permission entries, and \
-                         registrations ride along in this family's approved history."
-                    ),
+                    format!("Indexed PR sample for {family}/"),
+                    format!("Of {exemplar_count} distinct retrieved PRs touching this directory, {label}: {list}. These paths are absent from the reviewed diff scope. Sample IDs: {}. The sample uses shipped-file lists and includes edits as well as additions.", exemplars.iter().cloned().collect::<Vec<_>>().join(", ")),
                     "Check each companion: update it if the contract applies (e.g. API docs \
                      for a new endpoint), or note why it doesn't for this change."
                         .to_string(),
@@ -5202,13 +5186,7 @@ fn review_lexical_text(source: &str, is_vb: bool, mask_strings: bool, is_sql: bo
     String::from_utf8(out).expect("masking preserves UTF-8")
 }
 
-fn audit_mutations(df: &DiffFile) -> Vec<(usize, String)> {
-    static WRITER: LazyLock<Regex> = LazyLock::new(|| Regex::new(
-        r"(?i)\.(?:InsertOnSubmit|DeleteOnSubmit|SubmitChanges|SaveChanges(?:Async)?|ExecuteNonQuery(?:Async)?)\s*\("
-    ).expect("writer calls"));
-    static DML: LazyLock<Regex> = LazyLock::new(|| Regex::new(
-        r"(?i)\b(?:INSERT\s+INTO|DELETE\s+FROM)\s+[\w\[\].]+|\bUPDATE\s+[\w\[\].]+\s+SET\b"
-    ).expect("SQL statement"));
+fn review_hunk_groups(df: &DiffFile) -> Vec<Vec<(usize, bool, String)>> {
     // Use hunk context so block comments opened before an added line remain
     // comments. Never join disjoint hunks into a fictitious lexical context.
     let mut groups: Vec<Vec<(usize, bool, String)>> = Vec::new();
@@ -5230,6 +5208,17 @@ fn audit_mutations(df: &DiffFile) -> Vec<(usize, String)> {
             groups.last_mut().expect("group exists").push((*line, true, text.clone()));
         }
     }
+    groups
+}
+
+fn audit_mutations(df: &DiffFile) -> Vec<(usize, String)> {
+    static WRITER: LazyLock<Regex> = LazyLock::new(|| Regex::new(
+        r"(?i)\.(?:InsertOnSubmit|DeleteOnSubmit|SubmitChanges|SaveChanges(?:Async)?|ExecuteNonQuery(?:Async)?)\s*\("
+    ).expect("writer calls"));
+    static DML: LazyLock<Regex> = LazyLock::new(|| Regex::new(
+        r"(?i)\b(?:INSERT\s+INTO|DELETE\s+FROM)\s+[\w\[\].]+|\bUPDATE\s+[\w\[\].]+\s+SET\b"
+    ).expect("SQL statement"));
+    let groups = review_hunk_groups(df);
     let mut found = Vec::new();
     for group in groups {
         let source = group.iter().map(|(_, _, s)| s.as_str()).collect::<Vec<_>>().join("\n");

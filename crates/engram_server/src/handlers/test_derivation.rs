@@ -4,6 +4,57 @@ use engram_index::{HybridQuery, HybridSearchEngine};
 use serde::Deserialize;
 use std::{collections::{BTreeMap, BTreeSet, HashSet, VecDeque}, path::Path};
 
+#[derive(serde::Serialize)]
+pub(super) struct BranchCase {
+    pub file: String,
+    pub method: String,
+    pub line: u32,
+    pub condition: String,
+    pub when_true: String,
+    pub when_false: String,
+}
+
+/// Only describe the first authored statement on each arm. A return in a
+/// nested condition is not necessarily an exit from the enclosing arm.
+pub(super) fn branch_cases(
+    raw: &str, file: &str, method: &str, source: &str, start: u32, end: u32,
+) -> Option<Vec<BranchCase>> {
+    use engram_core::value_flow::{FlowProgram, FlowStatement};
+    let program: FlowProgram = serde_json::from_str(raw).ok()?;
+    if program.version != 1 { return None; }
+    fn first(arm: &[FlowStatement]) -> Option<&FlowStatement> {
+        arm.iter().find_map(|s| match s.kind.as_str() {
+            "block" => first(&s.body),
+            "empty" => None,
+            _ => Some(s),
+        })
+    }
+    let lines: Vec<_> = source.lines().collect();
+    let describe = |arm: &[FlowStatement]| match first(arm) {
+        Some(s) if s.site.line >= start && s.site.line <= end => {
+            let text = lines.get(s.site.line as usize - 1).map(|s| s.trim()).unwrap_or("");
+            format!("enters line {}: {}", s.site.line, text.chars().take(180).collect::<String>())
+        }
+        _ => "continues after the conditional".to_owned(),
+    };
+    let mut cases = Vec::new();
+    let mut pending = vec![&program.body];
+    while let Some(s) = pending.pop() {
+        pending.extend(s.otherwise.iter().rev());
+        pending.extend(s.body.iter().rev());
+        if s.kind != "if" { continue; }
+        let Some(expr) = &s.expression else { continue; };
+        let site = &expr.site;
+        if site.line < start || site.line > end || site.line == 0 || site.text.trim().is_empty() { continue; }
+        cases.push(BranchCase {
+            file: file.to_owned(), method: method.to_owned(), line: site.line,
+            condition: site.text.lines().map(str::trim).collect::<Vec<_>>().join(" "),
+            when_true: describe(&s.body), when_false: describe(&s.otherwise),
+        });
+    }
+    Some(cases)
+}
+
 const RISK_PACK_MAX_BYTES: u64 = 256 * 1024;
 const RISK_PACK_MAX_RULES: usize = 128;
 const CANONICAL_SWEEP_MAX_SEEDS: usize = 24;

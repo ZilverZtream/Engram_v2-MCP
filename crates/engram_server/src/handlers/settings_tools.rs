@@ -580,7 +580,7 @@ impl Engram {
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
         let include_typed_settings = matches!(req.output_format, TestMatrixFormat::Json);
-        let (settings_axis, setting_labels, indexed_setting_ids, mut setting_evidence, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, bulk_copy_axes, unresolved, coverage_notes, companion_context, member_observations, constructor_context) =
+        let (settings_axis, setting_labels, indexed_setting_ids, mut setting_evidence, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, bulk_copy_axes, unresolved, coverage_notes, companion_context, member_observations, constructor_context, branch_cases) =
             tokio::task::spawn_blocking(move || {
                 let mut settings_axis: Axis = BTreeMap::new();
                 let mut setting_labels: BTreeMap<String, String> = BTreeMap::new();
@@ -602,6 +602,7 @@ impl Engram {
                 let mut companion_context = Vec::new();
                 let mut member_observations = std::collections::BTreeSet::new();
                 let mut constructor_context = Vec::new();
+                let mut branch_cases = Vec::new();
                 let mut seen = std::collections::HashSet::new();
                 let mut pending = std::collections::VecDeque::new();
                 // A discovered code-behind may introduce VB after a markup-only
@@ -799,6 +800,14 @@ impl Engram {
                     }
                     let mut nullable_observations = BTreeMap::new();
                     for n in &symbols {
+                        if n.node_type == "function" && scoped_ranges.as_ref().is_some_and(|ranges| ranges.contains(&(n.start_line, n.end_line))) {
+                            let raw = n.metadata.as_ref().and_then(|m| m.get(engram_core::value_flow::METADATA_KEY)).and_then(|v| v.as_str());
+                            let source = snapshot.as_deref().and_then(|b| std::str::from_utf8(b).ok());
+                            match raw.zip(source).and_then(|(raw, source)| super::test_derivation::branch_cases(raw, &file, &n.name, source, n.start_line, n.end_line)) {
+                                Some(cases) => branch_cases.extend(cases),
+                                None => coverage_notes.push(format!("{file}:{}: parser branch evidence unavailable for {}.", n.start_line, n.name)),
+                            }
+                        }
                         if n.node_type == "setting_key" {
                             indexed_setting_ids.insert(n.node_id.clone());
                             setting_labels.insert(n.node_id.clone(), setting_label(n));
@@ -998,6 +1007,7 @@ impl Engram {
                     companion_context,
                     member_observations,
                     constructor_context,
+                    branch_cases,
                 )
             })
             .await
@@ -1151,6 +1161,7 @@ impl Engram {
                 "methods": req.methods,
                 "knowledge_before": req.knowledge_before,
                 "authored_guidance": project_policy_sources,
+                "selected_method_branches": branch_cases,
                 "axes": {
                     "settings": settings,
                     "roles": structured_matrix_axis(&roles_axis, None, |_| None),
@@ -1186,7 +1197,12 @@ impl Engram {
 
         let mut out = format!("# Test matrix — {} requested file(s)\n", req.files.len());
         out.push_str("Evidence scope: indexed settings, permission and state references plus configured risk rules matched against source-verified snapshots. Test discovery: not_run. Test execution: not_run. These are proposed cases, not verified outcomes.\n");
-        out.push_str(&project_policy_sources.render_markdown());
+        if !branch_cases.is_empty() {
+            out.push_str("\n## Branch tests for selected methods\nExercise both outcomes of each condition when its enclosing path is reachable. The cited statements identify where to observe the result.\n");
+            for case in &branch_cases {
+                out.push_str(&format!("- {}:{} {} — `{}`\n  - True: {}\n  - False: {}\n", case.file, case.line, case.method, case.condition, case.when_true, case.when_false));
+            }
+        }
         if let Some(scopes)=&req.methods {
             out.push_str(&format!("Method declaration scope: {}. Inferred axes and rule cases cover only these exact methods. Authored file guidance remains applicable; this is not whole-file, companion or transitive-helper QA.\n",serde_json::to_string(scopes).unwrap_or_default()));
         }
@@ -1398,6 +1414,7 @@ impl Engram {
                  for gates in files you did NOT change but that share these keys.\n",
             );
         }
+        out.push_str(&project_policy_sources.render_markdown());
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
