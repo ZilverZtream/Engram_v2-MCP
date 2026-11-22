@@ -372,7 +372,7 @@ impl Engram {
             "source_snapshot_complete":!snapshot_unavailable,
             "diff_blake3":diff_blake3,
             "source_before":source_before,"source_after":source_after,
-            "source_scope":"bounded current-file snapshots; supplied diff is not certified to match current files",
+            "source_scope":"source_before and source_after fingerprint working files at the start and end of this review to detect concurrent edits. The patch records the base-to-change differences.",
             "provider_coverage":"see gate_status and source_scope; not_applicable means that provider does not support the submitted source. Failed, skipped and degraded gates are not passing evidence",
             "review_decisions":prior_review_context["status"],
             "review_source":review_source,
@@ -409,6 +409,10 @@ impl Engram {
             .partition(|f| f["lines"].as_array().is_some_and(|lines|!lines.is_empty()));
         payload["summary"]["line_findings"]=line_rows.len().into();
         payload["summary"]["file_observations"]=file_rows.len().into();
+        payload["summary"]["total_findings"]=line_rows.len().into();
+        for severity in ["critical","warning","info","style"] {
+            payload["summary"][severity] = line_rows.iter().filter(|row| row["severity"] == severity).count().into();
+        }
         payload["findings"]=line_rows.into();
         payload["file_observations"]=file_rows.into();
         payload["mode"]=req.mode.as_deref().unwrap_or("full").into();

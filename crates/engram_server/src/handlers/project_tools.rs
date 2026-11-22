@@ -3875,7 +3875,7 @@ impl Engram {
         };
         let unindexed_only = req.check_disk && matches!(&completeness, Ok(c) if c.only_unindexed());
         let advice = if source_binding_invalid {
-            "source revision binding FAILED — do not trust indexed source; restore the expected clean Git worktree and run update_project"
+            "source revision binding FAILED for the exact clean commit. Engram indexes the working checkout. Consult disk_check and per-file fingerprints for checkout freshness; use a separate clean checkout if committed-only evidence is required"
         } else if source_binding_unknown {
             "freshness unknown — the requested Git source revision could not be verified"
         } else if source_format.is_err()

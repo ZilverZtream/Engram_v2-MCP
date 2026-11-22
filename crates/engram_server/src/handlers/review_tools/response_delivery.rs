@@ -55,10 +55,22 @@ pub(super) fn finish(req: &PreCommitReviewRequest, data: &Path, body: String, re
     if let Some(patch) = report.get("reviewed_patch") {
         manifest["reviewed_patch"] = patch.clone();
     }
-    let json = serde_json::to_string(&manifest).map_err(|e| McpError::internal_error(e.to_string(),None))?;
-    let text = if req.output_json { json } else { format!("# Pre-commit review: deferred report\n\nRecover the original report before resolving findings.\n\n```json\n{json}\n```\n") };
+    let render = |page: &Value| -> Result<String, McpError> {
+        let json = serde_json::to_string(page).map_err(|e| McpError::internal_error(e.to_string(),None))?;
+        Ok(if req.output_json { json } else { format!("# Pre-commit review\n\n```json\n{json}\n```\n") })
+    };
+    let mut text = render(&manifest)?;
     if text.len() > limit {
-        return Err(McpError::invalid_params(format!("max_tokens is too small: at least {} estimated tokens ({} UTF-8 reply-text bytes) are required for the complete finding ledger and coverage. Increase max_tokens; no finding was silently removed.",text.len().div_ceil(4),text.len()),None));
+        manifest["gate_status"] = json!({"detail":"available in the saved report"});
+        manifest["response_delivery"]["finding_scope"] = json!("First page of the selected line findings. Recover the saved report for the full ledger, gate evidence and file observations.");
+        manifest["response_delivery"]["total_line_findings"] = json!(manifest["finding_ledger"].as_array().map(Vec::len));
+        text = render(&manifest)?;
+        while text.len() > limit && manifest["finding_ledger"].as_array_mut().and_then(Vec::pop).is_some() {
+            text = render(&manifest)?;
+        }
+    }
+    if text.len() > limit {
+        return Err(McpError::invalid_params(format!("max_tokens is too small for the review summary and recovery pointer: at least {} estimated tokens required.",text.len().div_ceil(4)),None));
     }
     snapshots::save_review(data,&req.project_id,&body)?;
     Ok(CallToolResult::success(vec![Content::text(text)]))

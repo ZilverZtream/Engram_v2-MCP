@@ -2785,7 +2785,7 @@ impl Engram {
         );
 
         if per_file_reports.is_empty() {
-            out.push_str("No sync hazards found above the severity threshold. The codebase is relatively clean for async migration.\n");
+            out.push_str("No async-migration hazards above the severity threshold were detected in the scanned files.\n");
         } else {
             for (path, report) in &per_file_reports {
                 out.push_str(&format!(

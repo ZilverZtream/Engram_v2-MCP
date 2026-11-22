@@ -171,9 +171,6 @@ static RE_IS_POSTBACK_CS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)if\s*\(\s*(!?\s*(?:Page\.)?IsPostBack)\s*\)").expect("valid regex")
 });
 
-static RE_IS_POSTBACK_VB: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)If\s+(Not\s+)?(?:Page\.)?IsPostBack\b").expect("valid regex")
-});
 
 // Control event handlers — VB
 static RE_VB_CONTROL_EVENT: LazyLock<Regex> = LazyLock::new(|| {
@@ -545,15 +542,74 @@ fn extract_method_body(content: &str, start: usize, is_vb: bool) -> String {
     remaining.lines().take(50).collect::<Vec<_>>().join("\n")
 }
 
+/// Track which request types can reach each statement. Joining both branches
+/// preserves fall-through after nested conditions and conditional early exits.
+fn vb_postback_actions(body: &str) -> (bool, Vec<String>, Vec<String>, Vec<String>) {
+    static CONDITION: LazyLock<Regex> = LazyLock::new(|| Regex::new(
+        r"(?i)^(?:if|elseif)\s+(.*?)\s+then\b(.*)$").expect("VB conditional"));
+    const FIRST: u8 = 1;
+    const POST: u8 = 2;
+    const BOTH: u8 = FIRST | POST;
+    let mut reachable = BOTH;
+    let mut branches: Vec<(u8, u8)> = Vec::new(); // remaining alternatives, completed arms
+    let mut actions: [Vec<String>; 3] = Default::default();
+    let mut found = false;
+    for line in body.lines() {
+        let code = line.trim();
+        let lower = code.to_ascii_lowercase();
+        if lower.split('\'').next().unwrap_or("").trim_end() == "end if" {
+            if let Some((alternative, completed)) = branches.pop() {
+                reachable |= alternative | completed;
+            }
+            continue;
+        }
+        if lower == "else" || lower.starts_with("else '") || lower.starts_with("elseif ") {
+            if let Some((remaining, completed)) = branches.last_mut() {
+                *completed |= reachable;
+                reachable = std::mem::take(remaining);
+            }
+            if !lower.starts_with("elseif ") { continue; }
+        }
+        let mut statement = code;
+        let mut inline_alternative = 0;
+        if let Some(parts) = CONDITION.captures(code) {
+            let cond = parts[1].to_ascii_lowercase();
+            let (yes, no) = match cond.trim() {
+                "ispostback" | "page.ispostback" => (POST, FIRST),
+                "not ispostback" | "not page.ispostback" => (FIRST, POST),
+                _ => (BOTH, BOTH),
+            };
+            found |= yes != BOTH;
+            let alternative = reachable & no;
+            reachable &= yes;
+            statement = parts.get(2).unwrap().as_str().trim();
+            if statement.is_empty() || statement.starts_with('\'') {
+                if lower.starts_with("elseif ") {
+                    if let Some(frame) = branches.last_mut() { frame.0 = alternative; }
+                } else { branches.push((alternative, 0)); }
+                continue;
+            }
+            inline_alternative = alternative;
+        }
+        if reachable != 0 {
+            actions[(reachable - 1) as usize].extend(extract_action_summaries(statement));
+            let statement = statement.split('\'').next().unwrap_or("").trim().to_ascii_lowercase();
+            if matches!(statement.as_str(), "exit sub" | "exit function" | "return") || statement.starts_with("return ") {
+                reachable = 0;
+            }
+        }
+        reachable |= inline_alternative;
+    }
+    let [first, postback, always] = actions;
+    (found, first, postback, always)
+}
+
 fn analyze_postback_branching(
     body: &str,
     is_vb: bool,
 ) -> (bool, Vec<String>, Vec<String>, Vec<String>) {
-    let has_postback = if is_vb {
-        RE_IS_POSTBACK_VB.is_match(body)
-    } else {
-        RE_IS_POSTBACK_CS.is_match(body)
-    };
+    if is_vb { return vb_postback_actions(body); }
+    let has_postback = RE_IS_POSTBACK_CS.is_match(body);
 
     if !has_postback {
         let actions = extract_action_summaries(body);
@@ -566,11 +622,7 @@ fn analyze_postback_branching(
     let mut always = Vec::new();
 
     // Simple heuristic: split at the IsPostBack check
-    let postback_pos = if is_vb {
-        RE_IS_POSTBACK_VB.find(body).map(|m| m.start())
-    } else {
-        RE_IS_POSTBACK_CS.find(body).map(|m| m.start())
-    };
+    let postback_pos = RE_IS_POSTBACK_CS.find(body).map(|m| m.start());
 
     if let Some(pos) = postback_pos {
         let before = &body[..pos];
@@ -580,20 +632,10 @@ fn analyze_postback_branching(
         always = extract_action_summaries(before);
 
         // Determine which branch is first-load vs postback
-        let is_negated = if is_vb {
-            RE_IS_POSTBACK_VB
-                .captures(after)
-                .map(|c| c.get(1).is_some())
-                .unwrap_or(false)
-        } else {
-            RE_IS_POSTBACK_CS
-                .captures(after)
-                .map(|c| c[1].starts_with('!'))
-                .unwrap_or(false)
-        };
+        let is_negated = RE_IS_POSTBACK_CS.captures(after).is_some_and(|c| c[1].trim_start().starts_with('!'));
 
         // Extract the if-body and else-body
-        let (if_body, else_body) = split_if_else(after, is_vb);
+        let (if_body, else_body) = split_if_else(after);
 
         if is_negated {
             // If Not IsPostBack Then ... first load is in the if branch
@@ -609,93 +651,54 @@ fn analyze_postback_branching(
     (has_postback, first_load, postback, always)
 }
 
-fn split_if_else(body: &str, is_vb: bool) -> (String, String) {
-    if is_vb {
-        // Find the Then ... Else ... End If structure
-        if let Some(then_pos) = body.find("Then") {
-            let after_then = &body[then_pos + 4..];
-            if let Some(else_pos) = find_vb_else(after_then) {
-                let if_body = after_then[..else_pos].to_string();
-                let after_else = &after_then[else_pos + 4..]; // skip "Else"
-                if let Some(end_pos) = after_else.find("End If") {
-                    let else_body = after_else[..end_pos].to_string();
-                    return (if_body, else_body);
-                }
-                return (if_body, after_else.to_string());
-            }
-            return (after_then.to_string(), String::new());
-        }
-    } else {
-        // C# — find matching braces
-        let mut depth = 0i32;
-        let mut if_start = None;
-        let mut if_end = None;
-        let mut else_start = None;
-        let mut else_end = None;
-
-        for (i, ch) in body.char_indices() {
-            match ch {
-                '{' => {
-                    depth += 1;
-                    if depth == 1 && if_start.is_none() {
-                        if_start = Some(i + 1);
-                    }
-                    if depth == 1 && else_start.is_some() && else_end.is_none() {
-                        else_start = Some(i + 1);
-                    }
-                }
-                '}' => {
-                    depth -= 1;
-                    if depth == 0 && if_end.is_none() {
-                        if_end = Some(i);
-                    } else if depth == 0 && else_end.is_none() && else_start.is_some() {
-                        else_end = Some(i);
-                    }
-                }
-                _ => {}
-            }
-            if if_end.is_some()
-                && else_start.is_none()
-                && body[i..].trim_start().starts_with("else")
-            {
-                else_start = Some(i);
-            }
-        }
-
-        let if_body = if let (Some(s), Some(e)) = (if_start, if_end) {
-            body[s..e].to_string()
-        } else {
-            String::new()
-        };
-        let else_body = if let (Some(s), Some(e)) = (else_start, else_end) {
-            body[s..e].to_string()
-        } else {
-            String::new()
-        };
-        return (if_body, else_body);
-    }
-
-    (String::new(), String::new())
-}
-
-fn find_vb_else(body: &str) -> Option<usize> {
-    // Find "Else" at the same nesting level
+fn split_if_else(body: &str) -> (String, String) {
+    // C# — find matching braces
     let mut depth = 0i32;
-    for (i, line) in body.lines().enumerate() {
-        let trimmed = line.trim();
-        if trimmed.starts_with("If ") && trimmed.contains(" Then") && !trimmed.ends_with("Then") {
-            // Single-line If — don't track depth
-        } else if trimmed.starts_with("If ") && trimmed.ends_with("Then") {
-            depth += 1;
-        } else if trimmed == "End If" {
-            depth -= 1;
-        } else if depth == 0 && (trimmed == "Else" || trimmed.starts_with("ElseIf ")) {
-            // Calculate byte offset
-            let offset: usize = body.lines().take(i).map(|l| l.len() + 1).sum();
-            return Some(offset);
+    let mut if_start = None;
+    let mut if_end = None;
+    let mut else_start = None;
+    let mut else_end = None;
+
+    for (i, ch) in body.char_indices() {
+        match ch {
+            '{' => {
+                depth += 1;
+                if depth == 1 && if_start.is_none() {
+                    if_start = Some(i + 1);
+                }
+                if depth == 1 && else_start.is_some() && else_end.is_none() {
+                    else_start = Some(i + 1);
+                }
+            }
+            '}' => {
+                depth -= 1;
+                if depth == 0 && if_end.is_none() {
+                    if_end = Some(i);
+                } else if depth == 0 && else_end.is_none() && else_start.is_some() {
+                    else_end = Some(i);
+                }
+            }
+            _ => {}
+        }
+        if if_end.is_some()
+            && else_start.is_none()
+            && body[i..].trim_start().starts_with("else")
+        {
+            else_start = Some(i);
         }
     }
-    None
+
+    let if_body = if let (Some(s), Some(e)) = (if_start, if_end) {
+        body[s..e].to_string()
+    } else {
+        String::new()
+    };
+    let else_body = if let (Some(s), Some(e)) = (else_start, else_end) {
+        body[s..e].to_string()
+    } else {
+        String::new()
+    };
+    (if_body, else_body)
 }
 
 fn extract_action_summaries(body: &str) -> Vec<String> {
@@ -751,7 +754,7 @@ fn extract_action_summaries(body: &str) -> Vec<String> {
 fn summarize_line(line: &str) -> String {
     let s = line.trim();
     if s.len() > 80 {
-        format!("{}...", &s[..77])
+        format!("{}...", s.chars().take(77).collect::<String>())
     } else {
         s.to_string()
     }
@@ -1037,6 +1040,19 @@ pub fn format_lifecycle_map(report: &PageLifecycleMap) -> String {
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn vb_load_tracks_early_exits_and_fallthrough_after_nested_conditionals() {
+        let body = "lblAll.Text = title\r\nIf Page.IsPostBack Then\r\n If canEdit Then\r\n  lblEdit.Visible = True\r\n End If\r\n Exit Sub\r\nEnd If\r\ngrid.DataBind()";
+        let (branched, first, post, always) = vb_postback_actions(body);
+        assert!(branched);
+        assert_eq!(first, ["DataBind: grid.DataBind()"]);
+        assert_eq!(post, ["UI: lblEdit.Visible = True"]);
+        assert_eq!(always, ["UI: lblAll.Text = title"]);
+        let (_, first, post, _) = vb_postback_actions("If Not Page.IsPostBack Then Return\nview.DataBind()");
+        assert!(first.is_empty());
+        assert_eq!(post, ["DataBind: view.DataBind()"]);
+    }
 
     fn make_graph() -> Arc<GraphStore> {
         let dir = tempfile::tempdir().unwrap();

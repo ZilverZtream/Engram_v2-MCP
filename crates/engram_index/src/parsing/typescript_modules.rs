@@ -12,6 +12,7 @@ pub(super) struct Extraction<'tree> {
     pub anonymous_defaults: Vec<Node<'tree>>,
     shadows: Vec<(String, usize, usize)>,
     dynamic_imports: Vec<(Import, usize, usize)>,
+    pub(super) global_script: bool,
 }
 
 fn text<'a>(node: Node<'_>, source: &'a str) -> &'a str {
@@ -154,6 +155,7 @@ impl<'tree> Extraction<'tree> {
             anonymous_defaults: vec![],
             shadows: vec![],
             dynamic_imports: vec![],
+            global_script: !children(root).iter().any(|n| matches!(n.kind(), "import_statement" | "export_statement")),
         };
         if root.has_error() {
             this.facts.issues.push("parse_error".into());
@@ -521,13 +523,58 @@ impl<'tree> Extraction<'tree> {
 
     /// The capture is the actual callee identifier/property, so two calls on
     /// the same line retain different byte/column identities.
+    fn script_call(&self, callee: Node<'_>, source: &str) -> Option<Call> {
+        if !self.global_script || !self.facts.issues.is_empty() { return None; }
+        let member = callee.parent().filter(|n| n.kind() == "member_expression")?;
+        let receiver = member.child_by_field_name("object")?;
+        let root = std::iter::successors(Some(member), |n| n.parent()).last()?;
+        let (class, anchor, static_member) = match receiver.kind() {
+            "identifier" => {
+                let class = text(receiver, source);
+                if self.state_binding_shadowed_below(callee, class, root) { return None; }
+                if self.state_binding_shadowed(callee, class, root, false) &&
+                    !children(root).iter().any(|n| n.kind() == "class_declaration" &&
+                        n.child_by_field_name("name").is_some_and(|id| text(id, source) == class)) {
+                    return None;
+                }
+                (class, receiver, true)
+            }
+            "member_expression" if receiver.child_by_field_name("object")?.kind() == "this" => {
+                let field = text(receiver.child_by_field_name("property")?, source);
+                let mut parent = member;
+                loop {
+                    parent = parent.parent()?;
+                    match parent.kind() {
+                        "class_body" => break,
+                        "function_expression" | "function_declaration" => return None,
+                        _ => (),
+                    }
+                }
+                let declaration = children(parent).into_iter().find(|n| n.kind() == "public_field_definition"
+                    && n.child_by_field_name("name").is_some_and(|name| text(name, source) == field))?;
+                let ty = declaration.child_by_field_name("type")?.named_child(0)?;
+                if ty.kind() != "type_identifier" { return None; }
+                (text(ty, source), ty, false)
+            }
+            _ => return None,
+        };
+        Some(Call {
+            version: 1, module: String::new(), local: text(receiver, source).to_owned(),
+            imported: text(callee, source).to_owned(), import_site: site(anchor),
+            site: site(callee), unbound_reason: None,
+            script_receiver: Some(engram_core::typescript_modules::ScriptReceiver {
+                class_name: class.to_owned(), static_member,
+            }),
+        })
+    }
+
     pub fn call(&self, callee: Node<'_>, source: &str) -> Option<Call> {
         let member = callee.parent().filter(|n| n.kind() == "member_expression");
         let local_node = member
             .and_then(|n| n.child_by_field_name("object"))
             .unwrap_or(callee);
         if local_node.kind() != "identifier" {
-            return None;
+            return self.script_call(callee, source);
         }
         let local = text(local_node, source);
         if let Some((binding, _, _)) = self.dynamic_imports.iter().find(|(i, start, end)| {
@@ -539,12 +586,13 @@ impl<'tree> Extraction<'tree> {
                 imported: text(callee, source).into(),
                 module: binding.module.clone(),
                 import_site: binding.site.clone(),
+                script_receiver: None,
                 site: site(callee),
                 unbound_reason: Some("unsupported_dynamic_import".into()),
             });
         }
         let mut imports = self.facts.imports.iter().filter(|i| i.local == local);
-        let binding = imports.next()?;
+        let Some(binding) = imports.next() else { return self.script_call(callee, source); };
         let reason = if imports.next().is_some() {
             Some("ambiguous_import")
         } else if !self.facts.issues.is_empty() {
@@ -572,6 +620,7 @@ impl<'tree> Extraction<'tree> {
             },
             module: binding.module.clone(),
             import_site: binding.site.clone(),
+            script_receiver: None,
             site: site(callee),
             unbound_reason: reason.map(str::to_string),
         })

@@ -1175,8 +1175,14 @@ impl GraphStore {
         target_id: &str,
         limit: usize,
     ) -> anyhow::Result<Vec<(String, EdgeKind, u32)>> {
+        self.weighted_references(project_id, kinds, target_id, limit, true)
+    }
+
+    pub fn weighted_references(
+        &self, project_id: &str, kinds: &[EdgeKind], target_id: &str, limit: usize, incoming: bool,
+    ) -> anyhow::Result<Vec<(String, EdgeKind, u32)>> {
         let rtx = self.db.begin_read()?;
-        let adj = rtx.open_table(ADJ_IN)?;
+        let adj = rtx.open_table(if incoming { ADJ_IN } else { ADJ_OUT })?;
         let mut out: Vec<(String, EdgeKind, u32)> = Vec::new();
 
         for ek in kinds {
@@ -3073,11 +3079,30 @@ impl GraphStore {
         max_hops: usize,
         max_paths: usize,
     ) -> anyhow::Result<Vec<Vec<Node>>> {
+        Ok(self.trace_ui_paths(project_id, start_node_id, max_hops, max_paths)?.paths)
+    }
+
+    pub fn trace_ui_paths(
+        &self,
+        project_id: &str,
+        start_node_id: &str,
+        max_hops: usize,
+        max_paths: usize,
+    ) -> anyhow::Result<UiPathSearch> {
         use std::collections::{HashMap, VecDeque};
 
-        let max_bfs_queue_ops: usize = (max_hops * max_paths * 100).clamp(5000, 50_000);
+        const MAX_ENTRIES: usize = 4096;
         const MAX_BRANCHING: usize = 30;
-        let mut bfs_ops: usize = 0;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        let tx = self.db.begin_read()?;
+        let adjacency = tx.open_table(ADJ_OUT)?;
+        let nodes = tx.open_table(NODES)?;
+        let read_node = |id: &str| -> anyhow::Result<Option<Node>> {
+            let key = format!("{project_id}\0{id}");
+            Ok(nodes.get(key.as_str())?.map(|v| bincode::deserialize(v.value())).transpose()?)
+        };
+        let mut truncated = false;
+        let mut unresolved = 0;
 
         // Each entry is a (node_id, parent_idx) pair. Paths are reconstructed
         // by walking the parent chain, not by carrying full Vec<String> clones.
@@ -3093,14 +3118,14 @@ impl GraphStore {
         queue.push_back(0);
 
         while let Some(entry_idx) = queue.pop_front() {
-            bfs_ops += 1;
-            if bfs_ops > max_bfs_queue_ops {
+            if std::time::Instant::now() >= deadline {
+                truncated = true;
                 break;
             }
 
             let curr_id = entries[entry_idx].node_id.clone();
 
-            let Some(node) = self.get_node(project_id, &curr_id)? else {
+            let Some(node) = read_node(&curr_id)? else {
                 continue;
             };
 
@@ -3142,7 +3167,7 @@ impl GraphStore {
             }
 
             let depth = bfs_depth(&entries, entry_idx);
-            if depth > max_hops {
+            if depth >= max_hops {
                 continue;
             }
 
@@ -3194,18 +3219,30 @@ impl GraphStore {
                 EdgeKind::HasColumn,
             ];
             for k in kinds {
-                let out = self.neighbors(project_id, k, &curr_id, 100)?;
-                neighbors.extend(out.into_iter().map(|(id, _)| id));
+                let prefix = adj_key(project_id, &k, &curr_id);
+                for item in adjacency.range((prefix.as_str(), "")..)?.take(MAX_BRANCHING + 1) {
+                    let (key, _) = item?;
+                    let (source, target) = key.value();
+                    if source != prefix { break; }
+                    // Unbound symbols do not prove a path. Resolving each using a
+                    // whole-project name scan made page-wide traces unbounded.
+                    if target.starts_with("::") {
+                        unresolved += 1;
+                    } else {
+                        neighbors.push(target.to_owned());
+                    }
+                }
             }
 
             neighbors.sort();
             neighbors.dedup();
+            truncated |= neighbors.len() > MAX_BRANCHING;
             neighbors.truncate(MAX_BRANCHING);
 
-            for mut next_id in neighbors {
-                if let Some(resolved_id) = self.try_resolve_unresolved_target(project_id, &curr_id, &next_id)
-                {
-                    next_id = resolved_id;
+            for next_id in neighbors {
+                if entries.len() >= MAX_ENTRIES {
+                    truncated = true;
+                    break;
                 }
 
                 // Allow SQL nodes even if in path (they are terminals).
@@ -3227,14 +3264,14 @@ impl GraphStore {
         for id_path in id_paths {
             let mut node_path = Vec::with_capacity(id_path.len());
             for nid in &id_path {
-                if let Some(n) = self.get_node(project_id, nid)? {
+                if let Some(n) = read_node(nid)? {
                     node_path.push(n);
                 }
             }
             results.push(node_path);
         }
 
-        Ok(results)
+        Ok(UiPathSearch { paths: results, truncated, unresolved })
     }
 
     // ── Traverse ─────────────────────────────────────────────────────────────
@@ -4347,6 +4384,12 @@ fn contains_case_insensitive_path(haystack: &str, needle: &str) -> bool {
 }
 
 // ─── BFS helpers for find_ui_paths ───────────────────────────────────────────
+
+pub struct UiPathSearch {
+    pub paths: Vec<Vec<Node>>,
+    pub truncated: bool,
+    pub unresolved: usize,
+}
 
 struct BfsEntryOuter {
     node_id: String,

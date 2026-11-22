@@ -202,7 +202,7 @@ async fn find_similar_changes_reports_missing_companions() {
         "should surface the similar historical feature commits"
     );
     assert!(
-        text.contains("MISSING from your set"),
+        text.contains("Historical companions outside the submitted set"),
         "companion section must be present"
     );
     assert!(

@@ -67,6 +67,10 @@ pub struct OwnedCall {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Call {
     pub version: u32,
+    /// Receiver of a member in a classic script program. The local field
+    /// or class spelling and its declaration site come from authored syntax.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub script_receiver: Option<ScriptReceiver>,
     pub local: String,
     pub imported: String,
     pub module: String,
@@ -74,6 +78,12 @@ pub struct Call {
     pub site: Site,
     /// None means eligible for module resolution, not already resolved.
     pub unbound_reason: Option<String>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ScriptReceiver {
+    pub class_name: String,
+    pub static_member: bool,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

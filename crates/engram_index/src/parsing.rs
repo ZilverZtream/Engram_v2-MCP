@@ -960,6 +960,7 @@ impl SymbolExtractor {
             .then(|| typescript_modules::Extraction::new(tree.root_node(), content));
 
 
+        let mut script_references = Vec::new();
         // Old-style TS projects (tsconfig outFile, no ES modules) wire files
         // with triple-slash reference DIRECTIVES — comments, invisible to the
         // tree-sitter import query. Live probe 2026-07-10: a hub TS file had
@@ -981,6 +982,7 @@ impl SymbolExtractor {
                 if let Some(p) = extract_triple_slash_reference(t)
                     && let Some(resolved) = resolve_reference_path(path, &p)
                 {
+                    script_references.push(resolved.clone());
                     edges.push(ExtractedEdge {
                         source_name: "file".to_string(),
                         source_kind: "file".to_string(),
@@ -1256,6 +1258,21 @@ impl SymbolExtractor {
 
                 let mut meta = std::collections::HashMap::new();
                 let java_fqn = java.as_ref().and_then(|j|j.declaration_fqn(node,content));
+                if node.kind() == "method_definition" && matches!(ext, "ts" | "tsx") {
+                    let mut cursor = node.walk();
+                    let access = node.children(&mut cursor).find(|n| n.kind() == "accessibility_modifier")
+                        .map(|n| &content[n.byte_range()]).unwrap_or("public");
+                    meta.insert("access_level".into(), if name.starts_with('#') { "private" } else { access }.into());
+                    if module.as_ref().is_some_and(|m| m.global_script)
+                        && let Some(class) = node.parent().and_then(|body| body.parent())
+                        && class.kind() == "class_declaration"
+                        && class.parent().is_some_and(|n| n.kind() == "program")
+                        && let Some(owner) = class.child_by_field_name("name")
+                    {
+                        meta.insert("script_class".into(), content[owner.byte_range()].into());
+                        meta.insert("script_static".into(), node.children(&mut cursor).any(|n| n.kind() == "static").to_string());
+                    }
+                }
                 let declaration_fqn = java_fqn.as_ref().or_else(||name_position.and_then(|pos| fqn_table.declaration(pos)));
                 if kind == "class" && matches!(ext, "ts" | "tsx" | "js" | "jsx") {
                     let (relationships, unsupported) = js_ts_heritage::extract(
@@ -1360,7 +1377,7 @@ impl SymbolExtractor {
                 metadata: Some(std::collections::HashMap::from([(
                     engram_core::typescript_modules::MODULE_KEY.into(),
                     serde_json::to_string(&module.facts).expect("serializable module facts"),
-                )])),
+                ), ("script_reference_paths".into(), serde_json::to_string(&script_references).expect("serializable paths"))])),
             });
         }
         if let Some(java) = &java {

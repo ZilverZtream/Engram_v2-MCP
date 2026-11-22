@@ -113,7 +113,7 @@ static RE_VB_MY_SETTINGS: LazyLock<Regex> = LazyLock::new(|| {
 /// Keep byte offsets stable while excluding VB string contents and comments
 /// from name-shape detection. Literal setting keys are still read from the
 /// original line, but only when their AppSettings call starts in code.
-fn vb_settings_code_mask(line: &str) -> String {
+pub(crate) fn vb_settings_code_mask(line: &str) -> String {
     let bytes = line.as_bytes();
     let mut masked = bytes.to_vec();
     let mut i = 0;

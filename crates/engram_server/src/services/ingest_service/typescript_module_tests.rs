@@ -55,6 +55,28 @@ fn outgoing(state: &AppState, caller: &str) -> anyhow::Result<Vec<engram_graph::
 }
 
 #[tokio::test]
+async fn classic_script_calls_follow_the_shared_entry_point_and_declared_receiver() -> anyhow::Result<()> {
+    let temporary = tempfile::tempdir()?;
+    let state = state(temporary.path())?;
+    let files = [
+        ("entry.ts", "/// <reference path='./model.ts'/>\n/// <reference path='./screen.ts'/>"),
+        ("model.ts", "class Store {\n static Load() {}\n Save() {}\n}"),
+        ("other.ts", "class Store {\n static Load() {}\n Save() {}\n}"),
+        ("screen.ts", "class Screen {\n private current: Store;\n Refresh() { Store.Load(); this.current.Save(); }\n Ignore(Store: any) { Store.Load(); }\n}"),
+    ];
+    process_ingest_stats(&state, "tsmodules", 1, &stats(&files)).await?;
+    state.graph.resolve_symbol_edges("tsmodules")?;
+    let targets: std::collections::BTreeSet<_> = outgoing(&state, "Refresh")?.into_iter()
+        .map(|edge| edge.target_id).collect();
+    assert_eq!(targets, [NodeId::symbol("function", None, "model.ts", "Load", 2).0,
+        NodeId::symbol("function", None, "model.ts", "Save", 3).0].into_iter().collect());
+    assert!(outgoing(&state, "Ignore")?.iter().all(|edge| !targets.contains(&edge.target_id)));
+    drop(state);
+    temporary.close()?;
+    Ok(())
+}
+
+#[tokio::test]
 async fn typescript_modules_bind_import_identity_and_publish_correct_public_calls()
 -> anyhow::Result<()> {
     let temporary = tempfile::tempdir()?;

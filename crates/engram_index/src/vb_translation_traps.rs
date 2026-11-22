@@ -207,6 +207,9 @@ pub fn detect_vb_translation_traps(code_files: &[(&str, &str)]) -> VbTranslation
             continue;
         }
         files_analyzed += 1;
+        let masked = content.lines().map(crate::vb_extractor::vb_settings_code_mask)
+            .collect::<Vec<_>>().join("\n");
+        let content = masked.as_str();
 
         // Build line-to-method index for location tracking
         let method_map = build_method_map(content);
@@ -230,14 +233,12 @@ pub fn detect_vb_translation_traps(code_files: &[(&str, &str)]) -> VbTranslation
             let full_line = get_line_at(content, m.start());
             let trimmed = full_line.trim_start();
             // Skip variable declarations: "Dim x As Type = Nothing" is initialization, not comparison
-            if trimmed.starts_with("Dim ")
-                || trimmed.starts_with("dim ")
-                || trimmed.starts_with("Private ")
-                || trimmed.starts_with("Public ")
-                || trimmed.starts_with("Protected ")
-                || trimmed.starts_with("Friend ")
-                || trimmed.starts_with("Static ")
-            {
+            let lower = trimmed.to_ascii_lowercase();
+            let prefix = &content[..m.start()];
+            let before = prefix.rsplit(['\n', ':']).next().unwrap_or("").trim_start().to_ascii_lowercase();
+            if before.ends_with("as ") || before.trim_end().ends_with(" as")
+                || before.is_empty() || ["dim ", "private ", "public ", "protected ", "friend ", "static ", "optional "]
+                    .iter().any(|keyword| lower.starts_with(keyword)) {
                 continue;
             }
             let line = line_number(content, m.start());

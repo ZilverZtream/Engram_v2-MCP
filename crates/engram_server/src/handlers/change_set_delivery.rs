@@ -486,7 +486,7 @@ fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budge
             None,
         ));
     }
-    let mut end = offset.saturating_add(budget / 2).min(body.len());
+    let mut end = offset.saturating_add(budget).min(body.len());
     while !body.is_char_boundary(end) {
         end -= 1;
     }
@@ -522,7 +522,7 @@ fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budge
         if end == offset {
             return Err(McpError::invalid_params(format!("max_tokens is too small for recovery metadata; increase to at least {} estimated tokens", (rendered.len() + 8).div_ceil(4)), None));
         }
-        end = offset + (end - offset) / 2;
+        end -= (rendered.len() - budget).min((end - offset).div_ceil(2));
         while !body.is_char_boundary(end) {
             end -= 1;
         }

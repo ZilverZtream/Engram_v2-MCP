@@ -4,7 +4,7 @@
 /// Earlier version-7 files may contain same-name bindings from the old parser.
 /// Keep this per-file so unrelated source and VB parser receipts stay reusable.
 /// Version 2 gives member-assigned functions their own declaration and call owner.
-pub const SCRIPT_CALL_CONTRACT: u64 = 2;
+pub const SCRIPT_CALL_CONTRACT: u64 = 3;
 /// VB enrichment now publishes source-bound literal typed-getter observations.
 pub const VB_LITERAL_SETTINGS_CONTRACT: u64 = 1;
 pub const MODERN_STATE_KEY: &str = engram_core::modern_state::KEY;

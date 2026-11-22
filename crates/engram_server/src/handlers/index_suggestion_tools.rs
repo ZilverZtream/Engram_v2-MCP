@@ -176,7 +176,12 @@ impl Engram {
             }
             let rows=result["suggestions"].as_array().cloned().unwrap_or_default();let total=rows.len();
             result["suggestions"]=json!(rows.into_iter().skip(offset).take(limit).collect::<Vec<_>>());result["total_suggestions"]=json!(total);result["offset"]=json!(offset);
-            result["summary"]=json!(format!("{} source-backed index candidate(s); {} access pattern(s) already have an eligible source-declared leading-key index",total,result["covered_pattern_count"]));
+            if result["coverage"]["queries_analyzed"].as_u64() == Some(0) {
+                result["status"] = json!("unassessed");
+                result["summary"] = json!("No query could be analyzed in the selected scope. Index coverage is unknown. This analyzer currently reads SQL and supported inline SQL sites.");
+            } else {
+                result["summary"]=json!(format!("{} source-backed index candidate(s); {} access pattern(s) already have an eligible source-declared leading-key index",total,result["covered_pattern_count"]));
+            }
             result["project_id"]=json!(req.project_id);result["active_generation"]=json!(generation);
             result["coverage"]["source_inventory"]=json!({"admitted_sql_files":admitted_sql,"inline_query_sites_admitted":inline_admitted,"inline_evidence_withheld":inline_withheld,"query_sources":queries.len(),"source_bytes":bytes,"source_gaps":query_gaps,"truncated":truncated,"admission":"Selected membership, physical graph revision and current source BLAKE3; no atomic graph/disk snapshot. Inline query text comes from indexed SqlCalls metadata with containing-method citations. Assembled/fragment SQL is withheld. Schema comparison uses all admitted SQL declarations even when file_path narrows query sources."});
             if offset+limit<total {let mut next=req.clone();next.offset=Some(offset+limit);result["next_page"]=json!({"tool":"find_missing_indexes","arguments":next,"consistency":"Repeat only while selected generation and source fingerprints remain unchanged"});}

@@ -1037,7 +1037,7 @@ pub fn format_decision(decision: &AdpDecision) -> String {
             };
             let failed = decision.failed_gates.len();
             let total = decision.gate_results.len();
-            let passed = total.saturating_sub(failed);
+            let passed = decision.gate_results.iter().filter(|g| g.passed && !g.skipped).count();
             out.push_str(&format!(
                 "# {icon} — This change WOULD be blocked in production mode.\n\n\
                  **Original verdict:** {orig}  \n\

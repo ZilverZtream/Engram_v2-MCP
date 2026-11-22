@@ -1808,23 +1808,24 @@ impl Engram {
             }
         }
 
-        let paths = self
-            .state
-            .graph
-            .find_ui_paths(
-                &req.project_id,
-                &start_id,
-                req.sanitized_max_hops(),
-                req.sanitized_max_paths(),
-            )
+        let graph = self.state.graph.clone();
+        let project = req.project_id.clone();
+        let root = start_id.clone();
+        let hops = req.sanitized_max_hops();
+        let limit = req.sanitized_max_paths();
+        let search = tokio::task::spawn_blocking(move || {
+            graph.trace_ui_paths(&project, &root, hops, limit)
+        }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let coverage = format!("Search limits reached: {}. Unresolved edge observations skipped: {}.", search.truncated, search.unresolved);
+        let paths = search.paths;
 
         if paths.is_empty() {
             // The MOST COMMON legacy case is a handler that never reaches
             // SQL (or wiring the extractor missed) — a bare dead-end here
             // wasted the agent's most likely follow-up moves.
             return Ok(CallToolResult::success(vec![Content::text(format!(
-                "No paths found from {start_id} to any SQL nodes within {} hops.\n\
+                "No indexed path found from {start_id} to SQL within {} hops. {coverage}\n\
                  next steps to trace it anyway:\n\
                  - raise max_hops (deep pages often need 4)\n\
                  - find_symbol_references(<the handler>) — the data access may live \
@@ -1837,7 +1838,7 @@ impl Engram {
             ))]));
         }
 
-        let mut out = format!("Found {} path(s) to SQL:\n", paths.len());
+        let mut out = format!("Found {} path(s) to SQL:\n{coverage}\n", paths.len());
 
         let fallback_penalty = if trace_used_fallback {
             (trace_candidate_count as f64 * 0.2).min(0.8)

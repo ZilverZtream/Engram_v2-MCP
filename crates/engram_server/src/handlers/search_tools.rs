@@ -219,6 +219,14 @@ impl Engram {
             (0, None)
         };
 
+        // Global knowledge uses storage generation zero. Its identity is
+        // independent of the revision the project has indexed.
+        let project_generation = if _source_snapshot.is_some() { Some(gen_) } else {
+            self.get_active_generation(&req.project_id).await.ok().filter(|g| *g > 0)
+        };
+        let project_freshness = if let Some(generation) = project_generation {
+            self.freshness_footer(&req.project_id, generation).await
+        } else { "Source generation unavailable for this knowledge search.".to_owned() };
         // VEC1/D1: check if a full reindex is pending — surface degraded-mode
         // warning so callers know semantic search quality may be reduced.
         let reindex_since_ms: Option<u64> = {
@@ -466,11 +474,11 @@ impl Engram {
                     .to_string()
             };
             if req.output_json {
-                let mut value=structured_response::envelope("search_memory",&req.project_id,&req.query,Some(gen_));
+                let mut value=structured_response::envelope("search_memory",&req.project_id,&req.query,project_generation);
                 value["status"]=serde_json::json!("no_hits");
                 value["message"]=serde_json::json!(msg);
                 value["warnings"]=serde_json::json!(structured_warnings);
-                value["freshness"]=serde_json::json!(self.freshness_footer(&req.project_id,gen_).await);
+                value["freshness"]=serde_json::json!(project_freshness);
                 value["semantic_quality"]=serde_json::json!(semantic_delivery.quality(req.semantic, ps.search.semantic_quality()));
                 value["retrieval"]=semantic_delivery.metadata(req.semantic, ps.search.semantic_quality());
                 let page=structured_response::Page{offset:req.offset,window_limit:crate::models::requests::MAX_SEARCH_RESULTS,total:None};
@@ -479,7 +487,7 @@ impl Engram {
             return Ok(CallToolResult::success(vec![Content::text(response_budget::message(format!("{out}{msg}"), &req)?)]));
         }
 
-        out.push_str(&format!("active_generation: {gen_}\n"));
+        if let Some(generation) = project_generation { out.push_str(&format!("active_generation: {generation}\n")); }
         let hit_refs: Vec<engram_index::HybridHit> = hits
             .iter()
             .filter(|(ns, _)| ns == "memory")
@@ -655,9 +663,9 @@ impl Engram {
             guidance = true;
         }
         suffix.push_str("next: full_chunk supplies source content with applicable live repository guidance; resolve any policy omissions before editing. citation_chunk supplies exact stored-content identity, raw hash and bounded citation pages without injected guidance; pass each returned continuation as citation with the same project_id/namespace/doc_id until absent. resolve_id(<symbol>) to enter the graph; get_concept_footprint(<domain term>) for indexed touchpoints.\n");
-        let freshness = self.freshness_footer(&req.project_id, gen_).await;
+        let freshness = project_freshness;
         let (out, returned) = if req.output_json {
-            let mut value=structured_response::envelope("search_memory",&req.project_id,&req.query,Some(gen_));
+            let mut value=structured_response::envelope("search_memory",&req.project_id,&req.query,project_generation);
             value["warnings"]=serde_json::json!(structured_warnings);
             value["freshness"]=serde_json::json!(freshness);
             value["semantic_quality"]=serde_json::json!(semantic_delivery.quality(req.semantic, ps.search.semantic_quality()));
@@ -1142,6 +1150,7 @@ impl Engram {
             /// so the caller knows the sibling list is not exhaustive (H1).
             incoming_truncated: bool,
             outgoing: Vec<(String, EdgeKind, u32)>,
+            capped_outgoing_kinds: Vec<EdgeKind>,
             /// (source_id \0 kind) → call-site line, from edge metadata.
             call_lines: std::collections::HashMap<String, String>,
         }
@@ -1255,6 +1264,7 @@ impl Engram {
                 // Cap+1 and explicit failures: an incomplete outgoing list
                 // must not masquerade as proof that no dependency exists.
                 let mut outgoing: Vec<(String, EdgeKind, u32)> = Vec::new();
+                let mut capped_outgoing_kinds = Vec::new();
                 for kind in &outgoing_kinds_owned {
                     match graph_b.neighbors(
                         &project_id_b,
@@ -1264,12 +1274,7 @@ impl Engram {
                     ) {
                         Ok(mut neighbors) => {
                             if neighbors.len() > max_outgoing_per_kind {
-                                graph_failures.push(format!(
-                                    "outgoing {} references of {} truncated at {}",
-                                    kind.as_str(),
-                                    node.node_id,
-                                    max_outgoing_per_kind
-                                ));
+                                capped_outgoing_kinds.push(kind.clone());
                                 neighbors.truncate(max_outgoing_per_kind);
                             }
                             for (target_id, weight) in neighbors {
@@ -1366,6 +1371,7 @@ impl Engram {
                         )),
                     }
                     results.push(NodeGraphResult {
+                        capped_outgoing_kinds,
                         constructor_reference,
                         name: node.name,
                         node_type: node.node_type,
@@ -1479,6 +1485,9 @@ impl Engram {
             for nr in &graph_results {
                 if nr.constructor_reference {
                     out.push_str("Construction sites for the requested type (incoming calls to its constructor):\n");
+                }
+                for kind in &nr.capped_outgoing_kinds {
+                    out.push_str(&format!("Requested limit: outgoing {} references for {} truncated at {max_outgoing_per_kind}.\n", kind.as_str(), nr.name));
                 }
                 out.push_str(&format!(
                     "Symbol: {} ({}) in {}\n  node_id: {}\n",

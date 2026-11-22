@@ -360,7 +360,9 @@ impl Engram {
         if req.project_id != engram_core::namespaces::USER_PROJECT_ID {
             self.ensure_project_record(&req.project_id).await?;
         }
-        let kind = req.edge_kind.as_deref().and_then(EdgeKind::parse);
+        let kind = req.edge_kind.as_deref().map(|name|
+            EdgeKind::parse(name).ok_or_else(|| McpError::invalid_params(format!("Unknown edge kind {name}"), None))
+        ).transpose()?;
         if req.selected_source_only {
             let kind = kind.ok_or_else(|| McpError::invalid_params(
                 "selected_source_only requires a supported explicit edge_kind", None,
@@ -443,21 +445,22 @@ impl Engram {
             }
 
             if matches!(req.direction, Direction::Out | Direction::Both) {
-                let search_kind = kind.unwrap_or(EdgeKind::Dependency);
+                let kinds = kind.as_ref().map(std::slice::from_ref).unwrap_or(EdgeKind::ALL);
                 let outgoing = graph
-                    .neighbors(&req.project_id, search_kind, &req.node_id, 100)
+                    .weighted_references(&req.project_id, kinds, &req.node_id, 101, false)
                     .map_err(|e| e.to_string())?;
                 if !outgoing.is_empty() {
                     let header = match edge_kind_str.as_deref() {
                         Some("contains") => "Members (Outgoing 'contains'):\n",
                         Some("imports") => "Imports (Outgoing 'imports'):\n",
                         Some(k) => &format!("Outgoing references (kind='{}'):\n", k),
-                        None => "Outgoing references (dependencies):\n",
+                        None => "Outgoing references (all kinds):\n",
                     };
                     out.push_str(header);
-                    for (n, w) in outgoing {
-                        out.push_str(&format!("- {} (weight={})\n", n, w));
-                        if edge_kind_str.as_deref() == Some("calls") {
+                    if outgoing.len() > 100 { out.push_str("Showing the first 100 references by weight.\n"); }
+                    for (n, edge_kind, w) in outgoing.into_iter().take(100) {
+                        out.push_str(&format!("- {} [{}] (weight={})\n", n, edge_kind.as_str(), w));
+                        if edge_kind == EdgeKind::Calls {
                             out.push_str(&module_reference_evidence(&graph, &req.project_id, &req.node_id, &n, &mut module_evidence_remaining)?);
                         }
                     }

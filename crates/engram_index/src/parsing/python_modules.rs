@@ -289,6 +289,7 @@ impl Extraction {
             imported: spelling.clone(),
             module: "<unknown>".into(),
             import_site: site(node),
+            script_receiver: None,
             site: site(node),
             unbound_reason: None,
         };

@@ -1787,9 +1787,16 @@ impl Engram {
                 );
             }
 
-            let scanned = walked_oids_len;
+            // Snapshots can retain commits from a previous, rebased branch.
+            // Rank only distinct commits in this checkout's requested window.
+            let repo = GitWalker::open_repo(&repo_dir)?;
+            let window = GitWalker::walk_older_commits(&repo, None, max_commits,
+                MergeCommitPolicy::FirstParentOnly, &tokio_util::sync::CancellationToken::new())?;
+            let mut reachable: HashSet<_> = window.iter().map(ToString::to_string).collect();
+            let scanned = commits.iter().filter(|c| reachable.contains(&c.oid)).count();
             let mut scored: Vec<(f64, String, String, Vec<String>)> = Vec::new();
             for c in &commits {
+                if !reachable.remove(&c.oid) { continue; }
                 let score = bag_jaccard(&input_bag, &path_token_bag(&c.files));
                 if score <= 0.0 {
                     continue;
@@ -1943,7 +1950,7 @@ impl Engram {
             out.push_str("\n## Companion check\nNo recurring companion artifacts are missing from your set.\n");
         } else {
             out.push_str(&format!(
-                "\n## Changes like this also touched — MISSING from your set (≥{threshold} of {} commits)\n",
+                "\n## Historical companions outside the submitted set (≥{threshold} of {} reachable commits; verify applicability)\n",
                 scored.len()
             ));
             for (f, c) in recurring_exact.iter().take(15) {
@@ -14737,14 +14744,16 @@ fn validate_contract_checkpoint(
         McpError::invalid_params("contract_checkpoint.hard_items must be an array", None)
     })?;
     if hard_items.is_empty() {
+        let receipt_id = checkpoint["receipt"]["receipt_id"].as_str().ok_or_else(||
+            McpError::invalid_params("Expected the receipt object produced by get_change_set", None))?;
         return Ok(serde_json::json!({
-            "status": "PASS",
-            "implementation_may_begin": true,
+            "status": "NO_HARD_ITEMS",
+            "implementation_may_begin": null,
             "implementation_may_begin_scope": "checkpoint_intake_only",
             "validation_scope": "provided_checkpoint_and_ledger_only",
             "source_evidence_verified": false,
             "decision_authority_verified": false,
-            "receipt_id": checkpoint["receipt"]["receipt_id"],
+            "receipt_id": receipt_id,
             "hard_items_expected": 0,
             "hard_items_present": 0,
             "blocking_unknown_ids": [],
@@ -16027,8 +16036,8 @@ mod work_item_tests {
             "workflow_scaffold": {"markdown": "`get_change_set contract checkpoint: sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855 configured_rules=0`"}
         });
         let result = validate_contract_checkpoint(&checkpoint, "", "").unwrap();
-        assert_eq!(result["status"], "PASS");
-        assert_eq!(result["implementation_may_begin"], true);
+        assert_eq!(result["status"], "NO_HARD_ITEMS");
+        assert!(result["implementation_may_begin"].is_null());
         assert_eq!(result["hard_items_expected"], 0);
     }
 

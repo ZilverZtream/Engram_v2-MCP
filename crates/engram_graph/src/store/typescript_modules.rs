@@ -11,6 +11,21 @@ const PRESERVED: &str = "typescript_preserved_call_edge_v1";
 mod config;
 mod state;
 
+/// Script declarations can share a global scope when one source references
+/// the other, or an entry point includes both through reference directives.
+fn script_includers(path: &str, parents: &BTreeMap<String, Vec<String>>) -> BTreeSet<String> {
+    let mut seen = BTreeSet::new();
+    let mut pending = vec![path];
+    while let Some(current) = pending.pop() {
+        if seen.insert(current.to_owned()) {
+            if let Some(more) = parents.get(current) {
+                pending.extend(more.iter().map(String::as_str));
+            }
+        }
+    }
+    seen
+}
+
 struct Resolver {
     modules: BTreeMap<String, (Node, Module)>,
     nodes: BTreeMap<String, Node>,
@@ -358,6 +373,27 @@ impl GraphStore {
                 desired.insert(key.clone(), original);
             }
         }
+        let mut parents = BTreeMap::<String, Vec<String>>::new();
+        for (path, (file, _)) in &resolver.modules {
+            if let Some(refs) = file.metadata.as_ref().and_then(|m| m["script_reference_paths"].as_str())
+                .and_then(|raw| serde_json::from_str::<Vec<String>>(raw).ok()) {
+                for dependency in refs { parents.entry(dependency).or_default().push(path.clone()); }
+            }
+        }
+        let mut members = BTreeMap::<(&str, &str, bool), Vec<&Node>>::new();
+        let mut sources = BTreeMap::<(&str, &str, u32, &str), Option<&Node>>::new();
+        for node in resolver.nodes.values() {
+            let Some(meta) = &node.metadata else { continue; };
+            if let Some(fqn) = meta["fqn"].as_str() {
+                sources.entry((node.file_path.as_str(), &node.node_type, node.start_line, fqn))
+                    .and_modify(|slot| *slot = None).or_insert(Some(node));
+            }
+            if let Some(class) = meta["script_class"].as_str() {
+                let member = node.name.rsplit('.').next().unwrap_or(&node.name);
+                members.entry((class, member, meta["script_static"] == "true")).or_default().push(node);
+            }
+        }
+        let mut scopes = BTreeMap::new();
         for (path, (file, facts)) in &resolver.modules {
             for owned_call in &facts.calls {
                 let call = &owned_call.call;
@@ -378,27 +414,24 @@ impl GraphStore {
                 let source = if resolver.nodes.contains_key(&source) {
                     source
                 } else {
-                    let candidates: Vec<_> = resolver
-                        .nodes
-                        .values()
-                        .filter(|n| {
-                            n.file_path.as_str() == path
-                                && n.node_type == owned_call.source_kind
-                                && n.start_line == owned_call.source_line
-                                && n.metadata
-                                    .as_ref()
-                                    .and_then(|m| m.get("fqn"))
-                                    .and_then(|v| v.as_str())
-                                    == Some(&owned_call.source_name)
-                        })
-                        .collect();
-                    if candidates.len() != 1 {
+                    let identity = (path.as_str(), owned_call.source_kind.as_str(), owned_call.source_line, owned_call.source_name.as_str());
+                    let Some(Some(node)) = sources.get(&identity) else {
                         continue;
-                    }
-                    candidates[0].node_id.clone()
+                    };
+                    node.node_id.clone()
                 };
                 let resolution = if let Some(reason) = &call.unbound_reason {
                     Err(reason.as_str())
+                } else if let Some(receiver) = &call.script_receiver {
+                    let key = (receiver.class_name.as_str(), call.imported.as_str(), receiver.static_member);
+                    let mut matches = Vec::new();
+                    for candidate in members.get(&key).into_iter().flatten() {
+                        let target = candidate.file_path.as_str();
+                        scopes.entry(path.clone()).or_insert_with(|| script_includers(path, &parents));
+                        scopes.entry(target.to_owned()).or_insert_with(|| script_includers(target, &parents));
+                        if !scopes[path].is_disjoint(&scopes[target]) { matches.push(candidate.node_id.clone()); }
+                    }
+                    if matches.len() == 1 { Ok(matches.remove(0)) } else { Err("no_unique_script_member_in_reference_scope") }
                 } else {
                     resolver.module_path(path, &call.module).and_then(|module| {
                         resolver.export(&module, &call.imported, &mut BTreeSet::new(), &mut 4096)
@@ -412,8 +445,11 @@ impl GraphStore {
                     ),
                 };
                 let key = edge_key(project, &EdgeKind::Calls, &source, &target);
+                let binding = if reason.is_some() { "unbound" } else if call.script_receiver.is_some() {
+                    "syntax_script_class_member"
+                } else { "syntax_module_export" };
                 let evidence = serde_json::json!({"source_file": path, "call": call,
-                    "binding": if reason.is_none() {"syntax_module_export"} else {"unbound"}, "reason": reason,
+                    "binding": binding, "reason": reason,
                     "target_file": resolver.nodes.get(&target).map(|n| n.file_path.as_str()),
                     "target_line": resolver.nodes.get(&target).map(|n| n.start_line)});
                 // One graph key can contain both a local call and self-import
@@ -423,7 +459,7 @@ impl GraphStore {
                     source_id: source, target_id: target, namespace: file.namespace.clone(), language: file.language.clone(),
                     edge_kind: EdgeKind::Calls, weight: 1, generation: file.generation,
                     updated_at_ms: previous.get(&key).map_or_else(now_ms, |e| e.updated_at_ms),
-                    metadata: Some(serde_json::json!({"resolution": if reason.is_none() {"syntax_module_export"} else {"unbound"},
+                    metadata: Some(serde_json::json!({"resolution": binding,
                         "src_line": owned_call.source_line.to_string(),
                         "call_site_line": call.site.line.to_string(), "call_site_lines": [], BINDINGS: []})),
                 }));

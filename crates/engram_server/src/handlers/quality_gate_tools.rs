@@ -566,7 +566,9 @@ impl Engram {
             hits.len(),
             rules_total,
             top_k,
-            if hits.len() >= top_k {
+            if hits.len() >= 50 {
+                " — maximum retrieval window; narrow the diff or query for more specific rules"
+            } else if hits.len() >= top_k {
                 " — the cap was filled; raise top_k for more"
             } else {
                 ""

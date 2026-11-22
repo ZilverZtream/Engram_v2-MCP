@@ -433,13 +433,16 @@ impl Gate for BlastRadiusGate {
             .collect();
         // Prefer shallower paths first — they tend to be higher-blast
         // shared modules.
-        files.sort_by_key(|f| f.path.matches('/').count());
+        files.sort_by_key(|f| {
+            let extension = std::path::Path::new(&f.path).extension().and_then(|e| e.to_str()).unwrap_or("");
+            (super::is_generated_filename(&f.path), matches!(extension, "resx" | "css" | "json" | "xml"), f.path.as_str())
+        });
         let total_files = files.len();
         let truncated = files.len() > FILE_CAP;
         files.truncate(FILE_CAP);
         if truncated {
             ctx.note_cap(format!(
-                "looked at {FILE_CAP} of {total_files} changed files (FILE_CAP {FILE_CAP}) — shallower paths first"
+                "looked at {FILE_CAP} of {total_files} changed files; authored code is prioritized before resources and generated files"
             ));
         }
 
@@ -580,9 +583,7 @@ impl Gate for BlastRadiusGate {
                 "(diff)".to_string(),
                 "Blast-radius analysis truncated",
                 format!(
-                    "Diff touches more than {} files; blast radius was computed only \
-                         for the shallowest 20 (by path depth). Deeper files were skipped \
-                         to stay within the 5-second budget.",
+                    "The file-count limit is {}. See coverage for the examined subset.",
                     FILE_CAP
                 ),
                 "For a full blast-radius read, run `impact_analysis` on each skipped \
