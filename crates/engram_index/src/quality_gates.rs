@@ -89,7 +89,7 @@ pub fn parse_quality_source(
             parse_quality_source_checked(content, source, origin).unwrap_or_default()
         }
         QualitySource::CodeRabbit | QualitySource::SonarQube | QualitySource::DevOpsBoard => {
-            parse_findings_json(content, source.category(), origin)
+            parse_findings_json(content, source.category(), origin).unwrap_or_default()
         }
         QualitySource::Text => parse_text_rules(content, source.category(), origin),
     }
@@ -115,6 +115,9 @@ fn authored_source_is_json(content: &str, origin: &str) -> bool {
 
 /// Validate authored JSON scope and preserve complete Markdown context.
 pub fn parse_quality_source_checked(content: &str, source: QualitySource, origin: &str) -> Result<Vec<QualityRule>, String> {
+    if matches!(source, QualitySource::CodeRabbit | QualitySource::SonarQube | QualitySource::DevOpsBoard) {
+        return parse_findings_json(content, source.category(), origin);
+    }
     if matches!(source, QualitySource::CopilotInstructions | QualitySource::CodingRulesMd) {
         if authored_source_is_json(content, origin) {
             let mut rules = parse_distilled_rules_checked(content, origin)?;
@@ -206,11 +209,9 @@ fn parse_markdown_rules_checked(content: &str, category: &str, origin: &str) -> 
 /// / findings / value / workItems. Per finding it pulls message/description/
 /// title, severity, file/path/component, rule/ruleKey/check/type, line — under
 /// the common field names both tools (and the ADO board) use.
-fn parse_findings_json(content: &str, category: &str, origin: &str) -> Vec<QualityRule> {
-    let Ok(v) = serde_json::from_str::<serde_json::Value>(content) else {
-        // Not JSON — fall back to line-based so a malformed export still yields something.
-        return parse_text_rules(content, category, origin);
-    };
+fn parse_findings_json(content: &str, category: &str, origin: &str) -> Result<Vec<QualityRule>, String> {
+    let v = serde_json::from_str::<serde_json::Value>(content.trim_start_matches('\u{feff}'))
+        .map_err(|error| format!("Invalid {category} JSON export: {error}"))?;
     let arr: Vec<serde_json::Value> = if let Some(a) = v.as_array() {
         a.clone()
     } else if let Some(o) = v.as_object() {
@@ -224,9 +225,9 @@ fn parse_findings_json(content: &str, category: &str, origin: &str) -> Vec<Quali
         ]
         .iter()
         .find_map(|k| o.get(*k).and_then(|x| x.as_array()).cloned())
-        .unwrap_or_default()
+        .ok_or_else(|| format!("No findings array in {category} export"))?
     } else {
-        Vec::new()
+        return Err(format!("Expected a JSON array or findings object for {category}"));
     };
 
     let get = |o: &serde_json::Value, keys: &[&str]| -> Option<String> {
@@ -327,7 +328,7 @@ fn parse_findings_json(content: &str, category: &str, origin: &str) -> Vec<Quali
             source: origin.to_string(),
         });
     }
-    out
+    Ok(out)
 }
 
 fn parse_text_rules(content: &str, category: &str, origin: &str) -> Vec<QualityRule> {

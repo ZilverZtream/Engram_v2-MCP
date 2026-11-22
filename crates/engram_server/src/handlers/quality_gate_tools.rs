@@ -162,7 +162,7 @@ impl Engram {
         let (origin, content) = if let Some(export) = req.board_export.as_ref() {
             let name = &req.source_path;
             if !name.ends_with(".json") || name.len() > 200 || !name.bytes().all(|c| c.is_ascii_alphanumeric() || b"._-".contains(&c))
-                || export.len() > 4 * 1024 * 1024 || serde_json::from_str::<serde_json::Value>(export).is_err() {
+                || export.len() > 4 * 1024 * 1024 {
                 return Err(McpError::invalid_params("Supply a JSON board export up to 4 MiB and a simple .json filename", None));
             }
             (format!("@board-exports/{name}"), export.clone())
@@ -359,9 +359,11 @@ impl Engram {
         if !docs.is_empty() {
             ps.search.index_docs(&req.project_id, &docs, &cancel).await.map_err(|e| partial(format!("replacement search indexing: {e:#}")))?;
         }
-        let reread = crate::services::legacy_rule_adoption::read_source(root, &origin).map_err(|e| partial(e.to_string()))?;
-        if blake3::hash(reread.as_bytes()).to_hex().as_str() != source_hash {
-            return Err(partial("source changed during import; publication aborted".into()));
+        if req.board_export.is_none() {
+            let reread = crate::services::legacy_rule_adoption::read_source(root, &origin).map_err(|e| partial(e.to_string()))?;
+            if blake3::hash(reread.as_bytes()).to_hex().as_str() != source_hash {
+                return Err(partial("source changed during import; publication aborted".into()));
+            }
         }
         let current_docs: Vec<String> = if replace || req.clear_existing {
             docs.iter().map(|d| d.doc_id.clone()).collect()

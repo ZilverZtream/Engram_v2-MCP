@@ -1031,6 +1031,8 @@ pub struct DeadMethodCoverage {
     pub returned_limit: usize,
     pub partial: bool,
     pub runtime_reachability: &'static str,
+    pub script_candidates_with_visible_uses: usize,
+    pub script_files_unassessed: usize,
     pub scope_note: &'static str,
 }
 
@@ -6841,7 +6843,7 @@ impl Engram {
         &self,
         req: FindDeadMethodsRequest,
     ) -> Result<CallToolResult, McpError> {
-        let _rec = self.ensure_project_record(&req.project_id).await?;
+        let root = std::path::PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
         let file_filter = req.file_path.clone();
@@ -6861,6 +6863,21 @@ impl Engram {
 
             let mut dead_methods: Vec<DeadMethodInfo> = Vec::new();
             let mut inspected_methods = 0;
+            let scripts: std::collections::BTreeSet<_> = all_methods.iter().map(|n| n.file_path.as_str())
+                .filter(|p| matches!(p.rsplit('.').next(), Some("ts" | "tsx" | "js" | "jsx" | "mjs" | "cjs"))).collect();
+            let mut uses_by_path = std::collections::HashMap::new();
+            let mut bytes_remaining = 16 * 1024 * 1024usize;
+            for &path in scripts.iter().take(128) {
+                if bytes_remaining == 0 { break; }
+                let Ok(source) = crate::planner_source::read(&graph, &project_id, &root, path) else { continue; };
+                if source.len() > bytes_remaining { continue; }
+                bytes_remaining -= source.len();
+                if let Some(uses) = engram_index::js_extractor::script_uses(Path::new(path), &source) {
+                    uses_by_path.insert(path, uses);
+                }
+            }
+            let script_files_unassessed = scripts.len() - uses_by_path.len();
+            let mut script_candidates_with_visible_uses = 0;
 
             for node in &all_methods {
                 inspected_methods += 1;
@@ -6889,6 +6906,14 @@ impl Engram {
                 )?.0.len();
 
                 if caller_count == 0 {
+                    if scripts.contains(node.file_path.as_str()) {
+                        let Some(uses) = uses_by_path.get(node.file_path.as_str()) else { continue; };
+                        let name = node.name.rsplit('.').next().unwrap_or(&node.name);
+                        if uses.runtime_lines.contains(&node.start_line) || uses.referenced_names.contains(name) {
+                            script_candidates_with_visible_uses += 1;
+                            continue;
+                        }
+                    }
                     // L-2 fix: public methods with no static callers may still
                     // be live if called via reflection, dynamic binding, or
                     // from assemblies not included in this project.  Surface a
@@ -6946,7 +6971,9 @@ impl Engram {
                     inspected_methods,
                     query_limit_reached: all_methods.len() == SCAN_LIMIT,
                     returned_limit: limit,
-                    partial: all_methods.len() == SCAN_LIMIT || inspected_methods < all_methods.len(),
+                    partial: all_methods.len() == SCAN_LIMIT || inspected_methods < all_methods.len() || script_files_unassessed > 0,
+                    script_candidates_with_visible_uses,
+                    script_files_unassessed,
                     runtime_reachability: "unknown",
                     scope_note: "Live indexed graph observations only; capped query/results and event/lifecycle exclusions do not prove exhaustive runtime, dynamic or external-call coverage.",
                 },
@@ -6990,6 +7017,10 @@ impl Engram {
             report.coverage.scope_note,
         );
 
+        if report.coverage.script_candidates_with_visible_uses > 0 || report.coverage.script_files_unassessed > 0 {
+            md.push_str(&format!("Script source screening withheld {} runtime declarations or methods with a same-file reference to their name. Receiver identity can remain unresolved. {} script files lacked admitted source within this scan.\n\n",
+                report.coverage.script_candidates_with_visible_uses, report.coverage.script_files_unassessed));
+        }
         if report.dead_methods.is_empty() {
             md.push_str("No candidates found within the inspected graph metadata; runtime reachability remains unknown.\n");
         } else {

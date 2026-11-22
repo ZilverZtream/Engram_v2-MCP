@@ -22,6 +22,66 @@ use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::OnceLock;
 
+/// Runtime entry declarations and visible references that cannot by themselves
+/// establish a receiver-bound Calls edge. Used to screen dead-code suggestions.
+#[derive(Default)]
+pub struct ScriptUses {
+    pub runtime_lines: HashSet<u32>,
+    pub referenced_names: HashSet<String>,
+}
+
+pub fn script_uses(path: &Path, source: &str) -> Option<ScriptUses> {
+    let ext = path.extension()?.to_str()?.to_ascii_lowercase();
+    let language = match ext.as_str() {
+        "ts" => tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
+        "tsx" => tree_sitter_typescript::LANGUAGE_TSX.into(),
+        "js" | "jsx" | "mjs" | "cjs" => tree_sitter_javascript::LANGUAGE.into(),
+        _ => return None,
+    };
+    let mut parser = tree_sitter::Parser::new();
+    parser.set_language(&language).ok()?;
+    let tree = parser.parse(source, None)?;
+    let mut uses = ScriptUses::default();
+    let mut cursor = tree.walk();
+    loop {
+        let node = cursor.node();
+        let line = node.start_position().row as u32 + 1;
+        let spelling = |n: tree_sitter::Node<'_>| source.get(n.byte_range()).unwrap_or("");
+        match node.kind() {
+            "method_definition" => {
+                let mut children = node.walk();
+                if node.child_by_field_name("name").is_some_and(|n| spelling(n) == "constructor")
+                    || node.children(&mut children).any(|n| matches!(n.kind(), "get" | "set")) {
+                    uses.runtime_lines.insert(line);
+                }
+            }
+            "assignment_expression" => {
+                if let Some(member) = node.child_by_field_name("left").and_then(|n| n.child_by_field_name("property"))
+                    && spelling(member).starts_with("on")
+                    && node.child_by_field_name("right").is_some_and(|n| matches!(n.kind(), "arrow_function" | "function_expression")) {
+                    uses.runtime_lines.insert(line);
+                }
+            }
+            "member_expression" => {
+                if let Some(name) = node.child_by_field_name("property") {
+                    uses.referenced_names.insert(spelling(name).to_owned());
+                }
+            }
+            "identifier" => {
+                if node.parent().is_some_and(|p| p.kind() == "arguments" ||
+                    (p.kind() == "call_expression" && p.child_by_field_name("function") == Some(node))) {
+                    uses.referenced_names.insert(spelling(node).to_owned());
+                }
+            }
+            _ => {}
+        }
+        if cursor.goto_first_child() { continue; }
+        while !cursor.goto_next_sibling() {
+            if !cursor.goto_parent() { return Some(uses); }
+        }
+    }
+}
+
 /// Maximum source size we'll run regex extraction on (5 MiB).
 /// Minified vendor bundles can be huge; we skip them to keep indexing bounded.
 const MAX_JS_SOURCE_BYTES: usize = 5 * 1024 * 1024;

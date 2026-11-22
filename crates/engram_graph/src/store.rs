@@ -1789,6 +1789,23 @@ impl GraphStore {
         Ok(())
     }
 
+    /// Select file identities from the file-node key range without reading their metadata.
+    pub fn indexed_paths_with_suffix(&self, project: &str, suffix: &str, limit: usize) -> anyhow::Result<Vec<String>> {
+        let prefix = format!("{project}\0file:");
+        let tx = self.db.begin_read()?;
+        let nodes = tx.open_table(NODES)?;
+        let mut paths = Vec::new();
+        for row in nodes.range(prefix.as_str()..)? {
+            let (key, _) = row?;
+            let Some(path) = key.value().strip_prefix(&prefix) else { break; };
+            if path.get(path.len().saturating_sub(suffix.len())..).is_some_and(|s| s.eq_ignore_ascii_case(suffix)) {
+                paths.push(path.to_owned());
+                if paths.len() >= limit { break; }
+            }
+        }
+        Ok(paths)
+    }
+
     /// Check indexed schema identities without fetching column bodies or enumerating rows.
     pub fn matched_schema_names(
         &self,

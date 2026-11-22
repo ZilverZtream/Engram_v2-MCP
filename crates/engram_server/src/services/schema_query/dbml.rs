@@ -70,6 +70,7 @@ pub(super) fn tables(path: &str, source: &str) -> anyhow::Result<Vec<Table>> {
                     let key = input_name(name)?;
                     current = Some(Table {
                         name: key.display(), source_kind: Some("dbml_mapping"), key,
+                        data_context_member: attributes.get("Member").cloned(),
                         columns: vec![], primary_key: vec![], foreign_keys: vec![], model_associations: vec![],
                         constraints: vec![], constraint_indexes: vec![],
                         citation: Citation {path:path.into(),start_line:line(position),

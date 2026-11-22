@@ -193,7 +193,7 @@ static RE_VB_GUARD_ROLE_LITERAL: LazyLock<Regex> = LazyLock::new(|| {
 // `Using db As New FooDbContext` / `db = New BarDataContext`. The ORM DAL
 // idiom is otherwise completely invisible to SQL-literal extraction.
 static RE_VB_CTX_DECL: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?i)\b(?:Dim|Using)\s+(\w+)\s+As\s+New\s+\w*D(?:ata|b)Context\b")
+    Regex::new(r"(?i)\b(\w+)\s+As\s+(?:New\s+)?(?:\w+\.)*\w*D(?:ata|b)Context\b")
         .expect("valid VB ctx decl regex")
 });
 static RE_VB_CTX_ASSIGN: LazyLock<Regex> = LazyLock::new(|| {
@@ -1794,14 +1794,15 @@ fn enrich_vb_source(source: &str, symbols: &mut Vec<ExtractedSymbol>, edges: &mu
     let mut role_hits: Vec<(u32, String)> = Vec::new();
 
     // ── Pass 0: collect ORM context variable names (file-scoped) ────────────
-    let mut ctx_vars: std::collections::HashSet<String> = std::collections::HashSet::new();
-    for line in source.lines() {
+    let mut ctx_vars = std::collections::HashMap::<Option<String>, std::collections::HashSet<String>>::new();
+    for (index, line) in source.lines().enumerate() {
+        let masked = vb_settings_code_mask(line);
         for cap in RE_VB_CTX_DECL
-            .captures_iter(line)
-            .chain(RE_VB_CTX_ASSIGN.captures_iter(line))
+            .captures_iter(&masked)
+            .chain(RE_VB_CTX_ASSIGN.captures_iter(&masked))
         {
             if let Some(v) = cap.get(1) {
-                ctx_vars.insert(v.as_str().to_lowercase());
+                ctx_vars.entry(enclosing(&fn_ranges, index as u32 + 1)).or_default().insert(v.as_str().to_lowercase());
             }
         }
     }
@@ -1852,12 +1853,19 @@ fn enrich_vb_source(source: &str, symbols: &mut Vec<ExtractedSymbol>, edges: &mu
         }
 
         // ── ORM table access (LINQ-to-SQL / EF) ────────────────────────────
+        let is_context = |name: &str| {
+            let name = name.to_lowercase();
+            let method = enclosing(&fn_ranges, line_no);
+            ctx_vars.get(&method).is_some_and(|vars| vars.contains(&name))
+                || ctx_vars.get(&None).is_some_and(|vars| vars.contains(&name))
+        };
         if !ctx_vars.is_empty() {
-            for cap in RE_VB_CTX_WRITE.captures_iter(line) {
+            let masked = vb_settings_code_mask(line);
+            for cap in RE_VB_CTX_WRITE.captures_iter(&masked) {
                 let (Some(var), Some(table)) = (cap.get(1), cap.get(2)) else {
                     continue;
                 };
-                if !ctx_vars.contains(&var.as_str().to_lowercase()) {
+                if !is_context(var.as_str()) {
                     continue;
                 }
                 let table_l = table.as_str().to_lowercase();
@@ -1870,11 +1878,11 @@ fn enrich_vb_source(source: &str, symbols: &mut Vec<ExtractedSymbol>, edges: &mu
                     .or_insert(line_no);
                 table_accesses.insert((func, table_l, "write"));
             }
-            for cap in RE_VB_CTX_MEMBER.captures_iter(line) {
+            for cap in RE_VB_CTX_MEMBER.captures_iter(&masked) {
                 let (Some(var), Some(table)) = (cap.get(1), cap.get(2)) else {
                     continue;
                 };
-                if !ctx_vars.contains(&var.as_str().to_lowercase()) {
+                if !is_context(var.as_str()) {
                     continue;
                 }
                 // Method calls are not table properties: skip when the next
@@ -1901,7 +1909,7 @@ fn enrich_vb_source(source: &str, symbols: &mut Vec<ExtractedSymbol>, edges: &mu
                 let (Some(var), Some(member)) = (cap.get(1), cap.get(2)) else {
                     continue;
                 };
-                if ctx_vars.contains(&var.as_str().to_lowercase()) {
+                if is_context(var.as_str()) {
                     continue; // `db.Table.Column` is the ctx path above
                 }
                 if !looks_like_table_member(member.as_str()) {
@@ -2070,6 +2078,7 @@ fn enrich_vb_source(source: &str, symbols: &mut Vec<ExtractedSymbol>, edges: &mu
             .unwrap_or(0);
         let mut meta = HashMap::new();
         meta.insert("orm".to_string(), "true".to_string());
+        meta.insert("src_line".to_string(), line.to_string());
         meta.insert("access".to_string(), access.to_string());
         edges.push(ExtractedEdge {
             source_name: func,

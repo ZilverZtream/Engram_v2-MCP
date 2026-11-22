@@ -13,6 +13,54 @@ mod alter_foreign_keys;
 mod alter_columns;
 mod dbml;
 
+/// ORM graph targets retain the member spelling from the source expression.
+/// A DBML table mapping supplies evidence when that spelling differs from DDL.
+pub(crate) fn mapped_query_sites(graph: &engram_graph::GraphStore, project: &str, root: &std::path::Path,
+    table: &str, limit: usize) -> anyhow::Result<String> {
+    use std::collections::{BTreeMap, BTreeSet};
+    let query = input_name(table)?;
+    let mut mappings = BTreeMap::<String, BTreeSet<String>>::new();
+    let mut aliases = BTreeMap::new();
+    let files = graph.indexed_paths_with_suffix(project, ".dbml", 33)?;
+    if files.len() > 32 { return Ok("DBML reader lookup incomplete: more than 32 mapping files.\n".into()); }
+    let mut remaining = 16 * 1024 * 1024usize;
+    for path in files {
+        let source = crate::planner_source::read(graph, project, root, &path)?;
+        anyhow::ensure!(source.len() <= remaining, "DBML reader lookup exceeds source budget");
+        remaining -= source.len();
+        for mapping in dbml::tables(&path, &source)? {
+            let Some(member) = mapping.data_context_member else { continue; };
+            let key = member.to_ascii_lowercase();
+            mappings.entry(key.clone()).or_default().insert(mapping.name.to_ascii_lowercase());
+            if mapping.key.lookup(&query) && !member.eq_ignore_ascii_case(table) {
+                aliases.insert(key, (member, mapping.citation));
+            }
+        }
+    }
+    let mut report = String::new();
+    for (key, (member, citation)) in aliases {
+        if mappings[&key].len() != 1 {
+            report.push_str(&format!("Ambiguous DBML member {member} is assigned to multiple tables.\n"));
+            continue;
+        }
+        let id = engram_core::ids::NodeId::table(&member).0;
+        let edges = graph.find_incoming_edges(project, Some(engram_graph::EdgeKind::QueriesTable), &id, limit + 1)?;
+        let endpoints = edges.iter().take(limit).map(|(src,_)| (src.clone(),engram_graph::EdgeKind::QueriesTable,id.clone())).collect::<Vec<_>>();
+        let facts = graph.get_edges_by_endpoints(project, &endpoints)?;
+        report.push_str(&format!("DBML member {member} maps to {table} at {}:{}\n", citation.path,citation.start_line));
+        for edge in facts {
+            let Some(meta) = edge.metadata.as_ref() else { continue; };
+            if !matches!(meta["orm"].as_str(),Some("true")) && meta["orm"] != true { continue; }
+            let access = meta["access"].as_str().unwrap_or("access");
+            let line = meta["src_line"].as_str().and_then(|v| v.parse::<u32>().ok()).filter(|v| *v > 0);
+            let location = line.map(|n| format!(" at source line {n}")).unwrap_or_default();
+            report.push_str(&format!("  [{access}] {}{location}\n", edge.source_id));
+        }
+        if edges.len() > limit { report.push_str("  Additional query sites exceed the requested limit.\n"); }
+    }
+    Ok(report)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Name(pub(super) Vec<String>);
 impl Name {
@@ -162,6 +210,8 @@ pub(super) struct ForeignKey {
 #[derive(Clone, Serialize)]
 pub(super) struct Table {
     pub(super) name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    data_context_member: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(super) source_kind: Option<&'static str>,
     pub(super) columns: Vec<Column>,
@@ -440,6 +490,7 @@ impl Catalog {
                 let mut table = Table {
                     name: key.display(),
                     source_kind: None,
+                    data_context_member: None,
                     key,
                     columns: vec![],
                     primary_key: vec![],

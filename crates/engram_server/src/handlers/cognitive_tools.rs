@@ -1493,6 +1493,10 @@ impl Engram {
                 out.push('\n');
             }
 
+            match crate::services::schema_query::mapped_query_sites(&graph, &req.project_id, &root, &table_node.name, 50) {
+                Ok(sites) => out.push_str(&sites),
+                Err(error) => out.push_str(&format!("DBML reader coverage unavailable: {error}\n")),
+            }
             let mut referencing = graph
                 .find_incoming_edges(&req.project_id, Some(EdgeKind::QueriesTable), &table_id, 51)
                 .map_err(|e| e.to_string())?;

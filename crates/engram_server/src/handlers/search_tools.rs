@@ -1141,6 +1141,7 @@ impl Engram {
         // Minimal per-node result type that uses only owned, Send-safe values.
         struct NodeGraphResult {
             constructor_reference: bool,
+            mapped_sites: String,
             name: String,
             node_type: String,
             file_path: String, // RelPath rendered to string
@@ -1159,6 +1160,7 @@ impl Engram {
         let project_id_b = req.project_id.clone();
         let needle_b = needle.to_string();
         let ekf_b = edge_kind_filter.clone();
+        let project_root = std::path::PathBuf::from(&ps.info.directory);
         let file_scope_b = req.file_scope.clone();
 
         // Execute all blocking graph I/O in one dedicated OS thread.
@@ -1371,6 +1373,10 @@ impl Engram {
                         )),
                     }
                     results.push(NodeGraphResult {
+                        mapped_sites: if node.node_type == "db_table" && ekf_b.as_ref().is_none_or(|kinds| kinds.contains(&EdgeKind::QueriesTable)) {
+                            crate::services::schema_query::mapped_query_sites(&graph_b, &project_id_b, &project_root, &node.name, max_incoming)
+                                .unwrap_or_else(|e| format!("DBML reader coverage unavailable: {e}\n"))
+                        } else { String::new() },
                         capped_outgoing_kinds,
                         constructor_reference,
                         name: node.name,
@@ -1483,6 +1489,7 @@ impl Engram {
             }
 
             for nr in &graph_results {
+                out.push_str(&nr.mapped_sites);
                 if nr.constructor_reference {
                     out.push_str("Construction sites for the requested type (incoming calls to its constructor):\n");
                 }
