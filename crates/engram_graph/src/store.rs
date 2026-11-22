@@ -2109,7 +2109,13 @@ impl GraphStore {
             if matches!(n.node_type.as_str(), "type_reference" | "value_point") { continue; }
 
             let name_lower = n.name.to_lowercase();
+            let qualified = needle.rsplit_once('.').is_some_and(|(owner, member)| {
+                n.metadata.as_ref().is_some_and(|meta|
+                    meta["fqn"].as_str().is_some_and(|fqn| fqn.eq_ignore_ascii_case(&needle)) ||
+                    (name_lower == member && meta["script_class"].as_str().is_some_and(|class| class.eq_ignore_ascii_case(owner))))
+            });
             let matches = name_lower == needle
+                || qualified
                 || name_lower.ends_with(&dot_suffix)
                 || name_lower.ends_with(&colon_suffix)
                 || n.node_id.to_lowercase().ends_with(&id_suffix);
