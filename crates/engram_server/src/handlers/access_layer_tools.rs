@@ -4150,7 +4150,7 @@ impl Engram {
                     file_filter.as_deref(),
                     500,
                 )
-                .unwrap_or_default();
+                .map_err(|error| format!("Method index lookup failed: {error}"))?;
 
             if candidates.is_empty() {
                 return Err(method_not_found_message(
@@ -4205,7 +4205,17 @@ impl Engram {
                 result: row,
                 freshness: freshness[&row.file_path].clone(),
             }).collect();
-            let json = serde_json::to_string_pretty(&rows)
+            let mut compact = serde_json::to_value(&rows)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            if let Some(items) = compact.as_array_mut() {
+                for (item, row) in items.iter_mut().zip(&results) {
+                    if let Some(policy) = &row.project_policy_sources
+                        && item["project_policy_sources"].to_string().len() > 4096 {
+                        item["project_policy_sources"] = policy.planning_index(&req.project_id);
+                    }
+                }
+            }
+            let json = serde_json::to_string_pretty(&compact)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
@@ -4214,7 +4224,7 @@ impl Engram {
             let (banner, footer) = freshness[&results[0].file_path].markdown_parts();
             let mut out = banner.unwrap_or_default();
             out.push_str(&render_method_info_markdown(&results[0]));
-            method_info_delivery::append_policy_markdown(&results, &mut out);
+            method_info_delivery::append_policy_markdown(&req.project_id, &results, &mut out);
             out.push_str(&footer);
             return Ok(CallToolResult::success(vec![Content::text(out)]));
         }
@@ -4254,7 +4264,7 @@ impl Engram {
             ));
         }
 
-        method_info_delivery::append_policy_markdown(&results, &mut md);
+        method_info_delivery::append_policy_markdown(&req.project_id, &results, &mut md);
         md.push_str("\n## File timestamp observations\n\n");
         for (file, observation) in &freshness {
             md.push_str(&format!("- `{file}`: {} ({})\n",
@@ -4421,9 +4431,23 @@ impl Engram {
             verify_expected_source_hash(&excerpt_request, &source_file_hash)?;
             let source = std::str::from_utf8(&bytes)
                 .map_err(|error| format!("Cannot read '{resolved_file}': {error}"))?;
-            let (body, context) =
-                source_lines(source, resolved_start, resolved_end, context_lines)
-                    .map_err(|e| format!("Cannot read '{}': {}", resolved_file, e))?;
+            let lines: Vec<_> = source.split_inclusive('\n').collect();
+            if resolved_start == 0 || resolved_end < resolved_start || resolved_end as usize > lines.len() {
+                return Err(format!("Invalid source range {resolved_start}..{resolved_end} in '{resolved_file}' ({} lines)", lines.len()));
+            }
+            let start = resolved_start as usize - 1;
+            let body = lines[start..resolved_end as usize].concat();
+            let mut context_start = start.saturating_sub(context_lines as usize);
+            if target_node.is_some() {
+                let mut doc_start = start;
+                while doc_start > 0 {
+                    let line = lines[doc_start - 1].trim_start();
+                    if !line.starts_with("'''") && !line.starts_with("///") { break; }
+                    doc_start -= 1;
+                }
+                context_start = context_start.min(doc_start);
+            }
+            let context = lines[context_start..start].concat();
 
             let (caller_bodies, caller_expansion) = expand_caller_bodies(
                 &graph, &project_id, &project_dir, target_node.as_ref(),

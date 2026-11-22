@@ -1768,7 +1768,7 @@ impl Engram {
             match self
                 .state
                 .graph
-                .resolve_symbol(&req.project_id, ctrl, Some("control"), Some(&req.page_path))
+                .resolve_page_control(&req.project_id, &req.page_path, ctrl)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?
             {
                 ResolveResult::Unique(node) => {
@@ -1789,10 +1789,11 @@ impl Engram {
             // Symbol node IDs are location-based; an FQN start point must be
             // resolved via resolve_symbol (exact name → metadata fqn →
             // terminal segment).
-            match self
-                .state
-                .graph
-                .resolve_symbol(&req.project_id, handler, Some("function"), None)
+            let graph = self.state.graph.clone();
+            let project = req.project_id.clone();
+            let name = handler.clone();
+            match tokio::task::spawn_blocking(move || graph.resolve_symbol(&project, &name, Some("function"), None))
+                .await.map_err(|e| McpError::internal_error(e.to_string(), None))?
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?
             {
                 ResolveResult::Unique(node) => {

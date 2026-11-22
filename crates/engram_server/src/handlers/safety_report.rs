@@ -35,6 +35,8 @@ pub(crate) fn finish(
         ));
     } else {
         report["assessment_status"] = json!("policy_disabled_unassessed");
+        report["policy_bypass_permits_edit"] = report["allowed"].clone();
+        report["allowed"] = Value::Null;
         report["confidence"] = Value::Null;
         report["risk_level"] = Value::Null;
         report["confidence_basis"] = json!("not_assessed");

@@ -43,8 +43,8 @@ async fn public_policy_report_distinguishes_bypass_and_declared_threshold_result
             .unwrap();
         let report: Value =
             serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
-        assert_eq!(report["allowed"], !enabled || passing);
-        for field in ["allowed", "checks", "mitigations"] {
+        assert_eq!(report["allowed"].as_bool(), enabled.then_some(passing));
+        for field in ["checks", "mitigations"] {
             assert_eq!(report[field], expected[field]);
         }
         assert_eq!(report["input_basis"], "caller_supplied_values_unverified");
@@ -62,6 +62,7 @@ async fn public_policy_report_distinguishes_bypass_and_declared_threshold_result
             assert_eq!(report["risk_basis"], "heuristic_from_caller_supplied_scope");
         } else {
             assert_eq!(report["assessment_status"], "policy_disabled_unassessed");
+            assert_eq!(report["policy_bypass_permits_edit"], true);
             assert!(report["confidence"].is_null() && report["risk_level"].is_null());
             assert!(report["checks"].as_array().unwrap().is_empty());
         }

@@ -231,8 +231,11 @@ fn parse_findings_json(content: &str, category: &str, origin: &str) -> Vec<Quali
 
     let get = |o: &serde_json::Value, keys: &[&str]| -> Option<String> {
         for k in keys {
-            // support "fields.System.Title"-style nested ADO paths too
-            if let Some(val) = k.split('.').try_fold(o, |acc, seg| acc.get(seg)) {
+            // Azure DevOps uses literal dotted keys inside "fields".
+            let field = o.get(*k).or_else(|| k.split_once('.')
+                .and_then(|(parent, key)| o.get(parent)?.get(key)))
+                .or_else(|| k.split('.').try_fold(o, |acc, seg| acc.get(seg)));
+            if let Some(val) = field {
                 if let Some(s) = val.as_str() {
                     if !s.trim().is_empty() {
                         return Some(s.trim().to_string());
@@ -253,12 +256,13 @@ fn parse_findings_json(content: &str, category: &str, origin: &str) -> Vec<Quali
                 "message",
                 "description",
                 "title",
+                "Title",
                 "text",
                 "fields.System.Title",
             ],
         );
         let Some(text) = msg else { continue };
-        let rule_key = get(f, &["rule", "ruleKey", "check", "type", "id", "category"]);
+        let rule_key = get(f, &["rule", "ruleKey", "check", "type", "id", "Id", "category"]);
         let sev_raw = get(
             f,
             &[
@@ -300,6 +304,12 @@ fn parse_findings_json(content: &str, category: &str, origin: &str) -> Vec<Quali
             .map(|r| format!("{category}:{origin}:{r}:{i}"))
             .unwrap_or_else(|| format!("{category}:{origin}:{i}"));
         let mut full = text;
+        if category == "board"
+            && let Some(detail) = get(f, &["fields.System.Description", "Body"])
+            && detail != full {
+            full.push('\n');
+            full.push_str(&detail);
+        }
         if let Some(r) = rule_key {
             full = format!("[{r}] {full}");
         }

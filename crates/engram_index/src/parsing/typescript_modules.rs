@@ -529,6 +529,15 @@ impl<'tree> Extraction<'tree> {
         let receiver = member.child_by_field_name("object")?;
         let root = std::iter::successors(Some(member), |n| n.parent()).last()?;
         let (class, anchor, static_member) = match receiver.kind() {
+            "this" => {
+                let method = std::iter::successors(member.parent(), |n| n.parent())
+                    .find(|n| matches!(n.kind(), "method_definition" | "function_expression" | "function_declaration" | "class_body"))?;
+                if method.kind() != "method_definition" { return None; }
+                let owner = method.parent()?.parent()?;
+                if owner.kind() != "class_declaration" { return None; }
+                let name = owner.child_by_field_name("name")?;
+                (text(name, source), name, token(method, "static"))
+            }
             "identifier" => {
                 let class = text(receiver, source);
                 if self.state_binding_shadowed_below(callee, class, root) { return None; }

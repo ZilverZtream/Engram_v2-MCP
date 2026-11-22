@@ -18,13 +18,18 @@ pub(super) fn attach_policy(root: &Path, rows: &mut [MethodInfoResult]) {
     }
 }
 
-pub(super) fn append_policy_markdown(rows: &[MethodInfoResult], out: &mut String) {
+pub(super) fn append_policy_markdown(project: &str, rows: &[MethodInfoResult], out: &mut String) {
     let mut shown = BTreeSet::new();
     for row in rows {
         if shown.insert(&row.file_path) {
             if let Some(policy) = &row.project_policy_sources {
                 out.push_str(&format!("\n## Authored guidance for `{}`\n", row.file_path));
-                out.push_str(&policy.render_markdown());
+                let rendered = policy.render_markdown();
+                if rendered.len() > 4096 {
+                    out.push_str(&policy.planning_index(project).to_string());
+                } else {
+                    out.push_str(&rendered);
+                }
             }
         }
     }

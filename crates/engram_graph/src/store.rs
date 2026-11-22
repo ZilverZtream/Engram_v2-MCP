@@ -1907,6 +1907,27 @@ impl GraphStore {
         Ok(functions)
     }
 
+    /// Control names can differ in case from markup. Only the requested
+    /// page participates in UI tracing, even when other pages reuse an ID.
+    pub fn resolve_page_control(&self, project: &str, path: &str, name: &str) -> anyhow::Result<ResolveResult> {
+        let prefix = format!("{project}\0control:{path}:");
+        let tx = self.db.begin_read()?;
+        let nodes = tx.open_table(NODES)?;
+        let mut matches = Vec::new();
+        for entry in nodes.range(prefix.as_str()..)? {
+            let (key, value) = entry?;
+            let Some(suffix) = key.value().strip_prefix(&prefix) else { break; };
+            if suffix.eq_ignore_ascii_case(name) {
+                matches.push(bincode::deserialize::<Node>(value.value())?);
+            }
+        }
+        Ok(match matches.len() {
+            0 => ResolveResult::NotFound,
+            1 => ResolveResult::Unique(matches.remove(0)),
+            _ => ResolveResult::Ambiguous(matches),
+        })
+    }
+
     /// Exact file identity, applied before the cap so sibling paths cannot
     /// crowd out the requested file's nodes.
     pub fn query_nodes_in_file(

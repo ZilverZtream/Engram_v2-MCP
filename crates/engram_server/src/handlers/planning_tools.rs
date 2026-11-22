@@ -1101,8 +1101,16 @@ impl Engram {
                 .matched_schema_names(&req.project_id, &HashSet::from([identifier.clone()]))
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?
                 .contains(&identifier);
+        let compound = req.concept.split_whitespace().count() > 1;
         let stems = if exact_schema {
             vec![identifier.clone()]
+        } else if compound {
+            // Keep every requested word. Stemming the joined identifier
+            // preserves plural variants without expanding a phrase to one noun.
+            let joined: String = identifier.chars().filter(|c| c.is_alphanumeric()).collect();
+            let mut alternatives = vec![identifier.clone()];
+            alternatives.extend(concept_stems(&joined));
+            alternatives
         } else {
             concept_stems(&req.concept)
         };
@@ -1169,8 +1177,7 @@ impl Engram {
                     "file" => "files",
                     _ => continue,
                 };
-                if matches!(n.node_type.as_str(), "db_table" | "global_state")
-                    || (exact_schema && n.node_type == "db_column")
+                if matches!(n.node_type.as_str(), "db_table" | "global_state" | "db_column")
                 {
                     anchors.push((n.node_id.clone(), n.name.clone()));
                 }
@@ -1316,7 +1323,7 @@ impl Engram {
             generation: gen_,
             text: req.concept.clone(),
             top_k: LEXICAL_PAGE + 1,
-            fts_mode: "loose".into(),
+            fts_mode: if compound { "strict" } else { "loose" }.into(),
             include_path_prefixes: None,
             exclude_path_prefixes: None,
             include_path_suffixes: None,

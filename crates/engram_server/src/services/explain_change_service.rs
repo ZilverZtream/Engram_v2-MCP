@@ -329,9 +329,8 @@ pub fn classify_change_kind(diff_files: &[DiffFile], affected: &[AffectedFile]) 
         return ChangeKind::Style;
     }
 
-    // Rule 5: keyword heuristic from the diff body. `perf` keywords
-    // beat everything below because speed-up patterns (async addition,
-    // caching, batching) often look like `refactor` structurally.
+    // Require explicit intent in the authored change. An async handler or
+    // cache access is common in ordinary feature work.
     if has_perf_keywords(diff_files) {
         return ChangeKind::Perf;
     }
@@ -411,22 +410,11 @@ fn is_whitespace_only_diff(f: &DiffFile) -> bool {
 }
 
 fn has_perf_keywords(diff_files: &[DiffFile]) -> bool {
-    const HINTS: &[&str] = &[
-        "perf:",
-        "performance",
-        "optimi",
-        "speed up",
-        "faster",
-        "cache",
-        "memoi",
-        "parallel",
-        "async ",
-        "batch",
-    ];
-    diff_files.iter().any(|f| {
-        let lower = f.added_content.to_ascii_lowercase();
-        HINTS.iter().any(|h| lower.contains(h))
-    })
+    diff_files.iter().filter(|f| !is_doc_path(&f.path) && !is_test_path(&f.path))
+        .any(|f| f.added_content.lines().any(|line| {
+            let line = line.trim_start_matches(|c: char| c.is_whitespace() || matches!(c, '/' | '*' | '#' | '\''));
+            line.get(..5).is_some_and(|prefix| prefix.eq_ignore_ascii_case("perf:"))
+        }))
 }
 
 fn has_fix_keywords(diff_files: &[DiffFile]) -> bool {
@@ -581,20 +569,15 @@ pub fn gather_affected_files(
                 (None, None, None)
             };
 
-            // Function hint: first function-node whose file_path
-            // matches this diff file. If the graph hasn't been
-            // indexed yet for a brand-new file, this is None — that's
-            // the correct representation.
+            // A file-level match alone cannot locate the edit. Prefer the
+            // narrowest method containing a changed line in the new version.
             let function_hint = graph
-                .query_nodes(
-                    project_id,
-                    Some("function"),
-                    None,
-                    Some(&f.path.replace('\\', "/")),
-                    5,
-                )
+                .functions_for_source_lines(project_id, &f.path.replace('\\', "/"))
                 .ok()
-                .and_then(|nodes| nodes.into_iter().next().map(|n| n.name));
+                .and_then(|nodes| nodes.into_iter().filter(|node| f.added_lines.iter().any(|(line, _)|
+                    (node.start_line as usize..=node.end_line as usize).contains(line)))
+                    .min_by_key(|node| (node.end_line.saturating_sub(node.start_line), node.start_line))
+                    .map(|node| node.name));
 
             AffectedFile {
                 path: f.path.clone(),
@@ -1035,7 +1018,10 @@ fn summarise_verb_phrase(kind: ChangeKind, diff_files: &[DiffFile]) -> String {
             Some(name) => format!("refactor {name}"),
             None => format!("refactor {n} {file_word}"),
         },
-        ChangeKind::Perf => format!("speed up {n} {file_word}"),
+        ChangeKind::Perf => match focus.as_deref() {
+            Some(name) => format!("update {name} for performance"),
+            None => "update performance-sensitive code".into(),
+        },
         ChangeKind::Test => match focus.as_deref() {
             Some(name) => format!("update tests around {name}"),
             None => format!("update {n} test {file_word}"),
@@ -1132,7 +1118,7 @@ fn render_body_bullets(
             if immune > 0 {
                 parts.push(format!("{immune} immune-flag(s)"));
             }
-            bullets.push(format!("Aligns with {}", parts.join(", ")));
+            bullets.push(format!("Review candidates retrieved: {}", parts.join(", ")));
         }
     }
 
@@ -1190,7 +1176,7 @@ pub fn render_commit_message(n: &ChangeNarrative) -> String {
     // `Addresses:` line.
     if !n.rule_alignments.is_empty() {
         out.push('\n');
-        out.push_str("Addresses:\n");
+        out.push_str("Rules to review:\n");
         let mut cited: HashSet<&str> = HashSet::new();
         for r in &n.rule_alignments {
             if !cited.insert(r.rule_id.as_str()) {
@@ -1264,7 +1250,7 @@ pub fn render_pr_description(n: &ChangeNarrative) -> String {
     out.push('\n');
 
     if !n.rule_alignments.is_empty() {
-        out.push_str("## Addresses\n");
+        out.push_str("## Rules to review\n");
         let mut cited: HashSet<&str> = HashSet::new();
         for r in &n.rule_alignments {
             if !cited.insert(r.rule_id.as_str()) {
@@ -1809,7 +1795,7 @@ mod tests {
             removed_line_total: 0,
         };
         let msg = render_commit_message(&narrative);
-        assert!(msg.contains("Addresses:"));
+        assert!(msg.contains("Rules to review:"));
         assert!(msg.contains("cr_abc12345 (coderabbit)"));
     }
 

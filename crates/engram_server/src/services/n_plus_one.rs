@@ -337,11 +337,21 @@ impl<'a> Analyzer<'a> {
                         Some("row_data_bound" | "item_data_bound" | "markup_row_binding")
                     )
                 });
+                let cached_return = self.sources[&file].text.lines().enumerate()
+                    .skip(repetition.method_start_line.saturating_sub(1) as usize)
+                    .take(inv.start_line.saturating_sub(repetition.method_start_line) as usize + 1)
+                    .find_map(|(index, line)| {
+                        let code = line.trim_start().to_ascii_lowercase();
+                        let expr = code.strip_prefix("return ")?;
+                        (expr.contains("session(") || expr.contains("cache(") || expr.contains("cache.get("))
+                            .then_some(index + 1)
+                    });
                 self.findings.push(json!({"status":"possible_n_plus_one","repeated_call":root,"contexts":contexts,"call_path":chain,
                     "database_call":{"site":self.site(&file,&inv),"evidence":db},
-                    "severity":if loop_count+usize::from(row_binding)>1{"high"}else{"medium"},"severity_basis":"Heuristic repeated-database pattern; actual cardinality and latency unknown",
+                    "severity":if cached_return.is_some(){"info"}else if loop_count+usize::from(row_binding)>1{"high"}else{"medium"},
+                    "cache_return_line":cached_return,"severity_basis":"Static repeated path; an earlier cache return can bypass the database call. Execution counts are unknown.",
                     "estimated_iterations":null,"estimated_database_calls":null,
-                    "suggested_fix":if write{"Batch the writes where semantics permit; preserve transaction boundaries, validation and per-row side effects."}else{"JOIN the needed data into the initial query, or batch-fetch it before the loop/row binding and look up each row locally; preserve filtering, ordering and access rules."},
+                    "suggested_fix":if cached_return.is_some(){"Measure database executions on warm and cold cache paths before changing this query."}else if write{"Batch the writes where semantics permit; preserve transaction boundaries, validation and per-row side effects."}else{"Check database executions across loop iterations. If repeated, consider a join or batch fetch that preserves filtering, ordering and access rules."},
                     "limits":"Static possible call path. Guards, caching, dispatch, exceptions, dataset size and actual database execution are not proved."}));
                 let source = &self.sources[&file];
                 if let Some(mut parameters) = crate::services::vb_sql_parameters::method_observations(
