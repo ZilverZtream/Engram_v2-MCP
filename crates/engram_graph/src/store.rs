@@ -1907,21 +1907,33 @@ impl GraphStore {
 
     /// Seek the same canonical function identities as visit_symbol_names, scoped to one file.
     pub fn functions_for_source_lines(&self, project: &str, path: &str) -> anyhow::Result<Vec<Node>> {
-        let prefix = format!("{project}\0sym:function:{path}:");
+        self.ui_source_nodes(project, &format!("sym:function:{path}:"), Some(path), None, usize::MAX)
+    }
+
+    pub fn classes_for_source_lines(&self, project: &str, path: &str) -> anyhow::Result<Vec<Node>> {
+        self.ui_source_nodes(project, &format!("sym:class:{path}:"), Some(path), None, usize::MAX)
+    }
+
+    pub fn controls_matching_name(&self, project: &str, name: &str, limit: usize) -> anyhow::Result<Vec<Node>> {
+        self.ui_source_nodes(project, "control:", None, Some(name), limit)
+    }
+
+    fn ui_source_nodes(&self, project: &str, key_prefix: &str, path: Option<&str>, name: Option<&str>, limit: usize) -> anyhow::Result<Vec<Node>> {
+        let prefix = format!("{project}\0{key_prefix}");
         let tx = self.db.begin_read()?;
         let nodes = tx.open_table(NODES)?;
-        let mut functions = Vec::new();
+        let mut matches = Vec::new();
+        let pattern = name.map(str::to_lowercase);
         for entry in nodes.range(prefix.as_str()..)? {
             let (key, value) = entry?;
-            if !key.value().starts_with(&prefix) {
-                break;
-            }
+            if !key.value().starts_with(&prefix) || matches.len() >= limit { break; }
             let node: Node = bincode::deserialize(value.value())?;
-            if node.file_path.as_str() == path {
-                functions.push(node);
+            if path.is_none_or(|p| p == node.file_path.as_str())
+                && pattern.as_ref().is_none_or(|p| contains_case_insensitive(&node.name, p)) {
+                matches.push(node);
             }
         }
-        Ok(functions)
+        Ok(matches)
     }
 
     /// Control names can differ in case from markup. Only the requested

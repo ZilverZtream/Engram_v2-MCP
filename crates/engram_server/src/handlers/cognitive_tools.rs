@@ -2058,7 +2058,7 @@ impl Engram {
         let normalize = |text: &str| text.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect::<String>();
         let attr = regex::Regex::new(r#"(?i)\b(id|class|title|aria-label|text)\s*=\s*["']([^"']+)["']"#).unwrap();
         let control_name = words.iter().max_by_key(|w| w.len()).unwrap();
-        for node in graph.query_nodes(&req.project_id,Some("control"),Some(control_name),None,200)
+        for node in graph.controls_matching_name(&req.project_id,control_name,200)
             .map_err(|e| McpError::internal_error(e.to_string(),None))? {
             if normalize(&node.name).contains(&key) {
                 anchors.insert(format!("{}:{} control {}",node.file_path,node.start_line,node.name));
@@ -2113,7 +2113,7 @@ impl Engram {
                     for alias in &lines[i+1..end] {
                         if let Some(a) = field_alias.captures(alias) && a[2] == m[1] {receivers.insert(a[1].to_owned());}
                     }
-                    let classes = graph.query_nodes(&req.project_id,Some("class"),None,Some(h.path.as_str()),200)
+                    let classes = graph.classes_for_source_lines(&req.project_id,h.path.as_str())
                         .map_err(|e|McpError::internal_error(e.to_string(),None))?;
                     let class = classes.iter().filter(|n| n.file_path.as_str()==h.path.as_str() && n.start_line as usize <= i+1 && n.end_line as usize >= i+1)
                         .min_by_key(|n| n.end_line - n.start_line);
