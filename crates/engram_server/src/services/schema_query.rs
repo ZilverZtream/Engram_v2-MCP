@@ -30,6 +30,52 @@ pub(crate) fn add_model_columns(map: &mut ModelColumnMap, file: &str, source: &s
 /// Only a class-qualified data-context getter identifies a mapped table on a call edge.
 pub(crate) type TableGetters = std::collections::BTreeMap<String, std::collections::BTreeSet<String>>;
 
+/// Resolve physical columns to their mapped CLR properties before following
+/// bound usages. A bare property name is insufficient across model classes.
+pub(crate) fn mapped_column_consumers(
+    graph: &engram_graph::GraphStore, project: &str, root: &std::path::Path,
+    anchors: &[(String, String)], limit: usize,
+) -> anyhow::Result<(Vec<(String, String, String)>, bool)> {
+    use std::collections::{BTreeMap, BTreeSet};
+    let selected: BTreeMap<_, _> = anchors.iter().filter(|(id, _)| id.starts_with("column:"))
+        .map(|(id, name)| (id.as_str(), name.as_str())).collect();
+    if selected.is_empty() { return Ok((Vec::new(), false)); }
+    let mut properties = BTreeMap::<String, BTreeSet<String>>::new();
+    let files = graph.indexed_paths_with_suffix(project, ".dbml", 33)?;
+    let mut partial = files.len() > 32;
+    let mut remaining = 16 * 1024 * 1024;
+    for path in files.into_iter().take(32) {
+        let source = crate::planner_source::read(graph, project, root, &path)?;
+        anyhow::ensure!(source.len() <= remaining, "DBML column mapping source budget exhausted");
+        remaining -= source.len();
+        for row in dbml::tables(&path, &source)? {
+            let (Some(owner), Some(base)) = (row.model_type, row.key.0.last()) else { continue; };
+            for col in row.columns {
+                let id = engram_core::ids::NodeId::column(base, &col.name).0;
+                if selected.contains_key(id.as_str()) {
+                    let member = col.model_member.as_ref().unwrap_or(&col.name);
+                    properties.entry(format!("{owner}.{member}").to_lowercase()).or_default().insert(id);
+                }
+            }
+        }
+    }
+    let mut declarations = Vec::new();
+    graph.visit_symbol_names(project, |kind, _, name, id, _| {
+        if matches!(kind, "property" | "function") && let Some(ids) = properties.get(&name.to_lowercase()) {
+            if ids.len() == 1 { declarations.push((id.to_owned(), ids.first().unwrap().clone())); } else { partial = true; }
+        }
+    })?;
+    let mut consumers = Vec::new();
+    for (getter, column) in declarations {
+        let (edges, truncated) = graph.incoming_edge_prefix(project, engram_graph::EdgeKind::Calls, &getter, limit)?;
+        partial |= truncated;
+        for (caller, _, _) in edges {
+            consumers.push((selected[column.as_str()].to_owned(), "mapped property access".into(), caller));
+        }
+    }
+    Ok((consumers, partial))
+}
+
 fn visit_model_getters(tables: &[Table], mut visit: impl FnMut(&str, &str, &Table, &Citation)) {
     let mut model = std::collections::BTreeMap::<&str, Vec<&Table>>::new();
     for table in tables {

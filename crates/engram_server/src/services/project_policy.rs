@@ -657,14 +657,6 @@ fn declared_scope_patterns(metadata: Option<&serde_yaml::Mapping>) -> Result<Vec
 }
 
 fn applicability(path: &str, content: &str, targets: &[String]) -> Result<Vec<String>, String> {
-    let mut reasons = scope_reasons(path, content, targets)?;
-    if !reasons.is_empty() && content.contains("Observations below were aggregated from") && content.contains("sampled file") {
-        reasons.push("This document includes generated sample statistics. Use the team's explicit written rule to decide new-code style.".into());
-    }
-    Ok(reasons)
-}
-
-fn scope_reasons(path: &str, content: &str, targets: &[String]) -> Result<Vec<String>, String> {
     if !has_directory_authority(path, targets) {
         return Ok(Vec::new());
     }
@@ -882,7 +874,7 @@ fn resolve_observing_candidate_reads<F: FnMut(&str, usize)>(
                 continue;
             }
         };
-        let reasons = match applicability(&relative, prefix, &targets) {
+        let mut reasons = match applicability(&relative, prefix, &targets) {
             Ok(reasons) => reasons,
             Err(reason) => {
                 // The body was not read, so no whole-document hash is known.
@@ -920,6 +912,9 @@ fn resolve_observing_candidate_reads<F: FnMut(&str, usize)>(
                 continue;
             }
         };
+        if content.contains("Observations below were aggregated from") && content.contains("sampled file") {
+            reasons.insert(0, "This document includes generated sample statistics. Use the team's explicit written rule to decide new-code style.".into());
+        }
         let shared = reasons
             .iter()
             .any(|reason| reason.contains("repository guidance"));

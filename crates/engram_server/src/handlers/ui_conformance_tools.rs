@@ -124,7 +124,7 @@ impl Engram {
                     .filter(|name| classes.contains(name)).count()));
             }
             let mut report = if families.is_empty() {
-                format!("result: no_families\nregion: {region}\nNo repeated indexed UI pattern with >= {min} instances matches this region. Implementation observations are not authored policy; class/structure comparisons are unassessed for this empty observation. Authored requirements can still apply and are reported below. Try a sibling region for additional implementation examples.\n")
+                format!("result: no_families\nregion: {region}\nNo indexed UI family reached {min} instances in this region. Literal class comparisons are reported separately when source is available. Authored requirements follow below.\n")
             } else {
                 let verdicts = req.candidate_classes.as_deref().map(|classes| ui_catalog::check_classes(&families[0], classes));
                 ui_catalog::render_conformance(&families, verdicts.as_deref())

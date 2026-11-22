@@ -1159,6 +1159,18 @@ impl Engram {
                 nodes.iter().filter(|n| n.node_type == "file").map(|n|n.file_path.as_str())).into_iter().map(|(_,_,path)|path).collect();
             let mut groups: BTreeMap<&'static str, Vec<Entry>> = BTreeMap::new();
             let mut anchors: Vec<(String, String)> = Vec::new(); // (node_id, name)
+            let mut dbml_designers = HashSet::new();
+            match graph.indexed_paths_with_suffix(&pid, ".dbml", 129) {
+                Ok(paths) => {
+                    if paths.len() == 129 { cov.failures.push("DBML designer identification inspected 128 mappings".into()); }
+                    for path in paths.into_iter().take(128) {
+                        if let Some(base) = path.to_ascii_lowercase().strip_suffix(".dbml") {
+                            dbml_designers.insert(format!("{base}.designer.vb"));
+                        }
+                    }
+                }
+                Err(e) => cov.failures.push(format!("DBML designer identification unavailable: {e}")),
+            }
             for n in nodes.iter() {
                 if if exact_schema {
                     !n.name.eq_ignore_ascii_case(&identifier)
@@ -1177,7 +1189,9 @@ impl Engram {
                 let group = match n.node_type.as_str() {
                     "db_table" | "db_column" => "data",
                     "stored_proc" | "stored_procedure" | "inline_sql" => "sql",
+                    "global_state" if n.name.starts_with("Module:") => "module_state",
                     "global_state" => "state",
+                    "control" if dbml_designers.contains(&n.file_path.as_str().to_ascii_lowercase()) => continue,
                     "page" | "control" | "ui_container" | "control_layout" => "ui",
                     "function" | "class" | "interface" => "logic",
                     "web_service" | "http_handler" | "wcf_service" | "route_handler" => "endpoints",
@@ -1311,6 +1325,14 @@ impl Engram {
                             .push(format!("consumer lookup failed for {anchor_name}: {e}"));
                     }
                 }
+            }
+            match crate::services::schema_query::mapped_column_consumers(&graph, &pid, &root_for_outputs, &anchors, CONSUMER_CAP_PER_ANCHOR) {
+                Ok((rows, partial)) => {
+                    cov.consumer_edges += rows.len();
+                    consumers.extend(rows);
+                    if partial { cov.failures.push("Mapped column consumer coverage is partial".into()); }
+                }
+                Err(error) => cov.failures.push(format!("Mapped column consumers unavailable: {error}")),
             }
             consumers.sort();
             consumers.dedup();
@@ -1721,6 +1743,7 @@ impl Engram {
                 "state",
                 "## Shared state (Session / ViewState / Cache keys)",
             ),
+            ("module_state", "## Module-scoped state"),
             ("ui", "## UI (pages / controls)"),
             ("logic", "## Logic (functions / classes)"),
             ("endpoints", "## Endpoints (services / routes)"),

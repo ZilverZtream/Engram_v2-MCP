@@ -22,6 +22,33 @@ pub(super) struct HelperDecision {
     pub branches: Vec<BranchCase>,
 }
 
+/// Mark the RHS of local assignments that directly feed a returned value.
+/// This is a bounded, method-local syntactic slice. Call edges and source
+/// ownership are checked separately before a helper is traversed.
+fn vb_return_dependencies(body: &[(usize, &str)]) -> BTreeMap<u32, usize> {
+    let assign = regex::Regex::new(r"(?i)^\s*(?:Dim\s+)?([a-z_]\w*)(?:\s+As\s+[\w.]+)?\s*(\+=|-=|=)\s*(.+)$").unwrap();
+    let identifier = regex::Regex::new(r"(?i)\b[a-z_]\w*\b").unwrap();
+    let mut used = HashSet::<String>::new();
+    let mut rows = BTreeMap::new();
+    for &(index, line) in body.iter().rev() {
+        let trimmed = line.trim_start();
+        let expr = if let Some(rest) = trimmed.get(6..).filter(|rest| trimmed[..6].eq_ignore_ascii_case("return") && rest.starts_with(char::is_whitespace)) {
+            rest
+        } else if let Some(m) = assign.captures(line) {
+            let lhs = m[1].to_ascii_lowercase();
+            if !used.contains(&lhs) { continue; }
+            if &m[2] == "=" { used.remove(&lhs); }
+            m.get(3).unwrap().as_str()
+        } else { continue; };
+        let offset = line.len() - expr.len();
+        rows.insert(index as u32 + 1, offset);
+        used.extend(identifier.find_iter(expr)
+            .filter(|t| !expr[..t.start()].trim_end().ends_with('.'))
+            .map(|t| t.as_str().to_ascii_lowercase()));
+    }
+    rows
+}
+
 /// Follow bound VB calls whose result participates in an actual decision.
 /// Ordinary downstream reads and writes do not broaden a method-scoped matrix.
 pub(super) fn decision_helpers(
@@ -43,6 +70,7 @@ pub(super) fn decision_helpers(
         let executable = crate::services::business_outcome_dependencies::executable_lines(&source, true);
         let body: Vec<_> = executable.lines().enumerate().skip(caller.start_line.saturating_sub(1) as usize)
             .take(caller.end_line.saturating_sub(caller.start_line) as usize + 1).collect();
+        let returned = if depth > 0 { vb_return_dependencies(&body) } else { BTreeMap::new() };
         for edge in edges {
             if visited.contains(&edge.target_id) { continue; }
             let Ok(Some(node)) = graph.get_node(project, &edge.target_id) else { continue; };
@@ -56,6 +84,7 @@ pub(super) fn decision_helpers(
                 let site = *index as u32 + 1;
                 if site == caller.start_line { return None; }
                 let hit = call.find(line)?;
+                if returned.get(&site).is_some_and(|start| hit.start() >= *start) { return Some(site); }
                 if conditions.iter().any(|(row, _)| *row == site) { return Some(site); }
                 let var = assignment.captures(&line[..hit.start()])?;
                 let token = regex::Regex::new(&format!(r"(?i)\b{}\b", regex::escape(&var[1]))).unwrap();
@@ -75,7 +104,7 @@ pub(super) fn decision_helpers(
             let Some(snapshot) = snapshot else { continue; };
             match vb_branch_cases(path, &node.name, snapshot, node.start_line, node.end_line) {
                 Ok(branches) if !branches.is_empty() => {
-                    if depth == 0 { pending.push_back((node.clone(), snapshot.clone(), branches.iter().map(|b| (b.line,b.condition.clone())).collect(), 1)); }
+                    if depth < 2 { pending.push_back((node.clone(), snapshot.clone(), branches.iter().map(|b| (b.line,b.condition.clone())).collect(), depth + 1)); }
                     results.push(HelperDecision { caller: caller.name.clone(), caller_file: caller.file_path.to_string(), call_line, branches });
                 }
                 Err(e) => notes.push(format!("{path}:{}: helper decisions unavailable: {e}",node.start_line)),
