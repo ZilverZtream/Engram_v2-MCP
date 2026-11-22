@@ -1166,7 +1166,11 @@ pub struct PrePushAuditRequest {
     /// diff_file, diff_file_blake3 or file_path retrieval inputs.
     #[serde(default)]
     pub instruction_maintenance: Option<crate::services::instruction_maintenance::MaintenanceRequest>,
-    /// Proposed code or unified diff. Omit only for hash-bound diff_file input.
+    /// Read the registered checkout directly: working_tree, staged, unstaged, or head.
+    /// Optional file_path limits the Git diff to this project-relative path.
+    #[serde(default)]
+    pub diff: Option<String>,
+    /// Proposed code or unified diff. Alternative to diff_file or a Git diff selector.
     #[serde(default)]
     pub code: String,
     /// Alternative project-relative UTF-8 diff file, maximum4MiB; never an external absolute path.

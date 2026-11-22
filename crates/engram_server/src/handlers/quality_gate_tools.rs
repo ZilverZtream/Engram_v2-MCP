@@ -77,6 +77,15 @@ fn quality_source_origin(root: &std::path::Path, source: &std::path::Path) -> Re
 /// Resolve one input before quality-rule count/search. File identity uses existing BLAKE3 dependency.
 fn resolve_audit_input(req: &crate::models::PrePushAuditRequest, root: &std::path::Path) -> Result<String, McpError> {
     use std::io::Read;
+    if let Some(source) = req.diff.as_deref() {
+        if !req.code.is_empty() || req.diff_file.is_some() || req.diff_file_blake3.is_some()
+            || !matches!(source,"working_tree"|"staged"|"unstaged"|"head") {
+            return Err(McpError::invalid_params("diff must select working_tree, staged, unstaged or head and cannot be combined with inline or file input",None));
+        }
+        if let Some(path) = &req.file_path {safe_join(root,path).map_err(|e| McpError::invalid_params(e.to_string(), None))?;}
+        return crate::services::pre_commit_review_service::resolve_review_diff(root,source,req.file_path.as_slice())
+            .map_err(|e| McpError::invalid_params(format!("unable to read {source} diff: {e}"),None));
+    }
     match (&req.diff_file, &req.diff_file_blake3) {
         (None,None) if !req.code.trim().is_empty() => Ok(req.code.clone()),
         (Some(path),Some(expected)) if req.code.is_empty() => {
@@ -427,7 +436,7 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         if let Some(maintenance) = req.instruction_maintenance.as_ref() {
-            if req.coverage_offset.is_some() || !req.code.is_empty() || req.diff_file.is_some() || req.diff_file_blake3.is_some() || req.file_path.is_some() {
+            if req.coverage_offset.is_some() || !req.code.is_empty() || req.diff_file.is_some() || req.diff_file_blake3.is_some() || req.diff.is_some() || req.file_path.is_some() {
                 return Err(McpError::invalid_params("Maintenance and retrieval inputs must not be mixed", None));
             }
             let record = self.ensure_project_record(&req.project_id).await?;
@@ -456,7 +465,7 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let root = std::path::Path::new(&ps.info.directory);
         if let Some(offset)=req.coverage_offset {
-            if !req.code.is_empty() || req.diff_file.is_some() || req.diff_file_blake3.is_some() || req.file_path.is_some() {
+            if !req.code.is_empty() || req.diff_file.is_some() || req.diff_file_blake3.is_some() || req.diff.is_some() || req.file_path.is_some() {
                 return Err(McpError::invalid_params("Rule inventory takes only project_id and coverage_offset", None));
             }
             let mut verifier=quality_source::SourceVerifier::new(&self.state,&req.project_id,root);
@@ -465,7 +474,10 @@ impl Engram {
         }
         let code = resolve_audit_input(&req, std::path::Path::new(&ps.info.directory))?;
         let retrieved = async {
-        let mut input_binding = format!("Input: {} bytes, BLAKE3 {} ({}).\n",code.len(),blake3::hash(code.as_bytes()).to_hex(),if req.diff_file.is_some(){"project-relative file"}else{"inline"});
+        if code.is_empty() && let Some(source) = &req.diff {
+            return Ok(CallToolResult::success(vec![Content::text(format!("No changes in the selected {source} diff scope."))]));
+        }
+        let mut input_binding = format!("Input: {} bytes, BLAKE3 {} ({}).\n",code.len(),blake3::hash(code.as_bytes()).to_hex(),req.diff.as_deref().unwrap_or(if req.diff_file.is_some(){"project-relative file"}else{"inline"}));
         use crate::services::pre_commit_review_service::gates::{check_added_lines, parse_rule_check};
         let diff = audit_diff(&code, req.file_path.as_deref());
         let mut paths: Vec<&str> = diff.iter().map(|file| file.path.as_str()).collect();
