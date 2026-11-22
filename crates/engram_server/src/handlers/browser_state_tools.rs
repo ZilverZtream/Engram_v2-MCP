@@ -195,7 +195,7 @@ impl Engram {
                 let sources = std::iter::once((file_id, 1)).chain(methods.into_iter().map(|n| (n.node_id, n.start_line)));
                 for (source, declaration_line) in sources {
                     for kind in [EdgeKind::ReadsState, EdgeKind::WritesState] {
-                        let (edges, capped) = graph.outgoing_edges_of_kind(&req.project_id, kind, &source, 500)?;
+                        let (edges, capped) = graph.outgoing_edges_of_kind(&req.project_id, kind.clone(), &source, 500)?;
                         truncated |= capped;
                         for edge in edges {
                             let Some((store, key)) = edge.target_id.strip_prefix("state:").and_then(|s| s.split_once(':')) else { continue; };
