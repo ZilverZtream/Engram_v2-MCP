@@ -9,9 +9,25 @@ use rmcp::{
     model::{CallToolResult, Content},
 };
 use std::{collections::BTreeSet, path::Path};
+use std::fmt::Write;
 
 const INDEX_FILE_LIMIT: usize = 50_000;
 const POLICY_TARGET_LIMIT: usize = 128;
+
+fn page_class_evidence(path: &str, source: &str, candidate: &str) -> String {
+    let sites = crate::services::request_trace::control_events::class_sites(source);
+    let wanted = candidate.split_ascii_whitespace().collect::<BTreeSet<_>>();
+    let mut report = format!("Literal class usage in {path} ({} elements with classes):\n", sites.len());
+    for class in wanted {
+        let mut lines = sites.iter().filter(|(_, value)| value.split_ascii_whitespace().any(|v| v == class));
+        let Some((first, _)) = lines.next() else {
+            let _ = writeln!(report, "- {class}: 0 observed elements");
+            continue;
+        };
+        let _ = writeln!(report, "- {class}: {} elements, first at {path}:{first}", 1 + lines.count());
+    }
+    report
+}
 
 impl Engram {
     pub async fn handle_get_ui_conformance(
@@ -24,7 +40,7 @@ impl Engram {
         let text = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
             let region = req.region.trim().replace('\\', "/");
             let min = req.min_instances.unwrap_or(2).max(2);
-            let families = ui_catalog::families_for_region(&graph, &req.project_id, &region, min)?;
+            let mut families = ui_catalog::families_for_region(&graph, &req.project_id, &region, min)?;
             let exact = !region.contains(['*', '?']) && !region.ends_with('/') && Path::new(&region).extension().is_some();
             let mut matches = BTreeSet::new();
             let mut inventory_capped = false;
@@ -50,12 +66,26 @@ impl Engram {
             if inventory_capped { policy.notes.push(format!("Indexed file inventory capped at{INDEX_FILE_LIMIT}; additional region matches and their guidance may be missing. Total remaining matches are unknown.")); }
             if targets.is_empty() { policy.notes.push("No concrete indexed target matched. Request an exact file path to assess scoped guidance, including a planned new file. This does not establish that no authored requirements apply.".into()); }
             policy.notes.push("Family counts may include instances outside the requested region. Those observations do not extend policy authority to the edit target. Recheck guidance for the final edit scope; current instructions do not verify indexed pattern freshness, UI compliance or runtime behavior.".into());
+            if let Some(candidate) = req.candidate_classes.as_deref() {
+                let classes = candidate.split_ascii_whitespace().collect::<BTreeSet<_>>();
+                families.sort_by_key(|family| std::cmp::Reverse(family.axes.iter()
+                    .filter(|axis| axis.axis == "style.classes")
+                    .flat_map(|axis| axis.canonical.split_ascii_whitespace())
+                    .filter(|name| classes.contains(name)).count()));
+            }
             let mut report = if families.is_empty() {
                 format!("result: no_families\nregion: {region}\nNo repeated indexed UI pattern with >= {min} instances matches this region. Implementation observations are not authored policy; class/structure comparisons are unassessed for this empty observation. Authored requirements can still apply and are reported below. Try a sibling region for additional implementation examples.\n")
             } else {
                 let verdicts = req.candidate_classes.as_deref().map(|classes| ui_catalog::check_classes(&families[0], classes));
                 ui_catalog::render_conformance(&families, verdicts.as_deref())
             };
+            if exact && let Some(candidate) = req.candidate_classes.as_deref()
+                && matches!(Path::new(&region).extension().and_then(|e| e.to_str())
+                    .map(str::to_ascii_lowercase).as_deref(), Some("aspx" | "ascx" | "master" | "html" | "htm"))
+                && let Ok(source) = crate::planner_source::read(&graph, &req.project_id, Path::new(&record.directory), &region)
+            {
+                report.insert_str(0, &page_class_evidence(&region, &source, candidate));
+            }
             report.push_str("\nGuidance target paths (not a complete edit scope):\n");
             for path in &targets { report.push_str(&format!("- `{path}`\n")); }
             report.push_str(&policy.render_markdown());

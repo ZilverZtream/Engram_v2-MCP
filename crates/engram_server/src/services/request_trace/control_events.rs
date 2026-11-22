@@ -25,6 +25,32 @@ pub(super) fn attributes(tag: &str) -> impl Iterator<Item = (&str, &str)> {
     })
 }
 
+/// Literal classes on markup elements, excluding comments, embedded code,
+/// and HTML strings in raw-text elements. Preserve line numbers for citations.
+pub(crate) fn class_sites(source: &str) -> Vec<(usize, String)> {
+    static EMBEDDED: LazyLock<Regex> = LazyLock::new(|| Regex::new(
+        r"(?is)<script\b[^>]*>.*?</script\s*>|<style\b[^>]*>.*?</style\s*>|<textarea\b[^>]*>.*?</textarea\s*>|<%.*?%>"
+    ).unwrap());
+    let markup = without_markup_comments(source);
+    let markup = EMBEDDED.replace_all(&markup, |c: &regex::Captures<'_>| {
+        c[0].chars().map(|c| if c == '\n' { '\n' } else { ' ' }).collect::<String>()
+    });
+    let mut previous = 0;
+    let mut line = 1;
+    let mut sites = Vec::new();
+    for tag in start_tags(&markup) {
+        line += markup.as_bytes()[previous..tag.start()].iter().filter(|b| **b == b'\n').count();
+        previous = tag.start();
+        if let Some((_, value)) = attributes(tag.as_str())
+            .find(|(key, _)| key.eq_ignore_ascii_case("class") || key.eq_ignore_ascii_case("cssclass"))
+        {
+            let classes = value.split_ascii_whitespace().collect::<Vec<_>>().join(" ");
+            if !classes.is_empty() { sites.push((line, classes)); }
+        }
+    }
+    sites
+}
+
 fn identifier(value: &str) -> bool {
     let mut bytes = value.bytes();
     value.len() <= 128
