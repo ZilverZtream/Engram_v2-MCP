@@ -125,7 +125,53 @@ impl<'a> SourceVerifier<'a> {
 
 pub struct EffectiveRepoRules {
     pub rules: Vec<RepoRule>,
-    pub notes: Vec<String>,
+    pub selection: RuleSelection,
+    pub provider_issues: Vec<(String, bool)>,
+    exclusions: Vec<String>,
+}
+
+#[derive(Clone, Debug, Default, serde::Serialize)]
+pub struct RuleSelection {
+    pub stored: usize,
+    pub matching_paths: usize,
+    pub retained: usize,
+    pub unverified_ownership: usize,
+    pub excluded_fragments: usize,
+    pub obsolete: usize,
+    pub withheld: usize,
+    pub stored_revert_rules: usize,
+    pub matching_revert_rules: usize,
+}
+
+impl RuleSelection {
+    pub fn summary(&self) -> String {
+        format!("Of {} stored repository rules, {} match this selection and {} were retained for checks. Excluded {} incomplete example fields, {} obsolete rules and {} rules pending source verification. {} retained repository rules have unverified ownership (existing enforcement retained). Revert rules matching this selection: {} of {} stored. Inspect source evidence with list_repo_rules(ownership_inventory=true).",
+            self.stored, self.matching_paths, self.retained, self.excluded_fragments, self.obsolete, self.withheld, self.unverified_ownership, self.matching_revert_rules, self.stored_revert_rules)
+    }
+}
+
+impl EffectiveRepoRules {
+    pub fn into_parts(self) -> (Vec<RepoRule>, Vec<String>) {
+        let notes = self.notes();
+        (self.rules, notes)
+    }
+
+    pub fn notes(&self) -> Vec<String> {
+        let mut notes = self.exclusions.clone();
+        for (note, _) in &self.provider_issues {
+            if !notes.contains(note) { notes.push(note.clone()); }
+        }
+        if self.selection.unverified_ownership > 0 { notes.push(self.selection.summary()); }
+        notes
+    }
+
+    fn provider_issue(&mut self, note: String, revert_rule: bool) {
+        if let Some((_, immune)) = self.provider_issues.iter_mut().find(|(text, _)| *text == note) {
+            *immune |= revert_rule;
+        } else {
+            self.provider_issues.push((note, revert_rule));
+        }
+    }
 }
 
 /// Stored manual/legacy rules stay inspectable through list_repo_rules. Managed
@@ -142,32 +188,38 @@ pub(crate) fn effective_repo_rules_from_rows(state: &AppState, pid: &str,
     // and exact inventories, regardless of their initial row-map ordering.
     rules.sort_by(|a, b| a.file_pattern.cmp(&b.file_pattern).then_with(|| a.rule_id.cmp(&b.rule_id)));
     let mut verifier = SourceVerifier::new(state, pid, Path::new(&project.directory));
-    let mut out = EffectiveRepoRules { rules: Vec::new(), notes: Vec::new() };
-    let mut unresolved_authority = 0usize;
+    let selection = RuleSelection { stored: rules.len(), ..Default::default() };
+    let mut out = EffectiveRepoRules { rules: Vec::new(), selection, provider_issues: Vec::new(), exclusions: Vec::new() };
     let corpus_revision = state.registry.get_meta_bounded(pid, CORPUS_REVISION, 4096)?.unwrap_or_default();
     for rule in rules {
+        let revert_rule = rule.rule_id.starts_with("immune_");
+        if revert_rule { out.selection.stored_revert_rules += 1; }
+        if paths.is_some_and(|paths| !paths.iter().any(|p|
+            crate::services::produce_claude_md_service::instruction_plan::applies(&rule.file_pattern, p))) {
+            continue;
+        }
+        out.selection.matching_paths += 1;
+        if revert_rule { out.selection.matching_revert_rules += 1; }
         if let Some(field) = rule.legacy_example_field() {
-            out.notes.push(format!("{} is a retained JSON {field} field, excluded from executable guidance. Refresh the structured rule source to recover its parent rule.", rule.rule_id));
+            out.selection.excluded_fragments += 1;
+            out.exclusions.push(format!("{} is a retained JSON {field} field, excluded from executable guidance. Refresh the structured rule source to recover its parent rule.", rule.rule_id));
             continue;
         }
         if rule.provenance.is_none() && rule.rule_id.starts_with("qg-copilot:copilot-instructions.md:")
             && let Some(status)=verifier.legacy_checkout_status("copilot-instructions.md",&rule.rule_text){
-            out.notes.push(format!("{} — {status}",rule.rule_id));continue;
-        }
-        if paths.is_some_and(|paths| !paths.iter().any(|p|
-            crate::services::produce_claude_md_service::instruction_plan::applies(&rule.file_pattern, p))) {
-            continue;
+            out.selection.obsolete += 1;
+            out.exclusions.push(format!("{} — {status}",rule.rule_id));continue;
         }
         if let Some(origin) = rule.provenance.as_deref().and_then(|p| p.strip_prefix(PROVENANCE)) {
             let status = match verifier.source(origin) {
                 Ok(r) if r.rules.iter().any(|owned| same_rule(owned, &rule)) => {
                     if r.doc_ids.is_empty() {
                         let note = format!("INCOMPLETE searchable policy coverage: {origin}: ownership is recorded but no searchable evidence was published; import source to restore search coverage; verified registry constraints remain active");
-                        if !out.notes.contains(&note) { out.notes.push(note); }
+                        out.provider_issue(note, revert_rule);
                     }
                     if r.corpus_revision != corpus_revision {
                         let note = format!("INCOMPLETE searchable policy coverage: {origin}: corpus was cleared after this import; re-ingest source to restore search evidence; verified registry constraints remain active");
-                        if !out.notes.contains(&note) { out.notes.push(note); }
+                        out.provider_issue(note, revert_rule);
                     }
                     None
                 },
@@ -176,19 +228,16 @@ pub(crate) fn effective_repo_rules_from_rows(state: &AppState, pid: &str,
             };
             if let Some(status) = status {
                 let note = format!("INCOMPLETE policy coverage: {origin}: {status}; source-managed rule withheld");
-                if !out.notes.contains(&note) { out.notes.push(note); }
+                out.selection.withheld += 1;
+                out.provider_issue(note, revert_rule);
                 continue;
             }
         } else if classify(rule.provenance.as_deref()) == Authority::LegacyUnverified {
-            unresolved_authority += 1;
+            out.selection.unverified_ownership += 1;
         }
         out.rules.push(rule);
     }
-    if unresolved_authority > 0 {
-        out.notes.push(format!(
-            "INCOMPLETE policy coverage: {unresolved_authority} retained repository rules have unspecified or unrecognized ownership provenance in this path selection; existing enforcement retained. Inspect original rows and source evidence before adoption."
-        ));
-    }
+    out.selection.retained = out.rules.len();
     Ok(out)
 }
 
@@ -229,13 +278,13 @@ mod policy_authority_tests {
         retained.sort();
         assert_eq!(retained, vec!["old-finding", "qg-copilot:copilot-instructions.md:9", "review", "unknown", "unrecognized"]);
         for row in &effective.rules { assert!(before.contains(row), "Every retained enforcement field remains unchanged"); }
-        assert_eq!(effective.notes.iter().filter(|n| n.contains("3 retained repository rules") && n.contains("enforcement retained")).count(), 1);
-        assert!(effective.notes.iter().any(|n| n.contains("source-managed rule withheld")), "Unverified source claims must still be withheld");
+        assert_eq!(effective.notes().iter().filter(|n| n.contains("3 retained repository rules") && n.contains("enforcement retained")).count(), 1);
+        assert!(effective.notes().iter().any(|n| n.contains("source-managed rule withheld")), "Unverified source claims must still be withheld");
         let all = effective_repo_rules(&state, "authority", None).unwrap();
-        assert!(all.notes.iter().any(|n| n.contains("4 retained repository rules")));
-        assert!(all.notes.iter().all(|n| !n.contains("applicable rules")), "Unscoped inventory must not imply applicability to every change");
+        assert!(all.notes().iter().any(|n| n.contains("4 retained repository rules")));
+        assert!(all.notes().iter().all(|n| !n.contains("applicable rules")), "Unscoped inventory must not imply applicability to every change");
         let unrelated = effective_repo_rules(&state, "authority", Some(&["README.md"])).unwrap();
-        assert!(unrelated.rules.is_empty() && unrelated.notes.is_empty());
+        assert!(unrelated.rules.is_empty() && unrelated.notes().is_empty());
         let plan = crate::services::produce_claude_md_service::instruction_plan::Plan::capture("authority", vec![manual, unknown]).unwrap();
         assert_eq!(plan.inputs.iter().find(|i| i.original.rule_id.starts_with("qg-")).unwrap().authority, Authority::AcceptedManual);
         assert_eq!(plan.inputs.iter().find(|i| i.original.rule_id == "unknown").unwrap().authority, Authority::LegacyUnverified);

@@ -12918,7 +12918,7 @@ impl Engram {
                 } else {
                     let paths: Vec<&str> = freshness_paths.iter().map(String::as_str).collect();
                     let effective = crate::services::quality_source::effective_repo_rules(&rule_state, &rule_project, Some(&paths))?;
-                    Ok((effective.rules, effective.notes))
+                    Ok(effective.into_parts())
                 }
             }).await;
             let (stored_rules, policy_coverage_notes) = match loaded_rules {
@@ -14359,7 +14359,7 @@ impl Engram {
             crate::services::quality_source::effective_repo_rules(&rule_state, &pid, Some(&paths))
         }).await {
             Ok(Ok(effective)) => {
-                for note in effective.notes { coverage.note(note); }
+                for note in effective.notes() { coverage.note(note); }
                 effective.rules
             },
             Ok(Err(error)) => { coverage.note(format!("repository rule lookup failed: {error}")); Vec::new() },

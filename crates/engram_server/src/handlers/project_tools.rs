@@ -5658,6 +5658,10 @@ impl Engram {
             .list_repo_rules(&req.project_id)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let mut out = String::from("# Repository rules\n\n");
+        let legacy = rules.iter().filter(|r| crate::services::rule_authority::classify(r.provenance.as_deref())
+            == crate::services::rule_authority::Authority::LegacyUnverified).count();
+        let undated = rules.iter().filter(|r| r.introduced_at.is_none()).count();
+        out.push_str(&format!("Project inventory contains {} stored rows. {legacy} have unverified ownership and {undated} have no recorded introduction date. Reviews select a subset by file pattern. Use ownership_inventory=true to inspect the available source evidence.\n\n", rules.len()));
         let project = self.state.registry.get_project(&req.project_id)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         if let Some(record) = &project {

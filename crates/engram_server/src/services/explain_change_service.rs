@@ -233,7 +233,7 @@ pub async fn explain_change(
 
     let rule_paths: Vec<&str> = changed_paths.iter().map(String::as_str).collect();
     let policy = crate::services::quality_source::effective_repo_rules(state, project_id, Some(&rule_paths))?;
-    let repo_rules = policy.rules;
+    let (repo_rules, policy_notes) = policy.into_parts();
     let affected_files = gather_affected_files(
         &state.graph,
         project_id,
@@ -266,7 +266,7 @@ pub async fn explain_change(
     let (risk_badge, mut risk_rationale) = compute_risk(&affected_files, &coupling_notes);
     let scored = affected_files.iter().filter(|file| file.blast_radius.is_some()).count();
     risk_rationale.push_str(&format!(". File-level graph scores available for {scored}/{} changed files; unscored files have unknown graph impact.", affected_files.len()));
-    for note in policy.notes { risk_rationale.push_str(&format!("; {note}")); }
+    for note in policy_notes { risk_rationale.push_str(&format!("; {note}")); }
 
     // Stage 8: render narrative.
     let added_total: usize = diff_files.iter().map(|f| f.added_lines.len()).sum();

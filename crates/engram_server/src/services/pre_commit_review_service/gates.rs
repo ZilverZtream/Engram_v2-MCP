@@ -295,9 +295,7 @@ impl Gate for ImmuneGate {
             .collect();
         if immune_rules.is_empty() {
             ctx.degrade(
-                "No immune_ repo rules are loaded for this project; revert-based immune coverage \
-                 is unavailable. Populate reviewed immune rules from relevant revert history; \
-                 absence of rules is not a clean immune review.",
+                "No immune_ repo rules are effective for the reviewed paths. Revert-based immune coverage is unavailable. See the stored and matching revert rule counts.",
             );
             return Ok(Vec::new());
         }

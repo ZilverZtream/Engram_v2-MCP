@@ -246,6 +246,9 @@ impl GateStatus {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct GateOutcome {
+    /// Shared evidence for the selection consumed by the rule-based gates.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repository_rule_selection: Option<crate::services::quality_source::RuleSelection>,
     pub name: &'static str,
     pub status: GateStatus,
     pub elapsed_ms: u128,
@@ -290,7 +293,8 @@ impl Verdict {
                         | GateStatus::Panicked(_)
                         | GateStatus::Skipped(_)
                         | GateStatus::Degraded { .. }
-                ) || !o.caps.is_empty()
+                ) || !o.caps.is_empty() || o.repository_rule_selection.as_ref().is_some_and(|s|
+                    s.unverified_ownership > 0 || s.excluded_fragments > 0 || s.withheld > 0)
             });
         if base == Self::Green && missing {
             Self::Yellow
@@ -2180,6 +2184,9 @@ fn review_utf8_prefix(value: &str, max_bytes: usize) -> &str {
 }
 
 fn render_gate_source_scope(out: &mut String, outcomes: &[GateOutcome]) {
+    if let Some(selection) = outcomes.iter().find_map(|o| o.repository_rule_selection.as_ref()) {
+        out.push_str(&format!("\n{}\n", selection.summary()));
+    }
     for outcome in outcomes {
         let Some(scope) = &outcome.source_scope else { continue };
         let status = if matches!(outcome.status, GateStatus::NotApplicable(_)) { "not applicable" } else { "restricted source scope" };
@@ -2732,11 +2739,14 @@ async fn run_pre_commit_review_selected(
         .and_then(|s| s.parse::<u32>().ok())
         .unwrap_or_else(|| count_commits_best_effort(project_dir).unwrap_or(0));
     let rule_paths: Vec<&str> = changed_paths.iter().map(String::as_str).collect();
+    let mut rule_selection = None;
     let repo_rules: Arc<Vec<RepoRule>> = Arc::new(
         crate::services::quality_source::effective_repo_rules(state, project_id, Some(&rule_paths))
             .map(|effective| {
-                for note in effective.notes {
-                    provider_notes.push(ProviderNote::new(ProviderScope::RepositoryRules, note));
+                rule_selection = Some(effective.selection);
+                for (note, relates_to_revert) in effective.provider_issues {
+                    let scope = if relates_to_revert { ProviderScope::RepositoryRules } else { ProviderScope::ConventionsAndRules };
+                    provider_notes.push(ProviderNote::new(scope, note));
                 }
                 effective.rules
             }).unwrap_or_else(|error| {
@@ -2853,7 +2863,7 @@ async fn run_pre_commit_review_selected(
         }
         if config.skip_gates.iter().any(|s| s.as_str() == name) {
             outcomes.push(GateOutcome {
-                source_scope: None,
+                repository_rule_selection: None, source_scope: None,
                 name,
                 status: GateStatus::Skipped("skip_gates".into()),
                 caps: Vec::new(),
@@ -2865,7 +2875,7 @@ async fn run_pre_commit_review_selected(
         if source_scopes.get(name).is_some_and(|scope| scope.applicable_files.is_empty()) {
             outcomes.push(GateOutcome {
                 name, status: GateStatus::NotApplicable("No submitted files are applicable to this gate after checking source language and compiler outputs; see source_scope.".into()),
-                elapsed_ms: 0, caps: Vec::new(), source_scope: None,
+                elapsed_ms: 0, caps: Vec::new(), repository_rule_selection: None, source_scope: None,
             });
             if let Some(observe) = &observe_gate { observe(name, &[]); }
             continue;
@@ -2911,7 +2921,7 @@ async fn run_pre_commit_review_selected(
             match h.await {
                 Ok((Ok(fs), ms, notes, caps)) => {
                     sync_outcomes.push(GateOutcome {
-                        source_scope: None,
+                        repository_rule_selection: None, source_scope: None,
                         name,
                         status: GateStatus::from_run(fs.len(), notes),
                         elapsed_ms: ms,
@@ -2922,7 +2932,7 @@ async fn run_pre_commit_review_selected(
                 Ok((Err(e), ms, _notes, _caps)) => {
                     tracing::warn!(gate = %name, "pre_commit_review gate failed: {e}");
                     sync_outcomes.push(GateOutcome {
-                        source_scope: None,
+                        repository_rule_selection: None, source_scope: None,
                         name,
                         status: GateStatus::Failed(e.to_string()),
                         caps: Vec::new(),
@@ -2932,7 +2942,7 @@ async fn run_pre_commit_review_selected(
                 Err(e) => {
                     tracing::warn!(gate = %name, "pre_commit_review gate panicked: {e}");
                     sync_outcomes.push(GateOutcome {
-                        source_scope: None,
+                        repository_rule_selection: None, source_scope: None,
                         name,
                         status: GateStatus::Panicked(e.to_string()),
                         caps: Vec::new(),
@@ -2965,7 +2975,7 @@ async fn run_pre_commit_review_selected(
             match result {
                 Ok(Ok(fs)) => {
                     async_outcomes.push(GateOutcome {
-                        source_scope: None,
+                        repository_rule_selection: None, source_scope: None,
                         name,
                         status: GateStatus::from_run(fs.len(), notes),
                         elapsed_ms: ms,
@@ -2976,7 +2986,7 @@ async fn run_pre_commit_review_selected(
                 Ok(Err(e)) => {
                     tracing::warn!(gate = name, "pre_commit_review gate failed: {e}");
                     async_outcomes.push(GateOutcome {
-                        source_scope: None,
+                        repository_rule_selection: None, source_scope: None,
                         name,
                         status: GateStatus::Failed(e.to_string()),
                         caps: Vec::new(),
@@ -2991,7 +3001,7 @@ async fn run_pre_commit_review_selected(
                         .unwrap_or_else(|| "panic".into());
                     tracing::warn!(gate = name, "pre_commit_review gate panicked: {reason}");
                     async_outcomes.push(GateOutcome {
-                        source_scope: None,
+                        repository_rule_selection: None, source_scope: None,
                         name,
                         status: GateStatus::Panicked(reason),
                         caps: Vec::new(),
@@ -3009,6 +3019,12 @@ async fn run_pre_commit_review_selected(
     findings.extend(async_findings);
     outcomes.extend(sync_outcomes);
     outcomes.extend(async_outcomes);
+    for gate in ["repo_rules", "added_conventions", "immune"] {
+        if let Some(outcome) = outcomes.iter_mut().find(|o| o.name == gate && !o.did_not_run()) {
+            outcome.repository_rule_selection = rule_selection.take();
+            break;
+        }
+    }
     for outcome in &mut outcomes {
         outcome.source_scope = source_scopes.remove(outcome.name);
     }
@@ -3055,6 +3071,7 @@ async fn run_pre_commit_review_selected(
 #[derive(Clone, Copy)]
 enum ProviderScope {
     RepositoryRules,
+    ConventionsAndRules,
     FileConventions,
     AuditConvention,
     HistoryStats,
@@ -3063,6 +3080,7 @@ impl ProviderScope {
     fn applies_to(self, gate: &str) -> bool {
         match self {
             Self::RepositoryRules => matches!(gate, "immune" | "repo_rules" | "added_conventions"),
+            Self::ConventionsAndRules => matches!(gate, "repo_rules" | "added_conventions"),
             Self::FileConventions => matches!(gate, "new_file" | "temporal" | "test_coverage" | "sync_contract" | "co_added_family"),
             Self::AuditConvention => gate == "audit",
             Self::HistoryStats => gate == "temporal",
@@ -3651,7 +3669,7 @@ mod tests {
     fn absent_skipped_or_capped_review_evidence_cannot_be_green() {
         assert_eq!(Verdict::with_outcomes(&[], &[]), Verdict::Yellow);
         let mut outcome = GateOutcome {
-            source_scope: None,
+            repository_rule_selection: None, source_scope: None,
             name: "test",
             status: GateStatus::Passed,
             elapsed_ms: 0,

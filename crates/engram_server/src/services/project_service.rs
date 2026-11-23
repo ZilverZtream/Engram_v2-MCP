@@ -937,7 +937,7 @@ pub async fn inject_repo_rules(
     })
     .await;
     let (rules, notes) = match effective {
-        Ok(Ok(effective)) => (effective.rules, effective.notes),
+        Ok(Ok(effective)) => effective.into_parts(),
         _ => (
             Vec::new(),
             vec!["INCOMPLETE policy coverage: repository-rule lookup unavailable".into()],

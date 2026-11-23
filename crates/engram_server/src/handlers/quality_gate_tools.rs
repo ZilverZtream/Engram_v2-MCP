@@ -513,7 +513,9 @@ impl Engram {
                     }
                     input_binding.push_str(&format!("Explicit registry checks: {} applicable; {count} findings on added lines. Prose rules require source review.\n", checked.len()));
                 }
-                for note in effective.notes { input_binding.push_str(&format!("{note}\n")); }
+                input_binding.push_str(&effective.selection.summary());
+                input_binding.push('\n');
+                for (note, _) in effective.provider_issues { input_binding.push_str(&format!("{note}\n")); }
             }
             Err(error) => input_binding.push_str(&format!("INCOMPLETE policy coverage: {error}\n")),
         }

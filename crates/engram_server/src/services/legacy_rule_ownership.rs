@@ -367,16 +367,10 @@ pub fn inventory(state: &AppState, pid: &str, source_paths: &[String]) -> Result
         )),
     };
     let (enforced, notes) = match effective {
-        Ok(effective) => (
-            Some(
-                effective
-                    .rules
-                    .into_iter()
-                    .map(|r| r.rule_id)
-                    .collect::<BTreeSet<_>>(),
-            ),
-            effective.notes,
-        ),
+        Ok(effective) => {
+            let (rows, notes) = effective.into_parts();
+            (Some(rows.into_iter().map(|r| r.rule_id).collect::<BTreeSet<_>>()), notes)
+        }
         Err(error) => (
             None,
             vec![format!("Enforcement observation unavailable: {error:#}")],
