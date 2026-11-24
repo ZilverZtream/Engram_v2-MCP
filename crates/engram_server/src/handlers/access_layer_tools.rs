@@ -4339,7 +4339,13 @@ impl Engram {
         if let Some(body)=method_source_delivery::recover(&self.state.cfg.data_dir,&req)? {
             return Ok(CallToolResult::success(vec![Content::text(body)]));
         }
-        let (original, paths, source_view) = self.full_method_body_evidence(req.clone()).await?;
+        let basis = super::revision_source::checkout_basis(self,&req.project_id).await;
+        let (mut original, paths, source_view) = self.full_method_body_evidence(req.clone()).await?;
+        // Include the checkout identity in the same bounded source receipt and
+        // retained report, preserving the caller's budget for subsequent pages.
+        if let Some(basis) = basis {
+            super::revision_source::label_checkout(&mut original,basis);
+        }
         let root=std::path::PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
         let source_report=original.content.first().and_then(|content| content.as_text())
             .ok_or_else(||McpError::internal_error("Method/source evidence returned no text",None))?.text.as_str();

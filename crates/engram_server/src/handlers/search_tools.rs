@@ -1415,6 +1415,12 @@ impl Engram {
                                         String::new()
                                     };
                                     let mut evidence = location;
+                                    if edge.edge_kind == EdgeKind::QueriesTable && let Some(access) = meta["access"].as_str() {
+                                        evidence.push_str(&format!(" [{access}]"));
+                                        if let Some(operation) = meta["operation"].as_str() {
+                                            evidence.push_str(&format!(" [{operation}]"));
+                                        }
+                                    }
                                     if let Some(via) = meta.get("via").and_then(|v| v.as_str()) {
                                         evidence.push_str(&format!(" [via {via}]"));
                                     }
@@ -1440,6 +1446,9 @@ impl Engram {
                         mapped_sites: if node.node_type == "db_table" && ekf_b.as_ref().is_none_or(|kinds| kinds.contains(&EdgeKind::QueriesTable)) {
                             crate::services::schema_query::mapped_query_sites(&graph_b, &project_id_b, &project_root, &node.name, max_incoming)
                                 .unwrap_or_else(|e| format!("DBML reader coverage unavailable: {e}\n"))
+                        } else if node.node_type == "class" && ekf_b.as_ref().is_none_or(|kinds| kinds.contains(&EdgeKind::QueriesTable)) {
+                            crate::services::schema_query::entity_query_sites(&graph_b,&project_id_b,&project_root,&node.name,max_incoming)
+                                .unwrap_or_else(|e| format!("DBML entity coverage unavailable: {e}\n"))
                         } else { String::new() },
                         capped_outgoing_kinds,
                         constructor_reference,

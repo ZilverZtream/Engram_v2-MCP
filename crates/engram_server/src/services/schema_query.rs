@@ -30,6 +30,19 @@ pub(crate) fn add_model_columns(map: &mut ModelColumnMap, file: &str, source: &s
 /// Only a class-qualified data-context getter identifies a mapped table on a call edge.
 pub(crate) type TableGetters = std::collections::BTreeMap<String, std::collections::BTreeSet<String>>;
 
+/// Resolve only explicitly declared DBML spellings in the supplied revision.
+pub(crate) fn mapped_spellings(path: &str, source: &str, needle: &str) -> anyhow::Result<Vec<String>> {
+    let mut aliases = Vec::new();
+    for table in dbml::tables(path, source)? {
+        let names = [table.model_type.as_deref(), table.data_context_member.as_deref(),
+            table.key.0.last().map(String::as_str)];
+        if names.iter().flatten().any(|name|name.eq_ignore_ascii_case(needle)) {
+            aliases.extend(names.into_iter().flatten().map(str::to_owned));
+        }
+    }
+    Ok(aliases)
+}
+
 /// Resolve physical columns to their mapped CLR properties before following
 /// bound usages. A bare property name is insufficient across model classes.
 pub(crate) fn mapped_column_consumers(
@@ -131,6 +144,32 @@ pub(crate) fn expected_members(graph: &engram_graph::GraphStore, project: &str, 
         }
     }
     Ok(members)
+}
+
+/// A model type may have a different CLR member name and SQL table name.
+pub(crate) fn entity_query_sites(graph: &engram_graph::GraphStore, project: &str, root: &std::path::Path,
+    entity: &str, limit: usize) -> anyhow::Result<String> {
+    let files = graph.indexed_paths_with_suffix(project, ".dbml", 33)?;
+    anyhow::ensure!(files.len() <= 32, "DBML mapping inventory exceeds 32 files");
+    let mut mapped = std::collections::BTreeSet::new();
+    let mut bytes = 0usize;
+    for path in files {
+        let source = crate::planner_source::read(graph, project, root, &path)?;
+        bytes += source.len();
+        anyhow::ensure!(bytes <= 16 * 1024 * 1024, "DBML mapping input exceeds 16 MiB");
+        for table in dbml::tables(&path, &source)? {
+            if table.model_type.as_deref().is_some_and(|ty| ty.eq_ignore_ascii_case(entity)
+                || entity.rsplit('.').next().is_some_and(|name| name.eq_ignore_ascii_case(ty))) {
+                mapped.insert((table.name, path.clone(), table.citation.start_line));
+            }
+        }
+    }
+    let mut out = String::new();
+    for (table,path,line) in mapped {
+        out.push_str(&format!("Entity mapping candidate: {entity} maps to {table} in {path}:{line}. Mapped set accesses follow.\n"));
+        out.push_str(&mapped_query_sites(graph, project, root, &table, limit)?);
+    }
+    Ok(out)
 }
 
 /// ORM graph targets retain the member spelling from the source expression.

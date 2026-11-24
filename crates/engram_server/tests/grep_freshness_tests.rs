@@ -275,6 +275,7 @@ async fn grep_json_keeps_eight_contextual_hits_and_recovery_within_an_agent_page
 
 fn grep_request(pid: &str, pattern: &str, freshness: &str) -> engram_server::GrepProjectRequest {
     engram_server::GrepProjectRequest {
+        as_of_rev: None,
         project_id: pid.to_string(),
         pattern: pattern.to_string(),
         regex: false,

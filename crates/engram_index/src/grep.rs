@@ -388,12 +388,7 @@ const MIN_TRIGRAM_LEN: usize = 3;
 
 fn pick_tier(q: &GrepQuery) -> GrepTier {
     if q.regex {
-        // A regex with a long literal anchor can still use the trigram
-        // prefilter (Tier 1). For the first implementation we route
-        // every regex through Tier 2 (full scan) to avoid the
-        // complexity of literal-extraction from regex — Tier 1 is a
-        // planned optimisation.
-        if q.pattern.chars().take(MIN_TRIGRAM_LEN).count() >= MIN_TRIGRAM_LEN && regex_has_literal_anchor(&q.pattern) {
+        if regex_anchors(&q.pattern).is_some() {
             GrepTier::TermNarrowed
         } else {
             GrepTier::FullScan
@@ -407,8 +402,23 @@ fn pick_tier(q: &GrepQuery) -> GrepTier {
 
 /// Does a regex contain at least one run of 3+ literal characters
 /// that can feed the trigram index?
-fn regex_has_literal_anchor(pat: &str) -> bool {
-    extract_literal_anchor(pat).is_some()
+fn regex_anchors(pattern: &str) -> Option<Vec<String>> {
+    let mut anchors = Vec::new();
+    let mut start = 0;
+    let mut escaped = false;
+    for (i, c) in pattern.char_indices() {
+        if escaped { escaped = false; continue; }
+        if c == '\\' { escaped = true; continue; }
+        if c == '|' {
+            if anchors.len() >= 31 { return None; }
+            anchors.push(extract_literal_anchor(&pattern[start..i])?);
+            start = i + 1;
+        }
+    }
+    anchors.push(extract_literal_anchor(&pattern[start..])?);
+    anchors.sort();
+    anchors.dedup();
+    Some(anchors)
 }
 
 /// Extract the longest contiguous literal substring from a regex
@@ -561,14 +571,20 @@ where
         None
     };
 
-    let tier = pick_tier(q);
+    let mut tier = pick_tier(q);
     let case_sensitive = resolve_case_sensitive(&q.pattern, q.case_sensitive);
 
     // ── Step 2: execute tier ──
     let (mut matches, chunks_scanned, files_scanned) = match tier {
         GrepTier::TermIndex => execute_term_index(engine, q, case_sensitive)?,
         GrepTier::TermNarrowed => {
-            execute_term_narrowed(engine, q, case_sensitive, compiled.as_ref())?
+            match execute_term_narrowed(engine, q, case_sensitive, compiled.as_ref())? {
+                Some(result) => result,
+                None => {
+                    tier = GrepTier::FullScan;
+                    execute_full_scan(engine, q, case_sensitive, compiled.as_ref())?
+                }
+            }
         }
         GrepTier::FullScan => execute_full_scan(engine, q, case_sensitive, compiled.as_ref())?,
     };
@@ -705,20 +721,16 @@ fn execute_term_narrowed(
     q: &GrepQuery,
     case_sensitive: bool,
     compiled: Option<&regex::Regex>,
-) -> anyhow::Result<(Vec<GrepMatch>, usize, usize)> {
-    let Some(anchor) = extract_literal_anchor(&q.pattern) else {
-        // Shouldn't happen — pick_tier already checked. Safety net.
-        return execute_full_scan(engine, q, case_sensitive, compiled);
-    };
-
+) -> anyhow::Result<Option<(Vec<GrepMatch>, usize, usize)>> {
+    let Some(anchors) = regex_anchors(&q.pattern) else { return Ok(None); };
     // Oversample a bit more aggressively than Tier 0 because the
     // regex constrains the candidate set more than the anchor does.
     let oversample = (q.max_results.saturating_mul(3).saturating_add(200)).min(20_000);
-    let hybrid_q = HybridQuery {
+    let mut hybrid_q = HybridQuery {
         project_id: q.project_id.clone(),
         namespace: q.namespace.clone(),
         generation: q.generation,
-        text: anchor,
+        text: String::new(),
         top_k: oversample,
         // Same case rule as the term-index tier: the anchor is a literal.
         fts_mode: if case_sensitive {
@@ -736,7 +748,14 @@ fn execute_term_narrowed(
         date_before: None,
         use_mmr: false,
     };
-    let hits = engine.lexical_search_with_content(&hybrid_q)?;
+    let mut seen = std::collections::HashSet::new();
+    let mut hits = Vec::new();
+    for anchor in anchors {
+        hybrid_q.text = anchor;
+        let batch = engine.lexical_search_with_content(&hybrid_q)?;
+        if batch.len() == oversample || hits.len() + batch.len() > 20_000 { return Ok(None); }
+        hits.extend(batch.into_iter().filter(|(hit, _, _)| seen.insert((hit.doc_id.clone(), hit.chunk_id))));
+    }
 
     let mut matches: Vec<GrepMatch> = Vec::with_capacity(q.max_results);
     let mut chunks_scanned = 0usize;
@@ -786,7 +805,7 @@ fn execute_term_narrowed(
         }
     }
 
-    Ok((matches, chunks_scanned, files_seen.len()))
+    Ok(Some((matches, chunks_scanned, files_seen.len())))
 }
 
 // ── Tier 2: full scan over stored chunk text ──

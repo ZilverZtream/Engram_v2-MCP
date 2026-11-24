@@ -232,6 +232,10 @@ impl Engram {
         &self,
         params: Parameters<GetConceptFootprintRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if params.0.as_of_rev.is_some() {
+            use crate::handlers::revision_source::{self, Query};
+            return revision_source::read(self, Query::Footprint(params.0)).await;
+        }
         self.handle_get_concept_footprint(params.0).await
     }
 
@@ -252,6 +256,10 @@ impl Engram {
         &self,
         params: Parameters<FindImplementationPatternRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if params.0.as_of_rev.is_some() {
+            use crate::handlers::revision_source::{self, Query};
+            return revision_source::read(self, Query::Pattern(params.0)).await;
+        }
         self.handle_find_implementation_pattern(params.0).await
     }
 
@@ -550,6 +558,10 @@ impl Engram {
         &self,
         params: Parameters<GrepProjectRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if params.0.as_of_rev.is_some() {
+            use crate::handlers::revision_source::{self, Query};
+            return revision_source::read(self, Query::Grep(params.0)).await;
+        }
         self.handle_grep_project(params.0).await
     }
 
@@ -902,6 +914,10 @@ impl Engram {
         &self,
         params: Parameters<FindSymbolReferencesRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if params.0.as_of_rev.is_some() {
+            use crate::handlers::revision_source::{self, Query};
+            return revision_source::read(self, Query::References(params.0)).await;
+        }
         self.handle_find_symbol_references(params.0).await
     }
 
@@ -1653,6 +1669,10 @@ impl Engram {
         &self,
         params: Parameters<GetFullMethodBodyRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if params.0.as_of_rev.is_some() {
+            use crate::handlers::revision_source::{self, Query};
+            return revision_source::read(self, Query::Body(params.0)).await;
+        }
         self.handle_get_full_method_body(params.0).await
     }
 
@@ -1841,6 +1861,26 @@ impl ServerHandler for Engram {
                 return Ok(recovered);
             }
         }
+        let mut checkout = None;
+        if matches!(tool_name.as_str(), "grep_project" | "find_symbol_references" |
+            "get_concept_footprint" | "find_implementation_pattern")
+            && let Some(arguments) = request.arguments.as_mut()
+            && arguments.get("as_of_rev").and_then(|v|v.as_str()).is_none()
+            && arguments.get("response_id").and_then(|v|v.as_str()).is_none()
+            && let Some(project) = arguments.get("project_id").and_then(|v|v.as_str())
+        {
+            checkout = crate::handlers::revision_source::checkout_basis(self,project).await;
+            if shared_delivery.is_none() && let Some(identity) = &checkout {
+                // Leave room for the source identity inside the user's complete
+                // text budget. The two encodings use fewer bytes than this bound.
+                let reserve = (identity.to_string().len() + 32).div_ceil(4);
+                if let Some(tokens) = arguments.get("max_tokens").and_then(|v|v.as_u64()) {
+                    let reduced = tokens.checked_sub(reserve as u64).filter(|n|*n>0)
+                        .ok_or_else(||McpError::invalid_params("max_tokens is too small for checkout identity and source evidence",None))?;
+                    arguments.insert("max_tokens".into(), serde_json::json!(reduced));
+                }
+            }
+        }
         // Handler-owned SQL delivery captures its existing advisory actions with the
         // original report; recovery and manifests must not be annotated again.
         let guidance_input = if matches!(tool_name.as_str(), "query_schema" | "detect_n_plus_one" | "find_missing_indexes") || matches!(crate::tool_guidance::policy(&tool_name), crate::tool_guidance::Policy::Preserve) {
@@ -1852,6 +1892,9 @@ impl ServerHandler for Engram {
         let started = std::time::Instant::now();
         let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
         let mut result = self.tool_router.call(tcc).await;
+        if let (Some(basis), Ok(response)) = (checkout, &mut result) {
+            crate::handlers::revision_source::label_checkout(response,basis);
+        }
         if let (Some(guidance_input), Ok(response)) = (&guidance_input, &mut result) {
             let guidance = crate::tool_guidance::annotate(
                 &tool_name, guidance_input, response, &crate::tool_surface::registered_for_preset(

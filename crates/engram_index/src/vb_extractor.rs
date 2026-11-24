@@ -1770,6 +1770,83 @@ fn fallback_fn_ranges(symbols: &[ExtractedSymbol]) -> Vec<(u32, u32, String)> {
     out
 }
 
+fn method_source_edges(source: &str, symbols: &[ExtractedSymbol], edges: &mut Vec<ExtractedEdge>) {
+    static CONSTRUCTION: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?i)\bNew\s+([a-z_]\w*(?:\.[a-z_]\w*)*)\b").expect("valid VB construction")
+    });
+    let lines: Vec<_> = source.lines().collect();
+    for symbol in symbols.iter().filter(|s| s.kind == "function") {
+        let (first, last, owner) = (symbol.start_line, symbol.end_line, &symbol.name);
+        if first == 0 || last < first || last as usize > lines.len() {
+            continue;
+        }
+        let method = &lines[first as usize - 1..last as usize];
+        let mut append = |line: u32,
+                          kind: &str,
+                          target: String,
+                          target_kind: &str,
+                          mut meta: HashMap<String, String>| {
+            meta.insert("source_declaration_line".into(), first.to_string());
+            meta.insert("src_line".into(), line.to_string());
+            edges.push(ExtractedEdge {
+                source_kind: "function".into(),
+                source_name: owner.clone(),
+                source_start_line: line,
+                source_language: "vb".into(),
+                target_name: target,
+                target_kind: Some(target_kind.into()),
+                target_start_line: None,
+                kind: kind.into(),
+                metadata: Some(meta),
+            });
+        };
+        let mut inspect_sql = false;
+        for (offset, raw) in method.iter().enumerate() {
+            let lower = raw.to_ascii_lowercase();
+            inspect_sql |= [
+                "executecommand",
+                "executequery",
+                "sqlcommand",
+                "commandtext",
+                "destinationtablename",
+            ]
+            .iter()
+            .any(|term| lower.contains(term));
+            if !lower.contains("new") {
+                continue;
+            }
+            let masked = vb_settings_code_mask(raw);
+            for found in CONSTRUCTION.captures_iter(&masked) {
+                let ty = &found[1];
+                if ty.eq_ignore_ascii_case("With") {
+                    continue;
+                }
+                append(
+                    first + offset as u32,
+                    "dependency",
+                    ty.into(),
+                    "class",
+                    HashMap::from([("via".into(), "type construction".into())]),
+                );
+            }
+        }
+        if inspect_sql {
+            for site in crate::host_sql::table_sites(&method.join("\n"), first) {
+                append(
+                    site.line,
+                    "queries_table",
+                    site.table,
+                    "db_table",
+                    HashMap::from([
+                        ("access".into(), site.access.into()),
+                        ("operation".into(), site.operation),
+                    ]),
+                );
+            }
+        }
+    }
+}
+
 fn enrich_vb_source(source: &str, symbols: &mut Vec<ExtractedSymbol>, edges: &mut Vec<ExtractedEdge>) {
     // (start, end, name) for functions and classes, for range association.
     let fn_ranges: Vec<(u32, u32, String)> = symbols
@@ -1784,6 +1861,7 @@ fn enrich_vb_source(source: &str, symbols: &mut Vec<ExtractedSymbol>, edges: &mu
         .collect();
     // Item 8: the broker's dispatch arms (sidecar path).
     edges.extend(vb_dispatch_arm_edges(source, &fn_ranges));
+    method_source_edges(source, symbols, edges);
     let enclosing = |ranges: &[(u32, u32, String)], line: u32| -> Option<String> {
         ranges
             .iter()
@@ -2679,6 +2757,7 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
     // Item 8: the broker's dispatch arms (fallback path).
     let ranges = fallback_fn_ranges(&symbols);
     edges.extend(vb_dispatch_arm_edges(source, &ranges));
+    method_source_edges(source, &symbols, &mut edges);
 
     edges.extend(crate::parsing::signature_types::vb_fallback_edges(&symbols));
 

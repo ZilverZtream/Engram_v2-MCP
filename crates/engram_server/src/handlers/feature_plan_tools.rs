@@ -434,6 +434,7 @@ impl Engram {
                 .unwrap_or_else(|| retrieval_concepts.join(" "));
             let patterns = match self
                 .implementation_pattern_evidence(FindImplementationPatternRequest {
+                    as_of_rev: None,
                     project_id: req.project_id.clone(),
                     pattern_query,
                     max_examples: 3,

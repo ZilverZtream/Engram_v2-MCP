@@ -16,44 +16,8 @@ use sqlparser::{
 };
 use std::collections::BTreeSet;
 
-pub(super) fn literal_expression(
-    tokens: &[routing::Token],
-    start: usize,
-) -> Option<(String, usize)> {
-    let mut cursor = start;
-    let mut sql = String::new();
-    loop {
-        let literal = tokens.get(cursor).filter(|token| token.string)?;
-        sql.push_str(&literal.text);
-        if sql.len() > 16384 {
-            return None;
-        }
-        cursor = continuation(tokens, cursor + 1);
-        if tokens
-            .get(cursor)
-            .is_some_and(|token| matches!(token.text.as_str(), "&" | "+"))
-        {
-            cursor = continuation(tokens, cursor + 1);
-        } else {
-            return (!sql.is_empty()).then_some((sql, cursor));
-        }
-    }
-}
-
-fn continuation(tokens: &[routing::Token], cursor: usize) -> usize {
-    if tokens
-        .get(cursor)
-        .is_some_and(|token| !token.string && token.text == "_")
-        && tokens
-            .get(cursor + 1)
-            .is_some_and(|next| next.line > tokens[cursor].line)
-    {
-        cursor + 1
-    } else {
-        cursor
-    }
-}
-
+pub(super) use engram_index::host_sql::literal_expression;
+use engram_index::host_sql::argument_start;
 fn local_constant(
     tokens: &[routing::Token],
     call: usize,
@@ -145,28 +109,6 @@ pub(super) fn local_initializer(
         json!({"kind":if kind == "Static" {"local_static_initializer"} else {"local_const_initializer"},
         "name":name,"declaration_kind":kind,"relative_line":tokens[declaration].line}),
     ))
-}
-
-fn argument_start(tokens: &[routing::Token], member: usize) -> Option<usize> {
-    let mut open = member + 1;
-    if tokens.get(open)?.text != "(" {
-        return None;
-    }
-    if tokens[member].text.eq_ignore_ascii_case("ExecuteQuery")
-        && tokens.get(open + 1)?.text.eq_ignore_ascii_case("Of")
-    {
-        // VB generic type arguments precede the invocation's argument list.
-        let mut depth = 1;
-        open = (open + 1..tokens.len().min(open + 65)).find(|&index| {
-            match tokens[index].text.as_str() {
-                "(" => depth += 1,
-                ")" => depth -= 1,
-                _ => (),
-            }
-            depth == 0
-        })? + 1;
-    }
-    (tokens.get(open)?.text == "(").then_some(open + 1)
 }
 
 pub(super) fn append(

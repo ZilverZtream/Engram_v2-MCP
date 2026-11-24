@@ -2163,6 +2163,26 @@ impl Engram {
         let search = ps.search.clone();
         let member_matches = tokio::task::spawn_blocking(move || {
             let mut matched = pattern_member_matches(&graph, &pid, &query, kind, &pattern_root)?;
+            if let Some(primitives) = super::revision_source::lock_primitives(&query) {
+                let request = engram_index::grep::GrepQuery {
+                    project_id: pid.clone(), namespace: "memory".into(), generation: gen_,
+                    pattern: primitives.into(), regex: true, case_sensitive: Some(false),
+                    multiline: false, path_prefix: None, exclude_path_prefixes: vec![],
+                    language: None, context_before: 0, context_after: 0, max_results: 150,
+                    freshness: engram_index::grep::FreshnessMode::Off,
+                };
+                for hit in engram_index::grep::grep(&search, &pattern_root, &request, || Ok(Vec::new()))?.matches {
+                    if !super::revision_source::implementation_file(&hit.file_path) { continue; }
+                    let witness = hit.line_text.trim();
+                    if ["'","//","--","#","/*","*"].iter().any(|prefix|witness.starts_with(prefix)) {continue;}
+                    let lower = witness.to_ascii_lowercase();
+                    let specificity = ["updlock","holdlock","xlock","for update","begin immediate","serializable"]
+                        .iter().filter(|hint| lower.contains(**hint)).count();
+                    let score = 100 + specificity * 10;
+                    let best = matched.entry(hit.file_path).or_insert((0,String::new(),0));
+                    if score > best.0 { *best = (score,witness.to_owned(),hit.line); }
+                }
+            }
             if kind == PatternKind::Page {
                 let attributes = regex::Regex::new(
                     r#"\b([A-Za-z][A-Za-z0-9_-]+)(?:\s*=\s*["']?|\s+)(true|false)\b"#,
@@ -6973,6 +6993,7 @@ impl Engram {
         let footprints = futures::future::join_all(concepts.iter().map(|concept| {
             self.concept_footprint_with_nodes(
                 crate::models::GetConceptFootprintRequest {
+                    as_of_rev: None,
                     project_id: req.project_id.clone(),
                     concept: concept.clone(),
                     max_per_group: 5,
@@ -7040,6 +7061,7 @@ impl Engram {
         // Pattern exemplars for the story's action.
         let sub = self
             .implementation_pattern_evidence(crate::models::FindImplementationPatternRequest {
+                as_of_rev: None,
                 project_id: req.project_id.clone(),
                 pattern_query: concepts.join(" "),
                 max_examples: 2,
@@ -11277,6 +11299,7 @@ impl Engram {
         // independent — run them concurrently (live: 3–4 × ~350 ms sequential).
         let footprints = futures::future::join_all(concepts.iter().map(|c| {
             self.concept_footprint_with_nodes(crate::models::GetConceptFootprintRequest {
+                as_of_rev: None,
                 project_id: req.project_id.clone(),
                 concept: c.clone(),
                 max_per_group: 12,

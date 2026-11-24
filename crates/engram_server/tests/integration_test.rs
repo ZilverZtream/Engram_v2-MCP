@@ -3347,6 +3347,7 @@ async fn test_find_symbol_references() {
     // 2. Call find_symbol_references
     let res = engram
         .find_symbol_references(Parameters(engram_server::FindSymbolReferencesRequest {
+            as_of_rev: None,
             project_id: project_id.to_string(),
             symbol_name: "MySymbol".into(),
             max_incoming: 200,

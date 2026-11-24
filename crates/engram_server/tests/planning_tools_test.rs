@@ -81,6 +81,7 @@ namespace App {
     let res = engram
         .get_concept_footprint(Parameters(
             engram_server::models::GetConceptFootprintRequest {
+                as_of_rev: None,
                 project_id: project_id.clone(),
                 concept: "photo".into(),
                 max_per_group: 15,
@@ -245,6 +246,7 @@ namespace App {{
     let res = engram
         .find_implementation_pattern(Parameters(
             engram_server::models::FindImplementationPatternRequest {
+                as_of_rev: None,
                 project_id: project_id.clone(),
                 pattern_query: "SaveSettings".into(),
                 max_examples: 3,

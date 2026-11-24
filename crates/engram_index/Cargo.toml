@@ -9,6 +9,7 @@ default = ["vector"]
 vector = ["dep:lancedb", "dep:lance-arrow", "dep:lance-table", "dep:arrow", "dep:arrow-array", "dep:arrow-schema", "dep:datafusion-expr"]
 
 [dependencies]
+sqlparser = { version = "0.59", features = ["visitor"] }
 engram_core = { path = "../engram_core" }
 engram_ml = { path = "../engram_ml" }
 anyhow.workspace = true

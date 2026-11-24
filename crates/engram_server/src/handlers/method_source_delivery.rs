@@ -23,9 +23,7 @@ pub(super) fn recover(data: &Path,req: &GetFullMethodBodyRequest) -> Result<Opti
 
 pub(super) fn finish(data: &Path,req: &GetFullMethodBodyRequest,body: String,paths: &[String],policy: &PolicyContext, source: &str) -> Result<String,McpError> {
     let limit=budget(req)?;
-    let policy_bytes = body.len().saturating_sub(source.len());
-    let compact = req.max_tokens.is_some() && policy_bytes > 4096 && policy_bytes > source.len();
-    if body.len()<=limit && !compact {return Ok(body);}
+    if body.len() <= limit { return Ok(body); }
     let id=blake3::hash(body.as_bytes()).to_hex().to_string();let recovery_limit=limit.min(32768);
     let paths=paths.iter().collect::<BTreeSet<_>>();
     let manifest=json!({"summary":{
@@ -54,7 +52,7 @@ pub(super) fn finish(data: &Path,req: &GetFullMethodBodyRequest,body: String,pat
         });
         page["response_delivery"]["status"] = json!("SOURCE_SUPPLIED_POLICY_DEFERRED");
         page["response_delivery"]["instruction"] = json!("Recover the saved report for full applicable policy before editing.");
-        let output = if req.output_json && body.len() <= limit {
+        let output = if req.output_json {
             // Existing in-budget consumers read source_code and range metadata
             // at the top level. Only the large policy bodies need recovery.
             let mut report: serde_json::Value = serde_json::from_str(source)
@@ -63,9 +61,6 @@ pub(super) fn finish(data: &Path,req: &GetFullMethodBodyRequest,body: String,pat
             report["project_policy_sources"]["content_deferred"] = json!(true);
             report["response_delivery"] = page["response_delivery"].clone();
             report.to_string()
-        } else if req.output_json {
-            page["source_report"] = serde_json::from_str(source).unwrap_or_else(|_| json!(source));
-            page.to_string()
         } else {
             format!("{source}\n\n## Full report and policy recovery\n{page}\n")
         };

@@ -710,7 +710,7 @@ impl Report {
             text.rsplit_once("\n## Repository policy sources\n").is_some_and(|(evidence, policy)|
                 policy.len() > 4096 && policy.len() > evidence.len())
         });
-        if !self.capture_window && !policy_dominates && text_bytes.saturating_add(structured_bytes) <= self.budget {
+        if !self.capture_window && (!policy_dominates || self.tool == "find_symbol_references") && text_bytes.saturating_add(structured_bytes) <= self.budget {
             return Ok(original);
         }
         let body = serde_json::to_string(&original)
@@ -718,11 +718,30 @@ impl Report {
         let id = blake3::hash(body.as_bytes()).to_hex().to_string();
         let manifest = self.manifest_for(&id, body.len(), operation.as_ref().or(plan_summary.as_ref()));
         let manifest = if let Some(source) = preview_body {
-            let packet = serde_json::from_str(&manifest).map_err(|e| McpError::internal_error(format!("{e}"), None))?;
+            let mut packet:Value = serde_json::from_str(&manifest).map_err(|e| McpError::internal_error(format!("{e}"), None))?;
             let evidence = if policy_dominates {
                 source.rsplit_once("\n## Repository policy sources\n").map_or(source.as_str(), |(body, _)| body)
             } else { &source };
-            crate::planner_page::with_preview(packet, &crate::planner_page::evidence(self.tool, evidence), self.budget)
+            if self.tool == "find_symbol_references" {
+                if let Some(header) = source.lines().next().filter(|h|h.starts_with("Observed checkout ")) {
+                    packet["source_basis"] = json!(header);
+                } else if let Ok(value) = serde_json::from_str::<Value>(&source)
+                    && let Some(identity) = value.get("source_basis") {
+                    packet["source_basis"] = identity.clone();
+                }
+            }
+            if self.tool == "find_symbol_references" && let Some((references,_))=source.rsplit_once("\n## Repository policy sources\n") {
+                let mut core=packet.clone();
+                core["report_content"]=json!("REFERENCES_SUPPLIED");
+                core["response_delivery"]["instruction"]=json!("All reference sections and their original coverage are supplied. Recover the full report for applicable repository guidance.");
+                core["references"]=json!(references);
+                let encoded=core.to_string();
+                if encoded.len()<=self.budget {encoded} else {
+                    crate::planner_page::with_preview(packet,&crate::planner_page::evidence(self.tool,evidence), self.budget)
+                }
+            } else {
+                crate::planner_page::with_preview(packet, &crate::planner_page::evidence(self.tool, evidence), self.budget)
+            }
         } else { manifest };
         if manifest.len() > self.budget {
             return Err(McpError::invalid_params(

@@ -701,6 +701,9 @@ pub struct GetIndexFreshnessRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetConceptFootprintRequest {
+    /// Read immutable source evidence from this local Git commit or ref.
+    #[serde(default)]
+    pub as_of_rev: Option<String>,
     pub project_id: String,
     /// Domain term to map, e.g. "photo", "code category", "OrderStatus".
     /// May be omitted only for immutable response recovery.
@@ -1195,6 +1198,9 @@ fn default_audit_top_k() -> usize {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FindImplementationPatternRequest {
+    /// Read immutable source evidence from this local Git commit or ref.
+    #[serde(default)]
+    pub as_of_rev: Option<String>,
     pub project_id: String,
     /// What you want examples of, e.g. "admin settings page save",
     /// "dropdown bound to lookup table", "file upload validation".
@@ -1802,6 +1808,9 @@ pub struct SearchMemoryRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GrepProjectRequest {
+    /// Read immutable source evidence from this local Git commit or ref.
+    #[serde(default)]
+    pub as_of_rev: Option<String>,
     pub project_id: String,
     pub pattern: String,
     /// Treat `pattern` as a regex. Default: false (literal).
@@ -1942,6 +1951,9 @@ pub struct GraphSearchRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct FindSymbolReferencesRequest {
+    /// Read immutable source evidence from this local Git commit or ref.
+    #[serde(default)]
+    pub as_of_rev: Option<String>,
     /// Symbol or qualified member name. `symbol` is accepted as a compatibility
     /// alias because several MCP clients naturally shorten this field.
     #[serde(alias = "symbol")]
@@ -4040,6 +4052,9 @@ pub struct SourceLineRange {
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetFullMethodBodyRequest {
+    /// Read immutable source evidence from this local Git commit or ref.
+    #[serde(default)]
+    pub as_of_rev: Option<String>,
     pub project_id: String,
     /// Complete reply budget at four UTF-8 bytes per estimated token.
     /// Defaults40KiB for methods; excerpts/source_ranges retain a32KiB ceiling.

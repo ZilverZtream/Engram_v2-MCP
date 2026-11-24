@@ -5,8 +5,9 @@
 /// Keep this per-file so unrelated source and VB parser receipts stay reusable.
 /// Version 2 gives member-assigned functions their own declaration and call owner.
 pub const SCRIPT_CALL_CONTRACT: u64 = 4;
-/// VB enrichment now publishes source-bound literal typed-getter observations.
-pub const VB_LITERAL_SETTINGS_CONTRACT: u64 = 1;
+/// Per-file VB enrichment receipt. Version 2 also records table operations
+/// in host strings, bulk destinations and construction dependencies.
+pub const VB_LITERAL_SETTINGS_CONTRACT: u64 = 2;
 pub const MODERN_STATE_KEY: &str = engram_core::modern_state::KEY;
 
 pub fn requires_modern_state(path: &std::path::Path) -> bool {

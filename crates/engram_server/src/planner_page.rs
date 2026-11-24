@@ -11,9 +11,11 @@ pub(crate) fn with_preview(mut packet: Value, evidence: &str, budget: usize) -> 
     packet["response_delivery"]["instruction"] = json!(
         "Selected evidence is shown. Follow next_call from offset zero for the saved report and its qualifications. Follow any separate row-recovery actions in that report. Original scan limits still apply."
     );
-    packet["source_basis"] = json!(
-        "Indexed registered working checkout. Use get_index_freshness to bind cited files to a commit."
-    );
+    if packet.get("source_basis").is_none() {
+        packet["source_basis"] = json!(
+            "Indexed registered working checkout. Use get_index_freshness to bind cited files to a commit."
+        );
+    }
     packet["first_page"] = json!("");
     let fixed = packet.to_string().len();
     let Some(space) = budget.checked_sub(fixed) else {
@@ -56,8 +58,11 @@ pub(crate) fn evidence(tool: &str, body: &str) -> String {
                 {
                     rows.push(line);
                     relevant = false;
+                } else if text.starts_with("Entity mapping candidate:") || text.starts_with("DBML member ")
+                    || ["[mapped property access]", "[read]", "[write]", "[readwrite]"].iter().any(|tag|text.starts_with(tag)) {
+                    rows.push(line);
                 } else if text.starts_with('[') {
-                    relevant = text.starts_with("[calls]") || text.starts_with("[writes_state]");
+                    relevant = text.starts_with("[calls]") || text.starts_with("[writes_state]") || text.starts_with("[queries_table]");
                     shown = 0;
                     if relevant {
                         rows.push(line);

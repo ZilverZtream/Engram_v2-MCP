@@ -23,8 +23,7 @@ pub(super) fn recover(data: &Path,req: &FindImplementationPatternRequest) -> Res
 pub(super) fn finish(data: &Path,req: &FindImplementationPatternRequest,body: String,report: &PatternJson,public_delivery: bool) -> Result<String,McpError> {
     if !public_delivery {return Ok(body);}
     let limit=budget(req.max_tokens)?;
-    let verbose = report.project_policy_sources.sources.iter().map(|s|s.content.len()).sum::<usize>() > 2048;
-    if body.len()<=limit && !verbose {return Ok(body);}
+    if body.len() <= limit { return Ok(body); }
     let id=blake3::hash(body.as_bytes()).to_hex().to_string();let policy=&report.project_policy_sources;
     let manifest=json!({"summary":{
         "query":report.query,"inferred_kind":report.inferred_kind,
@@ -42,6 +41,21 @@ pub(super) fn finish(data: &Path,req: &FindImplementationPatternRequest,body: St
     }});
     let mut manifest = manifest;
     manifest["summary"]["project_policy_sources"]["content_deferred"] = json!(true);
+    let mut core = serde_json::to_value(report)
+        .map_err(|e|McpError::internal_error(e.to_string(),None))?;
+    core["project_policy_sources"] = manifest["summary"]["project_policy_sources"].clone();
+    core["response_delivery"] = manifest["response_delivery"].clone();
+    core["response_delivery"]["status"] = json!("PATTERN_SUPPLIED_POLICY_DEFERRED");
+    core["response_delivery"]["instruction"] = json!("All selected exemplars, snippets, shapes and coverage are supplied. Recover the saved report for full applicable guidance.");
+    let page = if req.output_json {
+        core.to_string()
+    } else {
+        format!("# Implementation patterns\n\n```json\n{core}\n```\n")
+    };
+    if page.len() <= limit {
+        snapshots::save_pattern_report(data,&req.project_id,&body)?;
+        return Ok(page);
+    }
     let mut evidence = String::new();
     for ex in &report.exemplars {
         use std::fmt::Write;

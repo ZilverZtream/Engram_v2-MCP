@@ -1,3 +1,4 @@
+pub(crate) mod revision_source;
 pub(crate) mod index_suggestion_tools;
 pub(crate) mod safety_report;
 pub mod feature_plan_tools;
