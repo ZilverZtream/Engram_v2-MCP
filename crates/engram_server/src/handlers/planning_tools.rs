@@ -1336,6 +1336,8 @@ impl Engram {
             }
             consumers.sort();
             consumers.dedup();
+            consumers.sort_by_key(|(_, role, _)| !matches!(role.split(':').next(),
+                Some("write" | "readwrite" | "delete")));
             // Resolve only consumers actually shown, using this existing node
             // snapshot. No node-id path guessing or additional database scan.
             let selected_ids = consumers.iter().take(cap * 2)
@@ -1541,8 +1543,8 @@ impl Engram {
                     else {
                         continue;
                     };
-                    let classes =
-                        graph.query_nodes(&project, Some("class"), None, Some(path), 128)?;
+                    if !property.is_match(&source) { continue; }
+                    let classes = graph.classes_for_source_lines(&project, path)?;
                     for (i, line) in source.lines().enumerate() {
                         let Some(cap) = property.captures(line) else {
                             continue;
@@ -2174,11 +2176,7 @@ impl Engram {
                 for hit in engram_index::grep::grep(&search, &pattern_root, &request, || Ok(Vec::new()))?.matches {
                     if !super::revision_source::implementation_file(&hit.file_path) { continue; }
                     let witness = hit.line_text.trim();
-                    if ["'","//","--","#","/*","*"].iter().any(|prefix|witness.starts_with(prefix)) {continue;}
-                    let lower = witness.to_ascii_lowercase();
-                    let specificity = ["updlock","holdlock","xlock","for update","begin immediate","serializable"]
-                        .iter().filter(|hint| lower.contains(**hint)).count();
-                    let score = 100 + specificity * 10;
+                    let Some(score) = super::revision_source::lock_witness(witness) else { continue; };
                     let best = matched.entry(hit.file_path).or_insert((0,String::new(),0));
                     if score > best.0 { *best = (score,witness.to_owned(),hit.line); }
                 }
@@ -2307,6 +2305,10 @@ impl Engram {
         // Kind filter (A1): a page query cannot have a script as exemplar.
         let mut candidates: Vec<(String, (usize, f32, String, u32))> =
             per_file.into_iter().collect();
+        if super::revision_source::lock_primitives(&req.pattern_query).is_some() {
+            candidates.retain(|(path, _)| member_matches.get(path).is_some_and(|(_, line, _)|
+                super::revision_source::lock_witness(line).is_some()));
+        }
         if kind != PatternKind::Any {
             let kept: Vec<_> = candidates
                 .iter()

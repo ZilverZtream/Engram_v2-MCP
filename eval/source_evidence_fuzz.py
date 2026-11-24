@@ -1,6 +1,6 @@
 ﻿"""Differential checks through the public MCP transport on a disposable Git project.
 
-Example: python eval/source_evidence_fuzz.py --binary PATH --seed 9507 --output results.json
+Example: python eval/source_evidence_fuzz.py --binary PATH --runs 8 --output results.json
 The seed regenerates the checkout and queries. Expected matches come from Python
 re over independently read Git blobs. A wrong answer and an unavailable tool
 both fail the run. Timing is diagnostic only.
@@ -73,6 +73,35 @@ def semantic_corpus(repo, rng):
     (repo / "schema.sql").write_text(f"CREATE TABLE dbo.{table} (Id INT PRIMARY KEY);\n")
     lock = "claim" + tag + ".sql"
     (repo / lock).write_text(f"SELECT Id FROM dbo.{table} WITH (UPDLOCK, HOLDLOCK);\n")
+    # Assign names independently of semantics so directory order cannot supply
+    # the expected ranking. Only the generated executable statements are witnesses.
+    variant = random.Random(int(tag))
+    statements = [
+        ("vb", variant.choice(["Dim tx = conn.BeginTransaction(IsolationLevel.Serializable)",
+                               "Dim tx = New System.Transactions.TransactionScope()"])),
+        ("sql", variant.choice([f"SELECT Id FROM {table} FOR UPDATE;",
+                                f"SELECT Id FROM {table} WITH (XLOCK);"])),
+        ("sql", variant.choice(["SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;", "BEGIN IMMEDIATE;"])),
+        ("vb", variant.choice(["<Serializable()>", "<System.Serializable>"]) + "\nPublic Class Envelope\nEnd Class"),
+        ("cs", "[System.Serializable]\npublic class Packet {}"),
+        ("ts", "export function isSerializable(value: unknown) { return !!value; }"),
+        ("cs", "class TransactionScopeOptions { bool IsSerializable; }"),
+        ("vb", "' conn.BeginTransaction(IsolationLevel.Serializable)"),
+        ("sql", "-- SELECT * FROM items FOR UPDATE"),
+    ]
+    variant.shuffle(statements)
+    lock_paths = [lock]
+    for i, (extension, statement) in enumerate(statements):
+        path = f"sample{tag}_{i}.{extension}"
+        (repo / path).write_text(statement + "\n")
+        if statement.startswith(("Dim tx", "SELECT", "SET TRANSACTION", "BEGIN IMMEDIATE")):
+            lock_paths.append(path)
+    readers = ["Public Class Readers"]
+    for i in range(variant.randrange(80, 101)):
+        readers += [f"    Public Sub Observe{i:03d}(db As SampleDataContext)",
+                    f'        db.ExecuteQuery(Of Integer)("SELECT Id FROM {qualified}")',
+                    f"        Dim rows = db.{member}.ToList()", "    End Sub"]
+    (repo / "readers.vb").write_text("\n".join([*readers, "End Class", ""]))
     (repo / "notes.md").write_text("Consider database row locks, race conditions, updates and transactions.\n")
     (repo / "CLAUDE.md").write_text("Preserve the complete ordering invariant.\n" * 1200)
     guides = repo / ".github" / "instructions"
@@ -80,7 +109,7 @@ def semantic_corpus(repo, rng):
     (guides / "storage.instructions.md").write_text(
         "---\napplyTo: '**/*.vb'\n---\nPreserve the transaction boundary when writing a row.\n")
     return dict(table=table, entity=entity, member=member, owner=owner, delete=delete,
-                bulk=bulk, read=read, make=make, example=example, lock=lock)
+                bulk=bulk, read=read, make=make, example=example, lock=lock, lock_paths=lock_paths)
 
 
 def populate(repo, rng):
@@ -135,12 +164,12 @@ def regex_cases(rng, words, n):
         yield pattern, rng.choice(["", "src/", "extra/"]), i % 3 == 0
 
 
-def run(args):
-    rng = random.Random(args.seed)
+def run(args, seed):
+    rng = random.Random(seed)
     binary = args.binary.resolve(strict=True)
     with binary.open("rb") as f:
         digest = hashlib.file_digest(f, "sha256").hexdigest()
-    report = {"seed": args.seed, "binary_sha256": digest, "checks": [], "failures": []}
+    report = {"seed": seed, "binary_sha256": digest, "checks": [], "failures": []}
     args.output.parent.mkdir(exist_ok=True, parents=True)
     with tempfile.TemporaryDirectory(prefix="source-evidence-", dir=args.output.parent) as directory:
         owned = Path(directory).resolve()
@@ -210,12 +239,14 @@ def run(args):
                         if rev:
                             check("revision_identity", req, rev, lambda b: b["source_basis"]["commit"])
                 def verify(name, tool, arguments, judge):
+                    started = time.monotonic()
                     try:
                         reply = client.tool(tool, project_id=project, **arguments)
                         passed = bool(judge(reply))
                     except Exception as exc:
                         passed, reply = False, str(exc)
-                    report["checks"].append(dict(family=name, passed=passed))
+                    report["checks"].append(dict(family=name, passed=passed,
+                                                 ms=round(1000 * (time.monotonic() - started))))
                     if not passed:
                         report["failures"].append(dict(family=name, tool=tool, request=arguments,
                                                        observed=reply[:6000], corpus=facts))
@@ -278,6 +309,29 @@ def run(args):
                 verify("pattern_witness", "find_implementation_pattern",
                        dict(pattern_query="race-safe database row update", output_json=True, max_examples=1,
                             max_tokens=4000), lambda r: facts["lock"] in r and "UPDLOCK" in r)
+                for rev in (None, base):
+                    def ranked_locks(raw):
+                        result = json.loads(raw)
+                        if rev:
+                            paths = [row["file_path"] for row in result["source_sites"]]
+                        elif "exemplars" in result:
+                            paths = [row["path"] for row in result["exemplars"]]
+                        else:
+                            paths = re.findall(r"^#\d+ (.+?):\d+$", result["first_page"], re.M)
+                        return sorted(paths) == sorted(facts["lock_paths"])
+                    params = dict(pattern_query="database row locking for conditional writes",
+                                  output_json=True, max_examples=len(facts["lock_paths"]) + 2, max_tokens=4000)
+                    if rev:
+                        params["as_of_rev"] = rev
+                    verify("lock_ranking_pinned" if rev else "lock_ranking_indexed",
+                           "find_implementation_pattern", params, ranked_locks)
+                def first_page_writers(raw):
+                    page = json.loads(raw)["first_page"] if raw.lstrip().startswith("{") else raw
+                    return all(any(facts[key] in row and "[write]" in row for row in page.splitlines())
+                               for key in ("delete", "bulk"))
+                verify("writers_under_reader_pressure", "find_symbol_references",
+                       dict(symbol_name=facts["table"], edge_kind_filter=["queries_table"],
+                            max_incoming=150, max_tokens=2000), first_page_writers)
                 verify("small_source_and_guidance", "get_full_method_body",
                        dict(file_path="store.vb", line_start=1, line_end=2, context_lines=0,
                             max_tokens=4000, output_json=True),
@@ -297,6 +351,21 @@ def run(args):
                 verify("oversized_policy_recovery", "get_full_method_body",
                        dict(file_path="store.vb", line_start=1, line_end=2, context_lines=0,
                             max_tokens=4000, output_json=True), policy_read)
+                # Removing only the executable witnesses must remove the historical
+                # results even though a newer working index still contains them.
+                for path in facts["lock_paths"]:
+                    (repo / path).unlink()
+                decoy_revision = checkpoint(repo, "Keep only lexical lookalikes")
+                verify("lock_absence_at_revision", "find_implementation_pattern",
+                       dict(as_of_rev=decoy_revision, pattern_query="database row locking",
+                            output_json=True, max_examples=8),
+                       lambda raw: json.loads(raw)["source_sites"] == [] and
+                       json.loads(raw)["source_basis"]["commit"] == decoy_revision)
+                client.tool("update_project", project_id=project, max_commits=0, wait=True,
+                            index_antipatterns=False)
+                verify("lock_absence_after_update", "find_implementation_pattern",
+                       dict(pattern_query="database row locking", output_json=True, max_examples=8),
+                       lambda raw: json.loads(raw)["exemplars"] == [])
             finally:
                 client.close()
     return report
@@ -305,13 +374,22 @@ def run(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--binary", type=Path, required=True)
-    parser.add_argument("--seed", type=int, required=True)
+    parser.add_argument("--seed", type=int, help="Replay a seed or use it to generate a repeatable campaign")
+    parser.add_argument("--runs", type=int, default=1, help="Number of independent generated repositories")
     parser.add_argument("--cases", type=int, default=30)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if args.cases < 1:
-        parser.error("--cases must be positive")
-    result = run(args)
-    args.output.write_text(json.dumps(result, indent=2), encoding="utf-8")
-    print(f"{len(result['checks'])} checks, {len(result['failures'])} failures; {args.output}")
-    raise SystemExit(bool(result["failures"]))
+    if args.cases < 1 or args.runs < 1:
+        parser.error("--cases and --runs must be positive")
+    seed = args.seed if args.seed is not None else random.SystemRandom().getrandbits(64)
+    generator = random.Random(seed)
+    runs = []
+    for index in range(args.runs):
+        current_seed = seed if index == 0 else generator.getrandbits(64)
+        print(f"Run {index + 1}/{args.runs}, seed {current_seed}", flush=True)
+        result = run(args, current_seed)
+        runs.append(result)
+        payload = result if args.runs == 1 else {"campaign_seed": seed, "runs": runs}
+        args.output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        print(f"{len(result['checks'])} checks, {len(result['failures'])} failures; {args.output}", flush=True)
+    raise SystemExit(any(r["failures"] for r in runs))

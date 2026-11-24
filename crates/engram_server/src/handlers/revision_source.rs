@@ -428,11 +428,24 @@ pub(super) fn lock_primitives(query: &str) -> Option<&'static str> {
         .any(|w| words.contains(w))
     {
         Some(
-            "UPDLOCK|HOLDLOCK|XLOCK|FOR UPDATE|BEGIN IMMEDIATE|BeginTransaction|TransactionScope|Serializable",
+            "UPDLOCK|HOLDLOCK|XLOCK|FOR UPDATE|BEGIN IMMEDIATE|BeginTransaction|TransactionScope|ISOLATION LEVEL|IsolationLevel",
         )
     } else {
         None
     }
+}
+
+/// A keyword can identify a candidate chunk, but only the statement is evidence.
+pub(super) fn lock_witness(line: &str) -> Option<usize> {
+    static HINT: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(||
+        regex::Regex::new(r"(?i)\b(?:updlock|holdlock|xlock|for\s+update|begin\s+immediate|isolation\s+level\s+serializable|isolationlevel\s*\.\s*serializable)\b").unwrap());
+    static TRANSACTION: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(||
+        regex::Regex::new(r"(?i)\b(?:BeginTransaction\s*\(|(?:new|using)\s+(?:[\w.]+\.)?TransactionScope\b)").unwrap());
+    if ["'", "//", "--", "#", "/*", "*"].iter().any(|prefix| line.trim_start().starts_with(prefix)) {
+        return None;
+    }
+    let hints = HINT.find_iter(line).count();
+    (hints > 0 || TRANSACTION.is_match(line)).then_some(100 + hints * 10)
 }
 
 fn source_sites(
@@ -486,6 +499,7 @@ fn source_sites(
         .filter(|w| w.len() > 2)
         .map(str::to_lowercase)
         .collect();
+    let lock_query = is_pattern && lock_primitives(term).is_some();
     let pattern = if is_pattern {
         lock_primitives(term).map(str::to_owned).unwrap_or_else(|| {
             terms
@@ -537,6 +551,9 @@ fn source_sites(
                 let lower = trimmed.to_lowercase();
                 let (score, label) = if let Some((access, op)) = effects.get(&number) {
                     (100, format!("SQL {access}: {op}"))
+                } else if lock_query {
+                    let Some(score) = lock_witness(line) else { continue; };
+                    (score, "implementation candidate".into())
                 } else if is_pattern {
                     if ["'", "//", "--", "#", "/*", "*"]
                         .iter()

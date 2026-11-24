@@ -1291,6 +1291,7 @@ impl Engram {
             }
 
             let mut results: Vec<NodeGraphResult> = Vec::new();
+            let mut reported_mappings = std::collections::HashSet::new();
 
             // VB construction sites point to the declared .New member in the graph.
             // Include that member on type lookups without changing direct type-edge counts.
@@ -1330,7 +1331,7 @@ impl Engram {
                         &project_id_b,
                         kind,
                         &node.node_id,
-                        incoming_fetch_limit,
+                        if node.node_type == "db_table" { incoming_fetch_limit.max(201) } else { incoming_fetch_limit },
                     ) {
                         Ok(v) => incoming.extend(v),
                         Err(e) => graph_failures
@@ -1340,7 +1341,7 @@ impl Engram {
                 incoming.sort_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.as_str().cmp(b.1.as_str())));
                 incoming.dedup_by(|a, b| a.0 == b.0 && a.1 == b.1);
                 let incoming_truncated = incoming.len() > max_incoming;
-                incoming.truncate(max_incoming);
+                if node.node_type != "db_table" { incoming.truncate(max_incoming); }
 
                 // Cap+1 and explicit failures: an incomplete outgoing list
                 // must not masquerade as proof that no dependency exists.
@@ -1378,6 +1379,7 @@ impl Engram {
                         })
                         .collect();
                     let mut call_lines = std::collections::HashMap::new();
+                    let mut table_writers = std::collections::HashSet::new();
                     match graph_b.get_edges_by_endpoints(&project_id_b, &endpoints) {
                         Ok(edges) => {
                             for edge in edges {
@@ -1416,6 +1418,9 @@ impl Engram {
                                     };
                                     let mut evidence = location;
                                     if edge.edge_kind == EdgeKind::QueriesTable && let Some(access) = meta["access"].as_str() {
+                                        if matches!(access, "write" | "readwrite" | "delete") {
+                                            table_writers.insert(edge.source_id.clone());
+                                        }
                                         evidence.push_str(&format!(" [{access}]"));
                                         if let Some(operation) = meta["operation"].as_str() {
                                             evidence.push_str(&format!(" [{operation}]"));
@@ -1442,11 +1447,15 @@ impl Engram {
                             node.node_id
                         )),
                     }
+                    incoming.sort_by_key(|(id, kind, _)| !(*kind == EdgeKind::QueriesTable && table_writers.contains(id)));
+                    incoming.truncate(max_incoming);
+                    let include_mapping = ekf_b.as_ref().is_none_or(|kinds| kinds.contains(&EdgeKind::QueriesTable))
+                        && reported_mappings.insert((node.node_type.clone(), node.name.to_lowercase()));
                     results.push(NodeGraphResult {
-                        mapped_sites: if node.node_type == "db_table" && ekf_b.as_ref().is_none_or(|kinds| kinds.contains(&EdgeKind::QueriesTable)) {
+                        mapped_sites: if node.node_type == "db_table" && include_mapping {
                             crate::services::schema_query::mapped_query_sites(&graph_b, &project_id_b, &project_root, &node.name, max_incoming)
                                 .unwrap_or_else(|e| format!("DBML reader coverage unavailable: {e}\n"))
-                        } else if node.node_type == "class" && ekf_b.as_ref().is_none_or(|kinds| kinds.contains(&EdgeKind::QueriesTable)) {
+                        } else if node.node_type == "class" && include_mapping {
                             crate::services::schema_query::entity_query_sites(&graph_b,&project_id_b,&project_root,&node.name,max_incoming)
                                 .unwrap_or_else(|e| format!("DBML entity coverage unavailable: {e}\n"))
                         } else { String::new() },
@@ -1568,7 +1577,6 @@ impl Engram {
             }
 
             for nr in &graph_results {
-                out.push_str(&nr.mapped_sites);
                 if nr.constructor_reference {
                     out.push_str("Construction sites for the requested type (incoming calls to its constructor):\n");
                 }
@@ -1692,6 +1700,9 @@ impl Engram {
                 }
                 out.push('\n');
             }
+            // Keep direct references to every matching definition together before
+            // supplementary DBML reader lists consume the first report page.
+            for nr in &graph_results { out.push_str(&nr.mapped_sites); }
         }
 
         if found_in_graph {
