@@ -436,16 +436,52 @@ pub(super) fn lock_primitives(query: &str) -> Option<&'static str> {
 }
 
 /// A keyword can identify a candidate chunk, but only the statement is evidence.
-pub(super) fn lock_witness(line: &str) -> Option<usize> {
-    static HINT: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(||
-        regex::Regex::new(r"(?i)\b(?:updlock|holdlock|xlock|for\s+update|begin\s+immediate|isolation\s+level\s+serializable|isolationlevel\s*\.\s*serializable)\b").unwrap());
-    static TRANSACTION: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(||
-        regex::Regex::new(r"(?i)\b(?:BeginTransaction\s*\(|(?:new|using)\s+(?:[\w.]+\.)?TransactionScope\b)").unwrap());
-    if ["'", "//", "--", "#", "/*", "*"].iter().any(|prefix| line.trim_start().starts_with(prefix)) {
+pub(super) fn lock_witness(path: &str, line: &str) -> Option<usize> {
+    if path.to_ascii_lowercase().ends_with(".sql") {
+        return sql_lock_score(line);
+    }
+    let vb = path.to_ascii_lowercase().ends_with(".vb");
+    let tokens = engram_index::source_tokens::tokens(line, vb);
+    let embedded = tokens.iter().filter(|t| t.string).filter_map(|t| sql_lock_score(&t.text)).max();
+    // Keep literal boundaries in the token sequence. An example transaction
+    // call inside a log message cannot establish a transaction in host code.
+    let code = tokens.iter().map(|t| if t.string { "\"\"" } else { t.text.as_str() })
+        .collect::<Vec<_>>().join(" ");
+    static API: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(||
+        regex::Regex::new(r"(?i)(?:\.\s*BeginTransaction\s*\(|\bnew\s+(?:\w+\s*\.\s*)*TransactionScope\b|\bIsolationLevel\s*\.\s*Serializable\b)").unwrap());
+    embedded.max(API.is_match(&code).then_some(100))
+}
+
+fn sql_lock_score(fragment: &str) -> Option<usize> {
+    use sqlparser::{dialect::MsSqlDialect, tokenizer::{Token, Tokenizer}};
+    let tokens = Tokenizer::new(&MsSqlDialect {}, fragment).tokenize().ok()?;
+    let words: Vec<_> = tokens.into_iter().filter_map(|token| match token {
+        Token::Whitespace(_) => None,
+        Token::Word(w) if w.quote_style.is_none() => Some(w.value.to_ascii_lowercase()),
+        Token::LParen => Some("(".into()),
+        Token::RParen => Some(")".into()),
+        _ => Some("_".into()),
+    }).collect();
+    let start = words.first()?.as_str();
+    // SQL literals and comments have already been removed from keyword
+    // consideration. Also require a clause: English "ready for update" is common.
+    if words.starts_with(&["set".into(),"transaction".into(),"isolation".into(),"level".into(),"serializable".into()])
+        || words.starts_with(&["begin".into(),"immediate".into()]) {
+        return Some(110);
+    }
+    if !matches!(start, "select" | "from" | "join" | "left" | "right" | "inner" | "outer" |
+        "where" | "and" | "or" | "with" | "update" | "insert" | "delete" | "for" | "merge" | "on") {
         return None;
     }
-    let hints = HINT.find_iter(line).count();
-    (hints > 0 || TRANSACTION.is_match(line)).then_some(100 + hints * 10)
+    if words.windows(2).any(|w| w == ["for","update"])
+        && (start == "for" || words.iter().any(|w| w == "from" || w == "join")) {
+        return Some(110);
+    }
+    let hints = words.windows(2).enumerate().filter(|(_, w)| *w == ["with","("])
+        .map(|(i, _)| words[i+2..].iter().take_while(|w| *w != ")")
+            .filter(|w| matches!(w.as_str(), "updlock" | "holdlock" | "xlock")).count())
+        .max().unwrap_or(0);
+    (hints > 0).then_some(100 + hints * 10)
 }
 
 fn source_sites(
@@ -552,7 +588,7 @@ fn source_sites(
                 let (score, label) = if let Some((access, op)) = effects.get(&number) {
                     (100, format!("SQL {access}: {op}"))
                 } else if lock_query {
-                    let Some(score) = lock_witness(line) else { continue; };
+                    let Some(score) = lock_witness(path, line) else { continue; };
                     (score, "implementation candidate".into())
                 } else if is_pattern {
                     if ["'", "//", "--", "#", "/*", "*"]

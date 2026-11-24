@@ -2176,7 +2176,7 @@ impl Engram {
                 for hit in engram_index::grep::grep(&search, &pattern_root, &request, || Ok(Vec::new()))?.matches {
                     if !super::revision_source::implementation_file(&hit.file_path) { continue; }
                     let witness = hit.line_text.trim();
-                    let Some(score) = super::revision_source::lock_witness(witness) else { continue; };
+                    let Some(score) = super::revision_source::lock_witness(&hit.file_path, witness) else { continue; };
                     let best = matched.entry(hit.file_path).or_insert((0,String::new(),0));
                     if score > best.0 { *best = (score,witness.to_owned(),hit.line); }
                 }
@@ -2307,7 +2307,7 @@ impl Engram {
             per_file.into_iter().collect();
         if super::revision_source::lock_primitives(&req.pattern_query).is_some() {
             candidates.retain(|(path, _)| member_matches.get(path).is_some_and(|(_, line, _)|
-                super::revision_source::lock_witness(line).is_some()));
+                super::revision_source::lock_witness(path,line).is_some()));
         }
         if kind != PatternKind::Any {
             let kept: Vec<_> = candidates

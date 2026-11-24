@@ -86,6 +86,11 @@ def semantic_corpus(repo, rng):
         ("cs", "[System.Serializable]\npublic class Packet {}"),
         ("ts", "export function isSerializable(value: unknown) { return !!value; }"),
         ("cs", "class TransactionScopeOptions { bool IsSerializable; }"),
+        ("vb", f'Private Const Status{tag} As String = "{variant.choice(["Ready", "Waiting", "Scheduled"])} for update."'),
+        ("cs", 'logger.Info("connection.BeginTransaction()");'),
+        ("sql", f"SELECT 'FOR UPDATE' AS Info FROM {table};"),
+        ("sql", f"SELECT Id FROM {table}; -- consider using WITH (UPDLOCK)"),
+        ("vb", f'Dim sql As String = "SELECT Id FROM {table} FOR UPDATE"'),
         ("vb", "' conn.BeginTransaction(IsolationLevel.Serializable)"),
         ("sql", "-- SELECT * FROM items FOR UPDATE"),
     ]
@@ -94,7 +99,8 @@ def semantic_corpus(repo, rng):
     for i, (extension, statement) in enumerate(statements):
         path = f"sample{tag}_{i}.{extension}"
         (repo / path).write_text(statement + "\n")
-        if statement.startswith(("Dim tx", "SELECT", "SET TRANSACTION", "BEGIN IMMEDIATE")):
+        if (statement.startswith(("Dim tx", "Dim sql", "SET TRANSACTION", "BEGIN IMMEDIATE")) or
+                statement.startswith("SELECT Id") and " --" not in statement):
             lock_paths.append(path)
     readers = ["Public Class Readers"]
     for i in range(variant.randrange(80, 101)):
