@@ -134,13 +134,7 @@ impl Size {
     }
 }
 
-pub(super) fn admit_stats(
-    stats: &IngestStats,
-    budget: Option<&MemoryBudget>,
-) -> anyhow::Result<RetainedIngestOutput> {
-    if budget.is_none() {
-        return Ok(RetainedIngestOutput::default());
-    }
+fn stats_size(stats: &IngestStats) -> anyhow::Result<Size> {
     let mut size = Size::default();
     size.vector(&stats.all_files)?;
     for path in &stats.all_files {
@@ -220,5 +214,67 @@ pub(super) fn admit_stats(
             }
         }
     }
-    RetainedIngestOutput::admit(budget, size, "retained source statistics")
+    Ok(size)
+}
+
+pub(super) fn admit_stats(
+    stats: &IngestStats,
+    budget: Option<&MemoryBudget>,
+) -> anyhow::Result<RetainedIngestOutput> {
+    if budget.is_none() { return Ok(RetainedIngestOutput::default()); }
+    RetainedIngestOutput::admit(budget, stats_size(stats)?, "retained source statistics")
+}
+
+/// Batches need room for reallocation during append. After the last append,
+/// measure the surviving capacities, including spare capacity in the merged
+/// containers. Retain allocator headroom and transfer only the surplus back
+/// to the shared budget, with no gap in coverage of the owned output.
+pub(super) fn settle_stats(stats: &mut IngestStats, budget: Option<&MemoryBudget>) -> anyhow::Result<()> {
+    let Some(budget) = budget else { return Ok(()); };
+    if stats.retained_output.guards.is_empty() { return Ok(()); }
+    let mut size = stats_size(stats)?;
+    size.vector(&stats.retained_output.guards)?;
+    let retained = size.0.checked_mul(2).and_then(|n| n.checked_add(256))
+        .ok_or_else(|| anyhow::anyhow!("Final source statistics estimate overflow"))?;
+    let output = &mut stats.retained_output;
+    if retained > output.bytes {
+        let extra = AllocationGuard::try_new(budget, retained - output.bytes,
+            Subsystem::ParseBuffer, "final source statistics")?;
+        output.guards.push(extra);
+    } else {
+        let mut surplus = output.bytes - retained;
+        for guard in output.guards.iter_mut().rev() {
+            if surplus == 0 { break; }
+            surplus -= guard.release_up_to(surplus);
+        }
+        debug_assert_eq!(surplus, 0);
+    }
+    output.bytes = retained;
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn completed_merge_makes_room_for_graph_while_retaining_owned_output() -> anyhow::Result<()> {
+        let budget = MemoryBudget::new(5 * 1024 * 1024);
+        let mut stats = IngestStats::default();
+        for _ in 0..128 {
+            stats.warnings.push("x".repeat(8192));
+        }
+        stats.retained_output = admit_stats(&stats, Some(&budget))?;
+        let graph = || AllocationGuard::try_new(&budget, 2 * 1024 * 1024, Subsystem::Graph, "graph");
+        assert!(graph().is_err());
+        settle_stats(&mut stats, Some(&budget))?;
+        let guard = graph()?;
+        assert!(budget.used() >= 3 * 1024 * 1024);
+        assert!(graph().is_err());
+        drop(stats);
+        assert_eq!(budget.used(), 2 * 1024 * 1024);
+        drop(guard);
+        assert_eq!(budget.used(), 0);
+        Ok(())
+    }
 }

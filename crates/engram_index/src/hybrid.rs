@@ -3729,6 +3729,7 @@ impl HybridSearchEngine {
             );
         }
 
+        retained_output::settle_stats(&mut stats, scoped.memory_budget.as_deref())?;
         Ok(stats)
     }
 

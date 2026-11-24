@@ -1280,13 +1280,13 @@ mod tests {
 
     #[test]
     fn regex_literal_anchor_detection() {
-        assert!(regex_has_literal_anchor("abc"));
-        assert!(regex_has_literal_anchor("foo.bar"));
-        assert!(!regex_has_literal_anchor("a.b"));
-        assert!(!regex_has_literal_anchor(".*"));
-        assert!(!regex_has_literal_anchor("a|b|c"));
+        assert!(regex_anchors("abc").is_some());
+        assert!(regex_anchors("foo.bar").is_some());
+        assert!(regex_anchors("a.b").is_none());
+        assert!(regex_anchors(".*").is_none());
+        assert!(regex_anchors("a|b|c").is_none());
         // Counted quantifiers now route conservatively through Tier 2.
-        assert!(!regex_has_literal_anchor("x{1,2}abc"));
+        assert!(regex_anchors("x{1,2}abc").is_none());
     }
 
     #[test]

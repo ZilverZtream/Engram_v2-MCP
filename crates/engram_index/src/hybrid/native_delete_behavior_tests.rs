@@ -160,7 +160,7 @@ fn managed_cleanup_queued_behind_native_only_write_observes_latest_and_preserves
             index.embed_vectors_in_commit("project", &[
                 document(1, "queued-only.rs", "queued obsolete native row"),
                 document(3, "future.rs", "queued future native row"),
-            ], &cancel, None, Some(&mut ahead)).await
+            ], &cancel, None, Some(&mut ahead), false).await
         } else { Err(anyhow::anyhow!("Managed cleanup did not queue behind the writer")) };
         let stale_count = stale.count_rows(Some("path = 'queued-only.rs'".into())).await;
         let postwrite = async {
@@ -298,7 +298,7 @@ fn native_cleanup_queued_behind_real_write_uses_latest_without_moving_stale_read
         let written = if queued.is_ok() {
             // Deliberately native-only: lexical absence cannot prove native absence.
             index.embed_vectors_in_commit("project", &[document(2, "source.rs", "real queued leftover")],
-                &cancel, None, Some(&mut ahead)).await
+                &cancel, None, Some(&mut ahead), false).await
         } else {
             Err(anyhow::anyhow!("Cleanup did not queue behind the earlier writer"))
         };

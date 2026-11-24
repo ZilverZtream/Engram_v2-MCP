@@ -257,6 +257,16 @@ impl AllocationGuard {
             subsystem,
         })
     }
+
+    /// Release unused capacity without dropping the reservation for live data.
+    pub fn release_up_to(&mut self, bytes: u64) -> u64 {
+        let released = bytes.min(self.bytes);
+        if released > 0 {
+            self.bytes -= released;
+            self.budget.release(released, self.subsystem);
+        }
+        released
+    }
 }
 
 impl Drop for AllocationGuard {
